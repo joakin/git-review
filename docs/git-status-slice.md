@@ -1,12 +1,12 @@
 # Git change inventory
 
-Status: implemented in the first Git slice. Diff cards and file previews are the next slice.
+Status: implemented in the first Git slice. [Diff cards](diff-slice.md) now build on this inventory; file previews remain planned.
 
 ## User flow
 
 After choosing a folder, the main view lists staged, unstaged, and untracked files with counts. Conflicts get a separate group when present. A path with both staged and unstaged edits appears in both groups. The desktop and tablet sidebar shows the same inventory; on a phone, the sidebar opens from the project button in the top bar. The sidebar also has a Browse host folders control. Refresh changes rereads Git without changing the selected folder.
 
-Rows show state and path. They do not open a diff yet, so they are displayed as text rather than inactive buttons.
+Sidebar rows show state and path and now open the corresponding diff card. The main inventory has become the continuous card list described in [the diff slice](diff-slice.md).
 
 ## Data and API
 

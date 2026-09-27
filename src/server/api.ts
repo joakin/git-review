@@ -2,7 +2,8 @@ import type { ApprovedRoot } from "./paths.ts";
 import { AppError, listDirectory, openProject } from "./paths.ts";
 import { isRecord } from "../shared/validation.ts";
 import { readProjectStatus } from "./git-status.ts";
-import type { Project } from "../shared/api.ts";
+import { readProjectDiff } from "./git-diff.ts";
+import type { ChangeLayer, Project } from "../shared/api.ts";
 
 const maxBodyBytes = 4096;
 
@@ -47,6 +48,17 @@ function errorResponse(error: AppError): Response {
   return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
 }
 
+function oneQueryValue(url: URL, name: string): string {
+  const values = url.searchParams.getAll(name);
+  if (values.length !== 1 || values[0] === undefined) throw new AppError("invalid_request", 400, `Specify one ${name}`);
+  return values[0];
+}
+
+function changeLayer(value: string): ChangeLayer {
+  if (value === "staged" || value === "unstaged" || value === "untracked" || value === "conflict") return value;
+  throw new AppError("invalid_request", 400, "Invalid change layer");
+}
+
 export function createApiHandler(root: ApprovedRoot): (request: Request) => Promise<Response> {
   const openProjects = new Map<string, Project>();
   return (request) => handleApiRequest(request, root, openProjects);
@@ -86,6 +98,27 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       const current = await openProject(root, project.path);
       if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
       return Response.json(await readProjectStatus(current.absolutePath));
+    }
+    const diffRoute = /^\/api\/projects\/([0-9a-f]{20})\/diff$/.exec(url.pathname);
+    if (diffRoute !== null && request.method === "GET") {
+      const id = diffRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined) throw new AppError("not_found", 404, "Open this folder before requesting its diff");
+      const layer = changeLayer(oneQueryValue(url, "layer"));
+      const path = oneQueryValue(url, "path");
+      const revision = oneQueryValue(url, "revision");
+      if (path.length === 0 || path.length > 4096 || path.includes("\0") || !/^[0-9a-f]{20}$/.test(revision)) {
+        throw new AppError("invalid_request", 400, "Invalid diff request");
+      }
+      const current = await openProject(root, project.path);
+      if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const status = await readProjectStatus(current.absolutePath);
+      if (status.kind !== "git" || status.revision !== revision) return Response.json({ kind: "stale" });
+      const entry = status.entries.find((item) => item.layer === layer && item.path === path);
+      if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
+      const diff = await readProjectDiff(root, current, entry);
+      const after = await readProjectStatus(current.absolutePath);
+      return Response.json(after.kind === "git" && after.revision === revision ? diff : { kind: "stale" });
     }
     throw new AppError("not_found", 404, "API route was not found");
   } catch (error: unknown) {

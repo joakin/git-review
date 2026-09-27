@@ -44,7 +44,7 @@ export function validateRelativePath(value: unknown): string {
   return value;
 }
 
-function isWithinRoot(root: string, candidate: string): boolean {
+export function isWithinRoot(root: string, candidate: string): boolean {
   const pathFromRoot = relative(root, candidate);
   return pathFromRoot === "" || (pathFromRoot !== ".." && !pathFromRoot.startsWith(`..${sep}`) && !isAbsolute(pathFromRoot));
 }

@@ -36,6 +36,29 @@ export type ProjectStatus =
   | { kind: "not_git" }
   | { kind: "git"; revision: string; entries: ChangeEntry[] };
 
+export type DiffLine = {
+  kind: "context" | "added" | "removed";
+  oldLine: number | null;
+  newLine: number | null;
+  text: string;
+  noNewlineAtEnd: boolean;
+};
+
+export type DiffHunk = {
+  oldStart: number;
+  oldCount: number;
+  newStart: number;
+  newCount: number;
+  lines: DiffLine[];
+};
+
+export type DiffResult =
+  | { kind: "text"; hunks: DiffHunk[] }
+  | { kind: "binary"; reason: "binary" | "symlink" | "submodule" }
+  | { kind: "too_large" }
+  | { kind: "conflict" }
+  | { kind: "stale" };
+
 export type ApiErrorCode = "invalid_request" | "forbidden" | "not_found" | "internal_error";
 
 export type ApiError = {
@@ -74,8 +97,10 @@ export function parseDirectoryResponse(value: unknown): DirectoryListing {
 export function parseProjectResponse(value: unknown): Project {
   const outer = expectRecord(value, "server response");
   const project = expectRecord(outer["project"], "project");
+  const id = expectString(project["id"], "project.id");
+  if (!/^[0-9a-f]{20}$/.test(id)) throw new Error("Expected a valid project ID");
   return {
-    id: expectString(project["id"], "project.id"),
+    id,
     name: expectString(project["name"], "project.name"),
     path: expectString(project["path"], "project.path"),
     absolutePath: expectString(project["absolutePath"], "project.absolutePath"),
@@ -118,6 +143,70 @@ export function parseStatusResponse(value: unknown): ProjectStatus {
   return { kind: "git", revision, entries };
 }
 
+export function parseDiffResponse(value: unknown): DiffResult {
+  const outer = expectRecord(value, "diff response");
+  switch (outer["kind"]) {
+    case "stale": return { kind: "stale" };
+    case "too_large": return { kind: "too_large" };
+    case "conflict": return { kind: "conflict" };
+    case "binary": {
+      const reason = outer["reason"];
+      if (reason !== "binary" && reason !== "symlink" && reason !== "submodule") throw new Error("Expected a binary file reason");
+      return { kind: "binary", reason };
+    }
+    case "text": {
+      const rawHunks = outer["hunks"];
+      if (!Array.isArray(rawHunks) || rawHunks.length > 2000) throw new Error("Expected bounded diff hunks");
+      let totalLines = 0;
+      const hunks: DiffHunk[] = rawHunks.map((rawHunk: unknown) => {
+        const hunk = expectRecord(rawHunk, "diff hunk");
+        const rawLines = hunk["lines"];
+        if (!Array.isArray(rawLines) || rawLines.length > 20_000) throw new Error("Expected bounded diff lines");
+        totalLines += rawLines.length;
+        if (totalLines > 20_000) throw new Error("Expected bounded diff lines");
+        const lines: DiffLine[] = rawLines.map((rawLine: unknown) => {
+          const line = expectRecord(rawLine, "diff line");
+          const kind = line["kind"];
+          if (kind !== "context" && kind !== "added" && kind !== "removed") throw new Error("Expected a diff line kind");
+          const oldLine = line["oldLine"] === null ? null : expectNonNegativeInteger(line["oldLine"], "old line number");
+          const newLine = line["newLine"] === null ? null : expectNonNegativeInteger(line["newLine"], "new line number");
+          if (oldLine === 0 || newLine === 0) throw new Error("Expected positive diff line numbers");
+          if ((kind === "added" && (oldLine !== null || newLine === null)) ||
+              (kind === "removed" && (newLine !== null || oldLine === null)) ||
+              (kind === "context" && (oldLine === null || newLine === null))) {
+            throw new Error("Expected line numbers matching the diff line kind");
+          }
+          if (typeof line["noNewlineAtEnd"] !== "boolean") throw new Error("Expected a newline marker");
+          return {
+            kind,
+            oldLine,
+            newLine,
+            text: expectString(line["text"], "diff line text"),
+            noNewlineAtEnd: line["noNewlineAtEnd"],
+          };
+        });
+        const oldStart = expectNonNegativeInteger(hunk["oldStart"], "old hunk start");
+        const oldCount = expectNonNegativeInteger(hunk["oldCount"], "old hunk count");
+        const newStart = expectNonNegativeInteger(hunk["newStart"], "new hunk start");
+        const newCount = expectNonNegativeInteger(hunk["newCount"], "new hunk count");
+        if (lines.filter((line) => line.kind !== "added").length !== oldCount ||
+            lines.filter((line) => line.kind !== "removed").length !== newCount) {
+          throw new Error("Diff hunk counts do not match its lines");
+        }
+        return {
+          oldStart,
+          oldCount,
+          newStart,
+          newCount,
+          lines,
+        };
+      });
+      return { kind: "text", hunks };
+    }
+    default: throw new Error("Expected a diff response kind");
+  }
+}
+
 export function parseApiError(value: unknown): ApiError | null {
   try {
     const outer = expectRecord(value, "server response");
@@ -135,4 +224,4 @@ export function parseApiError(value: unknown): ApiError | null {
   }
   return null;
 }
-import { expectRecord, expectString } from "./validation.ts";
+import { expectNonNegativeInteger, expectRecord, expectString } from "./validation.ts";

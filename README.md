@@ -1,6 +1,6 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, then inspect its staged, unstaged, untracked, and conflicted file inventory. The selected folder survives reload. File diffs, browsing, comments, search, and voice transcription are planned in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory slice](docs/git-status-slice.md) for current behavior and the [diff-card proposal](docs/diff-slice-proposal.md) for the next reviewable step.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, then review staged, unstaged, and untracked changes in expandable diff cards. The selected folder, code wrapping, and open cards survive reload. Syntax highlighting, browsing, comments, search, and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory](docs/git-status-slice.md) and [diff card](docs/diff-slice.md) documents for current behavior.
 
 ## Run the app
 
@@ -26,6 +26,7 @@ bun run typecheck
 bun run test
 bun run qa:check
 bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
+bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:capture --url http://127.0.0.1:3000/ --label <milestone>
 ```
 

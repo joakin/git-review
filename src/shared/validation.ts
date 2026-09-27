@@ -13,6 +13,13 @@ export function expectString(value: unknown, label: string): string {
   return value;
 }
 
+export function expectNonNegativeInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Expected ${label} to be a nonnegative integer`);
+  }
+  return value;
+}
+
 export function hasErrorCode(error: unknown, code: string): boolean {
   return isRecord(error) && error["code"] === code;
 }

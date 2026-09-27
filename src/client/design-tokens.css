@@ -102,6 +102,10 @@
   --color-change-unstaged: #a26425;
   --color-change-untracked: #45729a;
   --color-change-conflict: #a8453b;
+  --color-diff-added-bg: #e9f7ef;
+  --color-diff-removed-bg: #fff0ed;
+  --color-diff-hunk-bg: #edf3f5;
+  --color-diff-gutter: #718790;
 
   /* Composed effects */
   --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, var(--color-mint-deep) 0%, transparent 100%), var(--color-canvas);

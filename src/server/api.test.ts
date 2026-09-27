@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rename, rm, symlink } from "node:fs/promises";
+import { mkdtemp, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { parseProjectResponse } from "../shared/api.ts";
+import { parseDiffResponse, parseProjectResponse, parseStatusResponse } from "../shared/api.ts";
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
@@ -28,7 +28,20 @@ test("status access requires an opened folder and rechecks its approved path", a
     const url = `http://localhost/api/projects/${project.id}/status`;
     const current = await handle(new Request(url));
     expect(current.status).toBe(200);
-    expect((await current.json() as { kind: string }).kind).toBe("git");
+    const cleanStatus = parseStatusResponse(await current.json() as unknown);
+    expect(cleanStatus.kind).toBe("git");
+    if (cleanStatus.kind !== "git") throw new Error("Expected Git status");
+
+    await writeFile(join(projectPath, "new.txt"), "first\n");
+    const changedStatus = parseStatusResponse(await (await handle(new Request(url))).json() as unknown);
+    if (changedStatus.kind !== "git") throw new Error("Expected Git status");
+    const diffUrl = new URL(`http://localhost/api/projects/${project.id}/diff`);
+    diffUrl.search = new URLSearchParams({ layer: "untracked", path: "new.txt", revision: changedStatus.revision }).toString();
+    expect(parseDiffResponse(await (await handle(new Request(diffUrl))).json() as unknown).kind).toBe("text");
+    diffUrl.search = new URLSearchParams({ layer: "untracked", path: "other.txt", revision: changedStatus.revision }).toString();
+    expect((await handle(new Request(diffUrl))).status).toBe(404);
+    diffUrl.search = new URLSearchParams({ layer: "untracked", path: "new.txt", revision: cleanStatus.revision }).toString();
+    expect(parseDiffResponse(await (await handle(new Request(diffUrl))).json() as unknown)).toEqual({ kind: "stale" });
 
     await rename(projectPath, join(rootPath, "moved"));
     await symlink(outsidePath, projectPath);

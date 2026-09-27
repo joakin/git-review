@@ -1,10 +1,13 @@
 import {
   parseApiError,
   parseDirectoryResponse,
+  parseDiffResponse,
   parseProjectResponse,
   parseRootResponse,
   parseStatusResponse,
   type DirectoryListing,
+  type DiffResult,
+  type ChangeLayer,
   type Project,
   type RootInfo,
   type ProjectStatus,
@@ -47,4 +50,10 @@ export async function openProject(path: string, signal: AbortSignal): Promise<Pr
 export async function fetchProjectStatus(id: string, signal: AbortSignal): Promise<ProjectStatus> {
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, { signal });
   return parseStatusResponse(await responseBody(response));
+}
+
+export async function fetchProjectDiff(id: string, layer: ChangeLayer, path: string, revision: string, signal: AbortSignal): Promise<DiffResult> {
+  const query = new URLSearchParams({ layer, path, revision });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, { signal });
+  return parseDiffResponse(await responseBody(response));
 }

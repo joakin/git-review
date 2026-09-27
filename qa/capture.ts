@@ -7,6 +7,7 @@ type CaptureOptions = {
   label: string;
   ready: string | null;
   click: string | null;
+  afterClickReady: string | null;
   fullPage: boolean;
   storageState: string | null;
 };
@@ -33,6 +34,7 @@ const usage = `Usage: bun run qa:capture --url <http(s) URL> --label <milestone>
 Options:
   --ready <CSS selector>  Wait for a visible element before each screenshot
   --click <CSS selector>  Click one control after the page is ready
+  --after-click-ready <CSS selector> Wait for content after the click
   --storage-state <file> Use a saved Playwright browser state for every viewport
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
@@ -55,6 +57,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let label: string | null = null;
   let ready: string | null = null;
   let click: string | null = null;
+  let afterClickReady: string | null = null;
   let fullPage = false;
   let storageState: string | null = null;
 
@@ -75,6 +78,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         break;
       case "--click":
         click = readValue(args, index, flag);
+        index += 1;
+        break;
+      case "--after-click-ready":
+        afterClickReady = readValue(args, index, flag);
         index += 1;
         break;
       case "--storage-state":
@@ -106,7 +113,8 @@ function parseArgs(args: readonly string[]): ParsedArgs {
     throw new Error("--url must use HTTP or HTTPS");
   }
 
-  return { kind: "capture", options: { url, label, ready, click, fullPage, storageState } };
+  if (afterClickReady !== null && click === null) throw new Error("--after-click-ready requires --click");
+  return { kind: "capture", options: { url, label, ready, click, afterClickReady, fullPage, storageState } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -145,6 +153,9 @@ async function capture(options: CaptureOptions): Promise<void> {
           await page.locator(options.ready).waitFor({ state: "visible", timeout: 15_000 });
         }
         if (options.click !== null) await page.locator(options.click).click();
+        if (options.afterClickReady !== null) {
+          await page.locator(options.afterClickReady).waitFor({ state: "visible", timeout: 15_000 });
+        }
         await page.evaluate(async () => document.fonts.ready);
 
         const widths = await page.evaluate(() => ({

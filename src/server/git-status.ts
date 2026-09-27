@@ -1,31 +1,32 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { posix } from "node:path";
 import type { ChangeEntry, ChangeKind, ProjectStatus } from "../shared/api.ts";
 
 const maxOutputBytes = 8 * 1024 * 1024;
 const gitTimeoutMs = 10_000;
 
-class GitCommandError extends Error {
-  constructor(readonly stderr: string, readonly exitCode: number | null) {
+export class GitCommandError extends Error {
+  constructor(readonly stderr: string, readonly code: number | string | null) {
     super(stderr || "Git could not read this folder");
   }
 }
 
-function runGit(cwd: string, args: readonly string[]): Promise<Buffer> {
+export function runGit(cwd: string, args: readonly string[], maxBytes = maxOutputBytes): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     execFile(
       "git",
-      ["-c", "core.fsmonitor=false", ...args],
+      ["--literal-pathspecs", "-c", "core.fsmonitor=false", ...args],
       {
         cwd,
         encoding: "buffer",
-        maxBuffer: maxOutputBytes,
+        maxBuffer: maxBytes,
         timeout: gitTimeoutMs,
         env: { ...process.env, LC_ALL: "C", GIT_OPTIONAL_LOCKS: "0" },
       },
       (error, stdout, stderr) => {
         if (error !== null) {
-          reject(new GitCommandError(stderr.toString("utf8").trim(), typeof error.code === "number" ? error.code : null));
+          reject(new GitCommandError(stderr.toString("utf8").trim(), error.code ?? null));
           return;
         }
         resolve(stdout);
@@ -142,7 +143,7 @@ export function parsePorcelainStatus(output: Buffer): ChangeEntry[] {
     const stagedKind = kindFor(xy[0] ?? "");
     const unstagedKind = kindFor(xy[1] ?? "");
     if (stagedKind !== null) entries.push({ layer: "staged", kind: stagedKind, path, oldPath, isSubmodule });
-    if (unstagedKind !== null) entries.push({ layer: "unstaged", kind: unstagedKind, path, oldPath: null, isSubmodule });
+    if (unstagedKind !== null) entries.push({ layer: "unstaged", kind: unstagedKind, path, oldPath: unstagedKind === "renamed" || unstagedKind === "copied" ? oldPath : null, isSubmodule });
   }
   return entries;
 }
@@ -152,7 +153,7 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectSta
   try {
     insideWorkTree = await runGit(projectPath, ["rev-parse", "--is-inside-work-tree"]);
   } catch (error: unknown) {
-    if (error instanceof GitCommandError && error.exitCode === 128 && error.stderr.includes("not a git repository")) {
+    if (error instanceof GitCommandError && error.code === 128 && error.stderr.includes("not a git repository")) {
       return { kind: "not_git" };
     }
     throw error;
@@ -170,7 +171,7 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectSta
     return {
       ...entry,
       path: entry.path.slice(prefix.length),
-      oldPath: entry.oldPath !== null && entry.oldPath.startsWith(prefix) ? entry.oldPath.slice(prefix.length) : entry.oldPath,
+      oldPath: entry.oldPath === null ? null : posix.relative(prefix === "" ? "." : prefix.slice(0, -1), entry.oldPath),
     };
   });
   return {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { fetchDirectory, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
-import { emptyWorkspace, readSavedWorkspace, saveWorkspace, withSelectedPath, type SavedWorkspace } from "./storage.ts";
+import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
+import { emptyWorkspace, readOpenCards, readSavedWorkspace, readWrapPreference, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
 
 type LoadState<T> =
@@ -24,21 +25,21 @@ const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
   { key: "untracked", label: "Untracked" },
 ];
 
-function ChangeGroups({ entries, compact }: { entries: readonly ChangeEntry[]; compact: boolean }) {
-  return <div class={compact ? "change-groups change-groups-compact" : "change-groups"}>
+function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; onSelect: (entry: ChangeEntry) => void }) {
+  return <div class="change-groups change-groups-compact">
     {changeLayers.map(({ key, label }) => {
       const group = entries.filter((entry) => entry.layer === key);
       if (key === "conflict" && group.length === 0) return null;
       return <section class={`change-group change-group-${key}`} key={key}>
         <h2><span>{label}</span><span class="change-count">{group.length}</span></h2>
         {group.length === 0 ? <p class="change-empty">No {label.toLowerCase()} files</p> : <ul>
-          {group.map((entry) => <li key={`${entry.layer}:${entry.path}`}>
+          {group.map((entry) => <li key={diffCardKey(entry)}><button class="change-row-button" type="button" onClick={() => onSelect(entry)} aria-label={`Open ${entry.layer} diff for ${entry.path}`}>
             <span class={`change-mark change-mark-${entry.kind}`} aria-hidden="true">{entry.kind === "conflicted" ? "!" : entry.kind === "deleted" ? "−" : entry.kind === "added" ? "+" : "•"}</span>
             <span class="change-file">
               <strong title={entry.path}>{entry.path}</strong>
               <small><span class="change-kind">{entry.kind.replace("_", " ")}</span>{entry.oldPath === null ? "" : ` from ${entry.oldPath}`}{entry.isSubmodule ? " · submodule" : ""}</small>
             </span>
-          </li>)}
+          </button></li>)}
         </ul>}
       </section>;
     })}
@@ -53,6 +54,9 @@ export function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+  const [wrapCode, setWrapCode] = useState(readWrapPreference);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<"folders" | "changes">("folders");
   const [opening, setOpening] = useState(false);
@@ -72,6 +76,7 @@ export function App() {
           const selected = await openProject(restored.activePath, controller.signal);
           if (controller.signal.aborted) return;
           setProject(selected);
+          setExpandedKeys(readOpenCards(selected.id));
           setPath(selected.path);
           setSidebarMode("changes");
         } catch {
@@ -104,10 +109,16 @@ export function App() {
   useEffect(() => {
     if (project === null) return;
     const controller = new AbortController();
-    setStatus({ kind: "loading" });
+    setRefreshing(true);
     fetchProjectStatus(project.id, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) setStatus({ kind: "ready", value }); },
-      (error: unknown) => { if (!controller.signal.aborted) setStatus({ kind: "error", message: messageFor(error) }); },
+      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setRefreshing(false); } },
+      (error: unknown) => {
+        if (controller.signal.aborted) return;
+        const message = messageFor(error);
+        setStatus((current) => current.kind === "ready" ? current : { kind: "error", message });
+        setNotice(message);
+        setRefreshing(false);
+      },
     );
     return () => controller.abort();
   }, [project, statusRefresh]);
@@ -121,6 +132,10 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [drawerOpen]);
 
+  useEffect(() => {
+    if (project !== null) saveOpenCards(project.id, expandedKeys);
+  }, [project, expandedKeys]);
+
   async function selectFolder(selectedPath: string): Promise<void> {
     if (opening) return;
     if (root.kind !== "ready") {
@@ -131,7 +146,9 @@ export function App() {
     setNotice(null);
     try {
       const selected = await openProject(selectedPath, new AbortController().signal);
+      setStatus({ kind: "loading" });
       setProject(selected);
+      setExpandedKeys(readOpenCards(selected.id));
       setPath(selected.path);
       setSidebarMode("changes");
       setDrawerOpen(false);
@@ -148,8 +165,37 @@ export function App() {
     }
   }
 
+  function toggleEntry(entry: ChangeEntry): void {
+    const key = diffCardKey(entry);
+    setExpandedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function selectEntry(entry: ChangeEntry): void {
+    const key = diffCardKey(entry);
+    setExpandedKeys((current) => new Set(current).add(key));
+    setDrawerOpen(false);
+    requestAnimationFrame(() => {
+      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
+      document.getElementById(diffCardId(entry))?.scrollIntoView({ behavior, block: "start" });
+    });
+  }
+
+  function toggleWrap(): void {
+    setWrapCode((current) => {
+      const next = !current;
+      saveWrapPreference(next);
+      return next;
+    });
+  }
+
   const rootLabel = root.kind === "ready" ? root.value.label : "Host folders";
   const folderLabel = listing.kind === "ready" ? shortName(listing.value.path) : shortName(path);
+  const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
 
   return (
     <div class="app">
@@ -184,7 +230,7 @@ export function App() {
             {status.kind === "loading" && <p class="sidebar-message">Reading Git changes…</p>}
             {status.kind === "error" && <p class="sidebar-error" role="alert">{status.message}</p>}
             {status.kind === "ready" && status.value.kind === "not_git" && <p class="sidebar-message">This folder is not a Git worktree.</p>}
-            {status.kind === "ready" && status.value.kind === "git" && <ChangeGroups entries={status.value.entries} compact />}
+            {gitStatus !== null && <ChangeGroups entries={gitStatus.entries} onSelect={selectEntry} />}
           </div> : <>
 
           <div class="root-card">
@@ -268,16 +314,36 @@ export function App() {
                 <p class="project-path">{project.absolutePath}</p>
               </div>
               <div class="changes-heading">
-                <div><p class="eyebrow">GIT INVENTORY</p><h2>Changed files</h2></div>
-                <button type="button" onClick={() => setStatusRefresh((value) => value + 1)}>Refresh changes</button>
+                <div><p class="eyebrow">GIT REVIEW</p><h2>Changed files</h2></div>
+                <div class="changes-actions">
+                  <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
+                  <button type="button" disabled={refreshing} onClick={() => setStatusRefresh((value) => value + 1)}>{refreshing ? "Refreshing…" : "Refresh"}</button>
+                </div>
               </div>
               {status.kind === "loading" && <p class="status-message">Reading Git changes…</p>}
               {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
               {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. File browsing will be available in a later slice.</p>}
-              {status.kind === "ready" && status.value.kind === "git" && <>
-                {status.value.entries.length === 0 && <p class="status-message">No changes in this folder.</p>}
-                <ChangeGroups entries={status.value.entries} compact={false} />
-                <p class="changes-footnote">Open a file and inspect its diff in the next slice.</p>
+              {gitStatus !== null && <>
+                {gitStatus.entries.length === 0 && <p class="status-message">No changes in this folder.</p>}
+                <div class="diff-groups">
+                  {changeLayers.map(({ key, label }) => {
+                    const group = gitStatus.entries.filter((entry) => entry.layer === key);
+                    if (key === "conflict" && group.length === 0) return null;
+                    return <section class={`diff-section diff-section-${key}`} key={key}>
+                      <h3><span>{label}</span><span class="change-count">{group.length}</span></h3>
+                      {group.length === 0 ? <p class="diff-section-empty">No {label.toLowerCase()} files</p> : group.map((entry) => <DiffCard
+                        key={diffCardKey(entry)}
+                        entry={entry}
+                        projectId={project.id}
+                        revision={gitStatus.revision}
+                        expanded={expandedKeys.has(diffCardKey(entry))}
+                        wrap={wrapCode}
+                        onToggle={() => toggleEntry(entry)}
+                        onStale={() => setStatusRefresh((value) => value + 1)}
+                      />)}
+                    </section>;
+                  })}
+                </div>
               </>}
             </div>
           )}
