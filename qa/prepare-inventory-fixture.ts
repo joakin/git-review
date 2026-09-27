@@ -27,5 +27,6 @@ git("mv", "docs/old name.md", "docs/new name.md");
 git("rm", "-q", "src/deleted.ts");
 await writeFile(resolve(fixture, "src/new feature.ts"), "export const newFeature = true;\n");
 await writeFile(resolve(fixture, "src/long-line.ts"), `export const longLine = "${"0123456789abcdef".repeat(24)}";\n`);
+await writeFile(resolve(fixture, "src/math.c"), "int main(void) { return 0; }\n");
 
 console.log(`Inventory fixture ready: ${fixture}`);

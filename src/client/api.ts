@@ -2,6 +2,7 @@ import {
   parseApiError,
   parseDirectoryResponse,
   parseDiffResponse,
+  parseLanguagesResponse,
   parseProjectResponse,
   parseRootResponse,
   parseStatusResponse,
@@ -11,6 +12,7 @@ import {
   type Project,
   type RootInfo,
   type ProjectStatus,
+  type LanguageOption,
 } from "../shared/api.ts";
 
 async function responseBody(response: Response): Promise<unknown> {
@@ -52,8 +54,14 @@ export async function fetchProjectStatus(id: string, signal: AbortSignal): Promi
   return parseStatusResponse(await responseBody(response));
 }
 
-export async function fetchProjectDiff(id: string, layer: ChangeLayer, path: string, revision: string, signal: AbortSignal): Promise<DiffResult> {
+export async function fetchLanguages(signal: AbortSignal): Promise<LanguageOption[]> {
+  const response = await fetch("/api/languages", { signal });
+  return parseLanguagesResponse(await responseBody(response));
+}
+
+export async function fetchProjectDiff(id: string, layer: ChangeLayer, path: string, revision: string, language: string | null, signal: AbortSignal): Promise<DiffResult> {
   const query = new URLSearchParams({ layer, path, revision });
+  if (language !== null) query.set("language", language);
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, { signal });
   return parseDiffResponse(await responseBody(response));
 }

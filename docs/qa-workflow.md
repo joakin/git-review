@@ -26,6 +26,7 @@ For the foundation picker, `bun run qa:foundation --url http://127.0.0.1:3000/ -
 For inventory screenshots, run `bun run qa:fixture` once to create `qa/.artifacts/inventory-fixture` with staged, unstaged, and untracked changes. Start the app with `--root "$PWD/qa/.artifacts"`, run `qa:foundation` with `--folder inventory-fixture`, then pass its saved browser state to `qa:capture`. The fixture script refuses to overwrite an existing fixture; remove that ignored folder yourself when you need a fresh one.
 
 Run `bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture` against that fixture to check a phone flow through the file drawer, staged diff rows, wrap persistence, open-card persistence, and contained horizontal scrolling.
+The same command checks C syntax tokens and a language override saved across reload. [Syntax screenshots](../qa/screenshots/syntax-c-diff/mobile.png) show the expanded C card at all four capture sizes.
 
 The capture exits nonzero for page load failures or page-wide horizontal overflow. A horizontally scrolling **code pane** is allowed; the document itself should fit the viewport. Inspect the images rather than relying solely on the overflow check. Link useful screenshots in the human handoff. Generated test traces and temporary files belong in `qa/.artifacts/`; curated milestone screenshots remain under `qa/screenshots/`.
 

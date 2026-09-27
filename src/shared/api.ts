@@ -41,8 +41,14 @@ export type DiffLine = {
   oldLine: number | null;
   newLine: number | null;
   text: string;
+  tokens: SyntaxToken[];
   noNewlineAtEnd: boolean;
 };
+
+export type SyntaxRole = "plain" | "comment" | "keyword" | "string" | "number" | "type" | "function" | "variable" | "property" | "operator" | "punctuation" | "tag" | "attribute";
+export type SyntaxToken = { text: string; role: SyntaxRole };
+export type SyntaxState = { kind: "highlighted"; language: string } | { kind: "plain"; reason: "unknown_language" | "selected" | "unavailable" };
+export type LanguageOption = { id: string; name: string };
 
 export type DiffHunk = {
   oldStart: number;
@@ -53,7 +59,7 @@ export type DiffHunk = {
 };
 
 export type DiffResult =
-  | { kind: "text"; hunks: DiffHunk[] }
+  | { kind: "text"; syntax: SyntaxState; hunks: DiffHunk[] }
   | { kind: "binary"; reason: "binary" | "symlink" | "submodule" }
   | { kind: "too_large" }
   | { kind: "conflict" }
@@ -155,9 +161,21 @@ export function parseDiffResponse(value: unknown): DiffResult {
       return { kind: "binary", reason };
     }
     case "text": {
+      const rawSyntax = expectRecord(outer["syntax"], "syntax state");
+      let syntax: SyntaxState;
+      if (rawSyntax["kind"] === "highlighted") {
+        const language = expectString(rawSyntax["language"], "syntax language");
+        if (language.length === 0 || language.length > 80) throw new Error("Expected a valid syntax language");
+        syntax = { kind: "highlighted", language };
+      } else if (rawSyntax["kind"] === "plain") {
+        const reason = rawSyntax["reason"];
+        if (reason !== "unknown_language" && reason !== "selected" && reason !== "unavailable") throw new Error("Expected a plain syntax reason");
+        syntax = { kind: "plain", reason };
+      } else throw new Error("Expected a syntax state");
       const rawHunks = outer["hunks"];
       if (!Array.isArray(rawHunks) || rawHunks.length > 2000) throw new Error("Expected bounded diff hunks");
       let totalLines = 0;
+      let totalTokens = 0;
       const hunks: DiffHunk[] = rawHunks.map((rawHunk: unknown) => {
         const hunk = expectRecord(rawHunk, "diff hunk");
         const rawLines = hunk["lines"];
@@ -177,11 +195,27 @@ export function parseDiffResponse(value: unknown): DiffResult {
             throw new Error("Expected line numbers matching the diff line kind");
           }
           if (typeof line["noNewlineAtEnd"] !== "boolean") throw new Error("Expected a newline marker");
+          const lineText = expectString(line["text"], "diff line text");
+          const rawTokens = line["tokens"];
+          if (!Array.isArray(rawTokens) || rawTokens.length > 20_000) throw new Error("Expected bounded syntax tokens");
+          totalTokens += rawTokens.length;
+          if (totalTokens > 100_000) throw new Error("Expected bounded syntax tokens");
+          const tokens: SyntaxToken[] = rawTokens.map((rawToken: unknown) => {
+            const token = expectRecord(rawToken, "syntax token");
+            const text = expectString(token["text"], "token text");
+            const role = token["role"];
+            if (role !== "plain" && role !== "comment" && role !== "keyword" && role !== "string" && role !== "number" && role !== "type" && role !== "function" && role !== "variable" && role !== "property" && role !== "operator" && role !== "punctuation" && role !== "tag" && role !== "attribute") {
+              throw new Error("Expected a valid syntax role");
+            }
+            return { text, role };
+          });
+          if (tokens.map((token) => token.text).join("") !== lineText) throw new Error("Syntax tokens do not match their source line");
           return {
             kind,
             oldLine,
             newLine,
-            text: expectString(line["text"], "diff line text"),
+            text: lineText,
+            tokens,
             noNewlineAtEnd: line["noNewlineAtEnd"],
           };
         });
@@ -201,10 +235,25 @@ export function parseDiffResponse(value: unknown): DiffResult {
           lines,
         };
       });
-      return { kind: "text", hunks };
+      return { kind: "text", syntax, hunks };
     }
     default: throw new Error("Expected a diff response kind");
   }
+}
+
+export function parseLanguagesResponse(value: unknown): LanguageOption[] {
+  const outer = expectRecord(value, "languages response");
+  const rawLanguages = outer["languages"];
+  if (!Array.isArray(rawLanguages) || rawLanguages.length > 500) throw new Error("Expected bounded languages");
+  const seen = new Set<string>();
+  return rawLanguages.map((raw: unknown) => {
+    const entry = expectRecord(raw, "language");
+    const id = expectString(entry["id"], "language ID");
+    const name = expectString(entry["name"], "language name");
+    if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(id) || name.length === 0 || name.length > 100 || seen.has(id)) throw new Error("Expected a valid language");
+    seen.add(id);
+    return { id, name };
+  });
 }
 
 export function parseApiError(value: unknown): ApiError | null {

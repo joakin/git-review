@@ -1,6 +1,6 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, then review staged, unstaged, and untracked changes in expandable diff cards. The selected folder, code wrapping, and open cards survive reload. Syntax highlighting, browsing, comments, search, and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory](docs/git-status-slice.md) and [diff card](docs/diff-slice.md) documents for current behavior.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, then review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards. The selected folder, code wrapping, open cards, and per-file language overrides survive reload. Browsing, comments, search, and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), and [syntax highlighting](docs/syntax-highlighting-slice.md) documents for current behavior.
 
 ## Run the app
 

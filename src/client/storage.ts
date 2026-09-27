@@ -1,6 +1,7 @@
 const key = "git-review:workspace:v2";
 const wrapKey = "git-review:wrap:v1";
 const openCardsKey = "git-review:open-cards:v1:";
+const languageKey = "git-review:language:v1:";
 const maxRecent = 8;
 const maxOpenCards = 100;
 
@@ -106,6 +107,25 @@ export function readOpenCards(projectId: string): Set<string> {
 export function saveOpenCards(projectId: string, keys: ReadonlySet<string>): void {
   try {
     localStorage.setItem(`${openCardsKey}${projectId}`, JSON.stringify({ version: 1, keys: [...keys].slice(0, maxOpenCards) }));
+  } catch {
+    // The app remains usable when storage is unavailable.
+  }
+}
+
+export function readLanguageOverride(projectId: string, path: string): string | null {
+  try {
+    const value = localStorage.getItem(`${languageKey}${projectId}:${encodeURIComponent(path)}`);
+    return value !== null && (value === "text" || /^[a-z0-9][a-z0-9-]{0,79}$/.test(value)) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLanguageOverride(projectId: string, path: string, language: string | null): void {
+  try {
+    const storageKey = `${languageKey}${projectId}:${encodeURIComponent(path)}`;
+    if (language === null) localStorage.removeItem(storageKey);
+    else localStorage.setItem(storageKey, language);
   } catch {
     // The app remains usable when storage is unavailable.
   }

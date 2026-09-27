@@ -72,14 +72,23 @@ async function main(): Promise<void> {
         throw new Error(`Code did not scroll inside its pane: ${JSON.stringify(widths)}`);
       }
 
+      const cCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/math.c"]');
+      await cCard.locator(".diff-card-toggle").click();
+      await cCard.locator(".syntax-token-type").first().waitFor({ state: "visible" });
+      const languageSelect = cCard.getByLabel("Language");
+      await languageSelect.selectOption("cpp");
+      await cCard.locator(".diff-language-row > span").getByText("cpp").waitFor({ state: "visible" });
+
       await page.reload({ waitUntil: "load" });
       await page.getByRole("button", { name: "Wrap: off" }).waitFor({ state: "visible" });
       await longCard.locator(".diff-row").waitFor({ state: "visible" });
       if ((await longCard.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true") {
         throw new Error("The expanded card was not restored after reload");
       }
+      await cCard.locator(".diff-row").waitFor({ state: "visible" });
+      if (await cCard.getByLabel("Language").inputValue() !== "cpp") throw new Error("Language override was not restored after reload");
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      console.log("Mobile diff navigation, staged content, wrap, horizontal containment, and reload passed.");
+      console.log("Mobile diff navigation, staged content, C highlighting, language override, wrap, horizontal containment, and reload passed.");
     } finally {
       await context.close();
     }

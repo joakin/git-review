@@ -3,6 +3,7 @@ import { AppError, listDirectory, openProject } from "./paths.ts";
 import { isRecord } from "../shared/validation.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { readProjectDiff } from "./git-diff.ts";
+import { languageOverride, languages } from "./syntax.ts";
 import type { ChangeLayer, Project } from "../shared/api.ts";
 
 const maxBodyBytes = 4096;
@@ -75,6 +76,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
     if (url.pathname === "/api/roots" && request.method === "GET") {
       return Response.json({ root: root.info });
     }
+    if (url.pathname === "/api/languages" && request.method === "GET") return Response.json({ languages });
     if (url.pathname === "/api/directories" && request.method === "GET") {
       const paths = url.searchParams.getAll("path");
       if (paths.length !== 1) throw new AppError("invalid_request", 400, "Specify one folder path");
@@ -107,6 +109,10 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       const layer = changeLayer(oneQueryValue(url, "layer"));
       const path = oneQueryValue(url, "path");
       const revision = oneQueryValue(url, "revision");
+      const requestedLanguages = url.searchParams.getAll("language");
+      if (requestedLanguages.length > 1) throw new AppError("invalid_request", 400, "Specify one language override");
+      const requestedLanguage = requestedLanguages[0] ?? null;
+      if (requestedLanguage !== null && languageOverride(requestedLanguage) === null) throw new AppError("invalid_request", 400, "Invalid language override");
       if (path.length === 0 || path.length > 4096 || path.includes("\0") || !/^[0-9a-f]{20}$/.test(revision)) {
         throw new AppError("invalid_request", 400, "Invalid diff request");
       }
@@ -116,7 +122,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       if (status.kind !== "git" || status.revision !== revision) return Response.json({ kind: "stale" });
       const entry = status.entries.find((item) => item.layer === layer && item.path === path);
       if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
-      const diff = await readProjectDiff(root, current, entry);
+      const diff = await readProjectDiff(root, current, entry, requestedLanguage);
       const after = await readProjectStatus(current.absolutePath);
       return Response.json(after.kind === "git" && after.revision === revision ? diff : { kind: "stale" });
     }

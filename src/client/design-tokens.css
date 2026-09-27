@@ -106,6 +106,18 @@
   --color-diff-removed-bg: #fff0ed;
   --color-diff-hunk-bg: #edf3f5;
   --color-diff-gutter: #718790;
+  --color-syntax-comment: #5b6d73;
+  --color-syntax-keyword: #713f88;
+  --color-syntax-string: #985034;
+  --color-syntax-number: #765d17;
+  --color-syntax-type: #245b87;
+  --color-syntax-function: #176377;
+  --color-syntax-variable: #304e62;
+  --color-syntax-property: #65498b;
+  --color-syntax-operator: #684e61;
+  --color-syntax-punctuation: #586b74;
+  --color-syntax-tag: #21627b;
+  --color-syntax-attribute: #805325;
 
   /* Composed effects */
   --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, var(--color-mint-deep) 0%, transparent 100%), var(--color-canvas);

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
-import { fetchDirectory, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { emptyWorkspace, readOpenCards, readSavedWorkspace, readWrapPreference, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
-import type { ChangeEntry, ChangeLayer, DirectoryListing, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
+import type { ChangeEntry, ChangeLayer, DirectoryListing, LanguageOption, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
 
 type LoadState<T> =
   | { kind: "loading" }
@@ -57,10 +57,20 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
+  const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<"folders" | "changes">("folders");
   const [opening, setOpening] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchLanguages(controller.signal).then(
+      (value) => { if (!controller.signal.aborted) setLanguages(value); },
+      () => { /* Automatic detection still works when the picker list is unavailable. */ },
+    );
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -332,12 +342,14 @@ export function App() {
                     return <section class={`diff-section diff-section-${key}`} key={key}>
                       <h3><span>{label}</span><span class="change-count">{group.length}</span></h3>
                       {group.length === 0 ? <p class="diff-section-empty">No {label.toLowerCase()} files</p> : group.map((entry) => <DiffCard
-                        key={diffCardKey(entry)}
+                        key={`${project.id}:${diffCardKey(entry)}`}
                         entry={entry}
                         projectId={project.id}
                         revision={gitStatus.revision}
+                        refreshKey={statusRefresh}
                         expanded={expandedKeys.has(diffCardKey(entry))}
                         wrap={wrapCode}
+                        languages={languages}
                         onToggle={() => toggleEntry(entry)}
                         onStale={() => setStatusRefresh((value) => value + 1)}
                       />)}

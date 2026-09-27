@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { parseDiffResponse, parseProjectResponse, parseStatusResponse } from "../shared/api.ts";
+import { parseDiffResponse, parseLanguagesResponse, parseProjectResponse, parseStatusResponse } from "../shared/api.ts";
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
@@ -15,6 +15,7 @@ test("status access requires an opened folder and rechecks its approved path", a
     await mkdir(projectPath);
     execFileSync("git", ["init", "-q"], { cwd: projectPath, stdio: "pipe" });
     const handle = createApiHandler(await approveRoot(rootPath));
+    expect(parseLanguagesResponse(await (await handle(new Request("http://localhost/api/languages"))).json() as unknown)).toContainEqual({ id: "c", name: "C" });
     const unknown = await handle(new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/status"));
     expect(unknown.status).toBe(404);
 
@@ -38,6 +39,8 @@ test("status access requires an opened folder and rechecks its approved path", a
     const diffUrl = new URL(`http://localhost/api/projects/${project.id}/diff`);
     diffUrl.search = new URLSearchParams({ layer: "untracked", path: "new.txt", revision: changedStatus.revision }).toString();
     expect(parseDiffResponse(await (await handle(new Request(diffUrl))).json() as unknown).kind).toBe("text");
+    diffUrl.search = new URLSearchParams({ layer: "untracked", path: "new.txt", revision: changedStatus.revision, language: "invalid-grammar" }).toString();
+    expect((await handle(new Request(diffUrl))).status).toBe(400);
     diffUrl.search = new URLSearchParams({ layer: "untracked", path: "other.txt", revision: changedStatus.revision }).toString();
     expect((await handle(new Request(diffUrl))).status).toBe(404);
     diffUrl.search = new URLSearchParams({ layer: "untracked", path: "new.txt", revision: cleanStatus.revision }).toString();

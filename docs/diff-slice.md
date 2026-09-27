@@ -1,12 +1,12 @@
 # Expandable diff cards
 
-Status: implemented. Syntax highlighting, word-level changes, and comments are later slices.
+Status: implemented. Syntax highlighting is documented in [its own slice](syntax-highlighting-slice.md); word-level changes and comments are later slices.
 
 ## User flow
 
 The Changes page is a continuous list of file cards in Git layer order. Cards start collapsed with path and change state. Tapping a file in the desktop sidebar or phone drawer closes the drawer if needed, scrolls to its card, and expands it. Expanding a card fetches that file's diff. A visible wrap control switches code between wrapped lines and horizontal scrolling inside the code pane; the page itself stays within the viewport. Line numbers and added, removed, and context rows are distinct without relying on color alone. Wrap preference and open cards survive reload in this browser.
 
-This slice renders source text with diff colors and line numbers. Syntax tokens, word-level changes, moved-block detection, comments, and export follow in separate small steps. A binary, oversized, or conflicted file gets an explicit card state instead of a broken text view.
+This slice established source rows with diff colors and line numbers. Syntax tokens were added in the following slice. Word-level changes, moved-block detection, comments, and export follow in separate small steps. A binary, oversized, or conflicted file gets an explicit card state instead of a broken text view.
 
 ## Data and API
 

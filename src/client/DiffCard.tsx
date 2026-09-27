@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import type { ChangeEntry, DiffHunk, DiffResult } from "../shared/api.ts";
+import type { ChangeEntry, DiffHunk, DiffResult, LanguageOption } from "../shared/api.ts";
 import { fetchProjectDiff } from "./api.ts";
+import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 
 type DiffState =
   | { kind: "loading" }
@@ -11,8 +12,10 @@ type DiffCardProps = {
   entry: ChangeEntry;
   projectId: string;
   revision: string;
+  refreshKey: number;
   expanded: boolean;
   wrap: boolean;
+  languages: readonly LanguageOption[];
   onToggle: () => void;
   onStale: () => void;
 };
@@ -32,7 +35,7 @@ function HunkRows({ hunk }: { hunk: DiffHunk }) {
       <span class="diff-number" aria-label={line.oldLine === null ? "No old line" : `Old line ${line.oldLine}`}>{line.oldLine ?? ""}</span>
       <span class="diff-number" aria-label={line.newLine === null ? "No new line" : `New line ${line.newLine}`}>{line.newLine ?? ""}</span>
       <span class="diff-sign" aria-hidden="true">{line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}</span>
-      <code class="diff-code">{line.text}{line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}</code>
+      <code class="diff-code">{line.tokens.map((token, tokenIndex) => <span class={`syntax-token syntax-token-${token.role}`} key={tokenIndex}>{token.text}</span>)}{line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}</code>
     </div>)}
   </div>;
 }
@@ -51,28 +54,31 @@ function DiffBody({ result, wrap }: { result: DiffResult; wrap: boolean }) {
   </div>;
 }
 
-export function DiffCard({ entry, projectId, revision, expanded, wrap, onToggle, onStale }: DiffCardProps) {
-  const [loaded, setLoaded] = useState<{ revision: string; state: DiffState } | null>(null);
+export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wrap, languages, onToggle, onStale }: DiffCardProps) {
+  const [override, setOverride] = useState<string | null>(() => readLanguageOverride(projectId, entry.path));
+  const effectiveOverride = override === null || override === "text" || languages.some((language) => language.id === override) ? override : null;
+  const requestKey = `${revision}:${refreshKey}:${effectiveOverride ?? "auto"}`;
+  const [loaded, setLoaded] = useState<{ key: string; state: DiffState } | null>(null);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    if (!expanded || (loaded?.revision === revision && loaded.state.kind === "ready")) return;
+    if (!expanded || (loaded?.key === requestKey && loaded.state.kind === "ready")) return;
     const controller = new AbortController();
-    setLoaded({ revision, state: { kind: "loading" } });
-    fetchProjectDiff(projectId, entry.layer, entry.path, revision, controller.signal).then(
+    setLoaded({ key: requestKey, state: { kind: "loading" } });
+    fetchProjectDiff(projectId, entry.layer, entry.path, revision, effectiveOverride, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
-        setLoaded({ revision, state: { kind: "ready", value } });
+        setLoaded({ key: requestKey, state: { kind: "ready", value } });
         if (value.kind === "stale") onStale();
       },
       (error: unknown) => {
-        if (!controller.signal.aborted) setLoaded({ revision, state: { kind: "error", message: error instanceof Error ? error.message : "Diff could not be loaded" } });
+        if (!controller.signal.aborted) setLoaded({ key: requestKey, state: { kind: "error", message: error instanceof Error ? error.message : "Diff could not be loaded" } });
       },
     );
     return () => controller.abort();
-  }, [expanded, projectId, entry.layer, entry.path, revision, retry]);
+  }, [expanded, projectId, entry.layer, entry.path, requestKey, retry]);
 
-  const current = loaded?.revision === revision ? loaded.state : { kind: "loading" } as const;
+  const current = loaded?.key === requestKey ? loaded.state : { kind: "loading" } as const;
   return <article class={`diff-card diff-card-${entry.layer}`} id={diffCardId(entry)} data-layer={entry.layer} data-path={entry.path}>
     <button class="diff-card-toggle" type="button" aria-expanded={expanded} onClick={onToggle}>
       <span class="diff-card-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</span>
@@ -80,6 +86,13 @@ export function DiffCard({ entry, projectId, revision, expanded, wrap, onToggle,
       <span class="diff-card-layer">{entry.layer}</span>
     </button>
     {expanded && <div class="diff-card-body">
+      {languages.length > 0 && <div class="diff-language-row"><label>Language <select value={override ?? "auto"} onChange={(event) => {
+        const value = event.currentTarget.value === "auto" ? null : event.currentTarget.value;
+        setOverride(value);
+        saveLanguageOverride(projectId, entry.path, value);
+      }}><option value="auto">Auto detect</option><option value="text">Plain text</option>{languages.map((language) => <option key={language.id} value={language.id}>{language.name}</option>)}</select></label>
+        {current.kind === "ready" && current.value.kind === "text" && <span>{current.value.syntax.kind === "highlighted" ? current.value.syntax.language : "Plain text"}</span>}
+      </div>}
       {current.kind === "loading" && <p class="diff-message">Loading diff…</p>}
       {current.kind === "error" && <div class="diff-message" role="alert">{current.message} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
       {current.kind === "ready" && <DiffBody result={current.value} wrap={wrap} />}

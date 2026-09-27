@@ -151,6 +151,10 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .diff-card-title small { overflow-wrap: anywhere; color: var(--color-text-subtle); font-size: var(--font-size-11); line-height: 1.4; }
 .diff-card-layer { margin-left: auto; padding: 4px 8px; border-radius: 6px; background: var(--color-page); color: var(--color-text-muted); font-size: var(--font-size-10); font-weight: var(--font-weight-semibold); text-transform: capitalize; }
 .diff-card-body { min-width: 0; border-top: 1px solid var(--color-border); }
+.diff-language-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); font-size: var(--font-size-11); }
+.diff-language-row label { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.diff-language-row select { width: min(190px, 52vw); min-height: 38px; padding: 5px 8px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--font-size-12); }
+.diff-language-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .diff-message { margin: 0; padding: var(--space-5); color: var(--color-text-muted); font-size: var(--font-size-13); line-height: 1.5; }
 .diff-message button { margin-left: 8px; padding: 5px 10px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); }
 .diff-scroll { width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; }
@@ -164,6 +168,18 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .diff-row-added .diff-sign { color: var(--color-change-staged); }
 .diff-row-removed .diff-sign { color: var(--color-change-conflict); }
 .diff-code { display: block; flex: 0 0 auto; padding: 4px var(--space-3) 4px 0; white-space: pre; tab-size: 4; }
+.syntax-token-comment { color: var(--color-syntax-comment); }
+.syntax-token-keyword { color: var(--color-syntax-keyword); font-weight: var(--font-weight-medium); }
+.syntax-token-string { color: var(--color-syntax-string); }
+.syntax-token-number { color: var(--color-syntax-number); }
+.syntax-token-type { color: var(--color-syntax-type); }
+.syntax-token-function { color: var(--color-syntax-function); }
+.syntax-token-variable { color: var(--color-syntax-variable); }
+.syntax-token-property { color: var(--color-syntax-property); }
+.syntax-token-operator { color: var(--color-syntax-operator); }
+.syntax-token-punctuation { color: var(--color-syntax-punctuation); }
+.syntax-token-tag { color: var(--color-syntax-tag); }
+.syntax-token-attribute { color: var(--color-syntax-attribute); }
 .diff-scroll-wrap .diff-row { width: 100%; }
 .diff-scroll-wrap .diff-code { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .diff-no-newline { margin-left: var(--space-3); color: var(--color-text-subtle); font-family: var(--font-ui); font-size: var(--font-size-10); font-style: italic; white-space: normal; }

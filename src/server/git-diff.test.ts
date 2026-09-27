@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { ChangeEntry, DiffResult, ProjectStatus } from "../shared/api.ts";
+import { parseDiffResponse, type ChangeEntry, type DiffResult, type ProjectStatus } from "../shared/api.ts";
 import { parseGitPatch, readProjectDiff } from "./git-diff.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { approveRoot, openProject } from "./paths.ts";
@@ -32,6 +32,7 @@ test("diffs show each Git layer's content and preserve line anchors", async () =
     await writeFile(join(directory, "literal[1].ts"), "before\n");
     await writeFile(join(directory, "old name.md"), "This content remains after the rename.\n");
     await writeFile(join(directory, "removed.ts"), "export const removed = true;\n");
+    await writeFile(join(directory, "multiline.ts"), `/*\n${Array.from({ length: 14 }, (_, index) => `comment ${index + 1}`).join("\n")}\n*/\nexport const done = true;\n`);
     git(directory, "add", ".");
     git(directory, "-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "base");
 
@@ -42,7 +43,10 @@ test("diffs show each Git layer's content and preserve line anchors", async () =
     git(directory, "rm", "-q", "removed.ts");
     await writeFile(join(directory, "literal[1].ts"), "after\n");
     git(directory, "add", "literal[1].ts");
+    await writeFile(join(directory, "multiline.ts"), `/*\n${Array.from({ length: 14 }, (_, index) => `comment ${index === 10 ? "edited" : index + 1}`).join("\n")}\n*/\nexport const done = true;\n`);
     await writeFile(join(directory, "new.ts"), "const fresh = true;");
+    await writeFile(join(directory, "math.c"), "int main(void) { return 0; }\n");
+    await writeFile(join(directory, "mystery.unknown_ext"), "some text\n");
     await writeFile(join(directory, "odd\nname.ts"), "odd path\n");
     await writeFile(join(directory, "binary.dat"), Buffer.from([0, 1, 2]));
     await symlink("both.ts", join(directory, "link.ts"));
@@ -60,9 +64,25 @@ test("diffs show each Git layer's content and preserve line anchors", async () =
     expect(textDiff(await readProjectDiff(root, project, changed(status, "staged", "new name.md"))).hunks).toEqual([]);
     expect(textDiff(await readProjectDiff(root, project, changed(status, "staged", "removed.ts"))).hunks[0]?.lines[0]?.kind).toBe("removed");
     expect(textDiff(await readProjectDiff(root, project, changed(status, "staged", "literal[1].ts"))).hunks[0]?.lines.map((line) => line.text)).toEqual(["before", "after"]);
-    expect(textDiff(await readProjectDiff(root, project, changed(status, "untracked", "new.ts"))).hunks[0]?.lines[0]).toEqual({
-      kind: "added", oldLine: null, newLine: 1, text: "const fresh = true;", noNewlineAtEnd: true,
-    });
+    const commentDiff = textDiff(await readProjectDiff(root, project, changed(status, "unstaged", "multiline.ts")));
+    expect(commentDiff.syntax.kind).toBe("highlighted");
+    expect(commentDiff.hunks[0]?.oldStart).toBeGreaterThan(1);
+    expect(commentDiff.hunks[0]?.lines.find((line) => line.text === "comment edited")?.tokens).toEqual([{ text: "comment edited", role: "comment" }]);
+    const newLine = textDiff(await readProjectDiff(root, project, changed(status, "untracked", "new.ts"))).hunks[0]?.lines[0];
+    expect(newLine?.kind).toBe("added");
+    expect(newLine?.text).toBe("const fresh = true;");
+    expect(newLine?.tokens.map((token) => token.text).join("")).toBe(newLine?.text);
+    expect(newLine?.noNewlineAtEnd).toBe(true);
+    const cDiff = textDiff(await readProjectDiff(root, project, changed(status, "untracked", "math.c")));
+    expect(cDiff.syntax).toEqual({ kind: "highlighted", language: "c" });
+    expect(cDiff.hunks[0]?.lines[0]?.tokens.some((token) => token.role !== "plain")).toBe(true);
+    expect(textDiff(await readProjectDiff(root, project, changed(status, "untracked", "mystery.unknown_ext"))).syntax).toEqual({ kind: "plain", reason: "unknown_language" });
+    expect(textDiff(await readProjectDiff(root, project, changed(status, "untracked", "math.c"), "text")).syntax).toEqual({ kind: "plain", reason: "selected" });
+    const malformed = structuredClone(cDiff);
+    const firstToken = malformed.hunks[0]?.lines[0]?.tokens[0];
+    if (firstToken === undefined) throw new Error("Missing C token");
+    firstToken.text = "changed";
+    expect(() => parseDiffResponse(malformed)).toThrow("Syntax tokens do not match");
     expect(textDiff(await readProjectDiff(root, project, changed(status, "untracked", "odd\nname.ts"))).hunks[0]?.lines[0]?.text).toBe("odd path");
     expect(await readProjectDiff(root, project, changed(status, "untracked", "binary.dat"))).toEqual({ kind: "binary", reason: "binary" });
     expect(await readProjectDiff(root, project, changed(status, "untracked", "link.ts"))).toEqual({ kind: "binary", reason: "symlink" });
@@ -81,7 +101,7 @@ test("staged content in a repository without a first commit is an addition", asy
     const project = await openProject(root, "");
     const status = await readProjectStatus(project.absolutePath);
     const diff = textDiff(await readProjectDiff(root, project, changed(status, "staged", "first.txt")));
-    expect(diff.hunks[0]?.lines).toContainEqual({ kind: "added", oldLine: null, newLine: 1, text: "first", noNewlineAtEnd: false });
+    expect(diff.hunks[0]?.lines).toContainEqual({ kind: "added", oldLine: null, newLine: 1, text: "first", tokens: [{ text: "first", role: "plain" }], noNewlineAtEnd: false });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
