@@ -4,7 +4,7 @@ This document records how we verify the app as it grows. The product plan is in 
 
 ## Every small change
 
-1. Run the project-local native TypeScript type checker (`bun run qa:check` for the current QA tooling; the app scaffold will add its own client/server gates).
+1. Run the project-local native TypeScript type checker with `bun run typecheck` and the CSS token check with `bun run qa:check`.
 2. Exercise the behavior that changed. Add a lasting automated test when it protects an observable invariant or a bug that could recur.
 3. For a UI change, capture the relevant state at four sizes and inspect the images for clipped controls, page-wide overflow, unreadable code, and obscured feedback actions.
 4. Describe the behavior, checks, and any remaining device-specific uncertainty in the handoff to the maintainer.
@@ -22,6 +22,8 @@ bun run qa:capture --url http://127.0.0.1:3000/ --label foundation
 The command launches the installed Google Chrome through Playwright and writes `desktop.png`, `tablet-landscape.png`, `tablet-portrait.png`, `mobile.png`, and `manifest.json` to `qa/screenshots/foundation/`. Use a new, descriptive label for each reviewable milestone. The default is a viewport screenshot. Add `--full-page` when the entire continuous diff needs review, `--ready '.selector'` if a screen must finish loading, and `--click '.selector'` to capture a simple open state such as the mobile folder drawer. `--help` lists options.
 
 For the foundation picker, `bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>` checks mobile folder selection and reload, then saves browser state under `qa/.artifacts/`. Pass that state to `qa:capture --storage-state qa/.artifacts/foundation-storage.json` to capture the selected-project screen at all four sizes.
+
+For inventory screenshots, run `bun run qa:fixture` once to create `qa/.artifacts/inventory-fixture` with staged, unstaged, and untracked changes. Start the app with `--root "$PWD/qa/.artifacts"`, run `qa:foundation` with `--folder inventory-fixture`, then pass its saved browser state to `qa:capture`. The fixture script refuses to overwrite an existing fixture; remove that ignored folder yourself when you need a fresh one.
 
 The capture exits nonzero for page load failures or page-wide horizontal overflow. A horizontally scrolling **code pane** is allowed; the document itself should fit the viewport. Inspect the images rather than relying solely on the overflow check. Link useful screenshots in the human handoff. Generated test traces and temporary files belong in `qa/.artifacts/`; curated milestone screenshots remain under `qa/screenshots/`.
 

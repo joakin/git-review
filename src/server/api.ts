@@ -1,6 +1,8 @@
 import type { ApprovedRoot } from "./paths.ts";
 import { AppError, listDirectory, openProject } from "./paths.ts";
 import { isRecord } from "../shared/validation.ts";
+import { readProjectStatus } from "./git-status.ts";
+import type { Project } from "../shared/api.ts";
 
 const maxBodyBytes = 4096;
 
@@ -45,7 +47,12 @@ function errorResponse(error: AppError): Response {
   return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
 }
 
-export async function handleApiRequest(request: Request, root: ApprovedRoot): Promise<Response> {
+export function createApiHandler(root: ApprovedRoot): (request: Request) => Promise<Response> {
+  const openProjects = new Map<string, Project>();
+  return (request) => handleApiRequest(request, root, openProjects);
+}
+
+async function handleApiRequest(request: Request, root: ApprovedRoot, openProjects: Map<string, Project>): Promise<Response> {
   try {
     const url = new URL(request.url);
     const origin = request.headers.get("origin");
@@ -68,7 +75,17 @@ export async function handleApiRequest(request: Request, root: ApprovedRoot): Pr
         throw new AppError("invalid_request", 400, "Expected a folder path");
       }
       const project = await openProject(root, body["path"]);
+      openProjects.set(project.id, project);
       return Response.json({ project });
+    }
+    const statusRoute = /^\/api\/projects\/([0-9a-f]{20})\/status$/.exec(url.pathname);
+    if (statusRoute !== null && request.method === "GET") {
+      const id = statusRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined) throw new AppError("not_found", 404, "Open this folder before requesting its status");
+      const current = await openProject(root, project.path);
+      if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      return Response.json(await readProjectStatus(current.absolutePath));
     }
     throw new AppError("not_found", 404, "API route was not found");
   } catch (error: unknown) {

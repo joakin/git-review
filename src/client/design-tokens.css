@@ -98,6 +98,10 @@
   --color-error-border: #e7c5b3;
   --color-error-surface: #fff6ed;
   --color-overlay: #0a1c2aa3;
+  --color-change-staged: #176f62;
+  --color-change-unstaged: #a26425;
+  --color-change-untracked: #45729a;
+  --color-change-conflict: #a8453b;
 
   /* Composed effects */
   --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, var(--color-mint-deep) 0%, transparent 100%), var(--color-canvas);

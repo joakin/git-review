@@ -1,8 +1,8 @@
 # git-review
 
-A local, browser-based code review app in progress. The current foundation lets you choose a host folder within an approved root and restores that selection after reload. Git changes, file browsing, comments, search, and voice transcription are planned in [Initial Implementation Plan](docs/initial-implementation-plan.md). The [next slice proposal](docs/git-status-slice-proposal.md) is ready for maintainer feedback.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, then inspect its staged, unstaged, untracked, and conflicted file inventory. The selected folder survives reload. File diffs, browsing, comments, search, and voice transcription are planned in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory slice](docs/git-status-slice.md) for current behavior and the [diff-card proposal](docs/diff-slice-proposal.md) for the next reviewable step.
 
-## Run the foundation
+## Run the app
 
 Requires Bun and Google Chrome (for optional visual QA).
 
@@ -24,6 +24,7 @@ Use the Mac's Tailscale hostname with that port on another connected device, for
 ```sh
 bun run typecheck
 bun run test
+bun run qa:check
 bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:capture --url http://127.0.0.1:3000/ --label <milestone>
 ```

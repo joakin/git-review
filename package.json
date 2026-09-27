@@ -10,6 +10,7 @@
     "test": "bun test",
     "qa:capture": "bun qa/capture.ts",
     "qa:foundation": "bun qa/check-foundation.ts",
+    "qa:fixture": "bun qa/prepare-inventory-fixture.ts",
     "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts"
   },
   "devDependencies": {

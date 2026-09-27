@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { isIP } from "node:net";
-import { handleApiRequest } from "./api.ts";
+import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
 type ServerOptions = { root: string; port: number };
@@ -39,6 +39,7 @@ function parseOptions(args: readonly string[]): ServerOptions {
 
 const options = parseOptions(process.argv.slice(2));
 const root = await approveRoot(options.root);
+const handleApiRequest = createApiHandler(root);
 const htmlPath = resolve("src/client/index.html");
 const scriptPath = resolve("dist/assets/main.js");
 const stylesPath = resolve("dist/assets/styles.css");
@@ -52,7 +53,7 @@ const server = Bun.serve({
   fetch(request) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
-      return handleApiRequest(request, root);
+      return handleApiRequest(request);
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Method not allowed", { status: 405 });

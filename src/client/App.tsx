@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { fetchDirectory, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
 import { emptyWorkspace, readSavedWorkspace, saveWorkspace, withSelectedPath, type SavedWorkspace } from "./storage.ts";
-import type { DirectoryListing, Project, RootInfo } from "../shared/api.ts";
+import type { ChangeEntry, ChangeLayer, DirectoryListing, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
 
 type LoadState<T> =
   | { kind: "loading" }
@@ -17,13 +17,44 @@ function shortName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
+const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
+  { key: "conflict", label: "Conflicts" },
+  { key: "staged", label: "Staged" },
+  { key: "unstaged", label: "Unstaged" },
+  { key: "untracked", label: "Untracked" },
+];
+
+function ChangeGroups({ entries, compact }: { entries: readonly ChangeEntry[]; compact: boolean }) {
+  return <div class={compact ? "change-groups change-groups-compact" : "change-groups"}>
+    {changeLayers.map(({ key, label }) => {
+      const group = entries.filter((entry) => entry.layer === key);
+      if (key === "conflict" && group.length === 0) return null;
+      return <section class={`change-group change-group-${key}`} key={key}>
+        <h2><span>{label}</span><span class="change-count">{group.length}</span></h2>
+        {group.length === 0 ? <p class="change-empty">No {label.toLowerCase()} files</p> : <ul>
+          {group.map((entry) => <li key={`${entry.layer}:${entry.path}`}>
+            <span class={`change-mark change-mark-${entry.kind}`} aria-hidden="true">{entry.kind === "conflicted" ? "!" : entry.kind === "deleted" ? "−" : entry.kind === "added" ? "+" : "•"}</span>
+            <span class="change-file">
+              <strong title={entry.path}>{entry.path}</strong>
+              <small><span class="change-kind">{entry.kind.replace("_", " ")}</span>{entry.oldPath === null ? "" : ` from ${entry.oldPath}`}{entry.isSubmodule ? " · submodule" : ""}</small>
+            </span>
+          </li>)}
+        </ul>}
+      </section>;
+    })}
+  </div>;
+}
+
 export function App() {
   const [saved, setSaved] = useState<SavedWorkspace>(() => emptyWorkspace(""));
   const [root, setRoot] = useState<LoadState<RootInfo>>({ kind: "loading" });
   const [listing, setListing] = useState<LoadState<DirectoryListing>>({ kind: "loading" });
   const [path, setPath] = useState("");
   const [project, setProject] = useState<Project | null>(null);
+  const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
+  const [statusRefresh, setStatusRefresh] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<"folders" | "changes">("folders");
   const [opening, setOpening] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -42,6 +73,7 @@ export function App() {
           if (controller.signal.aborted) return;
           setProject(selected);
           setPath(selected.path);
+          setSidebarMode("changes");
         } catch {
           if (controller.signal.aborted) return;
           setNotice("The previous folder is unavailable. Choose a folder to continue.");
@@ -70,6 +102,17 @@ export function App() {
   }, [path]);
 
   useEffect(() => {
+    if (project === null) return;
+    const controller = new AbortController();
+    setStatus({ kind: "loading" });
+    fetchProjectStatus(project.id, controller.signal).then(
+      (value) => { if (!controller.signal.aborted) setStatus({ kind: "ready", value }); },
+      (error: unknown) => { if (!controller.signal.aborted) setStatus({ kind: "error", message: messageFor(error) }); },
+    );
+    return () => controller.abort();
+  }, [project, statusRefresh]);
+
+  useEffect(() => {
     if (!drawerOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setDrawerOpen(false);
@@ -90,6 +133,7 @@ export function App() {
       const selected = await openProject(selectedPath, new AbortController().signal);
       setProject(selected);
       setPath(selected.path);
+      setSidebarMode("changes");
       setDrawerOpen(false);
       setSaved((current) => {
         const scoped = current.rootPath === root.value.path ? current : emptyWorkspace(root.value.path);
@@ -116,7 +160,7 @@ export function App() {
         </div>
         <span class="topbar-divider" aria-hidden="true" />
         <span class="topbar-context">Local workspace</span>
-        <button class="project-switch" type="button" onClick={() => setDrawerOpen(true)}>
+        <button class="project-switch" type="button" onClick={() => { setSidebarMode(project === null ? "folders" : "changes"); setDrawerOpen(true); }}>
           <span class="switch-icon" aria-hidden="true">▦</span>
           <span class="switch-label">{project?.name ?? "Choose folder"}</span>
           <span aria-hidden="true">⌄</span>
@@ -124,15 +168,24 @@ export function App() {
       </header>
 
       <div class="workspace">
-        {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close folder picker" onClick={() => setDrawerOpen(false)} />}
-        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label="Folder picker">
+        {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
+        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={sidebarMode === "changes" && project !== null ? "Changed files" : "Folder picker"}>
           <div class="sidebar-head">
             <div>
               <p class="eyebrow">ON THIS HOST</p>
-              <h2>Folders</h2>
+              <h2>{sidebarMode === "changes" && project !== null ? "Changes" : "Folders"}</h2>
             </div>
-            <button class="icon-button close-drawer" type="button" aria-label="Close folder picker" onClick={() => setDrawerOpen(false)}>×</button>
+            <button class="icon-button close-drawer" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)}>×</button>
           </div>
+
+          {sidebarMode === "changes" && project !== null ? <div class="sidebar-changes">
+            <div class="sidebar-project-name" title={project.absolutePath}>{project.name}</div>
+            <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("folders")}>Browse host folders <span aria-hidden="true">→</span></button>
+            {status.kind === "loading" && <p class="sidebar-message">Reading Git changes…</p>}
+            {status.kind === "error" && <p class="sidebar-error" role="alert">{status.message}</p>}
+            {status.kind === "ready" && status.value.kind === "not_git" && <p class="sidebar-message">This folder is not a Git worktree.</p>}
+            {status.kind === "ready" && status.value.kind === "git" && <ChangeGroups entries={status.value.entries} compact />}
+          </div> : <>
 
           <div class="root-card">
             <span class="root-dot" aria-hidden="true" />
@@ -186,6 +239,8 @@ export function App() {
               ))}
             </div>
           )}
+          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("changes")}>Back to changes <span aria-hidden="true">→</span></button>}
+          </>}
         </aside>
 
         <main class="main-content">
@@ -206,20 +261,24 @@ export function App() {
               <div class="welcome-foot"><span class="line-decor" aria-hidden="true" /> Staged, unstaged, and untracked changes will live here.</div>
             </div>
           ) : (
-            <div class="project-view">
+            <div class="project-view project-view-changes">
               <div class="project-intro">
                 <p class="eyebrow">CURRENT WORKSPACE</p>
                 <h1>{project.name}</h1>
                 <p class="project-path">{project.absolutePath}</p>
               </div>
-              <div class="project-ready">
-                <div class="ready-icon" aria-hidden="true">✓</div>
-                <div>
-                  <h2>Folder ready</h2>
-                  <p>This folder is connected to your local review workspace. You can switch folders at any time.</p>
-                </div>
-                <button type="button" onClick={() => setDrawerOpen(true)}>Change folder <span aria-hidden="true">→</span></button>
+              <div class="changes-heading">
+                <div><p class="eyebrow">GIT INVENTORY</p><h2>Changed files</h2></div>
+                <button type="button" onClick={() => setStatusRefresh((value) => value + 1)}>Refresh changes</button>
               </div>
+              {status.kind === "loading" && <p class="status-message">Reading Git changes…</p>}
+              {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
+              {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. File browsing will be available in a later slice.</p>}
+              {status.kind === "ready" && status.value.kind === "git" && <>
+                {status.value.entries.length === 0 && <p class="status-message">No changes in this folder.</p>}
+                <ChangeGroups entries={status.value.entries} compact={false} />
+                <p class="changes-footnote">Open a file and inspect its diff in the next slice.</p>
+              </>}
             </div>
           )}
         </main>

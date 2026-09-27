@@ -3,9 +3,11 @@ import {
   parseDirectoryResponse,
   parseProjectResponse,
   parseRootResponse,
+  parseStatusResponse,
   type DirectoryListing,
   type Project,
   type RootInfo,
+  type ProjectStatus,
 } from "../shared/api.ts";
 
 async function responseBody(response: Response): Promise<unknown> {
@@ -40,4 +42,9 @@ export async function openProject(path: string, signal: AbortSignal): Promise<Pr
     signal,
   });
   return parseProjectResponse(await responseBody(response));
+}
+
+export async function fetchProjectStatus(id: string, signal: AbortSignal): Promise<ProjectStatus> {
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, { signal });
+  return parseStatusResponse(await responseBody(response));
 }

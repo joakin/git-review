@@ -21,6 +21,21 @@ export type Project = {
   absolutePath: string;
 };
 
+export type ChangeLayer = "staged" | "unstaged" | "untracked" | "conflict";
+export type ChangeKind = "added" | "modified" | "deleted" | "renamed" | "copied" | "type_changed" | "conflicted";
+
+export type ChangeEntry = {
+  layer: ChangeLayer;
+  kind: ChangeKind;
+  path: string;
+  oldPath: string | null;
+  isSubmodule: boolean;
+};
+
+export type ProjectStatus =
+  | { kind: "not_git" }
+  | { kind: "git"; revision: string; entries: ChangeEntry[] };
+
 export type ApiErrorCode = "invalid_request" | "forbidden" | "not_found" | "internal_error";
 
 export type ApiError = {
@@ -65,6 +80,42 @@ export function parseProjectResponse(value: unknown): Project {
     path: expectString(project["path"], "project.path"),
     absolutePath: expectString(project["absolutePath"], "project.absolutePath"),
   };
+}
+
+export function parseStatusResponse(value: unknown): ProjectStatus {
+  const outer = expectRecord(value, "server response");
+  if (outer["kind"] === "not_git") return { kind: "not_git" };
+  if (outer["kind"] !== "git") throw new Error("Expected a Git status response");
+  const revision = expectString(outer["revision"], "revision");
+  if (!/^[0-9a-f]{20}$/.test(revision)) throw new Error("Expected a valid status revision");
+  const rawEntries = outer["entries"];
+  if (!Array.isArray(rawEntries)) throw new Error("Expected status entries to be an array");
+  const entries: ChangeEntry[] = rawEntries.map((raw: unknown) => {
+    const entry = expectRecord(raw, "status entry");
+    const layer = entry["layer"];
+    const kind = entry["kind"];
+    const oldPath = entry["oldPath"];
+    if (layer !== "staged" && layer !== "unstaged" && layer !== "untracked" && layer !== "conflict") {
+      throw new Error("Expected a valid change layer");
+    }
+    if (kind !== "added" && kind !== "modified" && kind !== "deleted" && kind !== "renamed" && kind !== "copied" && kind !== "type_changed" && kind !== "conflicted") {
+      throw new Error("Expected a valid change kind");
+    }
+    if (oldPath !== null && typeof oldPath !== "string") throw new Error("Expected an old path or null");
+    if (typeof entry["isSubmodule"] !== "boolean") throw new Error("Expected a submodule flag");
+    const path = expectString(entry["path"], "entry.path");
+    if (path.length === 0 || (oldPath !== null && oldPath.length === 0)) throw new Error("Expected a nonempty change path");
+    if ((layer === "conflict") !== (kind === "conflicted")) throw new Error("Expected a matching conflict state");
+    if (layer === "untracked" && kind !== "added") throw new Error("Expected an added untracked file");
+    return {
+      layer,
+      kind,
+      path,
+      oldPath,
+      isSubmodule: entry["isSubmodule"],
+    };
+  });
+  return { kind: "git", revision, entries };
 }
 
 export function parseApiError(value: unknown): ApiError | null {

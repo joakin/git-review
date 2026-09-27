@@ -46,9 +46,10 @@ async function main(): Promise<void> {
       if ((await page.locator(".project-intro h1").textContent()) !== folder) {
         throw new Error("The selected workspace was not restored after reload");
       }
-      await page.getByRole("button", { name: "Change folder" }).click();
+      await page.locator(".project-switch").click();
+      await page.getByRole("button", { name: /Browse host folders/ }).click();
       await page.locator(".folder-name-row strong").getByText(folder, { exact: true }).waitFor();
-      await page.getByRole("button", { name: "Close folder picker" }).last().click();
+      await page.getByRole("button", { name: "Close sidebar" }).last().click();
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
       const statePath = resolve(artifactDirectory, "foundation-storage.json");
       await context.storageState({ path: statePath });
