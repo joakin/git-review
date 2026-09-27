@@ -1,0 +1,23 @@
+{
+  "name": "git-review",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "bun scripts/build.ts",
+    "start": "bun src/server/main.ts",
+    "typecheck": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && tsc -p tsconfig.test.json && tsc -p tsconfig.qa.json",
+    "test": "bun test",
+    "qa:capture": "bun qa/capture.ts",
+    "qa:foundation": "bun qa/check-foundation.ts",
+    "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "playwright-core": "^1.63.0",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  }
+}

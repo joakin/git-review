@@ -1,0 +1,110 @@
+:root {
+  /* Type */
+  --font-ui: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-size-10: 10px;
+  --font-size-11: 11px;
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-15: 15px;
+  --font-size-16: 16px;
+  --font-size-17: 17px;
+  --font-size-18: 18px;
+  --font-size-19: 19px;
+  --font-size-20: 20px;
+  --font-size-21: 21px;
+  --font-size-26: 26px;
+  --font-size-28: 28px;
+  --font-size-34: 34px;
+  --font-size-39: 39px;
+  --font-size-display: clamp(48px, 5.5vw, 80px);
+  --font-size-display-mobile: clamp(47px, 12vw, 67px);
+  --font-size-display-narrow: 48px;
+  --font-size-project-mobile: clamp(45px, 12vw, 65px);
+  --font-weight-medium: 650;
+  --font-weight-semibold: 700;
+  --font-weight-display: 740;
+  --font-weight-brand: 750;
+  --font-weight-heavy: 800;
+
+  /* Common space, corners, and layout dimensions */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 48px;
+  --space-11: 64px;
+  --space-12: 80px;
+  --radius-small: 8px;
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+  --radius-hero: 23px;
+  --topbar-height: 68px;
+  --topbar-height-mobile: 62px;
+  --sidebar-width: 330px;
+  --sidebar-width-compact: 280px;
+  --drawer-width-max: 370px;
+  --ready-action-indent: 68px;
+
+  /* Surface and text */
+  --color-ink: #192838;
+  --color-heading: #1c303b;
+  --color-text: #324750;
+  --color-text-muted: #607781;
+  --color-text-muted-strong: #526772;
+  --color-text-subtle: #84959b;
+  --color-text-faint: #91a0a5;
+  --color-surface: #fff;
+  --color-page: #f4f7f8;
+  --color-canvas: #f6f8f9;
+  --color-border: #dbe8e6;
+  --color-border-strong: #cbdeda;
+  --color-divider: #e9eef0;
+
+  /* Navigation */
+  --color-nav: #101d2a;
+  --color-nav-surface: #203240;
+  --color-nav-surface-hover: #2b4351;
+  --color-nav-border: #354b58;
+  --color-nav-text: #f3f9f8;
+  --color-nav-muted: #adc0c6;
+  --color-nav-accent: #8ee0c5;
+
+  /* Accent and feedback */
+  --color-accent: #176f62;
+  --color-accent-strong: #166b60;
+  --color-accent-hover: #0e594f;
+  --color-accent-ink: #327f71;
+  --color-accent-label: #348c77;
+  --color-accent-soft: #76b6a3;
+  --color-accent-pale: #9ce6d2;
+  --color-success: #35ac85;
+  --color-success-halo: #d9eee4;
+  --color-mint-surface: #f1f8f5;
+  --color-mint-hover: #f2faf7;
+  --color-mint-deep: #e1f4eb;
+  --color-mint-gradient: #dcf4eb;
+  --color-mint-faint: #f7fffc;
+  --color-accent-border: #b7dcd2;
+  --color-error: #923b31;
+  --color-error-text: #794732;
+  --color-error-border: #e7c5b3;
+  --color-error-surface: #fff6ed;
+  --color-overlay: #0a1c2aa3;
+
+  /* Composed effects */
+  --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, var(--color-mint-deep) 0%, transparent 100%), var(--color-canvas);
+  --background-hero: linear-gradient(135deg, var(--color-mint-gradient), var(--color-mint-faint));
+  --shadow-topbar: 0 3px 14px #0c243116;
+  --shadow-hero: 0 19px 34px #81b9a83d, inset 0 0 0 7px var(--color-mint-faint);
+  --shadow-action: 0 9px 19px #247d6533;
+  --shadow-panel: 0 12px 36px #213f4912;
+  --shadow-drawer: 22px 0 52px #10232e35;
+}
