@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright-core";
+import { selectCodeText } from "./select-code-text.ts";
 
 type CaptureOptions = {
   url: URL;
@@ -14,6 +15,7 @@ type CaptureOptions = {
   scrollTo: string | null;
   scrollOffset: number;
   scrollXToEnd: string | null;
+  selectText: { selector: string; text: string } | null;
 };
 
 type ParsedArgs = { kind: "help" } | { kind: "capture"; options: CaptureOptions };
@@ -45,6 +47,7 @@ Options:
   --scroll-to <CSS selector> Scroll an element to the top before capture
   --scroll-offset <pixels> Scroll farther after --scroll-to (default: 320)
   --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
+  --select-text <CSS selector> <text> Select code text and show its contextual action
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
 
@@ -73,6 +76,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let scrollTo: string | null = null;
   let scrollOffset = 320;
   let scrollXToEnd: string | null = null;
+  let selectText: CaptureOptions["selectText"] = null;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -124,6 +128,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         scrollXToEnd = readValue(args, index, flag);
         index += 1;
         break;
+      case "--select-text":
+        selectText = { selector: readValue(args, index, flag), text: readValue(args, index + 1, flag) };
+        index += 2;
+        break;
       case "--full-page":
         fullPage = true;
         break;
@@ -151,7 +159,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 
   if (afterClickReady !== null && !actions.some((action) => action.kind === "click")) throw new Error("--after-click-ready requires --click");
   if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd } };
+  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -219,6 +227,10 @@ async function capture(options: CaptureOptions): Promise<void> {
             element.scrollLeft = element.scrollWidth;
           });
           await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+        }
+        if (options.selectText !== null) {
+          await selectCodeText(page.locator(options.selectText.selector).first(), options.selectText.text);
+          await page.locator(".code-selection-action").waitFor({ state: "visible", timeout: 5_000 });
         }
         await page.evaluate(async () => document.fonts.ready);
 

@@ -1,6 +1,6 @@
 # Working-tree search
 
-Status: implemented for maintainer review. The selected-word shortcut remains a later slice.
+Status: working-tree Search is implemented. The [selected-code Search shortcut](selected-code-search-slice-proposal.md) is implemented for maintainer review; native selection behavior on real phones remains unverified.
 
 ## Search tool investigation
 
@@ -17,7 +17,7 @@ The new Files view can show a current working-tree file but has no way to locate
 1. Add **Search** beside Changes and Files. On a phone, it is a full-width view with one query field, a Search button, and a short explanation of the search scope. A project without Git gets the same Search view.
 2. Submit a literal query. Keep the last query and results in this tab while switching views. Show grouped file paths with line numbers and short matching excerpts, plus a clear empty, loading, error, or truncated state. Do not search on every keystroke.
 3. Tap a result to open its **current working-tree file** in Files and scroll the matching line into view with a temporary highlight. The Files drawer closes on a phone. Returning to Search preserves the result list; a Refresh action repeats the query when files change.
-4. The original held-word gesture follows this first checkpoint. Use the browser's native text selection, then offer a visible **Search selection** action for a bounded word selected inside code. Avoid intercepting long press or preventing text selection. Validate the interaction on real Android and iOS devices before calling it complete. [MDN selectionchange](https://developer.mozilla.org/en-US/docs/Web/API/Document/selectionchange_event)
+4. The [selected-code Search proposal](selected-code-search-slice-proposal.md) follows this first checkpoint. Use the browser's native text selection, then show a **Search selected text** tooltip above a bounded selection inside one code line. Reposition it as the page or code pane scrolls. Avoid intercepting long press or preventing text selection. Validate the interaction on real Android and iOS devices before calling it complete. [MDN selectionchange](https://developer.mozilla.org/en-US/docs/Web/API/Document/selectionchange_event)
 
 ## API and data shape
 
@@ -37,4 +37,4 @@ The new Files view can show a current working-tree file but has no way to locate
 
 From this repository on a phone, search for a symbol, open a result in Files at its line, and return to the same results. The same path works in a non-Git folder. Search is bounded and read-only; existing Changes and feedback are unaffected.
 
-The first checkpoint is implemented: Search is an explicit project tab, results stay in the current tab while switching views, and a result opens the current file at its line. The Files location bar stays visible during deep line jumps so the path remains clear on a phone. A changed result shows a stale notice in Files. Search state is in memory for the current tab; it resets when a different project is opened. The selected-word shortcut will be designed and checked on real devices later.
+The first checkpoint is implemented: Search is an explicit project tab, results stay in the current tab while switching views, and a result opens the current file at its line. The Files location bar stays visible during deep line jumps so the path remains clear on a phone. A changed result shows a stale notice in Files. Search state is in memory for the current tab; it resets when a different project is opened. The selected-code tooltip is implemented; its native selection interaction still needs real-device review.

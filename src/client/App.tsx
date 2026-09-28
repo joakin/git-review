@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
+import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
 import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
 import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from "./ReviewDialogs.tsx";
@@ -297,6 +298,15 @@ export function App() {
     }
     if (query === submittedQuery) setSearchRefresh((value) => value + 1);
     else setSubmittedQuery(query);
+  }
+
+  function searchSelectedCode(query: string): void {
+    setSearchQuery(query);
+    if (query === submittedQuery) setSearchRefresh((value) => value + 1);
+    else setSubmittedQuery(query);
+    setViewMode("search");
+    setDrawerOpen(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   function openSearchMatch(match: SearchMatch, query: string): void {
@@ -629,6 +639,7 @@ export function App() {
           )}
         </main>
       </div>
+      {project !== null && (viewMode === "changes" || viewMode === "files") && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
       {project !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
       {reattachId !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={() => setReattachId(null)}>Cancel</button></div>}
       {editor !== null && <CommentEditor editor={editor} onBody={(body) => setEditor((current) => current === null ? current : { ...current, body })} onClose={closeEditor} onDelete={deleteEditor} />}

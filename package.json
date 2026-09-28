@@ -15,6 +15,7 @@
     "qa:diff": "bun qa/check-diff.ts",
     "qa:files": "bun qa/check-files.ts",
     "qa:search": "bun qa/check-search.ts",
+    "qa:selected-search": "bun qa/check-selected-search.ts",
     "qa:feedback": "bun qa/check-feedback.ts",
     "qa:pwa": "bun qa/check-pwa.ts",
     "qa:fixture": "bun qa/prepare-inventory-fixture.ts",

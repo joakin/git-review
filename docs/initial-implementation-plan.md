@@ -28,10 +28,12 @@ This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy
 1. **Open a project.** The web app lists host directories inside server-approved roots. Select a folder. If it is a Git repository, open Changes; otherwise, open Files with a clear non-Git state. Recent projects are shown in the picker.
 2. **Review changes.** The file list groups Staged, Unstaged, and Untracked. Select a file to jump to its card. Expand or collapse cards, inspect highlighted code, toggle wrapping, and add comments to old or new lines.
 3. **Browse and search.** Open any allowed working-tree file. Later, hold a word to search for it in the working tree and tap a result to open that file at its matching line. Repository and file commit history is a distant optional expansion.
-4. **Dictate a comment.** Open a line comment, tap the microphone, record on the phone, stop, review the transcript, and insert or replace text in the draft. Typed editing always remains available.
+4. **Dictate a comment.** Place the caret in a line comment, tap the textarea-footer microphone, record on the phone, and send the clip for local transcription. Insert the returned text at that caret, then edit the draft normally. The recording footer has separate Cancel and Send controls, a five-minute limit, and audible start/stop cues.
 5. **Send feedback.** Preview comments grouped by file and Git layer, copy the text, and paste it into an editing session. Successful copies enter history. An unsuccessful copy preserves the draft.
 
-The [working-tree Files browser](file-browser-slice-proposal.md) is implemented. [Working-tree Search](search-slice-proposal.md) is implemented for review; the held-word shortcut is a later touch slice. Repository and file commit history, including opening files at older revisions, is a distant optional slice. Voice remains higher priority than building a full Git browser.
+The [working-tree Files browser](file-browser-slice-proposal.md) and [Working-tree Search](search-slice-proposal.md) are implemented. The [selected-code Search shortcut](selected-code-search-slice-proposal.md) is implemented for maintainer review. The [local voice comment slice](local-voice-comment-slice-proposal.md) follows it. Repository and file commit history, including opening files at older revisions, is a distant optional slice. Voice remains higher priority than building a full Git browser.
+
+A [deferred navigation and URL history slice](navigation-and-url-history-slice-proposal.md) proposes browser Back/Forward and direct links for the main destinations, plus a separate menu, list screen, and content screen. It is planned near the end of the roadmap, immediately before optional Git history browsing. The maintainer chose continuous Changes review as the default and kept Changes / Files / Search tabs in the project content area. The responsive layout below describes the current implementation and near-term baseline; the navigation proposal describes the later redesign.
 
 ## Responsive interface
 
@@ -122,15 +124,15 @@ Handy is a local speech-to-text app. Its public CLI page currently documents rec
 --json                        Emit file transcription results as JSON
 ```
 
-The host already has a Handy Parakeet V3 model installed. This is a direct local route for recordings made on the phone, with no external inference service. The command's actual transcription and JSON shape still need a fixture test under normal server permissions. [Handy repository](https://github.com/cjpais/Handy), [Handy headless CLI change](https://github.com/cjpais/Handy/pull/1541), [Handy public CLI page](https://handy.computer/docs/cli)
+The host already has a Handy Parakeet V3 model installed. This is a direct local route for recordings made on the phone, with no external inference service. A 1.8-second synthetic speech fixture was normalized by FFmpeg and transcribed through the CLI on 2026-09-28; Handy returned JSON with the expected `text`. The CLI exited with code 134 in this task's sandbox but worked with ordinary host permissions. The actual HTTPS server process and phone capture still need verification. See the [voice slice proposal](local-voice-comment-slice-proposal.md). [Handy repository](https://github.com/cjpais/Handy), [Handy headless CLI change](https://github.com/cjpais/Handy/pull/1541), [Handy public CLI page](https://handy.computer/docs/cli)
 
 ### Request flow
 
-1. In a comment sheet, tap a microphone button. The browser requests microphone permission and records with `getUserMedia` and `MediaRecorder` using a supported format selected at runtime.
-2. Show recording state, timer, Stop, and Cancel. Keep clips short (initial limit: 90 seconds) and allow a review or retry before submission.
-3. Send the audio to the authenticated Bun endpoint `POST /api/transcriptions`. The server accepts only bounded audio uploads and does not let the client choose a host path or executable.
+1. In a comment sheet, place the caret and tap the microphone button in the textarea footer. The browser saves that range, requests microphone permission, and records with `getUserMedia` and `MediaRecorder` using a supported format selected at runtime.
+2. Show a timer, local microphone-level display, and separated Cancel and Send controls. Play a start cue and a stop cue. At five minutes, stop and automatically submit the clip for transcription. While a voice clip is pending, keep the textarea read-only so the saved insertion point remains valid.
+3. Send the audio to the same-origin Bun endpoint `POST /api/transcriptions` over the private HTTPS service. The current app has no account system; the server accepts only bounded audio uploads and does not let the client choose a host path or executable.
 4. FFmpeg decodes and normalizes the clip to 16 kHz, mono, 16-bit PCM WAV. Invoke Handy with fixed argument-array values: `--transcribe-file <temporary-wav> --json`.
-5. Parse the returned transcript, return text to the browser, and remove temporary audio in a `finally` path. The user can edit the transcript before inserting it into the comment.
+5. Parse the returned transcript, return text to the browser, and remove temporary audio in a `finally` path. Insert the text at the saved caret (or over only the selected range) and let the user edit the comment. On failure, keep the recording in memory for Retry without changing the comment.
 
 FFmpeg is present on this host; packaging should make it an explicit optional runtime requirement for voice. Keep the transcription adapter behind a small interface so a future supported Handy IPC/API or another local engine can replace the subprocess without changing the UI. Limit one active transcription per host initially, set a timeout, and show a useful error when Handy or its model is unavailable. Never log audio or transcript content by default. [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder), [FFmpeg resampling](https://www.ffmpeg.org/ffmpeg-resampler.html)
 
@@ -151,7 +153,7 @@ Mobile microphone capture and programmatic Copy feedback both require a secure b
 | `GET /api/projects/:id/tree`, `GET /api/projects/:id/file` | Browse working-tree paths and read bounded current files. |
 | `GET /api/projects/:id/history` | Optional distant Git browser: list older revisions of a tracked file. |
 | `GET /api/projects/:id/search` | Return bounded server-side search matches. |
-| `POST /api/transcriptions` | Transcribe one authenticated, bounded audio clip locally. |
+| `POST /api/transcriptions` | Transcribe one bounded audio clip locally over the private, same-origin HTTPS service. |
 
 Use a small shared TypeScript schema for responses and validate all untrusted inputs at runtime. Resolve paths beneath configured roots after symlinks, prevent traversal, and pass Git/FFmpeg/Handy arguments without a shell. Default to loopback binding; explicit binding to the host's Tailscale IPv4 address supports tailnet access to the current foundation. Broader LAN mode requires pairing, trusted HTTPS, same-origin checks, and no permissive CORS. Keep the app read-only with respect to repository files.
 
@@ -188,3 +190,5 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 6. **Final device and performance pass:** Check actual touch behavior, clipboard and microphone operation over LAN HTTPS, large files, search limits, and refreshes while comments are present.
 
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
+
+After review of the selected-code Search shortcut and the local voice work, keep appearance and portrait-gutter refinements available as separate small slices. Schedule the [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) late, before the optional Git history browser. Review its screen flow and URL model with the maintainer before implementation.
