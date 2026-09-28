@@ -14,6 +14,8 @@
     "qa:tabs": "bun qa/check-tabs.ts",
     "qa:diff": "bun qa/check-diff.ts",
     "qa:files": "bun qa/check-files.ts",
+    "qa:media": "bun qa/check-media.ts",
+    "qa:media-playback": "bun qa/check-media-playback.ts",
     "qa:search": "bun qa/check-search.ts",
     "qa:selected-search": "bun qa/check-selected-search.ts",
     "qa:voice": "bun qa/check-voice.ts",

@@ -17,6 +17,7 @@ type CaptureOptions = {
   scrollXToEnd: string | null;
   selectText: { selector: string; text: string } | null;
   fakeMicrophone: boolean;
+  mediaReady: boolean;
 };
 
 type ParsedArgs = { kind: "help" } | { kind: "capture"; options: CaptureOptions };
@@ -50,6 +51,7 @@ Options:
   --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
   --select-text <CSS selector> <text> Select code text and show its contextual action
   --fake-microphone       Grant Chrome's synthetic microphone for recording UI captures
+  --media-ready           Wait for audio/video metadata before each screenshot
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
 
@@ -80,6 +82,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let scrollXToEnd: string | null = null;
   let selectText: CaptureOptions["selectText"] = null;
   let fakeMicrophone = false;
+  let mediaReady = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -141,6 +144,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       case "--fake-microphone":
         fakeMicrophone = true;
         break;
+      case "--media-ready":
+        mediaReady = true;
+        break;
       default:
         throw new Error(`Unknown option: ${flag ?? "(missing)"}`);
     }
@@ -165,7 +171,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 
   if (afterClickReady !== null && !actions.some((action) => action.kind === "click")) throw new Error("--after-click-ready requires --click");
   if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText, fakeMicrophone } };
+  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText, fakeMicrophone, mediaReady } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -219,6 +225,9 @@ async function capture(options: CaptureOptions): Promise<void> {
         }
         if (options.afterClickReady !== null) {
           await page.locator(options.afterClickReady).first().waitFor({ state: "visible", timeout: 15_000 });
+        }
+        if (options.mediaReady) {
+          await page.waitForFunction(() => [...document.querySelectorAll<HTMLMediaElement>("audio, video")].every((element) => element.readyState >= 1 || element.error !== null), null, { timeout: 15_000 });
         }
         if (options.scrollTo !== null) {
           await page.locator(options.scrollTo).evaluate((element, offset) => {

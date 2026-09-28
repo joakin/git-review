@@ -52,6 +52,12 @@ For a long file header, use `--click` to expand its card, `--after-click-ready` 
 
 The command uses desktop Chrome with emulated touch, viewport, and mobile settings for smaller screens. This does not reproduce mobile Safari or Android Chrome exactly. Use real devices for long press, double tap, keyboard/safe-area layout, clipboard, and voice recording before those features are called complete.
 
+## Native media previews
+
+Use `bun qa/prepare-media-fixture.ts` and `bun qa/prepare-media-av-fixture.ts` to create ignored Git fixtures under `qa/.artifacts/`; both commands refuse to overwrite an existing fixture. The audio/video fixture generator needs FFmpeg with H.264 encoding. Start the local app with `--root "$PWD/qa/.artifacts"`. Run `bun run qa:media http://127.0.0.1:3000/` for image rendering and the raw SVG script restriction, then `bun run qa:media-playback http://127.0.0.1:3000/` for mobile Chrome audio/video loading, seeking, and raw byte ranges.
+
+Capture four sizes with `bun run qa:capture --active-path media-fixture` or `--active-path media-av-fixture`. Use `--media-ready` to wait for native player metadata. The [image Old/New cards](../qa/screenshots/media-images-diff-first/mobile.png), [current Files image](../qa/screenshots/media-images-files-review/mobile.png), [final HTTPS audio/video cards](../qa/screenshots/media-av-live-ready-review/mobile.png), and [final HTTPS Files video](../qa/screenshots/media-av-live-control-review/mobile.png) have phone, tablet portrait, tablet landscape, and desktop captures. The script checks do not replace playback and raw-link checks in real Android Chrome and iOS Safari over HTTPS.
+
 ## Baseline matrix as features arrive
 
 | Area | Behavior to verify |

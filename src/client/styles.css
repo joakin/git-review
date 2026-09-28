@@ -206,6 +206,15 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .diff-language-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .diff-message { margin: 0; padding: var(--space-5); color: var(--color-text-muted); font-size: var(--font-size-13); line-height: 1.5; }
 .diff-message button { margin-left: 8px; padding: 5px 10px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); }
+.media-diff { display: grid; gap: var(--space-4); padding: var(--space-4); min-width: 0; }
+.media-preview { min-width: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-small); background: var(--color-page); }
+.file-panel > .media-preview { margin: var(--space-4); }
+.media-preview-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); overflow-wrap: anywhere; color: var(--color-text-muted); font-size: var(--font-size-12); }
+.media-preview-head a { color: var(--color-accent); font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.media-preview img { display: block; max-width: 100%; max-height: 65vh; width: auto; height: auto; margin: 0 auto; object-fit: contain; }
+.media-preview audio { display: block; width: 100%; max-width: 100%; }
+.media-preview video { display: block; max-width: 100%; max-height: 65vh; width: auto; height: auto; margin: 0 auto; background: var(--color-heading); }
+.media-preview-fallback { margin: 0; padding: var(--space-3); color: var(--color-text-muted); font-size: var(--font-size-13); }
 .diff-scroll { width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; }
 .diff-scroll-content { display: inline-block; min-width: 100%; vertical-align: top; }
 .diff-hunk { width: 100%; }
@@ -352,6 +361,7 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .diff-card-toggle[aria-expanded="true"] { top: var(--topbar-height-mobile); }
   .diff-number { padding-right: 4px; }
   .diff-scroll { --diff-sign-width: 16px; }
+  .app:has(.media-preview audio, .media-preview video) .feedback-launch { top: calc(var(--topbar-height-mobile) + var(--space-3)); bottom: auto; }
 }
 
 @media (max-width: 390px) {

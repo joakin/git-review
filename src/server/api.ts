@@ -4,7 +4,10 @@ import { isRecord } from "../shared/validation.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { readProjectDiff } from "./git-diff.ts";
 import { languageOverride, languages } from "./syntax.ts";
-import { readProjectFile, readProjectTree } from "./project-files.ts";
+import { openWorkingAudioVideo, readProjectFile, readProjectTree, readWorkingImageBytes } from "./project-files.ts";
+import { describeDiffMedia, diffMediaType, imageResponse, openDiffAudioVideo, readDiffImageBytes } from "./media.ts";
+import { audioVideoResponse } from "./media-stream.ts";
+import { imageMimeType } from "./image-types.ts";
 import { searchProject } from "./search.ts";
 import { createTranscriptionHandler } from "./transcription.ts";
 import type { ChangeLayer, Project } from "../shared/api.ts";
@@ -97,6 +100,38 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       openProjects.set(project.id, project);
       return Response.json({ project });
     }
+    const rawRoute = /^\/api\/projects\/([0-9a-f]{20})\/raw\/(file|diff)$/.exec(url.pathname);
+    if (rawRoute !== null && (request.method === "GET" || request.method === "HEAD")) {
+      const id = rawRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined) throw new AppError("not_found", 404, "Open this folder before viewing its media");
+      const current = await openProject(root, project.path);
+      if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const path = oneQueryValue(url, "path");
+      const version = oneQueryValue(url, "version");
+      if (!/^(?:[0-9a-f]{20}|[0-9a-f]{40,64})$/.test(version)) throw new AppError("invalid_request", 400, "Invalid media version");
+      if (rawRoute[2] === "file") {
+        if (imageMimeType(path) !== null) {
+          const image = await readWorkingImageBytes(root, current, path, version);
+          return imageResponse(image.bytes, image.mimeType, path, request.method === "HEAD");
+        }
+        const media = await openWorkingAudioVideo(root, current, path, version);
+        return audioVideoResponse(request, { source: { kind: "file", file: media.file, version }, byteLength: media.byteLength, mimeType: media.mimeType, path: media.path });
+      }
+      const layer = changeLayer(oneQueryValue(url, "layer"));
+      const revision = oneQueryValue(url, "revision");
+      const side = oneQueryValue(url, "side");
+      if (!/^[0-9a-f]{20}$/.test(revision) || (side !== "old" && side !== "new")) throw new AppError("invalid_request", 400, "Invalid media side or revision");
+      const status = await readProjectStatus(current.absolutePath);
+      if (status.kind !== "git" || status.revision !== revision) throw new AppError("not_found", 409, "This change was updated. Refresh its preview.");
+      const entry = status.entries.find((item) => item.layer === layer && item.path === path);
+      if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
+      const type = diffMediaType(entry, side);
+      if (type === "audio-video") return audioVideoResponse(request, await openDiffAudioVideo(root, current, entry, side, version));
+      if (type === null) throw new AppError("not_found", 404, "This change has no previewable media on that side");
+      const image = await readDiffImageBytes(root, current, entry, side, version);
+      return imageResponse(image.bytes, image.mimeType, image.path, request.method === "HEAD");
+    }
     const searchRoute = /^\/api\/projects\/([0-9a-f]{20})\/search$/.exec(url.pathname);
     if (searchRoute !== null && request.method === "GET") {
       const id = searchRoute[1];
@@ -153,7 +188,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       if (status.kind !== "git" || status.revision !== revision) return Response.json({ kind: "stale" });
       const entry = status.entries.find((item) => item.layer === layer && item.path === path);
       if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
-      const diff = await readProjectDiff(root, current, entry, requestedLanguage);
+      const diff = await describeDiffMedia(root, current, entry, revision) ?? await readProjectDiff(root, current, entry, requestedLanguage);
       const after = await readProjectStatus(current.absolutePath);
       return Response.json(after.kind === "git" && after.revision === revision ? diff : { kind: "stale" });
     }

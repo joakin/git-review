@@ -3,6 +3,7 @@ import type { ChangeEntry, DiffHunk, DiffResult, LanguageOption } from "../share
 import { fetchProjectDiff } from "./api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 import { anchorForLine, type CommentAnchor, type DraftComment } from "./comments.ts";
+import { MediaDiff } from "./MediaPreview.tsx";
 
 type DiffState =
   | { kind: "loading" }
@@ -50,6 +51,7 @@ function HunkRows({ hunk, entry, onComment, drafts }: { hunk: DiffHunk; entry: C
 }
 
 function DiffBody({ result, wrap, entry, onComment, drafts }: { result: DiffResult; wrap: boolean; entry: ChangeEntry; onComment: (anchor: CommentAnchor) => void; drafts: readonly DraftComment[] }) {
+  if (result.kind === "media") return <MediaDiff old={result.old} next={result.new} />;
   if (result.kind === "stale") return <p class="diff-message">The file changed while loading. Refreshing its status…</p>;
   if (result.kind === "conflict") return <p class="diff-message">This file has unresolved Git conflicts. A conflict view is planned for a later slice.</p>;
   if (result.kind === "too_large") return <p class="diff-message">This diff is too large for the current text view.</p>;
@@ -97,7 +99,7 @@ export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wra
       <span class="diff-card-layer">{entry.layer}</span>
     </button>
     {expanded && <div class="diff-card-body">
-      {languages.length > 0 && <div class="diff-language-row"><label>Language <select value={override ?? "auto"} onChange={(event) => {
+      {languages.length > 0 && (current.kind !== "ready" || current.value.kind === "text") && <div class="diff-language-row"><label>Language <select value={override ?? "auto"} onChange={(event) => {
         const value = event.currentTarget.value === "auto" ? null : event.currentTarget.value;
         setOverride(value);
         saveLanguageOverride(projectId, entry.path, value);

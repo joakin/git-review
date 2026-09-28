@@ -30,7 +30,7 @@ The first Files slice adds a mobile-friendly path from a selected project to a r
 ## Deferred ideas
 
 - Much later, optionally add repository and file commit history, with a commit list and files opened at a chosen revision. This is a larger Git browser and is not needed for agent code review now. Index and `HEAD` version selection can be considered with that work. [Git tree listing](https://git-scm.com/docs/git-ls-tree), [Git object reads](https://git-scm.com/docs/git-cat-file)
-- Add images, PDFs, and safe HTML preview after deciding their response and isolation rules. An iframe alone is not a universal renderer; same-origin HTML must not gain scripts plus same-origin access. [Iframe sandbox guidance](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe)
+- Native images (including SVG), audio, and video are covered by the [media preview slice](media-preview-slice-proposal.md). PDF is deferred; HTML preview is not planned.
 - Add bounded server-side search and the held-word/Search action, with results opening this file view at a line.
 
 ## Smallest reviewable result

@@ -17,8 +17,11 @@ export type DirectoryListing = {
 export type FileTreeEntry = { name: string; path: string; kind: "directory" | "file" | "symlink" | "other" };
 export type FileTree = { path: string; parentPath: string | null; entries: FileTreeEntry[] };
 export type FileLine = { number: number; text: string; tokens: SyntaxToken[] };
+export type MediaResource = { kind: "image" | "audio" | "video"; mimeType: string; byteLength: number; url: string };
+export type MediaSide = { kind: "absent" } | { kind: "ready"; path: string; resource: MediaResource } | { kind: "unavailable"; path: string; reason: "unsupported" | "too_large" | "missing" };
 export type FileReadResult =
   | { kind: "text"; path: string; byteLength: number; syntax: SyntaxState; lines: FileLine[] }
+  | { kind: "media"; path: string; byteLength: number; resource: MediaResource }
   | { kind: "binary" | "too_large" | "symlink" | "unsupported"; path: string; byteLength: number };
 
 export type SearchMatch = { path: string; line: number; excerpt: string };
@@ -70,6 +73,7 @@ export type DiffHunk = {
 
 export type DiffResult =
   | { kind: "text"; syntax: SyntaxState; hunks: DiffHunk[] }
+  | { kind: "media"; old: MediaSide; new: MediaSide }
   | { kind: "binary"; reason: "binary" | "symlink" | "submodule" }
   | { kind: "too_large" }
   | { kind: "conflict" }
@@ -169,12 +173,47 @@ function parseSyntaxTokens(value: unknown, source: string): SyntaxToken[] {
   return tokens;
 }
 
+const imageMimeTypes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml"]);
+const audioMimeTypes = new Set(["audio/mpeg", "audio/mp4", "audio/wav", "audio/ogg"]);
+const videoMimeTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+
+function parseMediaResource(value: unknown): MediaResource {
+  const raw = expectRecord(value, "media resource");
+  const kind = raw["kind"];
+  if (kind !== "image" && kind !== "audio" && kind !== "video") throw new Error("Expected a media resource");
+  const mimeType = expectString(raw["mimeType"], "media MIME type");
+  if (!(kind === "image" ? imageMimeTypes : kind === "audio" ? audioMimeTypes : videoMimeTypes).has(mimeType)) throw new Error("Expected a supported media MIME type");
+  const byteLength = expectNonNegativeInteger(raw["byteLength"], "media byte length");
+  if (byteLength === 0 || byteLength > (kind === "image" ? 25 : 200) * 1024 * 1024) throw new Error("Expected bounded media bytes");
+  const url = expectString(raw["url"], "media URL");
+  if (!/^\/api\/projects\/[0-9a-f]{20}\/raw\/(file|diff)\?/.test(url) || /[\r\n\\]/.test(url)) throw new Error("Expected a project media URL");
+  return { kind, mimeType, byteLength, url };
+}
+
+function parseMediaSide(value: unknown): MediaSide {
+  const raw = expectRecord(value, "media side");
+  if (raw["kind"] === "absent") return { kind: "absent" };
+  const path = expectProjectPath(raw["path"], "media path", false);
+  if (raw["kind"] === "ready") return { kind: "ready", path, resource: parseMediaResource(raw["resource"]) };
+  if (raw["kind"] === "unavailable") {
+    const reason = raw["reason"];
+    if (reason !== "unsupported" && reason !== "too_large" && reason !== "missing") throw new Error("Expected a media unavailable reason");
+    return { kind: "unavailable", path, reason };
+  }
+  throw new Error("Expected a media side state");
+}
+
 export function parseFileReadResponse(value: unknown): FileReadResult {
   const outer = expectRecord(value, "file response");
   const path = expectProjectPath(outer["path"], "file path", false);
   const byteLength = expectNonNegativeInteger(outer["byteLength"], "file byte length");
   const kind = outer["kind"];
   if (kind === "binary" || kind === "too_large" || kind === "symlink" || kind === "unsupported") return { kind, path, byteLength };
+  if (kind === "media") {
+    const resource = parseMediaResource(outer["resource"]);
+    if (resource.byteLength !== byteLength) throw new Error("Media byte length differs from file metadata");
+    return { kind, path, byteLength, resource };
+  }
   if (kind !== "text" || byteLength > 1024 * 1024) throw new Error("Expected a bounded text file");
   const syntax = parseSyntaxState(outer["syntax"]);
   const rawLines = outer["lines"];
@@ -276,6 +315,7 @@ export function parseDiffResponse(value: unknown): DiffResult {
       if (reason !== "binary" && reason !== "symlink" && reason !== "submodule") throw new Error("Expected a binary file reason");
       return { kind: "binary", reason };
     }
+    case "media": return { kind: "media", old: parseMediaSide(outer["old"]), new: parseMediaSide(outer["new"]) };
     case "text": {
       const rawSyntax = expectRecord(outer["syntax"], "syntax state");
       let syntax: SyntaxState;
