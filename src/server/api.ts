@@ -6,6 +6,7 @@ import { readProjectDiff } from "./git-diff.ts";
 import { languageOverride, languages } from "./syntax.ts";
 import { readProjectFile, readProjectTree } from "./project-files.ts";
 import { searchProject } from "./search.ts";
+import { createTranscriptionHandler } from "./transcription.ts";
 import type { ChangeLayer, Project } from "../shared/api.ts";
 
 const maxBodyBytes = 4096;
@@ -64,10 +65,11 @@ function changeLayer(value: string): ChangeLayer {
 
 export function createApiHandler(root: ApprovedRoot, publicOrigin: string | null = null): (request: Request) => Promise<Response> {
   const openProjects = new Map<string, Project>();
-  return (request) => handleApiRequest(request, root, openProjects, publicOrigin);
+  const transcribe = createTranscriptionHandler();
+  return (request) => handleApiRequest(request, root, openProjects, publicOrigin, transcribe);
 }
 
-async function handleApiRequest(request: Request, root: ApprovedRoot, openProjects: Map<string, Project>, publicOrigin: string | null): Promise<Response> {
+async function handleApiRequest(request: Request, root: ApprovedRoot, openProjects: Map<string, Project>, publicOrigin: string | null, transcribe: (request: Request) => Promise<Response>): Promise<Response> {
   try {
     const url = new URL(request.url);
     const origin = request.headers.get("origin");
@@ -79,6 +81,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       return Response.json({ root: root.info });
     }
     if (url.pathname === "/api/languages" && request.method === "GET") return Response.json({ languages });
+    if (url.pathname === "/api/transcriptions" && request.method === "POST") return transcribe(request);
     if (url.pathname === "/api/directories" && request.method === "GET") {
       const paths = url.searchParams.getAll("path");
       if (paths.length !== 1) throw new AppError("invalid_request", 400, "Specify one folder path");

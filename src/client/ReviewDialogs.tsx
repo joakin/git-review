@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { formatFeedback, maxBodyLength, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
+import { useVoiceComment, VoiceCommentFooter } from "./VoiceComment.tsx";
 
 export type EditorState = { anchor: CommentAnchor; draftId: string | null; body: string };
 export type CheckState = "checking" | "ready" | "error";
@@ -40,11 +41,14 @@ function anchorLabel(anchor: CommentAnchor): string {
 
 export function CommentEditor({ editor, onBody, onClose, onDelete }: { editor: EditorState; onBody: (body: string) => void; onClose: () => void; onDelete: () => void }) {
   const modal = useModal(onClose);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voice = useVoiceComment(textareaRef, onBody);
   return <dialog class="review-dialog comment-editor" ref={modal.ref} onCancel={modal.onCancel} aria-labelledby="comment-editor-title">
     <div class="review-dialog-head"><div><p class="eyebrow">LINE FEEDBACK</p><h2 id="comment-editor-title">{editor.draftId === null ? "Add a comment" : "Edit comment"}</h2></div><button type="button" class="review-dialog-close" aria-label="Close comment editor" onClick={onClose}>×</button></div>
     <p class="review-anchor"><strong>{editor.anchor.path}</strong><span>{anchorLabel(editor.anchor)}</span></p>
     <pre class="review-source">{editor.anchor.sourceText}</pre>
-    <label class="review-field">Your feedback<textarea autofocus value={editor.body} maxLength={maxBodyLength} rows={6} placeholder="What should change?" onInput={(event) => onBody(event.currentTarget.value)} /></label>
+    <label class="review-field">Your feedback<textarea ref={textareaRef} autofocus value={editor.body} readOnly={voice.locked} maxLength={maxBodyLength} rows={6} placeholder="What should change?" onInput={(event) => onBody(event.currentTarget.value)} /></label>
+    <VoiceCommentFooter voice={voice} />
     <div class="review-dialog-actions">{editor.draftId !== null && <button class="review-danger" type="button" onClick={onDelete}>Delete</button>}<button class="review-primary" type="button" onClick={onClose}>Save comment</button></div>
     <p class="review-hint">Closing saves non-empty text on this device.</p>
   </dialog>;

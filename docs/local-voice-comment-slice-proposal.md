@@ -1,10 +1,10 @@
 # Local voice dictation in comments: first slice proposal
 
-Status: flow agreed with the maintainer; implement after review of the selected-code Search checkpoint. The [initial plan](initial-implementation-plan.md) records the earlier engine comparison and full voice scope.
+Status: implemented and approved by the maintainer on 2026-09-28. The [initial plan](initial-implementation-plan.md) records the earlier engine comparison and full voice scope.
 
 ## Verified host capability
 
-The installed Handy 0.9.6 binary supports `--transcribe-file <WAV> --json` and uses the downloaded `parakeet-tdt-0.6b-v3` model by default. On 2026-09-28, a locally synthesized 1.8-second English WAV, normalized by FFmpeg to 16 kHz mono PCM, produced a JSON result whose `text` was `The code review comment is ready.` No OpenAI API call or subscription bridge was involved. Handy exited with code 134 inside this task's sandbox, but succeeded under ordinary host permissions. The actual HTTPS server process and phone microphone capture have not yet been tested.
+The installed Handy 0.9.6 binary supports `--transcribe-file <WAV> --json` and uses the downloaded `parakeet-tdt-0.6b-v3` model by default. On 2026-09-28, a locally synthesized 1.8-second English WAV, normalized by FFmpeg to 16 kHz mono PCM, produced a JSON result whose `text` was `The code review comment is ready.` No OpenAI API call or subscription bridge was involved. Handy exited with code 134 inside this task's sandbox, but succeeded under ordinary host permissions. The same synthetic clip subsequently succeeded through the private HTTPS service, and the maintainer reported that the phone dictation flow works well.
 
 ## User flow and smallest checkpoint
 
@@ -33,3 +33,9 @@ The first reviewable checkpoint is one recording from the comment textarea foote
 ## Design assumptions to confirm
 
 The maintainer chose a textarea-footer workflow: microphone → live timer/level with separate Cancel and Send → progress → automatic insertion at the saved cursor. The textarea is temporarily read-only while a voice clip is pending, which keeps the saved insertion position exact. At five minutes, recording stops with an audible cue and automatically submits for transcription.
+
+## First checkpoint result
+
+The comment editor now records `audio/webm`, `audio/mp4`, or `audio/ogg` when supported, presents a timer and level meter with separate Cancel and Send controls, and submits automatically at five minutes. The same-origin server endpoint caps uploads at 32 MiB, runs one transcription at a time, normalizes through FFmpeg, invokes Handy, and removes temporary files. The transcript is inserted at the saved textarea range; a failed transcription retains the in-memory clip for Retry. Closing the editor discards the clip and keeps typed text through the existing draft behavior.
+
+The synthetic speech fixture sent through both the local endpoint and private HTTPS service returned `The code review comment is ready.` Focused browser QA passed cursor insertion, selected-range replacement, failure and Retry, Cancel, the five-minute auto-send behavior, and access to the controls in a keyboard-sized viewport. Four-size captures of the [idle footer](../qa/screenshots/voice-comment-idle/mobile.png) and [active recording footer](../qa/screenshots/voice-comment-recording/mobile.png) showed no page-wide overflow. The maintainer reported that phone dictation works well. iOS microphone behavior, browser backgrounding, and the full set of failure cases still need device checks.

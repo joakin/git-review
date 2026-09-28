@@ -20,6 +20,7 @@ import {
   type LanguageOption,
   type SearchResponse,
 } from "../shared/api.ts";
+import { expectRecord, expectString } from "../shared/validation.ts";
 
 async function responseBody(response: Response): Promise<unknown> {
   let body: unknown;
@@ -89,4 +90,17 @@ export async function fetchProjectSearch(id: string, query: string, signal: Abor
   const search = new URLSearchParams({ query });
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/search?${search}`, { signal });
   return parseSearchResponse(await responseBody(response));
+}
+
+export async function transcribeRecording(recording: Blob, signal: AbortSignal): Promise<string> {
+  const response = await fetch("/api/transcriptions", {
+    method: "POST",
+    headers: { "content-type": recording.type },
+    body: recording,
+    signal,
+  });
+  const body = expectRecord(await responseBody(response), "transcription response");
+  const text = expectString(body["text"], "transcription text");
+  if (text.length === 0 || text.length > 5_000) throw new Error("The server returned invalid transcription text");
+  return text;
 }

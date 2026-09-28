@@ -1,6 +1,6 @@
 # Files browser: first readable file slice
 
-Status: implemented for maintainer review; not yet committed.
+Status: implemented and committed after maintainer review.
 
 ## Why this slice
 

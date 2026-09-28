@@ -1,6 +1,6 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap an old or new diff line number to draft feedback, check the current lines, and copy a line-numbered summary. The selected folder survives reload **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. Local voice transcription is the next proposed slice in the [Initial Implementation Plan](docs/initial-implementation-plan.md); Git commit history is a distant optional slice. See the [Files browser](docs/file-browser-slice-proposal.md), [selected-code Search](docs/selected-code-search-slice-proposal.md), [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap an old or new diff line number to draft feedback, dictate into the comment, check the current lines, and copy a line-numbered summary. The selected folder survives reload **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. Git commit history is a distant optional slice in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [voice comment](docs/local-voice-comment-slice-proposal.md), [Files browser](docs/file-browser-slice-proposal.md), [selected-code Search](docs/selected-code-search-slice-proposal.md), [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
 
 ## Run the app
 
@@ -19,7 +19,7 @@ GIT_REVIEW_HOST=100.x.y.z bun run dev --root /path/to/projects --port 39878
 
 Use the Mac's Tailscale hostname with that port on another connected device, for example `http://your-mac.your-tailnet.ts.net:39878/`. The default bind address is `127.0.0.1`; `--root` defaults to the current working directory and `--port` to `3000`. After client edits, restart `bun run dev` or run `bun run build` while the server is running.
 
-Clipboard writes usually need HTTPS or localhost. The HTTP Tailscale page keeps a selectable feedback text box when Copy is unavailable; copied drafts are cleared only after a successful Clipboard API write.
+Clipboard writes and microphone capture need HTTPS or localhost on most browsers. The HTTP Tailscale page keeps a selectable feedback text box when Copy is unavailable; copied drafts are cleared only after a successful Clipboard API write. Voice comments additionally require FFmpeg, Handy, and a downloaded Handy model on the host. The default paths are `/opt/homebrew/bin/ffmpeg` and `/Applications/Handy.app/Contents/MacOS/handy`; set `GIT_REVIEW_FFMPEG_PATH` or `GIT_REVIEW_HANDY_PATH` to an absolute executable path if yours differs. Voice remains optional; typed comments work without these tools.
 
 ## Install on a phone
 
@@ -46,6 +46,7 @@ bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:files http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
+bun run qa:voice http://127.0.0.1:3000/
 bun run qa:tabs http://127.0.0.1:3000/
 bun run qa:pwa http://127.0.0.1:3000/
 bun run qa:capture --url http://127.0.0.1:3000/ --label <milestone>

@@ -16,6 +16,7 @@ type CaptureOptions = {
   scrollOffset: number;
   scrollXToEnd: string | null;
   selectText: { selector: string; text: string } | null;
+  fakeMicrophone: boolean;
 };
 
 type ParsedArgs = { kind: "help" } | { kind: "capture"; options: CaptureOptions };
@@ -48,6 +49,7 @@ Options:
   --scroll-offset <pixels> Scroll farther after --scroll-to (default: 320)
   --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
   --select-text <CSS selector> <text> Select code text and show its contextual action
+  --fake-microphone       Grant Chrome's synthetic microphone for recording UI captures
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
 
@@ -77,6 +79,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let scrollOffset = 320;
   let scrollXToEnd: string | null = null;
   let selectText: CaptureOptions["selectText"] = null;
+  let fakeMicrophone = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -135,6 +138,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       case "--full-page":
         fullPage = true;
         break;
+      case "--fake-microphone":
+        fakeMicrophone = true;
+        break;
       default:
         throw new Error(`Unknown option: ${flag ?? "(missing)"}`);
     }
@@ -159,14 +165,14 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 
   if (afterClickReady !== null && !actions.some((action) => action.kind === "click")) throw new Error("--after-click-ready requires --click");
   if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText } };
+  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText, fakeMicrophone } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
   const directory = resolve("qa/screenshots", options.label);
   await mkdir(directory);
 
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: true, args: options.fakeMicrophone ? ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] : [] });
   const results: Array<{
     name: string;
     file: string;

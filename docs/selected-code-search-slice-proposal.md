@@ -1,6 +1,6 @@
 # Selected code text → Search proposal
 
-Status: implemented as an uncommitted, reviewable slice. The server-side working-tree Search was already implemented; this adds the entry point from code. Real iOS and Android selection behavior remains for device review.
+Status: implemented and committed as part of `da9ba46`. The server-side working-tree Search was already implemented; this adds the entry point from code. The maintainer confirmed the action works on their phone. iOS selection behavior remains for device review.
 
 ## User flow and smallest checkpoint
 
@@ -27,7 +27,7 @@ The first checkpoint uses the selected text literally with the current case-sens
 
 ## Maintainer feedback
 
-The maintainer first preferred a tooltip above the selection instead of a fixed corner action. Android review found that the native Copy/Paste/Select All menu occupies that space. Touch placement now prefers below the selection, with a header-adjacent fallback when there is no room below. The remaining real-device check is whether this avoids the Android menu and works with iOS selection controls; keep native selection and the explicit Search tap.
+The maintainer first preferred a tooltip above the selection instead of a fixed corner action. Android review found that the native Copy/Paste/Select All menu occupies that space. Touch placement now prefers below the selection, with a header-adjacent fallback when there is no room below. The maintainer confirmed this works on their phone. iOS selection controls still need a device check; keep native selection and the explicit Search tap.
 
 ## Implemented behavior and checks
 

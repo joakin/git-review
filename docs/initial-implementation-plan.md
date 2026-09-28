@@ -27,11 +27,11 @@ This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy
 
 1. **Open a project.** The web app lists host directories inside server-approved roots. Select a folder. If it is a Git repository, open Changes; otherwise, open Files with a clear non-Git state. Recent projects are shown in the picker.
 2. **Review changes.** The file list groups Staged, Unstaged, and Untracked. Select a file to jump to its card. Expand or collapse cards, inspect highlighted code, toggle wrapping, and add comments to old or new lines.
-3. **Browse and search.** Open any allowed working-tree file. Later, hold a word to search for it in the working tree and tap a result to open that file at its matching line. Repository and file commit history is a distant optional expansion.
+3. **Browse and search.** Open any allowed working-tree file. Select code text and use its Search action to find it in the working tree; tap a result to open that file at its matching line. Repository and file commit history is a distant optional expansion.
 4. **Dictate a comment.** Place the caret in a line comment, tap the textarea-footer microphone, record on the phone, and send the clip for local transcription. Insert the returned text at that caret, then edit the draft normally. The recording footer has separate Cancel and Send controls, a five-minute limit, and audible start/stop cues.
 5. **Send feedback.** Preview comments grouped by file and Git layer, copy the text, and paste it into an editing session. Successful copies enter history. An unsuccessful copy preserves the draft.
 
-The [working-tree Files browser](file-browser-slice-proposal.md) and [Working-tree Search](search-slice-proposal.md) are implemented. The [selected-code Search shortcut](selected-code-search-slice-proposal.md) is implemented for maintainer review. The [local voice comment slice](local-voice-comment-slice-proposal.md) follows it. Repository and file commit history, including opening files at older revisions, is a distant optional slice. Voice remains higher priority than building a full Git browser.
+The [working-tree Files browser](file-browser-slice-proposal.md), [Working-tree Search](search-slice-proposal.md), [selected-code Search shortcut](selected-code-search-slice-proposal.md), and [local voice comment slice](local-voice-comment-slice-proposal.md) are implemented and approved. Repository and file commit history, including opening files at older revisions, is a distant optional slice.
 
 A [deferred navigation and URL history slice](navigation-and-url-history-slice-proposal.md) proposes browser Back/Forward and direct links for the main destinations, plus a separate menu, list screen, and content screen. It is planned near the end of the roadmap, immediately before optional Git history browsing. The maintainer chose continuous Changes review as the default and kept Changes / Files / Search tabs in the project content area. The responsive layout below describes the current implementation and near-term baseline; the navigation proposal describes the later redesign.
 
@@ -124,7 +124,7 @@ Handy is a local speech-to-text app. Its public CLI page currently documents rec
 --json                        Emit file transcription results as JSON
 ```
 
-The host already has a Handy Parakeet V3 model installed. This is a direct local route for recordings made on the phone, with no external inference service. A 1.8-second synthetic speech fixture was normalized by FFmpeg and transcribed through the CLI on 2026-09-28; Handy returned JSON with the expected `text`. The CLI exited with code 134 in this task's sandbox but worked with ordinary host permissions. The actual HTTPS server process and phone capture still need verification. See the [voice slice proposal](local-voice-comment-slice-proposal.md). [Handy repository](https://github.com/cjpais/Handy), [Handy headless CLI change](https://github.com/cjpais/Handy/pull/1541), [Handy public CLI page](https://handy.computer/docs/cli)
+The host already has a Handy Parakeet V3 model installed. This is a direct local route for recordings made on the phone, with no external inference service. A synthetic speech fixture was transcribed through the CLI, local endpoint, and private HTTPS service on 2026-09-28; Handy returned JSON with the expected `text`. The CLI exited with code 134 in this task's sandbox but worked with ordinary host permissions. The maintainer reported that phone dictation works well. See the [voice slice proposal](local-voice-comment-slice-proposal.md). [Handy repository](https://github.com/cjpais/Handy), [Handy headless CLI change](https://github.com/cjpais/Handy/pull/1541), [Handy public CLI page](https://handy.computer/docs/cli)
 
 ### Request flow
 
@@ -192,3 +192,11 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
 
 After review of the selected-code Search shortcut and the local voice work, keep appearance and portrait-gutter refinements available as separate small slices. Schedule the [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) late, before the optional Git history browser. Review its screen flow and URL model with the maintainer before implementation.
+
+## Remaining roadmap after the voice checkpoint
+
+- **Device and performance pass:** check iOS selection and microphone behavior, clipboard and keyboard layouts on real devices, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed the selected-code Search action and dictation work on their phone.
+- **Diff fidelity:** add bounded word-level change spans and exact moved-block indicators. Current rows distinguish added, removed, and context lines with syntax roles but do not mark changed words or moved blocks.
+- **Phone and personal layout:** design a narrower portrait line-number gutter and a Settings page for app/code themes, code font size, and code font family. These need separate proposals before implementation.
+- **Convenience:** recent files, status polling while the page is active, and a carefully tested double-tap comment shortcut remain from the initial plan. Explicit Refresh and line-number controls already cover the essential jobs.
+- **Later navigation:** implement the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) so Back/Forward and direct file links work. Richer file previews are optional; repository/file Git history is a still later optional expansion.
