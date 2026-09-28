@@ -4,6 +4,7 @@ import { isRecord } from "../shared/validation.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { readProjectDiff } from "./git-diff.ts";
 import { languageOverride, languages } from "./syntax.ts";
+import { readProjectFile, readProjectTree } from "./project-files.ts";
 import type { ChangeLayer, Project } from "../shared/api.ts";
 
 const maxBodyBytes = 4096;
@@ -91,6 +92,22 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       const project = await openProject(root, body["path"]);
       openProjects.set(project.id, project);
       return Response.json({ project });
+    }
+    const fileRoute = /^\/api\/projects\/([0-9a-f]{20})\/(tree|file)$/.exec(url.pathname);
+    if (fileRoute !== null && request.method === "GET") {
+      const id = fileRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined) throw new AppError("not_found", 404, "Open this folder before browsing its files");
+      const path = oneQueryValue(url, "path");
+      const current = await openProject(root, project.path);
+      if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      if (fileRoute[2] === "tree") return Response.json(await readProjectTree(root, current, path));
+      if (oneQueryValue(url, "source") !== "worktree") throw new AppError("invalid_request", 400, "Only working-tree files are available");
+      const requestedLanguages = url.searchParams.getAll("language");
+      if (requestedLanguages.length > 1) throw new AppError("invalid_request", 400, "Specify one language override");
+      const requestedLanguage = requestedLanguages[0] ?? null;
+      if (requestedLanguage !== null && languageOverride(requestedLanguage) === null) throw new AppError("invalid_request", 400, "Invalid language override");
+      return Response.json(await readProjectFile(root, current, path, requestedLanguage));
     }
     const statusRoute = /^\/api\/projects\/([0-9a-f]{20})\/status$/.exec(url.pathname);
     if (statusRoute !== null && request.method === "GET") {

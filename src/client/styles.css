@@ -99,6 +99,10 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .project-ready button:hover { background: var(--color-mint-hover); }
 .project-view-changes { margin-top: clamp(38px, 6vh, 72px); }
 .project-view-changes .project-intro h1 { font-size: clamp(37px, 4vw, 58px); }
+.project-view-tabs { display: flex; gap: var(--space-2); margin-top: var(--space-6); border-bottom: 1px solid var(--color-border); }
+.project-view-tabs button { min-height: 44px; padding: 10px var(--space-4); border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--color-text-muted); font-size: var(--font-size-14); font-weight: var(--font-weight-semibold); }
+.project-view-tabs button[aria-current="page"] { border-bottom-color: var(--color-accent); color: var(--color-accent); }
+.project-view-tabs button:disabled { opacity: .45; }
 .changes-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-4); margin: 48px 0 20px; }
 .changes-heading h2 { margin: 8px 0 0; color: var(--color-heading); font-size: var(--font-size-26); letter-spacing: -.04em; }
 .changes-heading button, .sidebar-switch-mode { min-height: 40px; padding: 9px 13px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font-size: var(--font-size-12); font-weight: var(--font-weight-semibold); }
@@ -129,6 +133,27 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .sidebar-install-data { display: block; width: calc(100% - 16px); min-height: 44px; margin: var(--space-5) var(--space-2) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font: inherit; font-size: var(--font-size-13); font-weight: var(--font-weight-semibold); text-align: left; }
 .sidebar-install-data:hover { background: var(--color-mint-hover); }
 .sidebar-changes .change-groups { gap: 18px; }
+.file-tree-location { padding: var(--space-3) var(--space-2) var(--space-5); border-bottom: 1px solid var(--color-divider); }
+.file-tree-list { padding-top: var(--space-3); }
+.file-tree-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: var(--space-2) 10px; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--color-text); text-align: left; font-family: var(--font-code); font-size: var(--font-size-12); }
+.file-tree-row > span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-tree-row:hover, .file-tree-row-selected { background: var(--color-mint-surface); color: var(--color-accent); }
+.file-tree-icon { flex: 0 0 20px; color: var(--color-accent-soft); font-family: var(--font-ui); font-size: var(--font-size-16); }
+.file-location-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); color: var(--color-text-muted); font-family: var(--font-code); font-size: var(--font-size-12); }
+.file-location-bar > span { min-width: 0; overflow-wrap: anywhere; }
+.file-location-bar button { display: none; flex: 0 0 auto; min-height: 44px; padding: 8px var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font-family: var(--font-ui); font-size: var(--font-size-12); font-weight: var(--font-weight-semibold); }
+.file-location-bar button:hover { background: var(--color-mint-hover); }
+.file-panel { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-panel); }
+.file-panel-head { display: flex; align-items: end; justify-content: space-between; gap: var(--space-3); padding: var(--space-4); }
+.file-panel-head h3 { margin: var(--space-2) 0 0; overflow-wrap: anywhere; color: var(--color-heading); font-family: var(--font-code); font-size: var(--font-size-14); }
+.file-size { flex: 0 0 auto; color: var(--color-text-subtle); font-size: var(--font-size-11); }
+.file-code-scroll { width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; border-top: 1px solid var(--color-border); }
+.file-code-content { display: inline-block; min-width: 100%; vertical-align: top; }
+.file-code-row { display: flex; align-items: stretch; width: 100%; color: var(--color-ink); font-family: var(--font-code); font-size: var(--font-size-12); line-height: 1.4; }
+.file-line-number { position: sticky; left: 0; display: flex; align-items: center; justify-content: flex-end; flex: 0 0 46px; padding: 0 8px 0 3px; border-right: 1px solid var(--color-divider); background: var(--color-surface); color: var(--color-diff-gutter); text-align: right; user-select: none; }
+.file-code-line { display: block; align-self: center; flex: 0 0 auto; padding: 2px var(--space-3); white-space: pre; tab-size: 4; }
+.file-code-wrap .file-code-content { display: block; width: 100%; }
+.file-code-wrap .file-code-line { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .change-groups-compact .change-group { padding: 0 var(--space-2); border: 0; border-radius: 0; box-shadow: none; }
 .change-groups-compact .change-group h2 { font-size: var(--font-size-13); }
 .change-groups-compact .change-group li { padding: 10px 0; }
@@ -283,6 +308,7 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .project-view-changes { margin-top: 38px; }
   .project-view-changes .project-intro h1 { font-size: clamp(36px, 10vw, 52px); }
   .changes-heading { margin-top: 39px; }
+  .file-location-bar button { display: inline-flex; align-items: center; gap: var(--space-2); }
   .change-group { padding: 15px; }
   .diff-card { scroll-margin-top: calc(var(--topbar-height-mobile) + var(--space-4)); }
   .diff-card-toggle[aria-expanded="true"] { top: var(--topbar-height-mobile); }
@@ -299,6 +325,7 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .project-ready button { margin-left: 0; }
   .changes-heading { align-items: flex-start; flex-direction: column; }
   .changes-actions { width: 100%; justify-content: space-between; }
+  .file-panel-head { align-items: flex-start; flex-direction: column; }
   .diff-card-layer { display: none; }
 }
 

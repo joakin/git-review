@@ -1,6 +1,6 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, then review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards. Tap an old or new line number to draft feedback, check the current lines, and copy a line-numbered summary. The selected folder survives reload **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. File browsing, search, and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse current files in the working tree. Tap an old or new diff line number to draft feedback, check the current lines, and copy a line-numbered summary. The selected folder survives reload **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. Search and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md); Git commit history is a distant optional slice. See the [Files browser](docs/file-browser-slice-proposal.md), [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
 
 ## Run the app
 
@@ -44,6 +44,7 @@ bun run test
 bun run qa:check
 bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
+bun run qa:files http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
 bun run qa:tabs http://127.0.0.1:3000/
 bun run qa:pwa http://127.0.0.1:3000/

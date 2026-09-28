@@ -25,11 +25,13 @@ This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy
 
 ## User journeys
 
-1. **Open a project.** The web app lists host directories inside server-approved roots. Select a folder. If it is a Git repository, open Changes; otherwise, open Files and Search with a clear non-Git state. Recent projects are shown in the picker.
+1. **Open a project.** The web app lists host directories inside server-approved roots. Select a folder. If it is a Git repository, open Changes; otherwise, open Files with a clear non-Git state. Recent projects are shown in the picker.
 2. **Review changes.** The file list groups Staged, Unstaged, and Untracked. Select a file to jump to its card. Expand or collapse cards, inspect highlighted code, toggle wrapping, and add comments to old or new lines.
-3. **Browse and search.** Open any allowed working-tree file. For tracked files, switch among working tree, index, `HEAD`, and an older commit. Hold a word to search for it in the working tree; tap a result to open that file at its matching line.
+3. **Browse and search.** Open any allowed working-tree file. Later, hold a word to search for it in the working tree and tap a result to open that file at its matching line. Repository and file commit history is a distant optional expansion.
 4. **Dictate a comment.** Open a line comment, tap the microphone, record on the phone, stop, review the transcript, and insert or replace text in the draft. Typed editing always remains available.
 5. **Send feedback.** Preview comments grouped by file and Git layer, copy the text, and paste it into an editing session. Successful copies enter history. An unsuccessful copy preserves the draft.
+
+The current checkpoint is a [working-tree Files browser](file-browser-slice-proposal.md). Repository and file commit history, including opening files at older revisions, is a distant optional slice. Search and voice remain higher priority than building a full Git browser.
 
 ## Responsive interface
 
@@ -80,7 +82,7 @@ Each `DiffFile` has a project ID, layer, old/new paths, file status, version ide
 
 Shiki supplies grammar scopes for line tokens. Keep its full language bundle on the server and load the needed grammar on demand. Return bounded syntax roles with exact token text; the browser applies colors from CSS variables so theme changes need no new diff response. Detect languages from filenames and extensions, and offer a per-file override for ambiguous or unknown types. Reuse the highlighter and loaded grammars; consider caching tokenization by content hash and language if profiling shows a need. Highlight source text before combining it with diff word spans. [Shiki usage](https://shiki.style/guide/install), [Shiki bundles](https://shiki.style/guide/bundles), [Shiki performance](https://shiki.style/guide/best-performance)
 
-For Files, show working-tree content and historical blobs through separate version choices. Browse deleted files through index, `HEAD`, or commit views. Images get image previews; PDFs use the browser viewer where supported; HTML gets a restricted preview; unsupported binaries show metadata and Open/Download. An iframe is not a universal file renderer. Serve HTML previews with a CSP sandbox as well as an iframe sandbox so direct navigation remains restricted. [MDN iframe guidance](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe)
+The first Files slice shows bounded working-tree text and named states for binary, link, oversized, and unsupported files. Later previews may cover images, PDFs, and restricted HTML. Historical blobs, deleted files, and commit navigation belong to a distant optional Git browser. An iframe is not a universal file renderer. Serve any future HTML previews with a CSP sandbox as well as an iframe sandbox so direct navigation remains restricted. [MDN iframe guidance](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe)
 
 ## Search
 
@@ -146,8 +148,8 @@ Mobile microphone capture and programmatic Copy feedback both require a secure b
 | `POST /api/projects/open` | Resolve a selected folder to a stable project ID. |
 | `GET /api/projects/:id/status` | Return Git layer groups and a revision marker. |
 | `GET /api/projects/:id/diff` | Return one file/layer's parsed hunks and highlighted lines. |
-| `GET /api/projects/:id/tree`, `GET /api/projects/:id/file` | Browse paths and selected Git versions. |
-| `GET /api/projects/:id/history` | List older revisions of a tracked file. |
+| `GET /api/projects/:id/tree`, `GET /api/projects/:id/file` | Browse working-tree paths and read bounded current files. |
+| `GET /api/projects/:id/history` | Optional distant Git browser: list older revisions of a tracked file. |
 | `GET /api/projects/:id/search` | Return bounded server-side search matches. |
 | `POST /api/transcriptions` | Transcribe one authenticated, bounded audio clip locally. |
 

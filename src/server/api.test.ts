@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { parseDiffResponse, parseLanguagesResponse, parseProjectResponse, parseStatusResponse } from "../shared/api.ts";
+import { parseDiffResponse, parseFileReadResponse, parseFileTreeResponse, parseLanguagesResponse, parseProjectResponse, parseStatusResponse } from "../shared/api.ts";
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
@@ -64,6 +64,30 @@ test("configured HTTPS proxy origin is accepted without trusting other origins",
     expect((await handle(request("https://private-host.ts.net"))).status).toBe(200);
     expect((await handle(request("http://127.0.0.1:39879"))).status).toBe(200);
     expect((await handle(request("https://other-host.ts.net"))).status).toBe(403);
+  } finally {
+    await rm(rootPath, { recursive: true, force: true });
+  }
+});
+
+test("file API requires an opened project and serves non-Git working-tree files", async () => {
+  const rootPath = await mkdtemp(join(tmpdir(), "git-review-file-api-"));
+  try {
+    await mkdir(join(rootPath, "notes"));
+    await writeFile(join(rootPath, "notes", "idea.ts"), "export const idea = 1;\n");
+    const handle = createApiHandler(await approveRoot(rootPath));
+    const unknown = await handle(new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/tree?path="));
+    expect(unknown.status).toBe(404);
+    const opened = await handle(new Request("http://localhost/api/projects/open", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "notes" }),
+    }));
+    const project = parseProjectResponse(await opened.json() as unknown);
+    const base = `http://localhost/api/projects/${project.id}`;
+    const tree = parseFileTreeResponse(await (await handle(new Request(`${base}/tree?path=`))).json() as unknown);
+    expect(tree.entries).toEqual([{ name: "idea.ts", path: "idea.ts", kind: "file" }]);
+    expect((await handle(new Request(`${base}/file?path=idea.ts`))).status).toBe(400);
+    const file = parseFileReadResponse(await (await handle(new Request(`${base}/file?path=idea.ts&source=worktree`))).json() as unknown);
+    expect(file.kind).toBe("text");
+    expect((await handle(new Request(`${base}/tree?path=..`))).status).toBe(400);
   } finally {
     await rm(rootPath, { recursive: true, force: true });
   }

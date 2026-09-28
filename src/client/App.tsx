@@ -1,11 +1,12 @@
 import { useEffect, useState } from "preact/hooks";
-import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
+import { FileViewer } from "./FileViewer.tsx";
 import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
 import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { emptyWorkspace, readActiveProject, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
-import type { ChangeEntry, ChangeLayer, DirectoryListing, LanguageOption, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
+import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
 
 type LoadState<T> =
   | { kind: "loading" }
@@ -57,12 +58,17 @@ export function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
+  const [viewMode, setViewMode] = useState<"changes" | "files">("changes");
+  const [treePath, setTreePath] = useState("");
+  const [tree, setTree] = useState<LoadState<FileTree>>({ kind: "loading" });
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [fileRefresh, setFileRefresh] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sidebarMode, setSidebarMode] = useState<"folders" | "changes">("folders");
+  const [sidebarMode, setSidebarMode] = useState<"folders" | "changes" | "files">("folders");
   const [opening, setOpening] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentStore | null>(null);
@@ -118,6 +124,9 @@ export function App() {
           setComments(readCommentStore(selected.id));
           setExpandedKeys(readOpenCards(selected.id));
           setPath(selected.path);
+          setTreePath("");
+          setSelectedFile(null);
+          setViewMode("changes");
           setSidebarMode("changes");
         } catch {
           if (controller.signal.aborted) return;
@@ -149,7 +158,7 @@ export function App() {
     const controller = new AbortController();
     setRefreshing(true);
     fetchProjectStatus(project.id, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setRefreshing(false); } },
+      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setRefreshing(false); if (value.kind === "not_git") { setViewMode("files"); setSidebarMode((mode) => mode === "folders" ? mode : "files"); } } },
       (error: unknown) => {
         if (controller.signal.aborted) return;
         const message = messageFor(error);
@@ -160,6 +169,17 @@ export function App() {
     );
     return () => controller.abort();
   }, [project, statusRefresh]);
+
+  useEffect(() => {
+    if (project === null || viewMode !== "files") return;
+    const controller = new AbortController();
+    setTree({ kind: "loading" });
+    fetchProjectTree(project.id, treePath, controller.signal).then(
+      (value) => { if (!controller.signal.aborted) setTree({ kind: "ready", value }); },
+      (error: unknown) => { if (!controller.signal.aborted) setTree({ kind: "error", message: messageFor(error) }); },
+    );
+    return () => controller.abort();
+  }, [project, viewMode, treePath, fileRefresh]);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -192,6 +212,9 @@ export function App() {
       setReattachId(null);
       setExpandedKeys(readOpenCards(selected.id));
       setPath(selected.path);
+      setTreePath("");
+      setSelectedFile(null);
+      setViewMode("changes");
       setSidebarMode("changes");
       setDrawerOpen(false);
       saveActiveProject(root.value.path, selected.path);
@@ -234,6 +257,12 @@ export function App() {
       saveWrapPreference(next);
       return next;
     });
+  }
+
+  function chooseView(mode: "changes" | "files"): void {
+    setViewMode(mode);
+    setSidebarMode(mode);
+    if (mode === "files" && selectedFile === null && window.matchMedia("(max-width: 900px)").matches) setDrawerOpen(true);
   }
 
   function updateComments(change: (current: CommentStore) => CommentStore): void {
@@ -370,7 +399,7 @@ export function App() {
         </div>
         <span class="topbar-divider" aria-hidden="true" />
         <span class="topbar-context">Local workspace</span>
-        <button class="project-switch" type="button" onClick={() => { setSidebarMode(project === null ? "folders" : "changes"); setDrawerOpen(true); }}>
+        <button class="project-switch" type="button" onClick={() => { setSidebarMode(project === null ? "folders" : viewMode); setDrawerOpen(true); }}>
           <span class="switch-icon" aria-hidden="true">▦</span>
           <span class="switch-label">{project?.name ?? "Choose folder"}</span>
           <span aria-hidden="true">⌄</span>
@@ -379,16 +408,37 @@ export function App() {
 
       <div class="workspace">
         {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
-        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={sidebarMode === "changes" && project !== null ? "Changed files" : "Folder picker"}>
+        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={project !== null && sidebarMode === "changes" ? "Changed files" : project !== null && sidebarMode === "files" ? "Project files" : "Folder picker"}>
           <div class="sidebar-head">
             <div>
               <p class="eyebrow">ON THIS HOST</p>
-              <h2>{sidebarMode === "changes" && project !== null ? "Changes" : "Folders"}</h2>
+              <h2>{project !== null && sidebarMode === "changes" ? "Changes" : project !== null && sidebarMode === "files" ? "Files" : "Folders"}</h2>
             </div>
             <button class="icon-button close-drawer" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)}>×</button>
           </div>
 
-          {sidebarMode === "changes" && project !== null ? <div class="sidebar-changes">
+          {sidebarMode === "files" && project !== null ? <div class="sidebar-files">
+            <div class="sidebar-project-name" title={project.absolutePath}>{project.name}</div>
+            <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("folders")}>Browse host folders <span aria-hidden="true">→</span></button>
+            <div class="file-tree-location">
+              <span class="section-label">CURRENT DIRECTORY</span>
+              <div class="folder-name-row">
+                {treePath !== "" && <button class="back-button" type="button" aria-label="Go to parent directory" onClick={() => setTreePath(treePath.split("/").slice(0, -1).join("/"))}>←</button>}
+                <strong title={treePath}>{treePath === "" ? project.name : shortName(treePath)}</strong>
+              </div>
+              <span class="folder-path">/{treePath}</span>
+            </div>
+            {tree.kind === "loading" && <p class="sidebar-message">Loading files…</p>}
+            {tree.kind === "error" && <div class="sidebar-error" role="alert">{tree.message} <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Retry</button></div>}
+            {tree.kind === "ready" && tree.value.entries.length === 0 && <p class="sidebar-message">This directory is empty.</p>}
+            {tree.kind === "ready" && <div class="file-tree-list">{tree.value.entries.map((entry) => <button class={`file-tree-row${selectedFile === entry.path ? " file-tree-row-selected" : ""}`} type="button" key={entry.path} onClick={() => {
+              if (entry.kind === "directory") setTreePath(entry.path);
+              else { setSelectedFile(entry.path); setDrawerOpen(false); }
+            }} title={entry.path}>
+              <span class="file-tree-icon" aria-hidden="true">{entry.kind === "directory" ? "▰" : entry.kind === "symlink" ? "↗" : entry.kind === "other" ? "◇" : "▤"}</span>
+              <span>{entry.name}</span>{entry.kind === "directory" && <span class="row-arrow" aria-hidden="true">›</span>}
+            </button>)}</div>}
+          </div> : sidebarMode === "changes" && project !== null ? <div class="sidebar-changes">
             <div class="sidebar-project-name" title={project.absolutePath}>{project.name}</div>
             <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("folders")}>Browse host folders <span aria-hidden="true">→</span></button>
             {status.kind === "loading" && <p class="sidebar-message">Reading Git changes…</p>}
@@ -449,7 +499,7 @@ export function App() {
               ))}
             </div>
           )}
-          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("changes")}>Back to changes <span aria-hidden="true">→</span></button>}
+          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode(viewMode)}>Back to {viewMode} <span aria-hidden="true">→</span></button>}
           </>}
           <button class="sidebar-install-data" type="button" onClick={() => { setDrawerOpen(false); setInstallDataOpen(true); }}>Install & local data <span aria-hidden="true">↗</span></button>
         </aside>
@@ -478,6 +528,21 @@ export function App() {
                 <h1>{project.name}</h1>
                 <p class="project-path">{project.absolutePath}</p>
               </div>
+              <nav class="project-view-tabs" aria-label="Project views">
+                <button type="button" aria-current={viewMode === "changes" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("changes")}>Changes</button>
+                <button type="button" aria-current={viewMode === "files" ? "page" : undefined} onClick={() => chooseView("files")}>Files</button>
+              </nav>
+              {viewMode === "files" ? <>
+                <div class="changes-heading">
+                  <div><p class="eyebrow">WORKING TREE</p><h2>Browse files</h2></div>
+                  <div class="changes-actions">
+                    <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
+                    <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Refresh</button>
+                  </div>
+                </div>
+                <div class="file-location-bar"><span>{selectedFile ?? (treePath === "" ? "Choose a file to read" : `/${treePath}`)}</span><button type="button" onClick={() => { setSidebarMode("files"); setDrawerOpen(true); }}>Browse files <span aria-hidden="true">☰</span></button></div>
+                {selectedFile === null ? <p class="status-message">Open a folder or file from the Files list. Changes and feedback remain available when you return to review.</p> : <FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} />}
+              </> : <>
               <div class="changes-heading">
                 <div><p class="eyebrow">GIT REVIEW</p><h2>Changed files</h2></div>
                 <div class="changes-actions">
@@ -487,7 +552,7 @@ export function App() {
               </div>
               {status.kind === "loading" && <p class="status-message">Reading Git changes…</p>}
               {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
-              {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. File browsing will be available in a later slice.</p>}
+              {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. Use Files to browse its contents.</p>}
               {gitStatus !== null && <>
                 {gitStatus.entries.length === 0 && <p class="status-message">No changes in this folder.</p>}
                 <div class="diff-groups">
@@ -513,6 +578,7 @@ export function App() {
                     </section>;
                   })}
                 </div>
+              </>}
               </>}
             </div>
           )}

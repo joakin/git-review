@@ -1,6 +1,8 @@
 import {
   parseApiError,
   parseDirectoryResponse,
+  parseFileReadResponse,
+  parseFileTreeResponse,
   parseDiffResponse,
   parseLanguagesResponse,
   parseProjectResponse,
@@ -8,6 +10,8 @@ import {
   parseStatusResponse,
   type DirectoryListing,
   type DiffResult,
+  type FileReadResult,
+  type FileTree,
   type ChangeLayer,
   type Project,
   type RootInfo,
@@ -37,6 +41,19 @@ export async function fetchDirectory(path: string, signal: AbortSignal): Promise
   const query = new URLSearchParams({ path });
   const response = await fetch(`/api/directories?${query}`, { signal });
   return parseDirectoryResponse(await responseBody(response));
+}
+
+export async function fetchProjectTree(id: string, path: string, signal: AbortSignal): Promise<FileTree> {
+  const query = new URLSearchParams({ path });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/tree?${query}`, { signal });
+  return parseFileTreeResponse(await responseBody(response));
+}
+
+export async function fetchProjectFile(id: string, path: string, language: string | null, signal: AbortSignal): Promise<FileReadResult> {
+  const query = new URLSearchParams({ path, source: "worktree" });
+  if (language !== null) query.set("language", language);
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/file?${query}`, { signal });
+  return parseFileReadResponse(await responseBody(response));
 }
 
 export async function openProject(path: string, signal: AbortSignal): Promise<Project> {

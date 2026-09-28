@@ -14,6 +14,13 @@ export type DirectoryListing = {
   entries: DirectoryEntry[];
 };
 
+export type FileTreeEntry = { name: string; path: string; kind: "directory" | "file" | "symlink" | "other" };
+export type FileTree = { path: string; parentPath: string | null; entries: FileTreeEntry[] };
+export type FileLine = { number: number; text: string; tokens: SyntaxToken[] };
+export type FileReadResult =
+  | { kind: "text"; path: string; byteLength: number; syntax: SyntaxState; lines: FileLine[] }
+  | { kind: "binary" | "too_large" | "symlink" | "unsupported"; path: string; byteLength: number };
+
 export type Project = {
   id: string;
   name: string;
@@ -98,6 +105,92 @@ export function parseDirectoryResponse(value: unknown): DirectoryListing {
     };
   });
   return { path, parentPath: parent, entries };
+}
+
+function expectProjectPath(value: unknown, label: string, allowEmpty: boolean): string {
+  const path = expectString(value, label);
+  if (path.length > 4096 || path.includes("\0") || path.startsWith("/") || (!allowEmpty && path === "") || (path !== "" && path.split("/").some((segment) => segment === "" || segment === "." || segment === ".."))) {
+    throw new Error(`Expected a valid ${label}`);
+  }
+  return path;
+}
+
+export function parseFileTreeResponse(value: unknown): FileTree {
+  const outer = expectRecord(value, "file tree");
+  const path = expectProjectPath(outer["path"], "tree path", true);
+  const parentPath = outer["parentPath"];
+  const expectedParent = path === "" ? null : path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  if (parentPath !== expectedParent) throw new Error("Expected the tree's parent folder path");
+  const rawEntries = outer["entries"];
+  if (!Array.isArray(rawEntries) || rawEntries.length > 1000) throw new Error("Expected bounded file tree entries");
+  const seen = new Set<string>();
+  const entries: FileTreeEntry[] = rawEntries.map((raw: unknown) => {
+    const entry = expectRecord(raw, "file tree entry");
+    const kind = entry["kind"];
+    if (kind !== "directory" && kind !== "file" && kind !== "symlink" && kind !== "other") throw new Error("Expected a file tree entry kind");
+    const name = expectProjectPath(entry["name"], "entry name", false);
+    if (name.includes("/") || seen.has(name)) throw new Error("Expected a unique file tree entry name");
+    seen.add(name);
+    const entryPath = expectProjectPath(entry["path"], "entry path", false);
+    if (entryPath !== (path === "" ? name : `${path}/${name}`)) throw new Error("Expected an entry inside its listed folder");
+    return { name, path: entryPath, kind };
+  });
+  return { path, parentPath: expectedParent, entries };
+}
+
+function parseSyntaxState(value: unknown): SyntaxState {
+  const raw = expectRecord(value, "syntax state");
+  if (raw["kind"] === "highlighted") {
+    const language = expectString(raw["language"], "syntax language");
+    if (language.length === 0 || language.length > 80) throw new Error("Expected a valid syntax language");
+    return { kind: "highlighted", language };
+  }
+  if (raw["kind"] === "plain") {
+    const reason = raw["reason"];
+    if (reason !== "unknown_language" && reason !== "selected" && reason !== "unavailable") throw new Error("Expected a plain syntax reason");
+    return { kind: "plain", reason };
+  }
+  throw new Error("Expected a syntax state");
+}
+
+function parseSyntaxTokens(value: unknown, source: string): SyntaxToken[] {
+  if (!Array.isArray(value) || value.length > 20_000) throw new Error("Expected bounded syntax tokens");
+  const tokens: SyntaxToken[] = value.map((raw: unknown) => {
+    const token = expectRecord(raw, "syntax token");
+    const text = expectString(token["text"], "token text");
+    const role = token["role"];
+    if (role !== "plain" && role !== "comment" && role !== "keyword" && role !== "string" && role !== "number" && role !== "type" && role !== "function" && role !== "variable" && role !== "property" && role !== "operator" && role !== "punctuation" && role !== "tag" && role !== "attribute") throw new Error("Expected a valid syntax role");
+    return { text, role };
+  });
+  if (tokens.map((token) => token.text).join("") !== source) throw new Error("Syntax tokens do not match their source line");
+  return tokens;
+}
+
+export function parseFileReadResponse(value: unknown): FileReadResult {
+  const outer = expectRecord(value, "file response");
+  const path = expectProjectPath(outer["path"], "file path", false);
+  const byteLength = expectNonNegativeInteger(outer["byteLength"], "file byte length");
+  const kind = outer["kind"];
+  if (kind === "binary" || kind === "too_large" || kind === "symlink" || kind === "unsupported") return { kind, path, byteLength };
+  if (kind !== "text" || byteLength > 1024 * 1024) throw new Error("Expected a bounded text file");
+  const syntax = parseSyntaxState(outer["syntax"]);
+  const rawLines = outer["lines"];
+  if (!Array.isArray(rawLines) || rawLines.length > 20_000) throw new Error("Expected bounded file lines");
+  let totalTokens = 0;
+  let totalCharacters = 0;
+  const lines: FileLine[] = rawLines.map((raw: unknown, index: number) => {
+    const line = expectRecord(raw, "file line");
+    const number = expectNonNegativeInteger(line["number"], "file line number");
+    if (number !== index + 1) throw new Error("Expected sequential file line numbers");
+    const text = expectString(line["text"], "file line text");
+    totalCharacters += text.length;
+    if (totalCharacters > 1024 * 1024) throw new Error("Expected bounded file text");
+    const tokens = parseSyntaxTokens(line["tokens"], text);
+    totalTokens += tokens.length;
+    if (totalTokens > 100_000) throw new Error("Expected bounded file syntax tokens");
+    return { number, text, tokens };
+  });
+  return { kind: "text", path, byteLength, syntax, lines };
 }
 
 export function parseProjectResponse(value: unknown): Project {
