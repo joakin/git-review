@@ -6,7 +6,7 @@ type CaptureOptions = {
   url: URL;
   label: string;
   ready: string | null;
-  clicks: string[];
+  actions: Array<{ kind: "click"; selector: string } | { kind: "fill"; selector: string; value: string }>;
   afterClickReady: string | null;
   fullPage: boolean;
   storageState: string | null;
@@ -38,6 +38,7 @@ const usage = `Usage: bun run qa:capture --url <http(s) URL> --label <milestone>
 Options:
   --ready <CSS selector>  Wait for a visible element before each screenshot
   --click <CSS selector>  Click a control after the page is ready; repeat to click in sequence
+  --fill <CSS selector> <value>  Fill an input in sequence with clicks
   --after-click-ready <CSS selector> Wait for content after the click
   --storage-state <file> Use a saved Playwright browser state for every viewport
   --active-path <path>  Select this host-relative project in each viewport tab
@@ -64,7 +65,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let rawUrl: string | null = null;
   let label: string | null = null;
   let ready: string | null = null;
-  const clicks: string[] = [];
+  const actions: CaptureOptions["actions"] = [];
   let afterClickReady: string | null = null;
   let fullPage = false;
   let storageState: string | null = null;
@@ -89,8 +90,12 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         index += 1;
         break;
       case "--click":
-        clicks.push(readValue(args, index, flag));
+        actions.push({ kind: "click", selector: readValue(args, index, flag) });
         index += 1;
+        break;
+      case "--fill":
+        actions.push({ kind: "fill", selector: readValue(args, index, flag), value: readValue(args, index + 1, flag) });
+        index += 2;
         break;
       case "--after-click-ready":
         afterClickReady = readValue(args, index, flag);
@@ -144,9 +149,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
     throw new Error("--url must use HTTP or HTTPS");
   }
 
-  if (afterClickReady !== null && clicks.length === 0) throw new Error("--after-click-ready requires --click");
+  if (afterClickReady !== null && !actions.some((action) => action.kind === "click")) throw new Error("--after-click-ready requires --click");
   if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, clicks, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd } };
+  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -194,7 +199,10 @@ async function capture(options: CaptureOptions): Promise<void> {
         if (options.ready !== null) {
           await page.locator(options.ready).first().waitFor({ state: "visible", timeout: 15_000 });
         }
-        for (const selector of options.clicks) await page.locator(selector).click();
+        for (const action of options.actions) {
+          if (action.kind === "click") await page.locator(action.selector).click();
+          else await page.locator(action.selector).fill(action.value);
+        }
         if (options.afterClickReady !== null) {
           await page.locator(options.afterClickReady).first().waitFor({ state: "visible", timeout: 15_000 });
         }

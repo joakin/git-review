@@ -10,10 +10,11 @@ const maxEntries = 1000;
 const maxTextBytes = 1024 * 1024;
 const maxLines = 20_000;
 
-function projectPath(value: unknown): string {
+export function validateProjectFilePath(value: unknown): string {
   if (typeof value !== "string" || value.length > 4096 || value.includes("\0") || isAbsolute(value) || (sep === "\\" && value.includes("\\")) || (value !== "" && value.split("/").some((segment) => segment === "" || segment === "." || segment === ".."))) {
     throw new AppError("invalid_request", 400, "Invalid project-relative path");
   }
+  if (value.split("/").includes(".git")) throw new AppError("forbidden", 403, "Git control files are not browsable");
   return value;
 }
 
@@ -26,12 +27,11 @@ function accessError(error: unknown): never {
 }
 
 async function checkedPath(root: ApprovedRoot, project: Project, rawPath: unknown): Promise<{ path: string; absolutePath: string; kind: "directory" | "file" | "symlink" | "other"; size: number }> {
-  const path = projectPath(rawPath);
+  const path = validateProjectFilePath(rawPath);
   const segments = path === "" ? [] : path.split("/");
   let candidate = project.absolutePath;
   try {
     for (const [index, segment] of segments.entries()) {
-      if (segment === ".git") throw new AppError("forbidden", 403, "Git control files are not browsable");
       candidate = resolve(candidate, segment);
       const metadata = await lstat(candidate);
       if (metadata.isSymbolicLink()) {

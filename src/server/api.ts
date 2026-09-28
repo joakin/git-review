@@ -5,6 +5,7 @@ import { readProjectStatus } from "./git-status.ts";
 import { readProjectDiff } from "./git-diff.ts";
 import { languageOverride, languages } from "./syntax.ts";
 import { readProjectFile, readProjectTree } from "./project-files.ts";
+import { searchProject } from "./search.ts";
 import type { ChangeLayer, Project } from "../shared/api.ts";
 
 const maxBodyBytes = 4096;
@@ -92,6 +93,16 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       const project = await openProject(root, body["path"]);
       openProjects.set(project.id, project);
       return Response.json({ project });
+    }
+    const searchRoute = /^\/api\/projects\/([0-9a-f]{20})\/search$/.exec(url.pathname);
+    if (searchRoute !== null && request.method === "GET") {
+      const id = searchRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined) throw new AppError("not_found", 404, "Open this folder before searching its files");
+      const query = oneQueryValue(url, "query");
+      const current = await openProject(root, project.path);
+      if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      return Response.json(await searchProject(current, query, request.signal));
     }
     const fileRoute = /^\/api\/projects\/([0-9a-f]{20})\/(tree|file)$/.exec(url.pathname);
     if (fileRoute !== null && request.method === "GET") {

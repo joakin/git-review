@@ -1,12 +1,13 @@
 import { useEffect, useState } from "preact/hooks";
-import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
+import { SearchView, type SearchState } from "./SearchView.tsx";
 import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
 import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { emptyWorkspace, readActiveProject, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
-import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
+import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo, SearchMatch } from "../shared/api.ts";
 
 type LoadState<T> =
   | { kind: "loading" }
@@ -58,11 +59,16 @@ export function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
-  const [viewMode, setViewMode] = useState<"changes" | "files">("changes");
+  const [viewMode, setViewMode] = useState<"changes" | "files" | "search">("changes");
   const [treePath, setTreePath] = useState("");
   const [tree, setTree] = useState<LoadState<FileTree>>({ kind: "loading" });
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileRefresh, setFileRefresh] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
+  const [searchRefresh, setSearchRefresh] = useState(0);
+  const [searchState, setSearchState] = useState<SearchState>({ kind: "idle" });
+  const [searchTarget, setSearchTarget] = useState<{ path: string; line: number; query: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
@@ -126,6 +132,9 @@ export function App() {
           setPath(selected.path);
           setTreePath("");
           setSelectedFile(null);
+          setSearchQuery("");
+          setSubmittedQuery(null);
+          setSearchState({ kind: "idle" });
           setViewMode("changes");
           setSidebarMode("changes");
         } catch {
@@ -158,7 +167,7 @@ export function App() {
     const controller = new AbortController();
     setRefreshing(true);
     fetchProjectStatus(project.id, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setRefreshing(false); if (value.kind === "not_git") { setViewMode("files"); setSidebarMode((mode) => mode === "folders" ? mode : "files"); } } },
+      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setRefreshing(false); if (value.kind === "not_git") { setViewMode((mode) => mode === "changes" ? "files" : mode); setSidebarMode((mode) => mode === "folders" ? mode : "files"); } } },
       (error: unknown) => {
         if (controller.signal.aborted) return;
         const message = messageFor(error);
@@ -180,6 +189,17 @@ export function App() {
     );
     return () => controller.abort();
   }, [project, viewMode, treePath, fileRefresh]);
+
+  useEffect(() => {
+    if (project === null || submittedQuery === null) return;
+    const controller = new AbortController();
+    setSearchState({ kind: "loading" });
+    fetchProjectSearch(project.id, submittedQuery, controller.signal).then(
+      (value) => { if (!controller.signal.aborted) setSearchState({ kind: "ready", value }); },
+      (error: unknown) => { if (!controller.signal.aborted) setSearchState({ kind: "error", message: messageFor(error) }); },
+    );
+    return () => controller.abort();
+  }, [project, submittedQuery, searchRefresh]);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -214,6 +234,10 @@ export function App() {
       setPath(selected.path);
       setTreePath("");
       setSelectedFile(null);
+      setSearchQuery("");
+      setSubmittedQuery(null);
+      setSearchState({ kind: "idle" });
+      setSearchTarget(null);
       setViewMode("changes");
       setSidebarMode("changes");
       setDrawerOpen(false);
@@ -259,10 +283,30 @@ export function App() {
     });
   }
 
-  function chooseView(mode: "changes" | "files"): void {
+  function chooseView(mode: "changes" | "files" | "search"): void {
     setViewMode(mode);
-    setSidebarMode(mode);
+    if (mode !== "search") setSidebarMode(mode);
     if (mode === "files" && selectedFile === null && window.matchMedia("(max-width: 900px)").matches) setDrawerOpen(true);
+  }
+
+  function submitSearch(): void {
+    const query = searchQuery.trim();
+    if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query)) {
+      setSearchState({ kind: "error", message: "Enter 1–128 characters on one line." });
+      return;
+    }
+    if (query === submittedQuery) setSearchRefresh((value) => value + 1);
+    else setSubmittedQuery(query);
+  }
+
+  function openSearchMatch(match: SearchMatch, query: string): void {
+    setSelectedFile(match.path);
+    setTreePath(match.path.includes("/") ? match.path.slice(0, match.path.lastIndexOf("/")) : "");
+    setSearchTarget({ path: match.path, line: match.line, query });
+    setViewMode("files");
+    setSidebarMode("files");
+    setDrawerOpen(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   function updateComments(change: (current: CommentStore) => CommentStore): void {
@@ -399,7 +443,7 @@ export function App() {
         </div>
         <span class="topbar-divider" aria-hidden="true" />
         <span class="topbar-context">Local workspace</span>
-        <button class="project-switch" type="button" onClick={() => { setSidebarMode(project === null ? "folders" : viewMode); setDrawerOpen(true); }}>
+        <button class="project-switch" type="button" onClick={() => { setSidebarMode(project === null ? "folders" : viewMode === "search" ? "files" : viewMode); setDrawerOpen(true); }}>
           <span class="switch-icon" aria-hidden="true">▦</span>
           <span class="switch-label">{project?.name ?? "Choose folder"}</span>
           <span aria-hidden="true">⌄</span>
@@ -433,7 +477,7 @@ export function App() {
             {tree.kind === "ready" && tree.value.entries.length === 0 && <p class="sidebar-message">This directory is empty.</p>}
             {tree.kind === "ready" && <div class="file-tree-list">{tree.value.entries.map((entry) => <button class={`file-tree-row${selectedFile === entry.path ? " file-tree-row-selected" : ""}`} type="button" key={entry.path} onClick={() => {
               if (entry.kind === "directory") setTreePath(entry.path);
-              else { setSelectedFile(entry.path); setDrawerOpen(false); }
+              else { setSelectedFile(entry.path); setSearchTarget(null); setDrawerOpen(false); }
             }} title={entry.path}>
               <span class="file-tree-icon" aria-hidden="true">{entry.kind === "directory" ? "▰" : entry.kind === "symlink" ? "↗" : entry.kind === "other" ? "◇" : "▤"}</span>
               <span>{entry.name}</span>{entry.kind === "directory" && <span class="row-arrow" aria-hidden="true">›</span>}
@@ -499,7 +543,7 @@ export function App() {
               ))}
             </div>
           )}
-          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode(viewMode)}>Back to {viewMode} <span aria-hidden="true">→</span></button>}
+          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode(viewMode === "search" ? "files" : viewMode)}>Back to project files <span aria-hidden="true">→</span></button>}
           </>}
           <button class="sidebar-install-data" type="button" onClick={() => { setDrawerOpen(false); setInstallDataOpen(true); }}>Install & local data <span aria-hidden="true">↗</span></button>
         </aside>
@@ -531,8 +575,9 @@ export function App() {
               <nav class="project-view-tabs" aria-label="Project views">
                 <button type="button" aria-current={viewMode === "changes" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("changes")}>Changes</button>
                 <button type="button" aria-current={viewMode === "files" ? "page" : undefined} onClick={() => chooseView("files")}>Files</button>
+                <button type="button" aria-current={viewMode === "search" ? "page" : undefined} onClick={() => chooseView("search")}>Search</button>
               </nav>
-              {viewMode === "files" ? <>
+              {viewMode === "search" ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : viewMode === "files" ? <>
                 <div class="changes-heading">
                   <div><p class="eyebrow">WORKING TREE</p><h2>Browse files</h2></div>
                   <div class="changes-actions">
@@ -541,7 +586,7 @@ export function App() {
                   </div>
                 </div>
                 <div class="file-location-bar"><span>{selectedFile ?? (treePath === "" ? "Choose a file to read" : `/${treePath}`)}</span><button type="button" onClick={() => { setSidebarMode("files"); setDrawerOpen(true); }}>Browse files <span aria-hidden="true">☰</span></button></div>
-                {selectedFile === null ? <p class="status-message">Open a folder or file from the Files list. Changes and feedback remain available when you return to review.</p> : <FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} />}
+                {selectedFile === null ? <p class="status-message">Open a folder or file from the Files list. Changes and feedback remain available when you return to review.</p> : <FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} searchTarget={searchTarget?.path === selectedFile ? searchTarget : null} />}
               </> : <>
               <div class="changes-heading">
                 <div><p class="eyebrow">GIT REVIEW</p><h2>Changed files</h2></div>

@@ -1,17 +1,19 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { FileReadResult, LanguageOption } from "../shared/api.ts";
 import { fetchProjectFile } from "./api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 
 type FileState = { kind: "loading" } | { kind: "ready"; value: FileReadResult } | { kind: "error"; message: string };
 
-export function FileViewer({ projectId, path, wrap, languages, refreshKey }: {
+export function FileViewer({ projectId, path, wrap, languages, refreshKey, searchTarget }: {
   projectId: string;
   path: string;
   wrap: boolean;
   languages: readonly LanguageOption[];
   refreshKey: number;
+  searchTarget: { path: string; line: number; query: string } | null;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
   const [override, setOverride] = useState<string | null>(() => readLanguageOverride(projectId, path));
   const [state, setState] = useState<FileState>({ kind: "loading" });
   const [retry, setRetry] = useState(0);
@@ -28,7 +30,17 @@ export function FileViewer({ projectId, path, wrap, languages, refreshKey }: {
   }, [projectId, path, effectiveOverride, refreshKey, retry]);
 
   const result = state.kind === "ready" ? state.value : null;
-  return <article class="file-panel" data-path={path}>
+  const targetMatches = result?.kind === "text" && searchTarget !== null && result.lines[searchTarget.line - 1]?.text.includes(searchTarget.query) === true;
+  useEffect(() => {
+    if (result?.kind !== "text" || searchTarget === null) return;
+    const frame = requestAnimationFrame(() => {
+      const row = panelRef.current?.querySelector<HTMLElement>(`.file-code-row[data-line="${searchTarget.line}"]`);
+      row?.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [result, searchTarget]);
+
+  return <article class="file-panel" data-path={path} ref={panelRef}>
     <div class="file-panel-head">
       <div><span class="section-label">WORKING TREE</span><h3>{path}</h3></div>
       {result?.kind === "text" && <span class="file-size">{result.lines.length} lines · {result.byteLength} bytes</span>}
@@ -41,13 +53,14 @@ export function FileViewer({ projectId, path, wrap, languages, refreshKey }: {
       {result?.kind === "text" && <span>{result.syntax.kind === "highlighted" ? result.syntax.language : "Plain text"}</span>}
     </div>}
     {state.kind === "loading" && <p class="diff-message">Loading file…</p>}
-    {state.kind === "error" && <div class="diff-message" role="alert">{state.message} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
+    {state.kind === "error" && <div class="diff-message" role="alert">{searchTarget === null ? state.message : `This search result may have changed or been deleted. ${state.message} Refresh Search for updated results.`} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
     {result?.kind === "binary" && <p class="diff-message">This file contains binary or invalid UTF-8 content. There are no text lines to show.</p>}
     {result?.kind === "too_large" && <p class="diff-message">This file exceeds the 1 MiB or 20,000 line viewing limit.</p>}
     {result?.kind === "symlink" && <p class="diff-message">This path is a symbolic link. Links are not followed in the Files view.</p>}
     {result?.kind === "unsupported" && <p class="diff-message">This is not a regular file and cannot be shown as text.</p>}
+    {result?.kind === "text" && searchTarget !== null && !targetMatches && <p class="file-search-stale" role="status">This search result has changed. The current file is shown; refresh Search for an updated line.</p>}
     {result?.kind === "text" && (result.lines.length === 0 ? <p class="diff-message">This file is empty.</p> : <div class={`file-code-scroll${wrap ? " file-code-wrap" : ""}`} aria-label="File contents">
-      <div class="file-code-content">{result.lines.map((line) => <div class="file-code-row" key={line.number}>
+      <div class="file-code-content">{result.lines.map((line) => <div class={`file-code-row${targetMatches && line.number === searchTarget?.line ? " file-code-row-target" : ""}`} data-line={line.number} key={line.number}>
         <span class="file-line-number" aria-label={`Line ${line.number}`}>{line.number}</span>
         <code class="file-code-line">{line.tokens.map((token, index) => <span class={`syntax-token syntax-token-${token.role}`} key={index}>{token.text}</span>)}</code>
       </div>)}</div>

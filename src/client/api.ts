@@ -8,6 +8,7 @@ import {
   parseProjectResponse,
   parseRootResponse,
   parseStatusResponse,
+  parseSearchResponse,
   type DirectoryListing,
   type DiffResult,
   type FileReadResult,
@@ -17,6 +18,7 @@ import {
   type RootInfo,
   type ProjectStatus,
   type LanguageOption,
+  type SearchResponse,
 } from "../shared/api.ts";
 
 async function responseBody(response: Response): Promise<unknown> {
@@ -81,4 +83,10 @@ export async function fetchProjectDiff(id: string, layer: ChangeLayer, path: str
   if (language !== null) query.set("language", language);
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, { signal });
   return parseDiffResponse(await responseBody(response));
+}
+
+export async function fetchProjectSearch(id: string, query: string, signal: AbortSignal): Promise<SearchResponse> {
+  const search = new URLSearchParams({ query });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/search?${search}`, { signal });
+  return parseSearchResponse(await responseBody(response));
 }

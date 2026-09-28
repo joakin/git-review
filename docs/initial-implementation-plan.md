@@ -31,7 +31,7 @@ This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy
 4. **Dictate a comment.** Open a line comment, tap the microphone, record on the phone, stop, review the transcript, and insert or replace text in the draft. Typed editing always remains available.
 5. **Send feedback.** Preview comments grouped by file and Git layer, copy the text, and paste it into an editing session. Successful copies enter history. An unsuccessful copy preserves the draft.
 
-The current checkpoint is a [working-tree Files browser](file-browser-slice-proposal.md). Repository and file commit history, including opening files at older revisions, is a distant optional slice. Search and voice remain higher priority than building a full Git browser.
+The [working-tree Files browser](file-browser-slice-proposal.md) is implemented. [Working-tree Search](search-slice-proposal.md) is implemented for review; the held-word shortcut is a later touch slice. Repository and file commit history, including opening files at older revisions, is a distant optional slice. Voice remains higher priority than building a full Git browser.
 
 ## Responsive interface
 
@@ -86,7 +86,7 @@ The first Files slice shows bounded working-tree text and named states for binar
 
 ## Search
 
-Use `git grep --untracked -I -F -n -z` for fixed-string searches in a Git working tree; it searches tracked and untracked files while respecting ordinary ignore behavior. Limit result count and response bytes, cancel stale requests, and show grouped results with path, line number, and excerpt. For a non-Git folder, use a bounded server-side file walker with explicit excludes. Search results open the working-tree file and scroll to the line. [Git grep](https://git-scm.com/docs/git-grep)
+Use ripgrep (`rg`) as a bounded read-only subprocess for fixed-string searches in both Git and non-Git working-tree folders. Its JSON Lines output provides paths, line numbers, and matching text; keep project ignore rules, include hidden source files, explicitly exclude `.git`, and never follow symlinks. Limit result count, subprocess output, individual file size, and wall time; cancel stale client requests and show grouped results with path, line number, and excerpt. Search results open the current working-tree file and scroll to the line. The HTTPS service checks Homebrew locations because its launch environment omits Homebrew from `PATH`; `GIT_REVIEW_RG_PATH` is an override. The [Search behavior document](search-slice-proposal.md) records the first reviewable scope. [Ripgrep guide](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md)
 
 Extract a held identifier from code and offer whole-word or literal substring search. Search is initiated on the server; the browser does not receive or index the entire codebase.
 
@@ -181,7 +181,7 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 ## Delivery order and acceptance checks
 
 1. **Foundation and secure access:** Create the Bun/Preact scaffold, native TypeScript type-check gate, folder picker, approved-root enforcement, and desktop/LAN serving modes. A phone can open the UI through trusted HTTPS in LAN mode.
-2. **Git and file model:** Implement status, lazy diffs, versioned file reads, binary handling, and search. Fixture repositories cover an initial commit, staged plus unstaged edits on one path, untracked files, renames, deletions, conflicts, binary files, unusual filenames, and symlink containment.
+2. **Git and file model:** Implement status, lazy diffs, bounded current-file reads, binary handling, and search. Historical file reads remain optional. Fixture repositories cover an initial commit, staged plus unstaged edits on one path, untracked files, renames, deletions, conflicts, binary files, unusual filenames, and symlink containment.
 3. **Review UI:** Implement responsive drawer, continuous collapsible cards, syntax plus diff overlays, wrap toggle, full-file view, and search navigation. Test narrow phone widths and tablet orientations.
 4. **Feedback:** Implement line interactions, durable drafts, stale-anchor handling, preview, copy, and history. Copy output identifies every comment's file, layer, side, and line.
 5. **Voice:** Verify Handy headless transcription with a non-sensitive WAV fixture, then wire browser recording, FFmpeg normalization, a bounded server endpoint, and transcript review in the comment sheet. Test iPhone Safari and Android Chrome capture, permission denial, cancellation, timeouts, and model-unavailable errors.

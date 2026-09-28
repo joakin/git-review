@@ -21,6 +21,9 @@ export type FileReadResult =
   | { kind: "text"; path: string; byteLength: number; syntax: SyntaxState; lines: FileLine[] }
   | { kind: "binary" | "too_large" | "symlink" | "unsupported"; path: string; byteLength: number };
 
+export type SearchMatch = { path: string; line: number; excerpt: string };
+export type SearchResponse = { query: string; matches: SearchMatch[]; truncated: boolean };
+
 export type Project = {
   id: string;
   name: string;
@@ -191,6 +194,26 @@ export function parseFileReadResponse(value: unknown): FileReadResult {
     return { number, text, tokens };
   });
   return { kind: "text", path, byteLength, syntax, lines };
+}
+
+export function parseSearchResponse(value: unknown): SearchResponse {
+  const outer = expectRecord(value, "search response");
+  const query = expectString(outer["query"], "search query");
+  if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query)) throw new Error("Expected a valid search query");
+  if (typeof outer["truncated"] !== "boolean") throw new Error("Expected a search truncation flag");
+  const rawMatches = outer["matches"];
+  if (!Array.isArray(rawMatches) || rawMatches.length > 100) throw new Error("Expected bounded search matches");
+  const matches: SearchMatch[] = rawMatches.map((raw: unknown) => {
+    const match = expectRecord(raw, "search match");
+    const path = expectProjectPath(match["path"], "search path", false);
+    if (path.split("/").includes(".git")) throw new Error("Expected a browsable search path");
+    const line = expectNonNegativeInteger(match["line"], "search line");
+    if (line === 0) throw new Error("Expected a positive search line");
+    const excerpt = expectString(match["excerpt"], "search excerpt");
+    if (excerpt.length > 242 || /[\r\n]/.test(excerpt)) throw new Error("Expected a short search excerpt");
+    return { path, line, excerpt };
+  });
+  return { query, matches, truncated: outer["truncated"] };
 }
 
 export function parseProjectResponse(value: unknown): Project {
