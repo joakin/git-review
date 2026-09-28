@@ -17,7 +17,7 @@ The initial release also supports voice dictation into a comment without an Open
 | UI | Preact with hooks and plain CSS. One browser application with responsive layouts. |
 | Type checking | Project-local, stable TypeScript 7 native compiler. Bun transpiles; `tsc --noEmit` is the required type-check gate. |
 | Syntax highlighting | Shiki on the server, returning per-line tokens. Reuse one highlighter and load grammars as needed. |
-| Persistence | Versioned `localStorage` records per browser origin and canonical host project path. No account or sync service in the initial release. |
+| Persistence | Project selection belongs to each tab's `sessionStorage`; recent folders, drafts, copy history, and preferences use versioned `localStorage` records per browser origin and project. No account or sync service in the initial release. See [the independent tabs and PWA proposal](independent-tabs-and-pwa-proposal.md). |
 | Speech to text | Browser recording sent to the Bun server, normalized by FFmpeg to 16 kHz mono WAV, then transcribed by Handy's local headless CLI. |
 | Repository access | Read-only APIs. Explicit host directory roots, path containment checks, and no shell interpolation. |
 
@@ -52,6 +52,10 @@ Use text labels and symbols as well as color for added, removed, moved, and outd
 ### Future appearance settings
 
 Add a Settings page in a later slice for each person's preferred app theme and code theme, plus code font size and font family. Save validated choices in versioned browser `localStorage`, scoped to the browser rather than the host project. Apply themes and code typography in the frontend through design tokens; the server continues to return semantic syntax roles. Show the effect of a choice immediately and preserve it across reloads. Decide the initial theme and font choices with the maintainer before implementing this slice.
+
+### Future phone portrait gutter slice
+
+The change-sign and old/new number columns currently take roughly a quarter to a third of a narrow phone's code width. After the [independent tabs and PWA bonus slice](independent-tabs-and-pwa-proposal.md), design a more compact portrait gutter without hiding the line anchor needed for comments. Explore a single visible number for added/deleted rows, a clear way to reveal both sides for context rows, and whether the marker can share space with a number. Review touch targets, accessibility labels, sticky horizontal scrolling, and comment side selection with the maintainer before implementing. Test on real phones as well as captured portrait viewports.
 
 ### Touch interactions
 
@@ -88,7 +92,7 @@ Extract a held identifier from code and offer whole-word or literal substring se
 
 A comment anchor stores project, path, Git layer or revision, old/new side, line number, and a small text/context fingerprint. On refresh, attempt a unique relocation when lines move. If relocation is ambiguous, mark the comment outdated and require review before exporting it under a new line number.
 
-Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Keep recent projects, recent files, wrap choice, collapsed-card state, and a bounded copy-history list there as well. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the active draft, with an immediate Undo action. On failure, keep the draft and show selectable feedback text.
+Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Keep recent projects, recent files, wrap choice, collapsed-card state, and a bounded copy-history list there as well; keep the active project in per-tab `sessionStorage`. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the active draft, with an immediate Undo action. On failure, keep the draft and show selectable feedback text.
 
 Export plain text with relative paths, Git layer, side, line number, and the comment, for example:
 

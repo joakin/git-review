@@ -1,0 +1,51 @@
+{
+  "url": "https://joaquns-macbook-pro-2.churra-boga.ts.net:8443/",
+  "capturedAt": "2026-09-28T08:43:51.977Z",
+  "fullPage": false,
+  "views": [
+    {
+      "name": "desktop",
+      "file": "desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidth": 1440,
+      "clientWidth": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "tablet-landscape",
+      "file": "tablet-landscape.png",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      },
+      "documentWidth": 1180,
+      "clientWidth": 1180,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "tablet-portrait",
+      "file": "tablet-portrait.png",
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "documentWidth": 820,
+      "clientWidth": 820,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "mobile",
+      "file": "mobile.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "clientWidth": 390,
+      "horizontalOverflow": false
+    }
+  ]
+}

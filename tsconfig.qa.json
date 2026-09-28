@@ -4,5 +4,5 @@
     "types": ["bun"],
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["qa/**/*.ts"]
+  "include": ["qa/**/*.ts", "scripts/render-icons.ts"]
 }

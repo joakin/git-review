@@ -3,7 +3,8 @@ import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectStatus, f
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
 import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from "./ReviewDialogs.tsx";
-import { emptyWorkspace, readOpenCards, readSavedWorkspace, readWrapPreference, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
+import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
+import { emptyWorkspace, readActiveProject, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, LanguageOption, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
 
 type LoadState<T> =
@@ -72,6 +73,23 @@ export function App() {
   const [copyError, setCopyError] = useState<string | null>(null);
   const [undoCopyId, setUndoCopyId] = useState<string | null>(null);
   const [reattachId, setReattachId] = useState<string | null>(null);
+  const [installDataOpen, setInstallDataOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const onPrompt = (event: Event) => {
+      if (!isInstallPromptEvent(event)) return;
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,9 +109,10 @@ export function App() {
         const restored = readSavedWorkspace(value.path);
         setSaved(restored);
         setRoot({ kind: "ready", value });
-        if (restored.activePath === null) return;
+        const activePath = readActiveProject(value.path);
+        if (activePath === null) return;
         try {
-          const selected = await openProject(restored.activePath, controller.signal);
+          const selected = await openProject(activePath, controller.signal);
           if (controller.signal.aborted) return;
           setProject(selected);
           setComments(readCommentStore(selected.id));
@@ -103,9 +122,7 @@ export function App() {
         } catch {
           if (controller.signal.aborted) return;
           setNotice("The previous folder is unavailable. Choose a folder to continue.");
-          const reset: SavedWorkspace = { ...restored, activePath: null };
-          saveWorkspace(reset);
-          setSaved(reset);
+          saveActiveProject(value.path, null);
         }
       } catch (error: unknown) {
         if (!controller.signal.aborted) setRoot({ kind: "error", message: messageFor(error) });
@@ -177,6 +194,7 @@ export function App() {
       setPath(selected.path);
       setSidebarMode("changes");
       setDrawerOpen(false);
+      saveActiveProject(root.value.path, selected.path);
       setSaved((current) => {
         const scoped = current.rootPath === root.value.path ? current : emptyWorkspace(root.value.path);
         const next = withSelectedPath(scoped, selected.path);
@@ -433,6 +451,7 @@ export function App() {
           )}
           {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("changes")}>Back to changes <span aria-hidden="true">→</span></button>}
           </>}
+          <button class="sidebar-install-data" type="button" onClick={() => { setDrawerOpen(false); setInstallDataOpen(true); }}>Install & local data <span aria-hidden="true">↗</span></button>
         </aside>
 
         <main class="main-content">
@@ -503,6 +522,7 @@ export function App() {
       {reattachId !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={() => setReattachId(null)}>Cancel</button></div>}
       {editor !== null && <CommentEditor editor={editor} onBody={(body) => setEditor((current) => current === null ? current : { ...current, body })} onClose={closeEditor} onDelete={deleteEditor} />}
       {feedbackOpen && project !== null && comments?.projectId === project.id && <FeedbackDialog store={comments} projectPath={project.absolutePath} checkState={checkState} error={checkError} copyError={copyError} onClose={() => setFeedbackOpen(false)} onCheck={() => void checkComments()} onCopy={() => void copyFeedback()} onEdit={(draft) => { setFeedbackOpen(false); setEditor({ anchor: draft.anchor, draftId: draft.id, body: draft.body }); }} onReattach={(draft) => { setFeedbackOpen(false); setReattachId(draft.id); selectEntry({ layer: draft.anchor.layer, path: draft.anchor.path, kind: "modified", oldPath: null, isSubmodule: false }); }} onUndo={undoLastCopy} canUndo={undoCopyId !== null && comments.history[0]?.id === undoCopyId} onCopyHistory={(text) => void copyHistory(text)} />}
+      {installDataOpen && <InstallDataDialog rootPath={root.kind === "ready" ? root.value.path : null} installPrompt={installPrompt} onInstallHandled={() => setInstallPrompt(null)} onClose={() => setInstallDataOpen(false)} />}
     </div>
   );
 }

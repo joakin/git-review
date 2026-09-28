@@ -37,6 +37,8 @@ try {
   const preview = await page.locator("#review-export-text").inputValue();
   if (!preview.includes('[staged] "src/view.ts"') || !preview.includes('new line 1  "export const view = \'staged\';"') || !preview.includes("Please explain the staged value.")) throw new Error(`Incorrect feedback preview: ${preview}`);
   await context.storageState({ path: "qa/.artifacts/feedback-storage.json" });
+  const activeSession = await page.evaluate(() => sessionStorage.getItem("git-review:active-project:v1"));
+  if (activeSession === null) throw new Error("Expected an active project in this tab");
   await copy.click();
   await page.getByRole("button", { name: "Feedback 0" }).waitFor({ state: "visible" });
   if (await page.locator(".review-history-item").count() !== 1) throw new Error("Successful copy did not create history");
@@ -45,6 +47,7 @@ try {
   await page.getByRole("button", { name: "Close feedback" }).click();
 
   const fallback = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, storageState: "qa/.artifacts/feedback-storage.json" });
+  await fallback.addInitScript((value) => sessionStorage.setItem("git-review:active-project:v1", value), activeSession);
   await fallback.addInitScript(() => { Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined }); });
   const fallbackPage = await fallback.newPage();
   await fallbackPage.goto(url, { waitUntil: "load" });

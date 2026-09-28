@@ -6,10 +6,11 @@ type CaptureOptions = {
   url: URL;
   label: string;
   ready: string | null;
-  click: string | null;
+  clicks: string[];
   afterClickReady: string | null;
   fullPage: boolean;
   storageState: string | null;
+  activePath: string | null;
   scrollTo: string | null;
   scrollOffset: number;
   scrollXToEnd: string | null;
@@ -36,9 +37,10 @@ const usage = `Usage: bun run qa:capture --url <http(s) URL> --label <milestone>
 
 Options:
   --ready <CSS selector>  Wait for a visible element before each screenshot
-  --click <CSS selector>  Click one control after the page is ready
+  --click <CSS selector>  Click a control after the page is ready; repeat to click in sequence
   --after-click-ready <CSS selector> Wait for content after the click
   --storage-state <file> Use a saved Playwright browser state for every viewport
+  --active-path <path>  Select this host-relative project in each viewport tab
   --scroll-to <CSS selector> Scroll an element to the top before capture
   --scroll-offset <pixels> Scroll farther after --scroll-to (default: 320)
   --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
@@ -62,10 +64,11 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let rawUrl: string | null = null;
   let label: string | null = null;
   let ready: string | null = null;
-  let click: string | null = null;
+  const clicks: string[] = [];
   let afterClickReady: string | null = null;
   let fullPage = false;
   let storageState: string | null = null;
+  let activePath: string | null = null;
   let scrollTo: string | null = null;
   let scrollOffset = 320;
   let scrollXToEnd: string | null = null;
@@ -86,7 +89,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         index += 1;
         break;
       case "--click":
-        click = readValue(args, index, flag);
+        clicks.push(readValue(args, index, flag));
         index += 1;
         break;
       case "--after-click-ready":
@@ -95,6 +98,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         break;
       case "--storage-state":
         storageState = readValue(args, index, flag);
+        index += 1;
+        break;
+      case "--active-path":
+        activePath = readValue(args, index, flag);
         index += 1;
         break;
       case "--scroll-to":
@@ -137,9 +144,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
     throw new Error("--url must use HTTP or HTTPS");
   }
 
-  if (afterClickReady !== null && click === null) throw new Error("--after-click-ready requires --click");
+  if (afterClickReady !== null && clicks.length === 0) throw new Error("--after-click-ready requires --click");
   if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, click, afterClickReady, fullPage, storageState, scrollTo, scrollOffset, scrollXToEnd } };
+  return { kind: "capture", options: { url, label, ready, clicks, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -174,12 +181,22 @@ async function capture(options: CaptureOptions): Promise<void> {
         if (response === null || !response.ok()) {
           throw new Error(`${view.name}: page load returned ${response?.status() ?? "no response"}`);
         }
-        if (options.ready !== null) {
-          await page.locator(options.ready).waitFor({ state: "visible", timeout: 15_000 });
+        if (options.activePath !== null) {
+          await page.evaluate(async (activePath) => {
+            const response = await fetch("/api/roots");
+            if (!response.ok) throw new Error("Could not read host root for active project");
+            const value: unknown = await response.json() as unknown;
+            if (typeof value !== "object" || value === null || !("root" in value) || typeof value.root !== "object" || value.root === null || !("path" in value.root) || typeof value.root.path !== "string") throw new Error("Invalid root response");
+            sessionStorage.setItem("git-review:active-project:v1", JSON.stringify({ version: 1, rootPath: value.root.path, activePath }));
+          }, options.activePath);
+          await page.reload({ waitUntil: "load" });
         }
-        if (options.click !== null) await page.locator(options.click).click();
+        if (options.ready !== null) {
+          await page.locator(options.ready).first().waitFor({ state: "visible", timeout: 15_000 });
+        }
+        for (const selector of options.clicks) await page.locator(selector).click();
         if (options.afterClickReady !== null) {
-          await page.locator(options.afterClickReady).waitFor({ state: "visible", timeout: 15_000 });
+          await page.locator(options.afterClickReady).first().waitFor({ state: "visible", timeout: 15_000 });
         }
         if (options.scrollTo !== null) {
           await page.locator(options.scrollTo).evaluate((element, offset) => {

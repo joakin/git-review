@@ -1,6 +1,6 @@
 # Line feedback and copy: first usable review loop
 
-Status: implemented as an uncommitted first slice, awaiting maintainer review. The single-tap line-number approach was approved on 2026-09-27. The implementation is intentionally left uncommitted so it can be reviewed in git-review itself.
+Status: implemented and committed as the first feedback slice. The single-tap line-number approach was approved on 2026-09-27.
 
 ## Smallest useful slice
 
@@ -34,7 +34,7 @@ Export plain text deterministically, grouped by layer and path, with old/new sid
 
 ## Phone access milestone
 
-The current Tailscale URL uses HTTP. Browser `navigator.clipboard.writeText()` requires a secure context, so the first build must offer selectable feedback text when remote copy is unavailable. Before we call phone copying complete, expose the existing local server through private Tailscale Serve HTTPS and test a real device. Serve is currently not configured on this Mac; enabling tailnet HTTPS may require an administrator consent step. Keep the direct HTTP URL working while that setup is reviewed. [Clipboard security](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText), [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
+The first Tailscale URL used HTTP, so remote browsers could lack `navigator.clipboard.writeText()`. The selectable feedback text remains as a fallback. The app is now available through private HTTPS on port 8443; real-device clipboard verification is still needed. The direct HTTP URL remains available for local-data export. [Clipboard security](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText), [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
 
 ## Implemented behavior and review checkpoint
 
@@ -44,4 +44,4 @@ The current Tailscale URL uses HTTP. Browser `navigator.clipboard.writeText()` r
 - Browser QA covers a phone flow through save, immediate reload, preview, successful copy, history, Undo, Clipboard API absence, and outdated-line exclusion. The diff QA still checks wrap, scroll containment, and C syntax. Screenshot sets for [feedback](../qa/screenshots/feedback-first-slice/mobile.png) and [comment editing](../qa/screenshots/comment-editor-first-slice/mobile.png) include phone, tablet portrait, tablet landscape, and desktop; their manifests report no page-wide horizontal overflow.
 - After Android feedback on the first build, draft and history IDs use `crypto.getRandomValues`, which remains available on the HTTP Tailscale origin where `crypto.randomUUID` is absent. Comment and feedback dialogs lock background scrolling and close from a backdrop tap. Expanded file headings stick just below the top bar while their card is in view, so a long diff keeps its filename visible. The browser QA simulates the missing UUID API and checks save, backdrop dismissal, and long-file scrolling; [sticky header captures](../qa/screenshots/sticky-file-header/mobile.png) show the four viewport sizes.
 
-Please review this slice in the running app with the `git-review` folder. The current Tailscale HTTP URL shows the **Select text** fallback on browsers that block clipboard writes in an insecure context. A one-tap remote Copy and actual iOS/Android touch, keyboard, and clipboard checks remain for the HTTPS/device milestone. Double-tap on code is still deferred to that gesture review.
+The current HTTPS URL uses port 8443. Actual iOS/Android touch, keyboard, and clipboard checks remain for the device milestone. Double-tap on code is still deferred to that gesture review.

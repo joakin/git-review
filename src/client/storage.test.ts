@@ -1,12 +1,17 @@
 import { expect, test } from "bun:test";
-import { parseOpenCards, parseSavedWorkspace, parseWrapPreference, withSelectedPath } from "./storage.ts";
+import { parseActiveProject, parseLegacyWorkspace, parseOpenCards, parseSavedWorkspace, parseWrapPreference, withSelectedPath } from "./storage.ts";
 
-test("invalid stored workspace data cannot become an active folder", () => {
+test("invalid stored workspace and session data cannot become an active folder", () => {
   const rootPath = "/approved/root";
-  expect(parseSavedWorkspace({ version: 2, rootPath, activePath: 42, recentPaths: ["src"] }, rootPath).activePath).toBeNull();
-  expect(parseSavedWorkspace({ version: 2, rootPath, activePath: "src", recentPaths: ["safe", 42] }, rootPath).recentPaths).toEqual([]);
-  expect(parseSavedWorkspace({ version: 1, rootPath, activePath: "src", recentPaths: ["src"] }, rootPath).activePath).toBeNull();
-  expect(parseSavedWorkspace({ version: 2, rootPath, activePath: "src", recentPaths: ["src"] }, "/different/root").activePath).toBeNull();
+  expect(parseSavedWorkspace({ version: 3, rootPath, recentPaths: ["safe", 42] }, rootPath).recentPaths).toEqual([]);
+  expect(parseSavedWorkspace({ version: 2, rootPath, activePath: "src", recentPaths: ["src"] }, rootPath).recentPaths).toEqual([]);
+  expect(parseSavedWorkspace({ version: 3, rootPath, recentPaths: ["src"] }, "/different/root").recentPaths).toEqual([]);
+  expect(parseActiveProject({ version: 1, rootPath, activePath: "src" }, rootPath)).toBe("src");
+  expect(parseActiveProject({ version: 1, rootPath, activePath: 42 }, rootPath)).toBeNull();
+  expect(parseActiveProject({ version: 1, rootPath, activePath: "src" }, "/different/root")).toBeNull();
+  expect(parseLegacyWorkspace({ version: 2, rootPath, activePath: 42, recentPaths: ["src"] }, rootPath)).toBeNull();
+  expect(parseLegacyWorkspace({ version: 2, rootPath, activePath: "src", recentPaths: ["safe", 42] }, rootPath)).toBeNull();
+  expect(parseLegacyWorkspace({ version: 2, rootPath, activePath: "src", recentPaths: ["src"] }, rootPath)).toEqual({ activePath: "src", recentPaths: ["src"] });
 });
 
 test("only a saved boolean can change the default code wrapping", () => {
@@ -23,13 +28,11 @@ test("saved open cards discard malformed entries and duplicates", () => {
 test("selecting a folder moves it to the front and bounds recent history", () => {
   const rootPath = "/approved/root";
   const current = parseSavedWorkspace({
-    version: 2,
+    version: 3,
     rootPath,
-    activePath: "old",
     recentPaths: ["one", "two", "three", "four", "five", "six", "seven", "eight"],
   }, rootPath);
   const next = withSelectedPath(current, "three");
-  expect(next.activePath).toBe("three");
   expect(next.recentPaths[0]).toBe("three");
   expect(next.recentPaths).toHaveLength(8);
   expect(new Set(next.recentPaths).size).toBe(8);

@@ -1,6 +1,6 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, then review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards. Tap an old or new line number to draft feedback, check the current lines, and copy a line-numbered summary. The selected folder, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. File browsing, search, and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), and [feedback](docs/feedback-slice-proposal.md) documents for current behavior.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, then review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards. Tap an old or new line number to draft feedback, check the current lines, and copy a line-numbered summary. The selected folder survives reload **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. File browsing, search, and voice transcription remain in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
 
 ## Run the app
 
@@ -21,6 +21,21 @@ Use the Mac's Tailscale hostname with that port on another connected device, for
 
 Clipboard writes usually need HTTPS or localhost. The HTTP Tailscale page keeps a selectable feedback text box when Copy is unavailable; copied drafts are cleared only after a successful Clipboard API write.
 
+## Install on a phone
+
+An installable web app needs a private HTTPS address. Start a loopback backend with its exact public origin, then proxy it through Tailscale Serve:
+
+```sh
+GIT_REVIEW_PUBLIC_ORIGIN=https://your-mac.your-tailnet.ts.net:8443 bun run dev --root /path/to/projects --port 39879
+tailscale serve --https=8443 --bg 39879
+```
+
+The macOS Tailscale app includes a CLI in `/Applications/Tailscale.app/Contents/MacOS/Tailscale` if `tailscale` is not on `PATH`. The first Serve command may ask the tailnet owner to enable Serve and HTTPS. Tailscale's HTTPS certificate publishes the machine DNS name in Certificate Transparency. Use **Serve**, not Funnel, to keep access limited to the tailnet. Port 8443 leaves the machine domain's default HTTPS root free for another app. Keep the old HTTP address available until any local drafts have been exported.
+
+Open the HTTPS address on a connected phone. On Android, use **Install app** in the browser menu or the app's **Install & local data** entry. On iPhone, use **Share → Add to Home Screen** and enable **Open as Web App**. The installed app needs the host and Tailscale connection to read live Git data; offline navigation shows a host-unavailable page.
+
+Browser storage is separate between HTTP and HTTPS, and an iPhone Home Screen app may also have separate storage from Safari. In the old address, open **Install & local data → Export local review data**, then import the downloaded JSON file in the new address or installed app. The file stays on the device. Import previews the record counts and requires an explicit replace action; matching project records are replaced while other projects are kept.
+
 ## Checks
 
 ```sh
@@ -30,6 +45,8 @@ bun run qa:check
 bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:feedback http://127.0.0.1:3000/
+bun run qa:tabs http://127.0.0.1:3000/
+bun run qa:pwa http://127.0.0.1:3000/
 bun run qa:capture --url http://127.0.0.1:3000/ --label <milestone>
 ```
 

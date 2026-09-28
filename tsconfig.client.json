@@ -7,5 +7,5 @@
     "jsxImportSource": "preact"
   },
   "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/shared/**/*.ts"],
-  "exclude": ["src/client/**/*.test.ts"]
+  "exclude": ["src/client/**/*.test.ts", "src/client/sw.ts"]
 }

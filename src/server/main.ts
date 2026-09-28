@@ -39,13 +39,35 @@ function parseOptions(args: readonly string[]): ServerOptions {
 
 const options = parseOptions(process.argv.slice(2));
 const root = await approveRoot(options.root);
-const handleApiRequest = createApiHandler(root);
+const configuredPublicOrigin = process.env["GIT_REVIEW_PUBLIC_ORIGIN"];
+let publicOrigin: string | null = null;
+if (configuredPublicOrigin !== undefined) {
+  const parsed = new URL(configuredPublicOrigin);
+  if (parsed.protocol !== "https:" || parsed.origin !== configuredPublicOrigin || parsed.pathname !== "/" || parsed.search !== "" || parsed.hash !== "") {
+    throw new Error("GIT_REVIEW_PUBLIC_ORIGIN must be an HTTPS origin without a path");
+  }
+  publicOrigin = parsed.origin;
+}
+const handleApiRequest = createApiHandler(root, publicOrigin);
 const htmlPath = resolve("src/client/index.html");
 const scriptPath = resolve("dist/assets/main.js");
 const stylesPath = resolve("dist/assets/styles.css");
-if (!(await Bun.file(scriptPath).exists()) || !(await Bun.file(stylesPath).exists())) {
+const workerPath = resolve("dist/assets/sw.js");
+const publicPath = resolve("src/client/public");
+if (!(await Bun.file(scriptPath).exists()) || !(await Bun.file(stylesPath).exists()) || !(await Bun.file(workerPath).exists())) {
   throw new Error("Built client assets are missing. Run `bun run build` first, or use `bun run dev`.");
 }
+
+const staticAssets = new Map<string, { path: string; contentType: string; cacheControl: string }>([
+  ["/assets/main.js", { path: scriptPath, contentType: "text/javascript; charset=utf-8", cacheControl: "no-store" }],
+  ["/assets/styles.css", { path: stylesPath, contentType: "text/css; charset=utf-8", cacheControl: "no-store" }],
+  ["/sw.js", { path: workerPath, contentType: "text/javascript; charset=utf-8", cacheControl: "no-cache" }],
+  ["/manifest.webmanifest", { path: resolve(publicPath, "manifest.webmanifest"), contentType: "application/manifest+json; charset=utf-8", cacheControl: "no-cache" }],
+  ["/icons/icon-192.png", { path: resolve(publicPath, "icons/icon-192.png"), contentType: "image/png", cacheControl: "public, max-age=86400" }],
+  ["/icons/icon-512.png", { path: resolve(publicPath, "icons/icon-512.png"), contentType: "image/png", cacheControl: "public, max-age=86400" }],
+  ["/icons/icon-maskable-512.png", { path: resolve(publicPath, "icons/icon-maskable-512.png"), contentType: "image/png", cacheControl: "public, max-age=86400" }],
+  ["/icons/apple-touch-icon.png", { path: resolve(publicPath, "icons/apple-touch-icon.png"), contentType: "image/png", cacheControl: "public, max-age=86400" }],
+]);
 
 const server = Bun.serve({
   hostname: bindHost(),
@@ -67,16 +89,13 @@ const server = Bun.serve({
         headers: {
           ...headers,
           "content-type": "text/html; charset=utf-8",
-          "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'",
+          "content-security-policy": "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'",
         },
       });
     }
-    if (url.pathname === "/assets/main.js") {
-      return new Response(Bun.file(scriptPath), { headers: { ...headers, "content-type": "text/javascript; charset=utf-8" } });
-    }
-    if (url.pathname === "/assets/styles.css") {
-      return new Response(Bun.file(stylesPath), { headers: { ...headers, "content-type": "text/css; charset=utf-8" } });
-    }
+    const asset = staticAssets.get(url.pathname);
+    if (asset !== undefined) return new Response(Bun.file(asset.path), { headers: { ...headers, "content-type": asset.contentType, "cache-control": asset.cacheControl } });
+    if (url.pathname === "/offline.html") return new Response(Bun.file(resolve(publicPath, "offline.html")), { headers: { ...headers, "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'" } });
     return new Response("Not found", { status: 404 });
   },
 });

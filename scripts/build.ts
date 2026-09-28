@@ -10,5 +10,16 @@ if (!result.success) {
   for (const log of result.logs) console.error(log);
   process.exitCode = 1;
 } else {
-  for (const output of result.outputs) console.log(`Built ${output.path}`);
+  const worker = await Bun.build({
+    entrypoints: ["./src/client/sw.ts"],
+    outdir: "./dist/assets",
+    target: "browser",
+    format: "esm",
+  });
+  if (!worker.success) {
+    for (const log of worker.logs) console.error(log);
+    process.exitCode = 1;
+  } else {
+    for (const output of [...result.outputs, ...worker.outputs]) console.log(`Built ${output.path}`);
+  }
 }

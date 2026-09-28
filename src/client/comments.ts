@@ -22,7 +22,7 @@ export type DraftComment = {
 export type FeedbackHistory = { id: string; copiedAt: number; text: string; comments: DraftComment[] };
 export type CommentStore = { version: 1; projectId: string; drafts: DraftComment[]; history: FeedbackHistory[] };
 
-const prefix = "git-review:comments:v1:";
+export const commentStoragePrefix = "git-review:comments:v1:";
 export const maxBodyLength = 5000;
 export const maxDrafts = 200;
 const maxHistory = 20;
@@ -61,25 +61,24 @@ function parseDraft(value: unknown): DraftComment | null {
   return { id, anchor, body, createdAt, updatedAt, state };
 }
 
-export function parseCommentStore(value: unknown, projectId: string): CommentStore {
-  const empty = emptyCommentStore(projectId);
-  if (!isRecord(value) || value["version"] !== 1 || value["projectId"] !== projectId) return empty;
-  if (!Array.isArray(value["drafts"]) || value["drafts"].length > maxDrafts || !Array.isArray(value["history"]) || value["history"].length > maxHistory) return empty;
+export function validateCommentStore(value: unknown, projectId: string): CommentStore | null {
+  if (!isRecord(value) || value["version"] !== 1 || value["projectId"] !== projectId) return null;
+  if (!Array.isArray(value["drafts"]) || value["drafts"].length > maxDrafts || !Array.isArray(value["history"]) || value["history"].length > maxHistory) return null;
   const drafts: DraftComment[] = [];
   const ids = new Set<string>();
   for (const item of value["drafts"]) {
     const draft = parseDraft(item);
-    if (draft === null || ids.has(draft.id)) return empty;
+    if (draft === null || ids.has(draft.id)) return null;
     ids.add(draft.id);
     drafts.push(draft);
   }
   const history: FeedbackHistory[] = [];
   for (const item of value["history"]) {
-    if (!isRecord(item) || !validText(item["id"], 100) || item["id"].length === 0 || !validText(item["text"], 250_000) || typeof item["copiedAt"] !== "number" || !Number.isSafeInteger(item["copiedAt"]) || item["copiedAt"] < 0 || !Array.isArray(item["comments"]) || item["comments"].length > maxDrafts) return empty;
+    if (!isRecord(item) || !validText(item["id"], 100) || item["id"].length === 0 || !validText(item["text"], 250_000) || typeof item["copiedAt"] !== "number" || !Number.isSafeInteger(item["copiedAt"]) || item["copiedAt"] < 0 || !Array.isArray(item["comments"]) || item["comments"].length > maxDrafts) return null;
     const comments: DraftComment[] = [];
     for (const raw of item["comments"]) {
       const comment = parseDraft(raw);
-      if (comment === null || comment.state !== "current") return empty;
+      if (comment === null || comment.state !== "current") return null;
       comments.push(comment);
     }
     history.push({ id: item["id"], copiedAt: item["copiedAt"], text: item["text"], comments });
@@ -87,15 +86,19 @@ export function parseCommentStore(value: unknown, projectId: string): CommentSto
   return { version: 1, projectId, drafts, history };
 }
 
+export function parseCommentStore(value: unknown, projectId: string): CommentStore {
+  return validateCommentStore(value, projectId) ?? emptyCommentStore(projectId);
+}
+
 export function readCommentStore(projectId: string): CommentStore {
   try {
-    const raw = localStorage.getItem(`${prefix}${projectId}`);
+    const raw = localStorage.getItem(`${commentStoragePrefix}${projectId}`);
     return raw === null ? emptyCommentStore(projectId) : parseCommentStore(JSON.parse(raw) as unknown, projectId);
   } catch { return emptyCommentStore(projectId); }
 }
 
 export function saveCommentStore(store: CommentStore): void {
-  try { localStorage.setItem(`${prefix}${store.projectId}`, JSON.stringify(store)); }
+  try { localStorage.setItem(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store)); }
   catch { /* Storage denial does not stop the current review session. */ }
 }
 

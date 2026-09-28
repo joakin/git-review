@@ -60,16 +60,16 @@ function changeLayer(value: string): ChangeLayer {
   throw new AppError("invalid_request", 400, "Invalid change layer");
 }
 
-export function createApiHandler(root: ApprovedRoot): (request: Request) => Promise<Response> {
+export function createApiHandler(root: ApprovedRoot, publicOrigin: string | null = null): (request: Request) => Promise<Response> {
   const openProjects = new Map<string, Project>();
-  return (request) => handleApiRequest(request, root, openProjects);
+  return (request) => handleApiRequest(request, root, openProjects, publicOrigin);
 }
 
-async function handleApiRequest(request: Request, root: ApprovedRoot, openProjects: Map<string, Project>): Promise<Response> {
+async function handleApiRequest(request: Request, root: ApprovedRoot, openProjects: Map<string, Project>, publicOrigin: string | null): Promise<Response> {
   try {
     const url = new URL(request.url);
     const origin = request.headers.get("origin");
-    if (origin !== null && origin !== url.origin) {
+    if (origin !== null && origin !== url.origin && origin !== publicOrigin) {
       throw new AppError("forbidden", 403, "Cross-origin requests are not allowed");
     }
 

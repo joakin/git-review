@@ -126,6 +126,8 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .changes-footnote { margin: 17px 0 0; color: var(--color-text-subtle); font-size: var(--font-size-12); }
 .sidebar-project-name { margin: 0 var(--space-2) 13px; overflow-wrap: anywhere; color: var(--color-text-muted); font-size: var(--font-size-13); }
 .sidebar-switch-mode { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: calc(100% - 16px); margin: 0 var(--space-2) 22px; text-align: left; }
+.sidebar-install-data { display: block; width: calc(100% - 16px); min-height: 44px; margin: var(--space-5) var(--space-2) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font: inherit; font-size: var(--font-size-13); font-weight: var(--font-weight-semibold); text-align: left; }
+.sidebar-install-data:hover { background: var(--color-mint-hover); }
 .sidebar-changes .change-groups { gap: 18px; }
 .change-groups-compact .change-group { padding: 0 var(--space-2); border: 0; border-radius: 0; box-shadow: none; }
 .change-groups-compact .change-group h2 { font-size: var(--font-size-13); }
@@ -236,6 +238,17 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .review-history-item { padding: var(--space-2) 0; font-size: var(--font-size-12); }
 .review-history-item textarea { margin: var(--space-2) 0; }
 .review-feedback-actions { position: sticky; bottom: 0; flex-wrap: wrap; background: var(--color-surface); }
+.install-data-content { display: grid; gap: var(--space-4); }
+.install-data-content section + section { border-top: 1px solid var(--color-divider); padding-top: var(--space-4); }
+.install-data-content h3 { margin: 0 0 var(--space-2); color: var(--color-heading); font-size: var(--font-size-16); }
+.install-data-content p { margin: 0 0 var(--space-3); color: var(--color-text-muted); font-size: var(--font-size-13); line-height: 1.5; }
+.install-data-content button, .install-import-label { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 0 var(--space-2) var(--space-2) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font: inherit; font-size: var(--font-size-13); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.install-data-content button:disabled { opacity: .5; cursor: default; }
+.install-import-label:focus-within { outline: 2px solid var(--color-accent-soft); }
+.install-import-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.install-data-content .install-hint { margin-top: var(--space-2); }
+.install-preview { margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-page); }
+.install-preview button { margin-bottom: 0; border-color: var(--color-accent); background: var(--color-accent); color: var(--color-surface); }
 
 @media (max-width: 900px) {
   .workspace { grid-template-columns: var(--sidebar-width-compact) minmax(0, 1fr); }

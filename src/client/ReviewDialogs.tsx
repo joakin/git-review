@@ -4,7 +4,7 @@ import { formatFeedback, maxBodyLength, type CommentAnchor, type CommentStore, t
 export type EditorState = { anchor: CommentAnchor; draftId: string | null; body: string };
 export type CheckState = "checking" | "ready" | "error";
 
-function useModal(onClose: () => void) {
+export function useModal(onClose: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;

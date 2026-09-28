@@ -55,3 +55,16 @@ test("status access requires an opened folder and rechecks its approved path", a
     await rm(outsidePath, { recursive: true, force: true });
   }
 });
+
+test("configured HTTPS proxy origin is accepted without trusting other origins", async () => {
+  const rootPath = await mkdtemp(join(tmpdir(), "git-review-origin-root-"));
+  try {
+    const handle = createApiHandler(await approveRoot(rootPath), "https://private-host.ts.net");
+    const request = (origin: string) => new Request("http://127.0.0.1:39879/api/roots", { headers: { origin } });
+    expect((await handle(request("https://private-host.ts.net"))).status).toBe(200);
+    expect((await handle(request("http://127.0.0.1:39879"))).status).toBe(200);
+    expect((await handle(request("https://other-host.ts.net"))).status).toBe(403);
+  } finally {
+    await rm(rootPath, { recursive: true, force: true });
+  }
+});
