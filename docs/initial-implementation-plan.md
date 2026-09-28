@@ -57,16 +57,15 @@ Use text labels and symbols as well as color for added, removed, moved, and outd
 
 Add a Settings page in a later slice for each person's preferred app theme and code theme, plus code font size and font family. Save validated choices in versioned browser `localStorage`, scoped to the browser rather than the host project. Apply themes and code typography in the frontend through design tokens; the server continues to return semantic syntax roles. Show the effect of a choice immediately and preserve it across reloads. Decide the initial theme and font choices with the maintainer before implementing this slice.
 
-### Future phone portrait gutter slice
+### Phone portrait line action slice
 
-The change-sign and old/new number columns currently take roughly a quarter to a third of a narrow phone's code width. After the [independent tabs and PWA bonus slice](independent-tabs-and-pwa-proposal.md), design a more compact portrait gutter without hiding the line anchor needed for comments. Explore a single visible number for added/deleted rows, a clear way to reveal both sides for context rows, and whether the marker can share space with a number. Review touch targets, accessibility labels, sticky horizontal scrolling, and comment side selection with the maintainer before implementing. Test on real phones as well as captured portrait viewports.
+The change-sign and old/new number columns took roughly a quarter to a third of a narrow phone's code width. The [phone line-action record](phone-portrait-gutter-slice-proposal.md) hides those columns on phones and reveals sign, line numbers, and one Comment action when a row is tapped or clicked at any size. Unchanged lines use the New side in every Git layer. Browser QA covers selection and anchoring; test gestures on real phones before calling the slice fully verified.
 
 ### Touch interactions
 
-- A visible gutter button is the primary way to comment on a line. Double-tap on a code row is a shortcut. A deleted line anchors to the old side; an added or context line anchors to the new side by default.
-- Holding a word in code opens a Search action. Holding the gutter can open the comment action. Keep native text selection available; a selection toolbar can offer Search when a browser captures the long press first.
-- Cancel a pending long-press action when the finger moves to scroll. Validate gesture timing and selection behavior on iPhone Safari and Android Chrome, not only emulated viewports.
-- Keyboard users can focus line controls and operate all actions without touch gestures.
+- A short tap or click on a diff code row reveals its sign, available old/new numbers, and a single Comment action. Phones hide the gutters; wider screens keep direct old/new number buttons. A removed line anchors to Old; added and unchanged lines anchor to New.
+- Native code selection takes priority over the line action. Selected code offers Search. A drag or long press must not launch a line comment.
+- Keyboard users can focus a line control and operate it without touch gestures. Validate gesture timing and selection behavior on iPhone Safari and Android Chrome, not only emulated viewports.
 
 ## Git and file model
 
@@ -98,14 +97,18 @@ A comment anchor stores project, path, Git layer or revision, old/new side, line
 
 Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Keep recent projects, recent files, wrap choice, collapsed-card state, and a bounded copy-history list there as well; keep the active project in per-tab `sessionStorage`. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the active draft, with an immediate Undo action. On failure, keep the draft and show selectable feedback text.
 
-Export plain text with relative paths, Git layer, side, line number, and the comment, for example:
+Export plain text with relative paths, Git layer, side, line number, source text, and the comment. The current formatter produces text like:
 
 ```text
-Unstaged — src/view.ts:42 (new)
-Please handle the empty result here.
+Review feedback for "/repo"
 
-Staged — src/parser.ts:18 (old/deleted)
-This case still needs coverage.
+[staged] "src/parser.ts"
+  old line 18  "return parse(input);"
+    This case still needs coverage.
+
+[unstaged] "src/view.ts"
+  new line 42  "const result = render();"
+    Please handle the empty result here.
 ```
 
 History and drafts are local to each browser and origin; they do not sync across devices. Do not store audio recordings in browser storage.
@@ -198,6 +201,6 @@ After review of the selected-code Search shortcut and the local voice work, keep
 - **Device and performance pass:** check iOS selection and microphone behavior, clipboard and keyboard layouts on real devices, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed the selected-code Search action and dictation work on their phone.
 - **Native media previews (complete):** images including SVG, audio, and video appear inline in Files and in source-correct Old/New Git change cards, with raw new-tab links. The [media slice record](media-preview-slice-proposal.md) contains the API and QA details.
 - **Diff fidelity (implemented, pending review):** bounded word-change spans now decorate clear line pairs across multi-line edit chunks. The [slice record](diff-fidelity-slice-proposal.md) covers matching limits and QA. Moved-block indicators are optional later work.
-- **Phone and personal layout:** design a narrower portrait line-number gutter and a Settings page for app/code themes, code font size, and code font family. These need separate proposals before implementation.
-- **Convenience:** recent files, status polling while the page is active, and a carefully tested double-tap comment shortcut remain from the initial plan. Explicit Refresh and line-number controls already cover the essential jobs.
+- **Phone and personal layout:** review the implemented [phone line action](phone-portrait-gutter-slice-proposal.md), then separately plan a Settings page for app/code themes, code font size, and code font family.
+- **Convenience:** recent files and status polling while the page is active remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs.
 - **Later navigation:** implement the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) so Back/Forward and direct file links work. General file Git history and PDF previews are later optional expansions.

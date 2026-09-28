@@ -88,15 +88,17 @@ async function main(): Promise<void> {
         const hunkLabel = pane.querySelector(".diff-hunk-label span");
         const first = numbers[0];
         const second = numbers[1];
-        if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement) || !(sign instanceof HTMLElement) || !(hunkLabel instanceof HTMLElement)) throw new Error("Diff gutters are missing");
+        const code = shortRow.querySelector(".diff-code");
+        if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement) || !(sign instanceof HTMLElement) || !(hunkLabel instanceof HTMLElement) || !(code instanceof HTMLElement)) throw new Error("Diff row parts are missing");
         return {
           scrollLeft: pane.scrollLeft,
           paneLeft: pane.getBoundingClientRect().left,
-          firstLeft: first.getBoundingClientRect().left,
-          firstWidth: first.getBoundingClientRect().width,
-          secondLeft: second.getBoundingClientRect().left,
-          signLeft: sign.getBoundingClientRect().left,
-          signWidth: sign.getBoundingClientRect().width,
+          firstDisplay: getComputedStyle(first).display,
+          secondDisplay: getComputedStyle(second).display,
+          signDisplay: getComputedStyle(sign).display,
+          codeLeft: code.getBoundingClientRect().left,
+          codePadding: parseFloat(getComputedStyle(code).paddingLeft),
+          rowLeft: shortRow.getBoundingClientRect().left,
           hunkLabelLeft: hunkLabel.getBoundingClientRect().left,
           contentRight: content.getBoundingClientRect().right,
           shortRight: shortRow.getBoundingClientRect().right,
@@ -105,9 +107,8 @@ async function main(): Promise<void> {
         };
       });
       if (scrolled.scrollLeft <= 0 || Math.abs(scrolled.shortRight - scrolled.contentRight) > 2 ||
-          Math.abs(scrolled.signLeft - scrolled.paneLeft) > 2 ||
-          Math.abs(scrolled.firstLeft - scrolled.paneLeft - scrolled.signWidth) > 2 ||
-          Math.abs(scrolled.secondLeft - scrolled.paneLeft - scrolled.signWidth - scrolled.firstWidth) > 2 ||
+          scrolled.signDisplay !== "none" || scrolled.firstDisplay !== "none" || scrolled.secondDisplay !== "none" ||
+          Math.abs(scrolled.codeLeft - scrolled.rowLeft) > 2 || Math.abs(scrolled.codePadding - 8) > 2 ||
           Math.abs(scrolled.hunkLabelLeft - scrolled.paneLeft - 12) > 2 ||
           scrolled.rowHeight <= 0 || scrolled.rowHeight > 26 || scrolled.background === "rgba(0, 0, 0, 0)") {
         throw new Error(`Horizontal diff alignment or compact row height failed: ${JSON.stringify(scrolled)}`);
@@ -160,7 +161,7 @@ async function main(): Promise<void> {
       await cCard.locator(".diff-row").waitFor({ state: "visible" });
       if (await cCard.getByLabel("Language").inputValue() !== "cpp") throw new Error("Language override was not restored after reload");
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      console.log("Mobile diff navigation, staged content, C highlighting, language override, compact rows, aligned horizontal scrolling, wrap, sticky long-file header, and reload passed.");
+      console.log("Mobile diff navigation, staged content, C highlighting, language override, gutter-free compact rows, horizontal scrolling, wrap, sticky long-file header, and reload passed.");
     } finally {
       await context.close();
     }

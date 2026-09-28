@@ -18,13 +18,15 @@ try {
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
   await card.waitFor({ state: "visible" });
   await card.locator(".diff-card-toggle").click();
-  await card.getByRole("button", { name: /New line 1.*Add comment/ }).click();
+  await card.locator(".diff-row-added").first().tap();
+  await card.getByRole("button", { name: /staged added line.*Comment on new line 1/ }).click();
   await page.waitForFunction(() => document.documentElement.style.overflow === "hidden");
   await page.getByPlaceholder("What should change?").fill("Please explain the staged value.");
   await page.getByRole("button", { name: "Save comment" }).click();
   await page.locator(".comment-editor").waitFor({ state: "detached" });
   await page.waitForFunction(() => document.documentElement.style.overflow !== "hidden");
-  await card.getByRole("button", { name: /New line 1.*Add comment/ }).click();
+  await card.locator(".diff-row-added").first().tap();
+  await card.getByRole("button", { name: /staged added line.*Comment on new line 1/ }).click();
   await page.locator(".comment-editor[open]").waitFor({ state: "visible" });
   await page.mouse.click(5, 100);
   await page.locator(".comment-editor").waitFor({ state: "detached" });

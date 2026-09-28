@@ -628,6 +628,7 @@ export function App() {
                         onToggle={() => toggleEntry(entry)}
                         onStale={() => setStatusRefresh((value) => value + 1)}
                         onComment={chooseCommentLine}
+                        reattachSide={reattachId === null ? null : comments?.drafts.find((draft) => draft.id === reattachId)?.anchor.side ?? null}
                         drafts={comments?.projectId === project.id ? comments.drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path) : []}
                       />)}
                     </section>;

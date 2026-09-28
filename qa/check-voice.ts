@@ -33,7 +33,8 @@ try {
   await page.getByRole("button", { name: /Open this folder/ }).click();
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
   await card.locator(".diff-card-toggle").click();
-  await card.getByRole("button", { name: /New line 1.*Add comment/ }).click();
+  await card.locator(".diff-row-added").first().tap();
+  await card.getByRole("button", { name: /staged added line.*Comment on new line 1/ }).click();
   const textarea = page.getByPlaceholder("What should change?");
   await textarea.fill("Before after");
   await textarea.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(7, 7));

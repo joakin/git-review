@@ -79,7 +79,7 @@ export function FeedbackDialog({ store, projectPath, checkState, error, copyErro
     <div class="review-dialog-content">
       {checkState === "checking" && <p class="review-status" role="status">Checking current diff lines…</p>}
       {checkState === "error" && <div class="review-error" role="alert">{error ?? "Could not check the current diff."} <button type="button" onClick={onCheck}>Retry</button></div>}
-      {store.drafts.length === 0 && <p class="review-empty">Tap a line number in a diff to add feedback.</p>}
+      {store.drafts.length === 0 && <p class="review-empty">Tap a code line in a diff, then choose Comment.</p>}
       {store.drafts.map((draft) => <article class={`review-item${draft.state === "outdated" ? " review-item-outdated" : ""}`} key={draft.id}>
         <div class="review-item-top"><strong>{draft.anchor.path}</strong><span>{anchorLabel(draft.anchor)}</span></div>
         <pre>{draft.anchor.sourceText}</pre><p>{draft.body}</p>
