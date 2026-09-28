@@ -6,6 +6,7 @@ import { hasErrorCode } from "../shared/validation.ts";
 import { GitCommandError, runGit } from "./git-status.ts";
 import { AppError, isWithinRoot, type ApprovedRoot } from "./paths.ts";
 import { detectLanguage, highlightSource } from "./syntax.ts";
+import { withWordDetails } from "./diff-words.ts";
 
 const maxTextBytes = 1024 * 1024;
 const maxPatchBytes = 2 * 1024 * 1024;
@@ -65,17 +66,17 @@ export function parseGitPatch(output: Buffer): DiffResult {
       const prefix = row[0];
       let line: DiffLine;
       if (prefix === " ") {
-        line = { kind: "context", oldLine: current.nextOld, newLine: current.nextNew, text: row.slice(1), tokens: [{ text: row.slice(1), role: "plain" }], noNewlineAtEnd: false };
+        line = { kind: "context", oldLine: current.nextOld, newLine: current.nextNew, text: row.slice(1), tokens: [{ text: row.slice(1), role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false };
         current.nextOld += 1;
         current.nextNew += 1;
         current.remainingOld -= 1;
         current.remainingNew -= 1;
       } else if (prefix === "-") {
-        line = { kind: "removed", oldLine: current.nextOld, newLine: null, text: row.slice(1), tokens: [{ text: row.slice(1), role: "plain" }], noNewlineAtEnd: false };
+        line = { kind: "removed", oldLine: current.nextOld, newLine: null, text: row.slice(1), tokens: [{ text: row.slice(1), role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false };
         current.nextOld += 1;
         current.remainingOld -= 1;
       } else if (prefix === "+") {
-        line = { kind: "added", oldLine: null, newLine: current.nextNew, text: row.slice(1), tokens: [{ text: row.slice(1), role: "plain" }], noNewlineAtEnd: false };
+        line = { kind: "added", oldLine: null, newLine: current.nextNew, text: row.slice(1), tokens: [{ text: row.slice(1), role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false };
         current.nextNew += 1;
         current.remainingNew -= 1;
       } else {
@@ -96,7 +97,7 @@ export function parseGitPatch(output: Buffer): DiffResult {
   }
   if (symlink) return { kind: "binary", reason: "symlink" };
   if (binary) return { kind: "binary", reason: "binary" };
-  return { kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks };
+  return withWordDetails({ kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks });
 }
 
 function untrackedDiff(content: Buffer): DiffResult {
@@ -119,6 +120,7 @@ function untrackedDiff(content: Buffer): DiffResult {
     newLine: index + 1,
     text: source,
     tokens: [{ text: source, role: "plain" }],
+    detail: { kind: "none" },
     noNewlineAtEnd: !hasFinalNewline && index === sourceLines.length - 1,
   }));
   return { kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks: [{ oldStart: 0, oldCount: 0, newStart: 1, newCount: lines.length, lines }] };

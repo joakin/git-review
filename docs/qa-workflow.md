@@ -58,6 +58,10 @@ Use `bun qa/prepare-media-fixture.ts` and `bun qa/prepare-media-av-fixture.ts` t
 
 Capture four sizes with `bun run qa:capture --active-path media-fixture` or `--active-path media-av-fixture`. Use `--media-ready` to wait for native player metadata. The [image Old/New cards](../qa/screenshots/media-images-diff-first/mobile.png), [current Files image](../qa/screenshots/media-images-files-review/mobile.png), [final HTTPS audio/video cards](../qa/screenshots/media-av-live-ready-review/mobile.png), and [final HTTPS Files video](../qa/screenshots/media-av-live-control-review/mobile.png) have phone, tablet portrait, tablet landscape, and desktop captures. The script checks do not replace playback and raw-link checks in real Android Chrome and iOS Safari over HTTPS.
 
+## Word-level diff detail
+
+Use a Git fixture with several edited lines plus an inserted or deleted line. Expand its change card, then capture the [wrapped review](../qa/screenshots/word-detail-review/mobile.png) and [unwrapped, horizontally scrolled review](../qa/screenshots/word-detail-scroll/mobile.png) at all four standard sizes. The screenshots should keep syntax colors, source text, line-number gutters, and added/removed row colors intact while marking only changed spans on clear pairs. Check selection contrast and no page-wide overflow. `bun run qa:diff`, `bun run qa:selected-search`, and `bun run qa:feedback` cover compact rows, selected-code Search through decorated markup, and line comments/copy in mobile Chrome emulation. Verify native selection handles and comment tapping on real phones when reviewing the slice.
+
 ## Baseline matrix as features arrive
 
 | Area | Behavior to verify |

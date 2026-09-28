@@ -106,6 +106,11 @@
   --color-change-conflict: #a8453b;
   --color-diff-added-bg: #e9f7ef;
   --color-diff-removed-bg: #fff0ed;
+  --color-diff-added-word-bg: #b9ebc9;
+  --color-diff-removed-word-bg: #ffd0c7;
+  --color-diff-added-word-edge: #51a77a;
+  --color-diff-removed-word-edge: #d47f70;
+  --color-diff-selection-bg: #8ebbe9;
   --color-diff-hunk-bg: #edf3f5;
   --color-diff-gutter: #718790;
   --diff-row-bg: var(--color-surface);

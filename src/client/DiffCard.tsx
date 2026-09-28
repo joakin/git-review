@@ -4,6 +4,7 @@ import { fetchProjectDiff } from "./api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 import { anchorForLine, type CommentAnchor, type DraftComment } from "./comments.ts";
 import { MediaDiff } from "./MediaPreview.tsx";
+import { decorateDiffTokens } from "./diff-detail.ts";
 
 type DiffState =
   | { kind: "loading" }
@@ -45,7 +46,7 @@ function HunkRows({ hunk, entry, onComment, drafts }: { hunk: DiffHunk; entry: C
       <span class="diff-sign" aria-hidden="true">{line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}</span>
       {gutter(index, "old")}
       {gutter(index, "new")}
-      <code class="diff-code">{line.tokens.map((token, tokenIndex) => <span class={`syntax-token syntax-token-${token.role}`} key={tokenIndex}>{token.text}</span>)}{line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}</code>
+      <code class="diff-code">{decorateDiffTokens(line.tokens, line.detail).map((token, tokenIndex) => <span class={`syntax-token syntax-token-${token.role}${token.changed ? " diff-word-change" : ""}`} key={tokenIndex}>{token.text}</span>)}{line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}</code>
     </div>)}
   </div>;
 }

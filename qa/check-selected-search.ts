@@ -23,6 +23,8 @@ try {
     const code = diff.locator(".diff-code").filter({ hasText: "working tree" });
     await code.waitFor({ state: "visible" });
     await code.scrollIntoViewIfNeeded();
+    await selectCodeText(code, "working tree");
+    await page.getByRole("button", { name: "Search selected text: working tree" }).waitFor({ state: "visible" });
     await selectCodeText(code, "export const");
     const action = page.getByRole("button", { name: "Search selected text: export const" });
     await action.waitFor({ state: "visible" });

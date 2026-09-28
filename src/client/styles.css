@@ -234,6 +234,9 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .diff-row-added .diff-sign { color: var(--color-change-staged); }
 .diff-row-removed .diff-sign { color: var(--color-change-conflict); }
 .diff-code { display: block; align-self: center; flex: 0 0 auto; padding: 2px var(--space-3) 2px 0; white-space: pre; tab-size: 4; }
+.diff-row-added .diff-word-change { background: var(--color-diff-added-word-bg); box-shadow: inset 0 -1px var(--color-diff-added-word-edge); }
+.diff-row-removed .diff-word-change { background: var(--color-diff-removed-word-bg); box-shadow: inset 0 -1px var(--color-diff-removed-word-edge); }
+.diff-code ::selection { background: var(--color-diff-selection-bg); }
 .syntax-token-comment { color: var(--color-syntax-comment); }
 .syntax-token-keyword { color: var(--color-syntax-keyword); font-weight: var(--font-weight-medium); }
 .syntax-token-string { color: var(--color-syntax-string); }

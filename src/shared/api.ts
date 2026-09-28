@@ -55,8 +55,12 @@ export type DiffLine = {
   newLine: number | null;
   text: string;
   tokens: SyntaxToken[];
+  detail: DiffDetail;
   noNewlineAtEnd: boolean;
 };
+
+export type TextSpan = { start: number; end: number };
+export type DiffDetail = { kind: "none" } | { kind: "word_change"; spans: TextSpan[] };
 
 export type SyntaxRole = "plain" | "comment" | "keyword" | "string" | "number" | "type" | "function" | "variable" | "property" | "operator" | "punctuation" | "tag" | "attribute";
 export type SyntaxToken = { text: string; role: SyntaxRole };
@@ -332,6 +336,7 @@ export function parseDiffResponse(value: unknown): DiffResult {
       if (!Array.isArray(rawHunks) || rawHunks.length > 2000) throw new Error("Expected bounded diff hunks");
       let totalLines = 0;
       let totalTokens = 0;
+      let totalSpans = 0;
       const hunks: DiffHunk[] = rawHunks.map((rawHunk: unknown) => {
         const hunk = expectRecord(rawHunk, "diff hunk");
         const rawLines = hunk["lines"];
@@ -366,12 +371,40 @@ export function parseDiffResponse(value: unknown): DiffResult {
             return { text, role };
           });
           if (tokens.map((token) => token.text).join("") !== lineText) throw new Error("Syntax tokens do not match their source line");
+          const rawDetail = expectRecord(line["detail"], "diff detail");
+          let detail: DiffDetail;
+          if (rawDetail["kind"] === "none") {
+            detail = { kind: "none" };
+          } else if (rawDetail["kind"] === "word_change" && kind !== "context") {
+            const rawSpans = rawDetail["spans"];
+            if (!Array.isArray(rawSpans) || rawSpans.length === 0 || rawSpans.length > 256) throw new Error("Expected bounded word-change spans");
+            totalSpans += rawSpans.length;
+            if (totalSpans > 100_000) throw new Error("Expected bounded diff detail");
+            let previousEnd = 0;
+            const spans: TextSpan[] = rawSpans.map((rawSpan: unknown) => {
+              const span = expectRecord(rawSpan, "word-change span");
+              const start = expectNonNegativeInteger(span["start"], "word-change start");
+              const end = expectNonNegativeInteger(span["end"], "word-change end");
+              const splitsSurrogate = (offset: number): boolean => offset > 0 && offset < lineText.length &&
+                lineText.charCodeAt(offset - 1) >= 0xd800 && lineText.charCodeAt(offset - 1) <= 0xdbff &&
+                lineText.charCodeAt(offset) >= 0xdc00 && lineText.charCodeAt(offset) <= 0xdfff;
+              if (start < previousEnd || end <= start || end > lineText.length || splitsSurrogate(start) || splitsSurrogate(end)) {
+                throw new Error("Expected valid word-change offsets");
+              }
+              previousEnd = end;
+              return { start, end };
+            });
+            detail = { kind: "word_change", spans };
+          } else {
+            throw new Error("Expected a diff detail kind");
+          }
           return {
             kind,
             oldLine,
             newLine,
             text: lineText,
             tokens,
+            detail,
             noNewlineAtEnd: line["noNewlineAtEnd"],
           };
         });

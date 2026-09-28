@@ -3,9 +3,9 @@ import type { DiffResult } from "../shared/api.ts";
 import { anchorForLine, anchorMatches, emptyCommentStore, formatFeedback, parseCommentStore, recordSuccessfulCopy, type DraftComment } from "./comments.ts";
 
 const diff: DiffResult = { kind: "text", syntax: { kind: "plain", reason: "selected" }, hunks: [{ oldStart: 1, oldCount: 2, newStart: 1, newCount: 2, lines: [
-  { kind: "context", oldLine: 1, newLine: 1, text: "before", tokens: [{ text: "before", role: "plain" }], noNewlineAtEnd: false },
-  { kind: "removed", oldLine: 2, newLine: null, text: "old", tokens: [{ text: "old", role: "plain" }], noNewlineAtEnd: false },
-  { kind: "added", oldLine: null, newLine: 2, text: "new", tokens: [{ text: "new", role: "plain" }], noNewlineAtEnd: false },
+  { kind: "context", oldLine: 1, newLine: 1, text: "before", tokens: [{ text: "before", role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false },
+  { kind: "removed", oldLine: 2, newLine: null, text: "old", tokens: [{ text: "old", role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false },
+  { kind: "added", oldLine: null, newLine: 2, text: "new", tokens: [{ text: "new", role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false },
 ] }] };
 
 function draft(id: string, side: "old" | "new", index: number): DraftComment {
