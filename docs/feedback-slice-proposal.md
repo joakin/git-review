@@ -1,0 +1,47 @@
+# Line feedback and copy: first usable review loop
+
+Status: implemented as an uncommitted first slice, awaiting maintainer review. The single-tap line-number approach was approved on 2026-09-27. The implementation is intentionally left uncommitted so it can be reviewed in git-review itself.
+
+## Smallest useful slice
+
+Finish the loop already supported by diff cards: select a changed line, write a comment, preview all comments, and copy a line-numbered summary into an editing session. Build this before Files, Search, voice input, word-level highlighting, or theme selection. Leave the implementation uncommitted until the maintainer reviews it in this app.
+
+## User flow
+
+1. Open a changed file card. Each populated old/new line number is a touch-sized button. Tap the old number to comment on the old side or the new number to comment on the new side. Added and removed rows have only their applicable side. A visible control is the first mobile interaction; double-tap on code can follow after real-device gesture testing so native word selection stays usable for search.
+2. A comment editor opens as a bottom sheet on a phone and a dialog on wider screens. It shows path, Git layer, side, line number, and a short source quote. Type a comment, save it, edit it, or delete it. Closing an edited sheet saves the draft. The line and file show a comment count or marker.
+3. A sticky Feedback button shows the draft count. It opens a preview grouped by Git layer and file. Each item shows side, line, source quote, and comment text. The preview offers Copy feedback and a selectable text fallback.
+4. After a confirmed clipboard write, save an immutable history entry and clear the copied drafts, with immediate Undo. If writing fails or the clipboard API is unavailable, leave drafts intact and reveal selectable text. History can be reopened and recopied.
+
+## Data and boundaries
+
+No comment-writing server API is needed. Drafts and bounded history live in versioned browser `localStorage` under the opened project ID; state is local to each browser/device. Parse stored data as unknown at the boundary and discard invalid records. Keep the domain parser with the comment model and reuse generic helpers from `src/shared/validation.ts`.
+
+An active draft has a generated ID, project ID, Git layer, folder-relative path, old/new side, positive line number, exact source text, a short surrounding-line fingerprint, body text, and creation/update times. Use explicit variants for active and outdated anchors. Bound draft count, body length, path length, and history size. Empty text is not a saved comment.
+
+Before copying, fetch current status and the diff for each commented file/layer. A draft is current only if its side, line number, and exact source text still match. Mark mismatches outdated in the preview and require reattachment before including them in copied feedback; never silently export a comment under a new line. Unique relocation by context can be added after this conservative behavior is exercised. This avoids relying on the current status revision alone, which can remain unchanged when a modified file's content changes.
+
+Export plain text deterministically, grouped by layer and path, with old/new side, line number, quoted source, and comment. Only a resolved clipboard write counts as a successful copy for history. The export formatter is a pure function so behavior tests can cover ordering, escaping, and stale exclusion.
+
+## Edge cases and verification
+
+- Staged and unstaged versions of one path remain separate. Deleted lines anchor to old, added lines to new, and context lines permit either side.
+- Reloads, switching folders, and closing the sheet retain drafts. Corrupt or oversized storage fails closed without breaking the diff page.
+- Line text may contain tabs, CRLF, very long lines, or unusual characters in a filename; export remains legible and unambiguous.
+- Clipboard denial, unavailable Clipboard API, and copy cancellation preserve drafts. History records only confirmed success, and Undo restores the cleared batch.
+- Keyboard users can focus line buttons, open and close the editor, and copy feedback. The sheet respects phone safe areas and the on-screen keyboard.
+- Test comment anchors, parser rejection, export text, success/failure history transitions, and key browser flows. Capture and inspect phone, both tablet orientations, and desktop screenshots. Verify actual gestures and clipboard behavior on iOS/Android before calling mobile copy complete.
+
+## Phone access milestone
+
+The current Tailscale URL uses HTTP. Browser `navigator.clipboard.writeText()` requires a secure context, so the first build must offer selectable feedback text when remote copy is unavailable. Before we call phone copying complete, expose the existing local server through private Tailscale Serve HTTPS and test a real device. Serve is currently not configured on this Mac; enabling tailnet HTTPS may require an administrator consent step. Keep the direct HTTP URL working while that setup is reviewed. [Clipboard security](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText), [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
+
+## Implemented behavior and review checkpoint
+
+- Tap an old or new line-number button to open the comment editor. Save, edit, or delete comments; a nonempty edit is saved when the sheet closes. A dot in the gutter and the fixed Feedback button show draft presence. Drafts and copy history are stored per project in this browser.
+- Opening Feedback checks the current Git status and diff for each commented file. The export text and Copy button appear only after that check succeeds. Changed or missing lines become outdated and are excluded. Tap **Reattach to line**, then tap a line number in any open card to move the comment; reopen Feedback to verify it.
+- Copying successfully creates one history entry and clears only the copied drafts. **Undo last copy** restores that batch during the same page session. Clipboard failure preserves drafts and shows selectable text. Past history entries expand to show selectable text and offer Copy again.
+- Browser QA covers a phone flow through save, immediate reload, preview, successful copy, history, Undo, Clipboard API absence, and outdated-line exclusion. The diff QA still checks wrap, scroll containment, and C syntax. Screenshot sets for [feedback](../qa/screenshots/feedback-first-slice/mobile.png) and [comment editing](../qa/screenshots/comment-editor-first-slice/mobile.png) include phone, tablet portrait, tablet landscape, and desktop; their manifests report no page-wide horizontal overflow.
+- After Android feedback on the first build, draft and history IDs use `crypto.getRandomValues`, which remains available on the HTTP Tailscale origin where `crypto.randomUUID` is absent. Comment and feedback dialogs lock background scrolling and close from a backdrop tap. Expanded file headings stick just below the top bar while their card is in view, so a long diff keeps its filename visible. The browser QA simulates the missing UUID API and checks save, backdrop dismissal, and long-file scrolling; [sticky header captures](../qa/screenshots/sticky-file-header/mobile.png) show the four viewport sizes.
+
+Please review this slice in the running app with the `git-review` folder. The current Tailscale HTTP URL shows the **Select text** fallback on browsers that block clipboard writes in an insecure context. A one-tap remote Copy and actual iOS/Android touch, keyboard, and clipboard checks remain for the HTTPS/device milestone. Double-tap on code is still deferred to that gesture review.

@@ -1,12 +1,14 @@
 # Expandable diff cards
 
-Status: implemented. Syntax highlighting is documented in [its own slice](syntax-highlighting-slice.md); word-level changes and comments are later slices.
+Status: implemented. Syntax highlighting is documented in [its own slice](syntax-highlighting-slice.md); line comments are in the [feedback slice](feedback-slice-proposal.md). Word-level changes remain planned.
 
 ## User flow
 
 The Changes page is a continuous list of file cards in Git layer order. Cards start collapsed with path and change state. Tapping a file in the desktop sidebar or phone drawer closes the drawer if needed, scrolls to its card, and expands it. Expanding a card fetches that file's diff. A visible wrap control switches code between wrapped lines and horizontal scrolling inside the code pane; the page itself stays within the viewport. Line numbers and added, removed, and context rows are distinct without relying on color alone. Wrap preference and open cards survive reload in this browser.
 
-This slice established source rows with diff colors and line numbers. Syntax tokens were added in the following slice. Word-level changes, moved-block detection, comments, and export follow in separate small steps. A binary, oversized, or conflicted file gets an explicit card state instead of a broken text view.
+This slice established source rows with diff colors and line numbers. Syntax tokens and line feedback followed in later slices. Word-level changes and moved-block detection remain planned. A binary, oversized, or conflicted file gets an explicit card state instead of a broken text view.
+
+The rows take their height from the code line height plus 2px of padding above and below, with no minimum row or gutter height. Wrapped rows grow with their content; short lines stay compact in both wrap modes. The change sign sits to the left of the old/new line-number gutters. When wrapping is off, one shared scroll surface spans every hunk in the file. Short rows and hunk backgrounds extend to the width of the longest line; the change sign, line-number gutters, and hunk labels remain visible at the left edge while code scrolls. The expanded file heading stays below the top bar during vertical scrolling until its card ends. File headings keep their rounded corners; touch taps do not leave a hover background on the heading.
 
 ## Data and API
 
@@ -27,4 +29,4 @@ For staged files, compare `HEAD` to index; for unstaged files, compare index to 
 
 ## Verification
 
-Temporary Git fixture tests cover staged and unstaged versions of one path, renames, deletions, unusual filenames, untracked text, binary files, symlinks, missing final newlines, an unborn repository, malformed hunks, and stale API requests. `bun run qa:diff --url <url> --folder inventory-fixture` checks mobile drawer navigation, staged rows, wrap persistence, open-card persistence, and horizontal overflow containment. [Collapsed cards](../qa/screenshots/diff-cards-collapsed/mobile.png) and [expanded cards](../qa/screenshots/diff-cards-expanded/mobile.png) were captured at phone, tablet portrait, tablet landscape, and desktop sizes. Real-device touch behavior remains unverified.
+Temporary Git fixture tests cover staged and unstaged versions of one path, renames, deletions, unusual filenames, untracked text, binary files, symlinks, missing final newlines, an unborn repository, malformed hunks, and stale API requests. `bun run qa:diff --url <url> --folder inventory-fixture` checks mobile drawer navigation, staged rows, wrap persistence, open-card persistence, compact short rows in both wrap modes, growing wrapped rows, aligned horizontal scrolling, sticky gutters, and page overflow containment. [Wrapped rows](../qa/screenshots/diff-marker-left-wrap/mobile.png), [scrolled rows](../qa/screenshots/diff-marker-left-scroll/mobile.png), and [a tapped collapsed heading](../qa/screenshots/diff-header-tap-collapsed/mobile.png) were captured at phone, tablet portrait, tablet landscape, and desktop sizes. Real-device touch behavior remains unverified.

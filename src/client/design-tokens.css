@@ -52,6 +52,8 @@
   --sidebar-width-compact: 280px;
   --drawer-width-max: 370px;
   --ready-action-indent: 68px;
+  --diff-gutter-width: 44px;
+  --diff-sign-width: 20px;
 
   /* Surface and text */
   --color-ink: #192838;
@@ -106,6 +108,7 @@
   --color-diff-removed-bg: #fff0ed;
   --color-diff-hunk-bg: #edf3f5;
   --color-diff-gutter: #718790;
+  --diff-row-bg: var(--color-surface);
   --color-syntax-comment: #5b6d73;
   --color-syntax-keyword: #713f88;
   --color-syntax-string: #985034;

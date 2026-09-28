@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { ChangeEntry, DiffHunk, DiffResult, LanguageOption } from "../shared/api.ts";
 import { fetchProjectDiff } from "./api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
+import { anchorForLine, type CommentAnchor, type DraftComment } from "./comments.ts";
 
 type DiffState =
   | { kind: "loading" }
@@ -18,6 +19,8 @@ type DiffCardProps = {
   languages: readonly LanguageOption[];
   onToggle: () => void;
   onStale: () => void;
+  onComment: (anchor: CommentAnchor) => void;
+  drafts: readonly DraftComment[];
 };
 
 export function diffCardKey(entry: ChangeEntry): string {
@@ -28,19 +31,25 @@ export function diffCardId(entry: ChangeEntry): string {
   return `diff-${encodeURIComponent(diffCardKey(entry))}`;
 }
 
-function HunkRows({ hunk }: { hunk: DiffHunk }) {
+function HunkRows({ hunk, entry, onComment, drafts }: { hunk: DiffHunk; entry: ChangeEntry; onComment: (anchor: CommentAnchor) => void; drafts: readonly DraftComment[] }) {
+  const gutter = (index: number, side: "old" | "new") => {
+    const anchor = anchorForLine(entry.layer, entry.path, hunk, index, side);
+    if (anchor === null) return <span class="diff-number diff-number-empty" aria-hidden="true" />;
+    const count = drafts.filter((draft) => draft.anchor.side === side && draft.anchor.line === anchor.line).length;
+    return <button class={`diff-number diff-number-button${count > 0 ? " diff-number-commented" : ""}`} type="button" aria-label={`${side === "old" ? "Old" : "New"} line ${anchor.line}${count > 0 ? `, ${count} comments` : ""}. Add comment`} title={`Comment on ${side} line ${anchor.line}`} onClick={() => onComment(anchor)}>{anchor.line}{count > 0 && <span class="diff-comment-dot" aria-hidden="true" />}</button>;
+  };
   return <div class="diff-hunk">
-    <div class="diff-hunk-label">{`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`}</div>
+    <div class="diff-hunk-label"><span>{`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`}</span></div>
     {hunk.lines.map((line, index) => <div class={`diff-row diff-row-${line.kind}`} key={`${index}:${line.oldLine ?? ""}:${line.newLine ?? ""}`}>
-      <span class="diff-number" aria-label={line.oldLine === null ? "No old line" : `Old line ${line.oldLine}`}>{line.oldLine ?? ""}</span>
-      <span class="diff-number" aria-label={line.newLine === null ? "No new line" : `New line ${line.newLine}`}>{line.newLine ?? ""}</span>
       <span class="diff-sign" aria-hidden="true">{line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}</span>
+      {gutter(index, "old")}
+      {gutter(index, "new")}
       <code class="diff-code">{line.tokens.map((token, tokenIndex) => <span class={`syntax-token syntax-token-${token.role}`} key={tokenIndex}>{token.text}</span>)}{line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}</code>
     </div>)}
   </div>;
 }
 
-function DiffBody({ result, wrap }: { result: DiffResult; wrap: boolean }) {
+function DiffBody({ result, wrap, entry, onComment, drafts }: { result: DiffResult; wrap: boolean; entry: ChangeEntry; onComment: (anchor: CommentAnchor) => void; drafts: readonly DraftComment[] }) {
   if (result.kind === "stale") return <p class="diff-message">The file changed while loading. Refreshing its status…</p>;
   if (result.kind === "conflict") return <p class="diff-message">This file has unresolved Git conflicts. A conflict view is planned for a later slice.</p>;
   if (result.kind === "too_large") return <p class="diff-message">This diff is too large for the current text view.</p>;
@@ -50,11 +59,13 @@ function DiffBody({ result, wrap }: { result: DiffResult; wrap: boolean }) {
   }
   if (result.hunks.length === 0) return <p class="diff-message">No text lines changed. This can happen with a rename, mode change, or empty file.</p>;
   return <div class={`diff-scroll${wrap ? " diff-scroll-wrap" : ""}`} aria-label="File diff">
-    {result.hunks.map((hunk, index) => <HunkRows hunk={hunk} key={`${index}:${hunk.oldStart}:${hunk.newStart}`} />)}
+    <div class="diff-scroll-content">
+      {result.hunks.map((hunk, index) => <HunkRows hunk={hunk} entry={entry} onComment={onComment} drafts={drafts} key={`${index}:${hunk.oldStart}:${hunk.newStart}`} />)}
+    </div>
   </div>;
 }
 
-export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wrap, languages, onToggle, onStale }: DiffCardProps) {
+export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wrap, languages, onToggle, onStale, onComment, drafts }: DiffCardProps) {
   const [override, setOverride] = useState<string | null>(() => readLanguageOverride(projectId, entry.path));
   const effectiveOverride = override === null || override === "text" || languages.some((language) => language.id === override) ? override : null;
   const requestKey = `${revision}:${refreshKey}:${effectiveOverride ?? "auto"}`;
@@ -95,7 +106,7 @@ export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wra
       </div>}
       {current.kind === "loading" && <p class="diff-message">Loading diff…</p>}
       {current.kind === "error" && <div class="diff-message" role="alert">{current.message} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
-      {current.kind === "ready" && <DiffBody result={current.value} wrap={wrap} />}
+      {current.kind === "ready" && <DiffBody result={current.value} wrap={wrap} entry={entry} onComment={onComment} drafts={drafts} />}
     </div>}
   </article>;
 }

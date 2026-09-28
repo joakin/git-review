@@ -1,7 +1,7 @@
 # Initial Implementation Plan
 
 Status: planning document  
-Updated: 2026-09-27
+Updated: 2026-09-28
 
 ## Goal
 
@@ -48,6 +48,10 @@ This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy
 - Avoid nested vertical scroll areas. All expanded review cards remain in one page flow; fetch each card's diff only when needed.
 
 Use text labels and symbols as well as color for added, removed, moved, and outdated content. Restore scroll position, open cards, and wrap preference after reload.
+
+### Future appearance settings
+
+Add a Settings page in a later slice for each person's preferred app theme and code theme, plus code font size and font family. Save validated choices in versioned browser `localStorage`, scoped to the browser rather than the host project. Apply themes and code typography in the frontend through design tokens; the server continues to return semantic syntax roles. Show the effect of a choice immediately and preserve it across reloads. Decide the initial theme and font choices with the maintainer before implementing this slice.
 
 ### Touch interactions
 

@@ -72,6 +72,78 @@ async function main(): Promise<void> {
         throw new Error(`Code did not scroll inside its pane: ${JSON.stringify(widths)}`);
       }
 
+      const mixedCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/wide-mixed.ts"]');
+      await mixedCard.locator(".diff-card-toggle").click();
+      await mixedCard.locator(".diff-row").first().waitFor({ state: "visible" });
+      const scrolled = await page.evaluate(() => {
+        const pane = document.querySelector('main .diff-card[data-path="src/wide-mixed.ts"] .diff-scroll');
+        const content = pane?.querySelector(".diff-scroll-content");
+        const rows = pane?.querySelectorAll(".diff-row");
+        if (!(pane instanceof HTMLElement) || !(content instanceof HTMLElement) || rows?.length !== 2) throw new Error("Mixed-width diff is missing");
+        const shortRow = rows[1];
+        if (!(shortRow instanceof HTMLElement)) throw new Error("Short diff row is missing");
+        pane.scrollLeft = pane.scrollWidth;
+        const numbers = shortRow.querySelectorAll(".diff-number");
+        const sign = shortRow.querySelector(".diff-sign");
+        const hunkLabel = pane.querySelector(".diff-hunk-label span");
+        const first = numbers[0];
+        const second = numbers[1];
+        if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement) || !(sign instanceof HTMLElement) || !(hunkLabel instanceof HTMLElement)) throw new Error("Diff gutters are missing");
+        return {
+          scrollLeft: pane.scrollLeft,
+          paneLeft: pane.getBoundingClientRect().left,
+          firstLeft: first.getBoundingClientRect().left,
+          firstWidth: first.getBoundingClientRect().width,
+          secondLeft: second.getBoundingClientRect().left,
+          signLeft: sign.getBoundingClientRect().left,
+          signWidth: sign.getBoundingClientRect().width,
+          hunkLabelLeft: hunkLabel.getBoundingClientRect().left,
+          contentRight: content.getBoundingClientRect().right,
+          shortRight: shortRow.getBoundingClientRect().right,
+          rowHeight: shortRow.getBoundingClientRect().height,
+          background: getComputedStyle(shortRow).backgroundColor,
+        };
+      });
+      if (scrolled.scrollLeft <= 0 || Math.abs(scrolled.shortRight - scrolled.contentRight) > 2 ||
+          Math.abs(scrolled.signLeft - scrolled.paneLeft) > 2 ||
+          Math.abs(scrolled.firstLeft - scrolled.paneLeft - scrolled.signWidth) > 2 ||
+          Math.abs(scrolled.secondLeft - scrolled.paneLeft - scrolled.signWidth - scrolled.firstWidth) > 2 ||
+          Math.abs(scrolled.hunkLabelLeft - scrolled.paneLeft - 12) > 2 ||
+          scrolled.rowHeight <= 0 || scrolled.rowHeight > 26 || scrolled.background === "rgba(0, 0, 0, 0)") {
+        throw new Error(`Horizontal diff alignment or compact row height failed: ${JSON.stringify(scrolled)}`);
+      }
+      await page.getByRole("button", { name: "Wrap: off" }).click();
+      const rewrapped = await page.evaluate(() => {
+        const pane = document.querySelector('main .diff-card[data-path="src/wide-mixed.ts"] .diff-scroll');
+        if (!(pane instanceof HTMLElement)) throw new Error("Mixed-width diff is missing after wrapping");
+        const rows = pane.querySelectorAll(".diff-row");
+        return {
+          width: pane.clientWidth,
+          scrollWidth: pane.scrollWidth,
+          longHeight: rows[0]?.getBoundingClientRect().height ?? 0,
+          shortHeight: rows[1]?.getBoundingClientRect().height ?? 0,
+        };
+      });
+      if (rewrapped.scrollWidth > rewrapped.width + 2 || rewrapped.shortHeight <= 0 || rewrapped.shortHeight > 26 ||
+          rewrapped.longHeight <= rewrapped.shortHeight) throw new Error(`Wrapped diff alignment failed: ${JSON.stringify(rewrapped)}`);
+      console.log(`Short diff row: ${scrolled.rowHeight.toFixed(1)}px without wrap, ${rewrapped.shortHeight.toFixed(1)}px with wrap; long wrapped row: ${rewrapped.longHeight.toFixed(1)}px.`);
+      await page.getByRole("button", { name: "Wrap: on" }).click();
+
+      const tallCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/tall-review.ts"]');
+      await tallCard.locator(".diff-card-toggle").click();
+      await tallCard.locator(".diff-row").first().waitFor({ state: "visible" });
+      const sticky = await page.evaluate(() => {
+        const card = document.querySelector('main .diff-card[data-path="src/tall-review.ts"]');
+        const topbar = document.querySelector(".topbar");
+        const header = card?.querySelector(".diff-card-toggle");
+        if (!(card instanceof HTMLElement) || !(topbar instanceof HTMLElement) || !(header instanceof HTMLElement)) throw new Error("Tall review card is missing");
+        window.scrollTo(0, window.scrollY + card.getBoundingClientRect().top + 360);
+        return { topbarBottom: topbar.getBoundingClientRect().bottom, headerTop: header.getBoundingClientRect().top, cardBottom: card.getBoundingClientRect().bottom };
+      });
+      if (Math.abs(sticky.headerTop - sticky.topbarBottom) > 3 || sticky.cardBottom < sticky.headerTop + 200) {
+        throw new Error(`Long-file header did not stick below the top bar: ${JSON.stringify(sticky)}`);
+      }
+
       const cCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/math.c"]');
       await cCard.locator(".diff-card-toggle").click();
       await cCard.locator(".syntax-token-type").first().waitFor({ state: "visible" });
@@ -88,7 +160,7 @@ async function main(): Promise<void> {
       await cCard.locator(".diff-row").waitFor({ state: "visible" });
       if (await cCard.getByLabel("Language").inputValue() !== "cpp") throw new Error("Language override was not restored after reload");
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      console.log("Mobile diff navigation, staged content, C highlighting, language override, wrap, horizontal containment, and reload passed.");
+      console.log("Mobile diff navigation, staged content, C highlighting, language override, compact rows, aligned horizontal scrolling, wrap, sticky long-file header, and reload passed.");
     } finally {
       await context.close();
     }

@@ -10,6 +10,9 @@ type CaptureOptions = {
   afterClickReady: string | null;
   fullPage: boolean;
   storageState: string | null;
+  scrollTo: string | null;
+  scrollOffset: number;
+  scrollXToEnd: string | null;
 };
 
 type ParsedArgs = { kind: "help" } | { kind: "capture"; options: CaptureOptions };
@@ -36,6 +39,9 @@ Options:
   --click <CSS selector>  Click one control after the page is ready
   --after-click-ready <CSS selector> Wait for content after the click
   --storage-state <file> Use a saved Playwright browser state for every viewport
+  --scroll-to <CSS selector> Scroll an element to the top before capture
+  --scroll-offset <pixels> Scroll farther after --scroll-to (default: 320)
+  --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
 
@@ -60,6 +66,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let afterClickReady: string | null = null;
   let fullPage = false;
   let storageState: string | null = null;
+  let scrollTo: string | null = null;
+  let scrollOffset = 320;
+  let scrollXToEnd: string | null = null;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -88,6 +97,21 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         storageState = readValue(args, index, flag);
         index += 1;
         break;
+      case "--scroll-to":
+        scrollTo = readValue(args, index, flag);
+        index += 1;
+        break;
+      case "--scroll-offset": {
+        const parsed = Number(readValue(args, index, flag));
+        if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 5000) throw new Error("--scroll-offset must be an integer from 0 to 5000");
+        scrollOffset = parsed;
+        index += 1;
+        break;
+      }
+      case "--scroll-x-to-end":
+        scrollXToEnd = readValue(args, index, flag);
+        index += 1;
+        break;
       case "--full-page":
         fullPage = true;
         break;
@@ -114,7 +138,8 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   }
 
   if (afterClickReady !== null && click === null) throw new Error("--after-click-ready requires --click");
-  return { kind: "capture", options: { url, label, ready, click, afterClickReady, fullPage, storageState } };
+  if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
+  return { kind: "capture", options: { url, label, ready, click, afterClickReady, fullPage, storageState, scrollTo, scrollOffset, scrollXToEnd } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -155,6 +180,20 @@ async function capture(options: CaptureOptions): Promise<void> {
         if (options.click !== null) await page.locator(options.click).click();
         if (options.afterClickReady !== null) {
           await page.locator(options.afterClickReady).waitFor({ state: "visible", timeout: 15_000 });
+        }
+        if (options.scrollTo !== null) {
+          await page.locator(options.scrollTo).evaluate((element, offset) => {
+            element.scrollIntoView({ block: "start", behavior: "instant" });
+            window.scrollBy(0, offset);
+          }, options.scrollOffset);
+          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+        }
+        if (options.scrollXToEnd !== null) {
+          await page.locator(options.scrollXToEnd).evaluate((element) => {
+            if (!(element instanceof HTMLElement)) throw new Error("Horizontal scroll target must be an element");
+            element.scrollLeft = element.scrollWidth;
+          });
+          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
         }
         await page.evaluate(async () => document.fonts.ready);
 

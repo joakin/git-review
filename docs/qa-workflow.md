@@ -25,10 +25,16 @@ For the foundation picker, `bun run qa:foundation --url http://127.0.0.1:3000/ -
 
 For inventory screenshots, run `bun run qa:fixture` once to create `qa/.artifacts/inventory-fixture` with staged, unstaged, and untracked changes. Start the app with `--root "$PWD/qa/.artifacts"`, run `qa:foundation` with `--folder inventory-fixture`, then pass its saved browser state to `qa:capture`. The fixture script refuses to overwrite an existing fixture; remove that ignored folder yourself when you need a fresh one.
 
-Run `bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture` against that fixture to check a phone flow through the file drawer, staged diff rows, wrap persistence, open-card persistence, and contained horizontal scrolling.
+Run `bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture` against that fixture to check a phone flow through the file drawer, staged diff rows, wrap persistence, open-card persistence, contained horizontal scrolling, and the sticky heading of a long file. [Long-file screenshots](../qa/screenshots/sticky-file-header/mobile.png) show the header after scrolling at all four sizes.
 The same command checks C syntax tokens and a language override saved across reload. [Syntax screenshots](../qa/screenshots/syntax-c-diff/mobile.png) show the expanded C card at all four capture sizes.
 
+Run `bun run qa:feedback http://127.0.0.1:3000/` against the same fixture to check a phone flow through line comments, reload persistence, export, copy history, Undo, Clipboard API absence, and stale-line exclusion. It writes `qa/.artifacts/feedback-storage.json` for repeatable captures. [Feedback preview](../qa/screenshots/feedback-first-slice/mobile.png) and [comment editor](../qa/screenshots/comment-editor-first-slice/mobile.png) each have all four viewport captures.
+
 The capture exits nonzero for page load failures or page-wide horizontal overflow. A horizontally scrolling **code pane** is allowed; the document itself should fit the viewport. Inspect the images rather than relying solely on the overflow check. Link useful screenshots in the human handoff. Generated test traces and temporary files belong in `qa/.artifacts/`; curated milestone screenshots remain under `qa/screenshots/`.
+
+Use `--scroll-x-to-end '.diff-scroll'` to capture a code pane at its far-right edge. The [wrapped](../qa/screenshots/diff-marker-left-wrap/mobile.png) and [horizontal-scroll](../qa/screenshots/diff-marker-left-scroll/mobile.png) sets show compact rows, left-hand change markers, fixed gutters, and background coverage at all four sizes. The [tapped collapsed heading](../qa/screenshots/diff-header-tap-collapsed/mobile.png) set shows its rounded border and background.
+
+For a long file header, use `--click` to expand its card, `--after-click-ready` to wait for diff lines, then `--scroll-to` the card and `--scroll-offset 360` to capture its header while the page is partway through the file.
 
 The command uses desktop Chrome with emulated touch, viewport, and mobile settings for smaller screens. This does not reproduce mobile Safari or Android Chrome exactly. Use real devices for long press, double tap, keyboard/safe-area layout, clipboard, and voice recording before those features are called complete.
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
-import { fetchDirectory, fetchLanguages, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectStatus, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
+import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
+import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from "./ReviewDialogs.tsx";
 import { emptyWorkspace, readOpenCards, readSavedWorkspace, readWrapPreference, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, LanguageOption, Project, ProjectStatus, RootInfo } from "../shared/api.ts";
 
@@ -62,6 +64,14 @@ export function App() {
   const [sidebarMode, setSidebarMode] = useState<"folders" | "changes">("folders");
   const [opening, setOpening] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [comments, setComments] = useState<CommentStore | null>(null);
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [checkState, setCheckState] = useState<CheckState>("checking");
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [undoCopyId, setUndoCopyId] = useState<string | null>(null);
+  const [reattachId, setReattachId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,6 +96,7 @@ export function App() {
           const selected = await openProject(restored.activePath, controller.signal);
           if (controller.signal.aborted) return;
           setProject(selected);
+          setComments(readCommentStore(selected.id));
           setExpandedKeys(readOpenCards(selected.id));
           setPath(selected.path);
           setSidebarMode("changes");
@@ -158,6 +169,10 @@ export function App() {
       const selected = await openProject(selectedPath, new AbortController().signal);
       setStatus({ kind: "loading" });
       setProject(selected);
+      setComments(readCommentStore(selected.id));
+      setEditor(null);
+      setFeedbackOpen(false);
+      setReattachId(null);
       setExpandedKeys(readOpenCards(selected.id));
       setPath(selected.path);
       setSidebarMode("changes");
@@ -201,6 +216,127 @@ export function App() {
       saveWrapPreference(next);
       return next;
     });
+  }
+
+  function updateComments(change: (current: CommentStore) => CommentStore): void {
+    setComments((current) => {
+      if (current === null) return current;
+      const next = change(current);
+      if (next !== current) saveCommentStore(next);
+      return next;
+    });
+  }
+
+  function chooseCommentLine(anchor: CommentAnchor): void {
+    if (reattachId !== null) {
+      updateComments((current) => ({ ...current, drafts: current.drafts.map((draft) => draft.id === reattachId ? { ...draft, anchor, state: "current", updatedAt: Date.now() } : draft) }));
+      setReattachId(null);
+      setNotice("Comment reattached. Open Feedback to check the new line before copying.");
+      return;
+    }
+    setEditor({ anchor, draftId: null, body: "" });
+  }
+
+  function closeEditor(): void {
+    if (editor !== null && editor.body.trim().length > 0) {
+      const savedEditor = editor;
+      updateComments((current) => {
+        const now = Date.now();
+        if (savedEditor.draftId !== null) return { ...current, drafts: current.drafts.map((draft) => draft.id === savedEditor.draftId ? { ...draft, body: savedEditor.body.trim(), updatedAt: now } : draft) };
+        if (current.drafts.length >= maxDrafts) {
+          setNotice(`This project has reached the ${maxDrafts} comment limit.`);
+          return current;
+        }
+        const draft: DraftComment = { id: newLocalId(), anchor: savedEditor.anchor, body: savedEditor.body.trim(), createdAt: now, updatedAt: now, state: "current" };
+        return { ...current, drafts: [...current.drafts, draft] };
+      });
+    }
+    setEditor(null);
+  }
+
+  function deleteEditor(): void {
+    if (editor?.draftId !== null && editor !== null) {
+      const id = editor.draftId;
+      updateComments((current) => ({ ...current, drafts: current.drafts.filter((draft) => draft.id !== id) }));
+    }
+    setEditor(null);
+  }
+
+  async function checkComments(): Promise<CommentStore | null> {
+    if (project === null || comments === null || comments.projectId !== project.id) return null;
+    setCheckState("checking");
+    setCheckError(null);
+    try {
+      const signal = new AbortController().signal;
+      const latest = await fetchProjectStatus(project.id, signal);
+      const results = new Map<string, Awaited<ReturnType<typeof fetchProjectDiff>>>();
+      if (latest.kind === "git") {
+        for (const draft of comments.drafts) {
+          const key = `${draft.anchor.layer}:${draft.anchor.path}`;
+          if (results.has(key) || !latest.entries.some((entry) => entry.layer === draft.anchor.layer && entry.path === draft.anchor.path)) continue;
+          const result = await fetchProjectDiff(project.id, draft.anchor.layer, draft.anchor.path, latest.revision, null, signal);
+          if (result.kind === "stale") throw new Error("The files changed during checking. Try again.");
+          results.set(key, result);
+        }
+      }
+      const checked: CommentStore = { ...comments, drafts: comments.drafts.map((draft) => ({ ...draft, state: (() => {
+        const result = results.get(`${draft.anchor.layer}:${draft.anchor.path}`);
+        return result !== undefined && anchorMatches(result, draft.anchor) ? "current" : "outdated";
+      })() })) };
+      updateComments((current) => current.projectId === checked.projectId ? checked : current);
+      setCheckState("ready");
+      return checked;
+    } catch (error: unknown) {
+      setCheckError(messageFor(error));
+      setCheckState("error");
+      return null;
+    }
+  }
+
+  function openFeedback(): void {
+    setFeedbackOpen(true);
+    setCopyError(null);
+    void checkComments();
+  }
+
+  async function copyFeedback(): Promise<void> {
+    if (project === null || comments === null) return;
+    const checked = await checkComments();
+    if (checked === null) return;
+    const text = formatFeedback(project.absolutePath, checked.drafts);
+    if (text.length === 0) { setCopyError("No current comments to copy. Reattach outdated comments first."); return; }
+    try {
+      if (navigator.clipboard?.writeText === undefined) throw new Error("Clipboard access is unavailable here. Select the feedback text below to copy it manually.");
+      await navigator.clipboard.writeText(text);
+      const id = newLocalId();
+      updateComments((current) => current.projectId === checked.projectId ? recordSuccessfulCopy(checked, text, Date.now(), id) : current);
+      setUndoCopyId(id);
+      setCopyError(null);
+      setNotice("Feedback copied. The copied comments are in history; Undo restores them.");
+    } catch (error: unknown) {
+      setCopyError(messageFor(error));
+    }
+  }
+
+  async function copyHistory(text: string): Promise<void> {
+    try {
+      if (navigator.clipboard?.writeText === undefined) throw new Error("Clipboard access is unavailable here. Expand this history entry and select its text instead.");
+      await navigator.clipboard.writeText(text);
+      setCopyError(null);
+      setNotice("History feedback copied.");
+    } catch (error: unknown) { setCopyError(messageFor(error)); }
+  }
+
+  function undoLastCopy(): void {
+    if (undoCopyId === null) return;
+    updateComments((current) => {
+      if (current.history[0]?.id !== undoCopyId) return current;
+      const entry = current.history[0];
+      const existing = new Set(current.drafts.map((draft) => draft.id));
+      return { ...current, drafts: [...current.drafts, ...entry.comments.filter((draft) => !existing.has(draft.id))], history: current.history.slice(1) };
+    });
+    setUndoCopyId(null);
+    setNotice("Copied comments restored to your draft.");
   }
 
   const rootLabel = root.kind === "ready" ? root.value.label : "Host folders";
@@ -352,6 +488,8 @@ export function App() {
                         languages={languages}
                         onToggle={() => toggleEntry(entry)}
                         onStale={() => setStatusRefresh((value) => value + 1)}
+                        onComment={chooseCommentLine}
+                        drafts={comments?.projectId === project.id ? comments.drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path) : []}
                       />)}
                     </section>;
                   })}
@@ -361,6 +499,10 @@ export function App() {
           )}
         </main>
       </div>
+      {project !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
+      {reattachId !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={() => setReattachId(null)}>Cancel</button></div>}
+      {editor !== null && <CommentEditor editor={editor} onBody={(body) => setEditor((current) => current === null ? current : { ...current, body })} onClose={closeEditor} onDelete={deleteEditor} />}
+      {feedbackOpen && project !== null && comments?.projectId === project.id && <FeedbackDialog store={comments} projectPath={project.absolutePath} checkState={checkState} error={checkError} copyError={copyError} onClose={() => setFeedbackOpen(false)} onCheck={() => void checkComments()} onCopy={() => void copyFeedback()} onEdit={(draft) => { setFeedbackOpen(false); setEditor({ anchor: draft.anchor, draftId: draft.id, body: draft.body }); }} onReattach={(draft) => { setFeedbackOpen(false); setReattachId(draft.id); selectEntry({ layer: draft.anchor.layer, path: draft.anchor.path, kind: "modified", oldPath: null, isSubmodule: false }); }} onUndo={undoLastCopy} canUndo={undoCopyId !== null && comments.history[0]?.id === undoCopyId} onCopyHistory={(text) => void copyHistory(text)} />}
     </div>
   );
 }
