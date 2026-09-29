@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
@@ -7,7 +7,9 @@ import { SearchView, type SearchState } from "./SearchView.tsx";
 import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
 import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
-import { emptyWorkspace, readActiveProject, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
+import { SettingsView } from "./SettingsView.tsx";
+import { googleFontStylesheet } from "./code-fonts.ts";
+import { codeTypographyStorageKey, emptyWorkspace, readActiveProject, readCodeTypography, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveCodeTypography, saveOpenCards, saveWorkspace, saveWrapPreference, validateCodeTypography, withSelectedPath, type CodeTypography, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo, SearchMatch } from "../shared/api.ts";
 
 type LoadState<T> =
@@ -73,6 +75,9 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
+  const [codeTypography, setCodeTypography] = useState(readCodeTypography);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const reviewScrollY = useRef(0);
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<"folders" | "changes" | "files">("folders");
@@ -88,6 +93,24 @@ export function App() {
   const [reattachId, setReattachId] = useState<string | null>(null);
   const [installDataOpen, setInstallDataOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === codeTypographyStorageKey || event.key === null) setCodeTypography(readCodeTypography());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  useEffect(() => {
+    const stylesheet = googleFontStylesheet(codeTypography.fontFamily);
+    if (stylesheet === null) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = stylesheet;
+    document.head.append(link);
+    return () => link.remove();
+  }, [codeTypography.fontFamily]);
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -240,6 +263,7 @@ export function App() {
       setSearchState({ kind: "idle" });
       setSearchTarget(null);
       setViewMode("changes");
+      setSettingsOpen(false);
       setSidebarMode("changes");
       setDrawerOpen(false);
       saveActiveProject(root.value.path, selected.path);
@@ -269,6 +293,7 @@ export function App() {
   function selectEntry(entry: ChangeEntry): void {
     const key = diffCardKey(entry);
     setExpandedKeys((current) => new Set(current).add(key));
+    setSettingsOpen(false);
     setDrawerOpen(false);
     requestAnimationFrame(() => {
       const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
@@ -285,9 +310,29 @@ export function App() {
   }
 
   function chooseView(mode: "changes" | "files" | "search"): void {
+    setSettingsOpen(false);
     setViewMode(mode);
     if (mode !== "search") setSidebarMode(mode);
     if (mode === "files" && selectedFile === null && window.matchMedia("(max-width: 900px)").matches) setDrawerOpen(true);
+  }
+
+  function updateCodeTypography(next: CodeTypography): void {
+    const validated = validateCodeTypography(next);
+    if (validated === null) return;
+    setCodeTypography(validated);
+    saveCodeTypography(validated);
+  }
+
+  function openSettings(): void {
+    if (!settingsOpen) reviewScrollY.current = window.scrollY;
+    setSettingsOpen(true);
+    setDrawerOpen(false);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  }
+
+  function closeSettings(): void {
+    setSettingsOpen(false);
+    requestAnimationFrame(() => window.scrollTo({ top: reviewScrollY.current, behavior: "instant" }));
   }
 
   function submitSearch(): void {
@@ -445,7 +490,7 @@ export function App() {
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
 
   return (
-    <div class="app">
+    <div class="app" data-code-font={codeTypography.fontFamily} style={`--code-font-size: ${codeTypography.fontSize}px`}>
       <header class="topbar">
         <div class="brand" aria-label="git-review">
           <span class="brand-mark" aria-hidden="true">{`{ }`}</span>
@@ -471,6 +516,8 @@ export function App() {
             <button class="icon-button close-drawer" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)}>×</button>
           </div>
 
+          <button class="sidebar-settings" type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings <span aria-hidden="true">⚙</span></button>
+
           {sidebarMode === "files" && project !== null ? <div class="sidebar-files">
             <div class="sidebar-project-name" title={project.absolutePath}>{project.name}</div>
             <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("folders")}>Browse host folders <span aria-hidden="true">→</span></button>
@@ -487,7 +534,7 @@ export function App() {
             {tree.kind === "ready" && tree.value.entries.length === 0 && <p class="sidebar-message">This directory is empty.</p>}
             {tree.kind === "ready" && <div class="file-tree-list">{tree.value.entries.map((entry) => <button class={`file-tree-row${selectedFile === entry.path ? " file-tree-row-selected" : ""}`} type="button" key={entry.path} onClick={() => {
               if (entry.kind === "directory") setTreePath(entry.path);
-              else { setSelectedFile(entry.path); setSearchTarget(null); setDrawerOpen(false); }
+              else { setSelectedFile(entry.path); setSearchTarget(null); setSettingsOpen(false); setDrawerOpen(false); window.scrollTo({ top: 0, behavior: "instant" }); }
             }} title={entry.path}>
               <span class="file-tree-icon" aria-hidden="true">{entry.kind === "directory" ? "▰" : entry.kind === "symlink" ? "↗" : entry.kind === "other" ? "◇" : "▤"}</span>
               <span>{entry.name}</span>{entry.kind === "directory" && <span class="row-arrow" aria-hidden="true">›</span>}
@@ -566,6 +613,7 @@ export function App() {
           {notice !== null && <div class="notice" role="alert">{notice}<button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
           {root.kind === "error" && <div class="notice" role="alert">{root.message}</div>}
 
+          <div hidden={settingsOpen}>
           {project === null ? (
             <div class="welcome">
               <div class="hero-orb" aria-hidden="true"><span>⌁</span></div>
@@ -638,10 +686,12 @@ export function App() {
               </>}
             </div>
           )}
+          </div>
+          {settingsOpen && <SettingsView typography={codeTypography} onTypography={updateCodeTypography} onBack={closeSettings} />}
         </main>
       </div>
-      {project !== null && (viewMode === "changes" || viewMode === "files") && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
-      {project !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
+      {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files") && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
+      {!settingsOpen && project !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
       {reattachId !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={() => setReattachId(null)}>Cancel</button></div>}
       {editor !== null && <CommentEditor editor={editor} onBody={(body) => setEditor((current) => current === null ? current : { ...current, body })} onClose={closeEditor} onDelete={deleteEditor} />}
       {feedbackOpen && project !== null && comments?.projectId === project.id && <FeedbackDialog store={comments} projectPath={project.absolutePath} checkState={checkState} error={checkError} copyError={copyError} onClose={() => setFeedbackOpen(false)} onCheck={() => void checkComments()} onCopy={() => void copyFeedback()} onEdit={(draft) => { setFeedbackOpen(false); setEditor({ anchor: draft.anchor, draftId: draft.id, body: draft.body }); }} onReattach={(draft) => { setFeedbackOpen(false); setReattachId(draft.id); selectEntry({ layer: draft.anchor.layer, path: draft.anchor.path, kind: "modified", oldPath: null, isSubmodule: false }); }} onUndo={undoLastCopy} canUndo={undoCopyId !== null && comments.history[0]?.id === undoCopyId} onCopyHistory={(text) => void copyHistory(text)} />}

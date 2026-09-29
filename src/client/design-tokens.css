@@ -2,6 +2,8 @@
   /* Type */
   --font-ui: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --code-font-family: var(--font-code);
+  --code-font-size: var(--font-size-12);
   --font-size-10: 10px;
   --font-size-11: 11px;
   --font-size-12: 12px;
@@ -136,3 +138,25 @@
   --shadow-panel: 0 12px 36px #213f4912;
   --shadow-drawer: 22px 0 52px #10232e35;
 }
+
+.app[data-code-font="courier"] { --code-font-family: "Courier New", Courier, monospace; }
+.app[data-code-font="jetbrains-mono"] { --code-font-family: "JetBrains Mono", var(--font-code); }
+.app[data-code-font="fira-code"] { --code-font-family: "Fira Code", var(--font-code); }
+.app[data-code-font="roboto-mono"] { --code-font-family: "Roboto Mono", var(--font-code); }
+.app[data-code-font="source-code-pro"] { --code-font-family: "Source Code Pro", var(--font-code); }
+.app[data-code-font="ibm-plex-mono"] { --code-font-family: "IBM Plex Mono", var(--font-code); }
+.app[data-code-font="inconsolata"] { --code-font-family: "Inconsolata", var(--font-code); }
+.app[data-code-font="martian-mono"] { --code-font-family: "Martian Mono", var(--font-code); }
+.app[data-code-font="geist-mono"] { --code-font-family: "Geist Mono", var(--font-code); }
+.app[data-code-font="space-mono"] { --code-font-family: "Space Mono", var(--font-code); }
+.app[data-code-font="courier-prime"] { --code-font-family: "Courier Prime", var(--font-code); }
+.app[data-code-font="ubuntu-sans-mono"] { --code-font-family: "Ubuntu Sans Mono", var(--font-code); }
+.app[data-code-font="google-sans-code"] { --code-font-family: "Google Sans Code", var(--font-code); }
+.app[data-code-font="anonymous-pro"] { --code-font-family: "Anonymous Pro", var(--font-code); }
+.app[data-code-font="azeret-mono"] { --code-font-family: "Azeret Mono", var(--font-code); }
+.app[data-code-font="overpass-mono"] { --code-font-family: "Overpass Mono", var(--font-code); }
+.app[data-code-font="red-hat-mono"] { --code-font-family: "Red Hat Mono", var(--font-code); }
+.app[data-code-font="spline-sans-mono"] { --code-font-family: "Spline Sans Mono", var(--font-code); }
+.app[data-code-font="victor-mono"] { --code-font-family: "Victor Mono", var(--font-code); }
+.app[data-code-font="intel-one-mono"] { --code-font-family: "Intel One Mono", var(--font-code); }
+.app[data-code-font="iosevka-charon-mono"] { --code-font-family: "Iosevka Charon Mono", var(--font-code); }

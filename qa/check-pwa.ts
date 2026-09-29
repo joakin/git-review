@@ -30,10 +30,16 @@ try {
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
   await card.waitFor({ state: "visible" });
   await card.locator(".diff-card-toggle").click();
-  await card.getByRole("button", { name: /New line 1.*Add comment/ }).click();
+  await card.locator(".diff-row-added").tap();
+  await card.locator(".diff-line-action").click();
   await page.getByPlaceholder("What should change?").fill("PWA backup keeps this draft.");
   await page.getByRole("button", { name: "Save comment" }).click();
   await page.getByRole("button", { name: "Feedback 1" }).waitFor({ state: "visible" });
+  await page.locator(".project-switch").click();
+  await page.locator(".sidebar-settings").click();
+  await page.locator("#code-font-size").selectOption("17");
+  await page.locator("#code-font-family").selectOption("courier");
+  await page.getByRole("button", { name: "Back to review" }).click();
   await page.locator(".project-switch").click();
   await page.getByRole("button", { name: /Install & local data/ }).click();
   const dialog = page.getByRole("dialog", { name: "Install & local data" });
@@ -46,6 +52,7 @@ try {
   const backupBytes = await Bun.file(downloadPath).arrayBuffer();
   const backup: unknown = JSON.parse(new TextDecoder().decode(backupBytes)) as unknown;
   if (typeof backup !== "object" || backup === null || !("comments" in backup) || !Array.isArray(backup.comments) || backup.comments.length !== 1) throw new Error("Export omitted the review record");
+  if (!("version" in backup) || backup.version !== 2 || !("codeTypography" in backup) || typeof backup.codeTypography !== "object" || backup.codeTypography === null || !("fontSize" in backup.codeTypography) || backup.codeTypography.fontSize !== 17 || !("fontFamily" in backup.codeTypography) || backup.codeTypography.fontFamily !== "courier") throw new Error("Export omitted code typography");
   await dialog.locator('input[type="file"]').setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: Buffer.from(backupBytes) });
   await dialog.getByText("including 1 existing draft", { exact: false }).waitFor({ state: "visible" });
 
@@ -61,6 +68,10 @@ try {
   if (await freshDialog.getByRole("button", { name: "Import and replace matching data" }).count() !== 0) throw new Error("Invalid backup became importable");
   await fileInput.setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: Buffer.from(backupBytes) });
   await freshDialog.getByRole("button", { name: "Import and replace matching data" }).click();
+  await freshPage.locator(".project-switch").click();
+  await freshPage.locator(".sidebar-settings").click();
+  if (await freshPage.locator("#code-font-size").inputValue() !== "17" || await freshPage.locator("#code-font-family").inputValue() !== "courier") throw new Error("Imported typography was not restored");
+  await freshPage.getByRole("button", { name: "Back to review" }).click();
   await freshPage.getByRole("button", { name: "Browse host folders" }).click();
   await freshPage.locator(".folder-row", { hasText: "inventory-fixture" }).click();
   await freshPage.getByRole("button", { name: /Open this folder/ }).click();
@@ -78,7 +89,7 @@ try {
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
   await fresh.close();
   await context.close();
-  console.log("PWA manifest, icon dimensions, offline fallback, no API cache, draft backup export/import, and invalid backup rejection passed.");
+  console.log("PWA manifest, icon dimensions, offline fallback, no API cache, draft and typography backup export/import, and invalid backup rejection passed.");
 } finally {
   await browser.close();
 }

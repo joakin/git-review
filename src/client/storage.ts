@@ -1,13 +1,44 @@
 import { isRecord } from "../shared/validation.ts";
+import { isCodeFontFamily, type CodeFontFamily } from "./code-fonts.ts";
 
 export const workspaceStorageKey = "git-review:workspace:v3";
 const legacyKey = "git-review:workspace:v2";
 const activeProjectKey = "git-review:active-project:v1";
 export const wrapStorageKey = "git-review:wrap:v1";
+export const codeTypographyStorageKey = "git-review:code-typography:v1";
 export const openCardsStoragePrefix = "git-review:open-cards:v1:";
 export const languageStoragePrefix = "git-review:language:v1:";
 const maxRecent = 8;
 const maxOpenCards = 100;
+
+export type CodeTypography = { version: 1; fontSize: number; fontFamily: CodeFontFamily };
+export const defaultCodeTypography: CodeTypography = { version: 1, fontSize: 12, fontFamily: "system" };
+
+export function validateCodeTypography(value: unknown): CodeTypography | null {
+  if (!isRecord(value) || value["version"] !== 1) return null;
+  const fontSize = value["fontSize"];
+  const fontFamily = value["fontFamily"];
+  if (typeof fontSize !== "number" || !Number.isInteger(fontSize) || fontSize < 11 || fontSize > 20) return null;
+  if (!isCodeFontFamily(fontFamily)) return null;
+  return { version: 1, fontSize, fontFamily };
+}
+
+export function readCodeTypography(): CodeTypography {
+  try {
+    const raw = localStorage.getItem(codeTypographyStorageKey);
+    return raw === null ? defaultCodeTypography : validateCodeTypography(JSON.parse(raw) as unknown) ?? defaultCodeTypography;
+  } catch {
+    return defaultCodeTypography;
+  }
+}
+
+export function saveCodeTypography(value: CodeTypography): void {
+  try {
+    localStorage.setItem(codeTypographyStorageKey, JSON.stringify(value));
+  } catch {
+    // The selected typography remains usable in memory when storage is unavailable.
+  }
+}
 
 export type SavedWorkspace = {
   version: 3;

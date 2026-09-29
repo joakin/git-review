@@ -1,5 +1,5 @@
 import { commentStoragePrefix, validateCommentStore, type CommentStore } from "./comments.ts";
-import { isLanguageOverride, languageStoragePrefix, openCardsStoragePrefix, readSavedWorkspace, readWrapPreference, validateOpenCards, validateSavedWorkspace, workspaceStorageKey, wrapStorageKey, type SavedWorkspace } from "./storage.ts";
+import { codeTypographyStorageKey, isLanguageOverride, languageStoragePrefix, openCardsStoragePrefix, readCodeTypography, readSavedWorkspace, readWrapPreference, validateCodeTypography, validateOpenCards, validateSavedWorkspace, workspaceStorageKey, wrapStorageKey, type CodeTypography, type SavedWorkspace } from "./storage.ts";
 import { isRecord } from "../shared/validation.ts";
 
 export const maxBackupBytes = 25 * 1024 * 1024;
@@ -10,8 +10,7 @@ const projectIdPattern = /^[0-9a-f]{20}$/;
 type SavedCards = { projectId: string; keys: string[] };
 type SavedLanguage = { projectId: string; path: string; language: string };
 
-export type ReviewBackup = {
-  version: 1;
+type ReviewBackupData = {
   rootPath: string;
   workspace: SavedWorkspace;
   wrap: boolean;
@@ -19,6 +18,9 @@ export type ReviewBackup = {
   openCards: SavedCards[];
   languages: SavedLanguage[];
 };
+export type ReviewBackup =
+  | (ReviewBackupData & { version: 1 })
+  | (ReviewBackupData & { version: 2; codeTypography: CodeTypography });
 
 function safePath(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0 || value.length > 4096 || value.includes("\0")) return false;
@@ -32,7 +34,9 @@ function uniqueProjectId(value: unknown, seen: Set<string>): value is string {
 }
 
 export function parseReviewBackup(value: unknown, rootPath: string): ReviewBackup {
-  if (!isRecord(value) || value["version"] !== 1 || value["rootPath"] !== rootPath) throw new Error("This backup belongs to a different host root or uses an unsupported format.");
+  if (!isRecord(value) || (value["version"] !== 1 && value["version"] !== 2) || value["rootPath"] !== rootPath) throw new Error("This backup belongs to a different host root or uses an unsupported format.");
+  const typography = value["version"] === 2 ? validateCodeTypography(value["codeTypography"]) : null;
+  if (value["version"] === 2 && typography === null) throw new Error("Backup code typography is invalid.");
   const workspace = validateSavedWorkspace(value["workspace"], rootPath);
   if (workspace === null || typeof value["wrap"] !== "boolean") throw new Error("Backup preferences are invalid.");
   const rawWorkspace = value["workspace"];
@@ -74,7 +78,10 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
     languages.push({ projectId: item["projectId"], path: item["path"], language: item["language"] });
   }
 
-  return { version: 1, rootPath, workspace, wrap: value["wrap"], comments, openCards, languages };
+  const data = { rootPath, workspace, wrap: value["wrap"], comments, openCards, languages };
+  if (value["version"] === 1) return { version: 1, ...data };
+  if (typography === null) throw new Error("Backup code typography is invalid.");
+  return { version: 2, ...data, codeTypography: typography };
 }
 
 export function createReviewBackup(rootPath: string): ReviewBackup {
@@ -107,7 +114,7 @@ export function createReviewBackup(rootPath: string): ReviewBackup {
       languages.push({ projectId: match[1], path, language: value });
     }
   }
-  const backup = parseReviewBackup({ version: 1, rootPath, workspace, wrap: readWrapPreference(), comments, openCards, languages }, rootPath);
+  const backup = parseReviewBackup({ version: 2, rootPath, workspace, wrap: readWrapPreference(), codeTypography: readCodeTypography(), comments, openCards, languages }, rootPath);
   if (new Blob([JSON.stringify(backup)]).size > maxBackupBytes) throw new Error("Review data exceeds the 25 MiB backup limit.");
   return backup;
 }
@@ -117,6 +124,7 @@ export function applyReviewBackup(backup: ReviewBackup): void {
     [workspaceStorageKey, JSON.stringify(backup.workspace)],
     [wrapStorageKey, JSON.stringify(backup.wrap)],
   ]);
+  if (backup.version === 2) writes.set(codeTypographyStorageKey, JSON.stringify(backup.codeTypography));
   for (const store of backup.comments) writes.set(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store));
   for (const cards of backup.openCards) writes.set(`${openCardsStoragePrefix}${cards.projectId}`, JSON.stringify({ version: 1, keys: cards.keys }));
   for (const language of backup.languages) writes.set(`${languageStoragePrefix}${language.projectId}:${encodeURIComponent(language.path)}`, language.language);
