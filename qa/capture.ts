@@ -177,6 +177,13 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 async function capture(options: CaptureOptions): Promise<void> {
   const directory = resolve("qa/screenshots", options.label);
   await mkdir(directory);
+  const captureUrl = new URL(options.url);
+  if (options.activePath !== null) {
+    captureUrl.pathname = "/";
+    captureUrl.search = "";
+    captureUrl.searchParams.set("section", "changes");
+    captureUrl.searchParams.set("project", options.activePath);
+  }
 
   const browser = await chromium.launch({ channel: "chrome", headless: true, args: options.fakeMicrophone ? ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] : [] });
   const results: Array<{
@@ -199,22 +206,12 @@ async function capture(options: CaptureOptions): Promise<void> {
       });
       try {
         const page = await context.newPage();
-        const response = await page.goto(options.url.href, {
+        const response = await page.goto(captureUrl.href, {
           waitUntil: "load",
           timeout: 15_000,
         });
         if (response === null || !response.ok()) {
           throw new Error(`${view.name}: page load returned ${response?.status() ?? "no response"}`);
-        }
-        if (options.activePath !== null) {
-          await page.evaluate(async (activePath) => {
-            const response = await fetch("/api/roots");
-            if (!response.ok) throw new Error("Could not read host root for active project");
-            const value: unknown = await response.json() as unknown;
-            if (typeof value !== "object" || value === null || !("root" in value) || typeof value.root !== "object" || value.root === null || !("path" in value.root) || typeof value.root.path !== "string") throw new Error("Invalid root response");
-            sessionStorage.setItem("git-review:active-project:v1", JSON.stringify({ version: 1, rootPath: value.root.path, activePath }));
-          }, options.activePath);
-          await page.reload({ waitUntil: "load" });
         }
         if (options.ready !== null) {
           await page.locator(options.ready).first().waitFor({ state: "visible", timeout: 15_000 });
@@ -277,7 +274,7 @@ async function capture(options: CaptureOptions): Promise<void> {
   await writeFile(
     resolve(directory, "manifest.json"),
     `${JSON.stringify({
-      url: options.url.href,
+      url: captureUrl.href,
       capturedAt: new Date().toISOString(),
       fullPage: options.fullPage,
       views: results,

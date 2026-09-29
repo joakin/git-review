@@ -9,10 +9,9 @@ const rootPath = resolve("qa/.artifacts");
 await mkdir(resolve(rootPath, "other-project"), { recursive: true });
 
 async function selectFolder(page: Page, folder: string): Promise<void> {
-  await page.getByRole("button", { name: "Browse host folders" }).click();
   await page.getByRole("button", { name: new RegExp(folder) }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
-  await page.locator(".project-intro h1").getByText(folder, { exact: true }).waitFor();
+  await page.locator(".sidebar-project-title").getByText(folder, { exact: true }).waitFor();
 }
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -29,9 +28,9 @@ try {
     await selectFolder(second, "other-project");
 
     await first.reload();
-    await first.locator(".project-intro h1").getByText("inventory-fixture", { exact: true }).waitFor();
+    await first.locator(".sidebar-project-title").getByText("inventory-fixture", { exact: true }).waitFor();
     await second.reload();
-    await second.locator(".project-intro h1").getByText("other-project", { exact: true }).waitFor();
+    await second.locator(".sidebar-project-title").getByText("other-project", { exact: true }).waitFor();
     const state = await first.evaluate(() => ({
       shared: localStorage.getItem("git-review:workspace:v3"),
       first: sessionStorage.getItem("git-review:active-project:v1"),
@@ -50,7 +49,7 @@ try {
         version: 2, rootPath: approvedRoot, activePath: "inventory-fixture", recentPaths: ["inventory-fixture"],
       })), rootPath);
       await migrated.reload();
-      await migrated.locator(".project-intro h1").getByText("inventory-fixture", { exact: true }).waitFor();
+      await migrated.locator(".sidebar-project-title").getByText("inventory-fixture", { exact: true }).waitFor();
       const legacy = await migrated.evaluate(() => localStorage.getItem("git-review:workspace:v2"));
       if (legacy !== null) throw new Error("Legacy shared selection was not retired");
       const fresh = await migration.newPage();

@@ -42,9 +42,8 @@ try {
   if (!addedFont.includes("Iosevka Charon Mono")) throw new Error(`New Google font did not reach preview code: ${addedFont}`);
   await page.locator("#code-font-family").selectOption("courier");
   await page.getByRole("button", { name: "Back to review" }).click();
-  await page.getByRole("heading", { name: "Start with a folder." }).waitFor({ state: "visible" });
+  await page.locator(".folder-row", { hasText: "inventory-fixture" }).waitFor({ state: "visible" });
 
-  await page.getByRole("button", { name: "Browse host folders" }).click();
   await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
@@ -81,6 +80,7 @@ try {
   await page.locator("#code-font-family").selectOption("jetbrains-mono");
   await page.getByRole("button", { name: "Back to review" }).click();
 
+  await page.getByRole("button", { name: "Back to list" }).click();
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.locator(".file-tree-row", { hasText: "src" }).click();
   await page.locator('.file-tree-row[title="src/view.ts"]').click();
@@ -98,6 +98,9 @@ try {
   await page.locator(".sidebar-settings").click();
   if (await page.locator("#code-font-size").inputValue() !== "20" || await page.locator("#code-font-family").inputValue() !== "jetbrains-mono") throw new Error("Typography did not survive reload");
   await page.getByRole("button", { name: "Back to review" }).click();
+  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Changes" }).click();
+  await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
   await card.locator(".diff-code").first().waitFor({ state: "visible" });
   const reloadedDiff = await card.locator(".diff-code").first().evaluate((element) => getComputedStyle(element).fontFamily);
   if (!reloadedDiff.includes("JetBrains Mono")) throw new Error(`Reloaded review code ignored saved font: ${reloadedDiff}`);

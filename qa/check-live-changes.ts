@@ -21,7 +21,7 @@ const views = [
   { name: "tablet-landscape", width: 1180, height: 820, isMobile: true, hasTouch: true },
   { name: "desktop", width: 1440, height: 900, isMobile: false, hasTouch: false },
 ] as const;
-const screenshotDir = resolve("qa/screenshots/live-change-update-review");
+const screenshotDir = resolve("qa/screenshots/navigation-live-update-review");
 let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
 
 try {
@@ -40,7 +40,6 @@ try {
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(`${view.name}: ${error.message}`));
     await page.goto(url, { waitUntil: "load" });
-    await page.getByRole("button", { name: "Browse host folders" }).click();
     await page.getByRole("button", { name: new RegExp(folder) }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
     const card = page.locator('main .diff-card[data-layer="unstaged"][data-path="src/live.ts"]');

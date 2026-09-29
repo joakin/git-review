@@ -24,7 +24,6 @@ try {
   await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active !== null);
   await page.reload({ waitUntil: "load" });
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
-  await page.getByRole("button", { name: "Browse host folders" }).click();
   await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
@@ -41,9 +40,7 @@ try {
   await page.locator("#code-font-family").selectOption("courier");
   await page.locator("#app-theme").selectOption("dark");
   await page.locator("#code-theme").selectOption("light");
-  await page.getByRole("button", { name: "Back to review" }).click();
-  await page.locator(".project-switch").click();
-  await page.getByRole("button", { name: /Install & local data/ }).click();
+  await page.locator(".settings-install-data").click();
   const dialog = page.getByRole("dialog", { name: "Install & local data" });
   await dialog.waitFor({ state: "visible" });
   const downloadPromise = page.waitForEvent("download");
@@ -63,7 +60,8 @@ try {
   const freshPage = await fresh.newPage();
   await freshPage.goto(url, { waitUntil: "load" });
   await freshPage.locator(".project-switch").click();
-  await freshPage.getByRole("button", { name: /Install & local data/ }).click();
+  await freshPage.locator(".sidebar-settings").click();
+  await freshPage.locator(".settings-install-data").click();
   const freshDialog = freshPage.getByRole("dialog", { name: "Install & local data" });
   const fileInput = freshDialog.locator('input[type="file"]');
   await fileInput.setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from('{"version":1}') });
@@ -71,12 +69,10 @@ try {
   if (await freshDialog.getByRole("button", { name: "Import and replace matching data" }).count() !== 0) throw new Error("Invalid backup became importable");
   await fileInput.setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: Buffer.from(backupBytes) });
   await freshDialog.getByRole("button", { name: "Import and replace matching data" }).click();
-  await freshPage.locator(".project-switch").click();
-  await freshPage.locator(".sidebar-settings").click();
+  await freshPage.locator("#code-font-size").waitFor({ state: "visible" });
   if (await freshPage.locator("#code-font-size").inputValue() !== "17" || await freshPage.locator("#code-font-family").inputValue() !== "courier") throw new Error("Imported typography was not restored");
   if (await freshPage.locator("#app-theme").inputValue() !== "dark" || await freshPage.locator("#code-theme").inputValue() !== "light") throw new Error("Imported appearance was not restored");
   await freshPage.getByRole("button", { name: "Back to review" }).click();
-  await freshPage.getByRole("button", { name: "Browse host folders" }).click();
   await freshPage.locator(".folder-row", { hasText: "inventory-fixture" }).click();
   await freshPage.getByRole("button", { name: /Open this folder/ }).click();
   await freshPage.getByRole("button", { name: "Feedback 1" }).waitFor({ state: "visible" });

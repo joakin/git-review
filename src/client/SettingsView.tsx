@@ -3,15 +3,16 @@ import { googleCodeFonts, isCodeFontFamily } from "./code-fonts.ts";
 
 const fontSizes = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
-export function SettingsView({ typography, onTypography, appearance, onAppearance, onBack }: {
+export function SettingsView({ typography, onTypography, appearance, onAppearance, onBack, onInstallData }: {
   typography: CodeTypography;
   onTypography: (next: CodeTypography) => void;
   appearance: Appearance;
   onAppearance: (next: Appearance) => void;
   onBack: () => void;
+  onInstallData: () => void;
 }) {
   return <section class="settings-view" aria-labelledby="settings-title">
-    <button class="settings-back" type="button" onClick={onBack}>← Back to review</button>
+    <div class="settings-actions"><button class="settings-back" type="button" onClick={onBack}>← Back to review</button><button class="settings-install-data" type="button" onClick={onInstallData}>Install & local data <span aria-hidden="true">↗</span></button></div>
     <div class="settings-intro">
       <p class="eyebrow">PERSONAL DISPLAY</p>
       <h1 id="settings-title">Settings</h1>

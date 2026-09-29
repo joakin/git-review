@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
+import { Icon } from "./Icons.tsx";
 import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
 import { anchorMatches, formatFeedback, maxDrafts, newLocalId, readCommentStore, recordSuccessfulCopy, saveCommentStore, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
@@ -9,6 +10,7 @@ import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
 import { googleFontStylesheet } from "./code-fonts.ts";
+import { parentDirectory, parseNavigationSearch, routeProjectPath, routeSection, routeUrl, type Route, type RouteState } from "./navigation.ts";
 import { appearanceStorageKey, codeTypographyStorageKey, emptyWorkspace, readActiveProject, readAppearance, readCodeTypography, readOpenCards, readSavedWorkspace, readWrapPreference, resolveAppearance, saveActiveProject, saveAppearance, saveCodeTypography, saveOpenCards, saveWorkspace, saveWrapPreference, validateAppearance, validateCodeTypography, withSelectedPath, type Appearance, type CodeTypography, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo, SearchMatch } from "../shared/api.ts";
 
@@ -61,34 +63,39 @@ export function App() {
   const [saved, setSaved] = useState<SavedWorkspace>(() => emptyWorkspace(""));
   const [root, setRoot] = useState<LoadState<RootInfo>>({ kind: "loading" });
   const [listing, setListing] = useState<LoadState<DirectoryListing>>({ kind: "loading" });
-  const [path, setPath] = useState("");
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
   const [pendingUpdate, setPendingUpdate] = useState(false);
   const [changeCheckError, setChangeCheckError] = useState(false);
   const reviewPosition = useRef<ReviewPosition | null>(null);
-  const [viewMode, setViewMode] = useState<"changes" | "files" | "search">("changes");
-  const [treePath, setTreePath] = useState("");
   const [tree, setTree] = useState<LoadState<FileTree>>({ kind: "loading" });
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileRefresh, setFileRefresh] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
+  const [lastSubmittedQuery, setLastSubmittedQuery] = useState<string | null>(null);
   const [searchRefresh, setSearchRefresh] = useState(0);
   const [searchState, setSearchState] = useState<SearchState>({ kind: "idle" });
-  const [searchTarget, setSearchTarget] = useState<{ path: string; line: number; query: string } | null>(null);
+  const [routeState, setRouteState] = useState<RouteState>(() => parseNavigationSearch(window.location.search));
+  const route = routeState.kind === "ready" ? routeState.route : null;
+  const routeProject = route === null ? null : routeProjectPath(route);
+  const viewMode = route === null ? null : routeSection(route);
+  const path = route?.section === "projects" ? route.directory : "";
+  const treePath = route?.section === "files" ? route.directory : route?.section === "search" && route.target.kind === "file" ? parentDirectory(route.target.path) : "";
+  const selectedFile = route?.section === "files" && route.target.kind === "file" || route?.section === "search" && route.target.kind === "file" ? route.target.path : null;
+  const submittedQuery = route?.section === "search" ? route.query : null;
+  const searchTarget = route?.section === "search" && route.target.kind === "file" && route.query !== null ? { path: route.target.path, line: route.target.line, query: route.query } : route?.section === "files" && route.target.kind === "file" && route.target.line !== null ? { path: route.target.path, line: route.target.line, query: null } : null;
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
   const [codeTypography, setCodeTypography] = useState(readCodeTypography);
   const [appearance, setAppearance] = useState(readAppearance);
   const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const reviewScrollY = useRef(0);
+  const settingsOpen = route?.section === "settings";
+  const settingsBackRoute = useRef<Route | null>(null);
+  const scrollPositions = useRef(new Map<string, number>());
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sidebarMode, setSidebarMode] = useState<"folders" | "changes" | "files">("folders");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [opening, setOpening] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentStore | null>(null);
@@ -101,6 +108,52 @@ export function App() {
   const [reattachId, setReattachId] = useState<string | null>(null);
   const [installDataOpen, setInstallDataOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+
+  function navigate(next: Route, mode: "push" | "replace" = "push"): void {
+    if (route !== null) scrollPositions.current.set(routeUrl(route), window.scrollY);
+    closeEditor();
+    setFeedbackOpen(false);
+    setDrawerOpen(false);
+    setMenuOpen(false);
+    const url = routeUrl(next);
+    if (mode === "push" && window.location.pathname + window.location.search !== url) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+    setRouteState({ kind: "ready", route: next });
+    if (next.section !== "settings") window.scrollTo({ top: 0, behavior: "instant" });
+  }
+
+  useEffect(() => {
+    window.history.scrollRestoration = "manual";
+    const onPopState = (): void => {
+      if (route !== null) scrollPositions.current.set(routeUrl(route), window.scrollY);
+      const parsed = parseNavigationSearch(window.location.search);
+      if (parsed.kind === "empty" && root.kind === "ready") {
+        const active = readActiveProject(root.value.path);
+        navigate(active === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: active, target: { kind: "all" } }, "replace");
+      } else {
+        closeEditor();
+        setFeedbackOpen(false);
+        setDrawerOpen(false);
+        setMenuOpen(false);
+        setRouteState(parsed);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [route, root]);
+
+  useEffect(() => {
+    if (routeState.kind !== "ready") return;
+    const canonical = routeUrl(routeState.route);
+    if (window.location.pathname + window.location.search !== canonical) window.history.replaceState(null, "", canonical);
+  }, [routeState]);
+
+  useLayoutEffect(() => {
+    if (route?.section === "search") {
+      setSearchQuery(route.query ?? "");
+      if (route.query !== null) setLastSubmittedQuery(route.query);
+    }
+  }, [route?.section, route?.section === "search" ? route.query : null]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -169,26 +222,9 @@ export function App() {
         const restored = readSavedWorkspace(value.path);
         setSaved(restored);
         setRoot({ kind: "ready", value });
-        const activePath = readActiveProject(value.path);
-        if (activePath === null) return;
-        try {
-          const selected = await openProject(activePath, controller.signal);
-          if (controller.signal.aborted) return;
-          setProject(selected);
-          setComments(readCommentStore(selected.id));
-          setExpandedKeys(readOpenCards(selected.id));
-          setPath(selected.path);
-          setTreePath("");
-          setSelectedFile(null);
-          setSearchQuery("");
-          setSubmittedQuery(null);
-          setSearchState({ kind: "idle" });
-          setViewMode("changes");
-          setSidebarMode("changes");
-        } catch {
-          if (controller.signal.aborted) return;
-          setNotice("The previous folder is unavailable. Choose a folder to continue.");
-          saveActiveProject(value.path, null);
+        if (parseNavigationSearch(window.location.search).kind === "empty") {
+          const activePath = readActiveProject(value.path);
+          navigate(activePath === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: activePath, target: { kind: "all" } }, "replace");
         }
       } catch (error: unknown) {
         if (!controller.signal.aborted) setRoot({ kind: "error", message: messageFor(error) });
@@ -197,6 +233,42 @@ export function App() {
     void connect();
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (root.kind !== "ready" || routeProject === null) return;
+    const controller = new AbortController();
+    setOpening(true);
+    setStatus({ kind: "loading" });
+    setPendingUpdate(false);
+    setChangeCheckError(false);
+    reviewPosition.current = null;
+    setProject(null);
+    setEditor(null);
+    setFeedbackOpen(false);
+    setReattachId(null);
+    openProject(routeProject, controller.signal).then(
+      (selected) => {
+        if (controller.signal.aborted) return;
+        setProject(selected);
+        setComments(readCommentStore(selected.id));
+        setExpandedKeys(readOpenCards(selected.id));
+        saveActiveProject(root.value.path, selected.path);
+        setSaved((current) => {
+          const scoped = current.rootPath === root.value.path ? current : emptyWorkspace(root.value.path);
+          const next = withSelectedPath(scoped, selected.path);
+          saveWorkspace(next);
+          return next;
+        });
+        setOpening(false);
+      },
+      (error: unknown) => {
+        if (controller.signal.aborted) return;
+        setNotice(`Could not open this project: ${messageFor(error)}`);
+        setOpening(false);
+      },
+    );
+    return () => controller.abort();
+  }, [root, routeProject]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -215,7 +287,14 @@ export function App() {
     const controller = new AbortController();
     setRefreshing(true);
     fetchProjectStatus(project.id, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setPendingUpdate(false); setChangeCheckError(false); setRefreshing(false); if (value.kind === "not_git") { setViewMode((mode) => mode === "changes" ? "files" : mode); setSidebarMode((mode) => mode === "folders" ? mode : "files"); } } },
+      (value) => {
+        if (controller.signal.aborted) return;
+        setStatus({ kind: "ready", value });
+        setPendingUpdate(false);
+        setChangeCheckError(false);
+        setRefreshing(false);
+        if (value.kind === "not_git" && route?.section === "changes") navigate({ section: "files", projectPath: project.path, directory: "", target: { kind: "list" } }, "replace");
+      },
       (error: unknown) => {
         if (controller.signal.aborted) return;
         const message = messageFor(error);
@@ -283,6 +362,27 @@ export function App() {
   }, [project, status, refreshing]);
 
   useEffect(() => {
+    if (route?.section !== "changes" || route.target.kind !== "file" || project?.path !== route.projectPath || status.kind !== "ready" || status.value.kind !== "git") return;
+    const target = route.target;
+    const entry = status.value.entries.find((candidate) => candidate.layer === target.layer && candidate.path === target.path);
+    if (entry === undefined) {
+      setNotice("This changed file is no longer in the current Git inventory. Refresh or choose another file.");
+      return;
+    }
+    const key = diffCardKey(entry);
+    if (!expandedKeys.has(key)) setExpandedKeys((current) => new Set(current).add(key));
+    const frame = requestAnimationFrame(() => document.getElementById(diffCardId(entry))?.scrollIntoView({ block: "start", behavior: "instant" }));
+    return () => cancelAnimationFrame(frame);
+  }, [route, project, status, expandedKeys]);
+
+  useEffect(() => {
+    if (route === null || route.section === "changes" && route.target.kind === "file" || route.section === "files" && route.target.kind === "file" || route.section === "search" && route.target.kind === "file") return;
+    if (route.section === "search" && route.query !== null && searchState.kind === "loading") return;
+    const frame = requestAnimationFrame(() => window.scrollTo({ top: scrollPositions.current.get(routeUrl(route)) ?? 0, behavior: "instant" }));
+    return () => cancelAnimationFrame(frame);
+  }, [route, searchState.kind]);
+
+  useEffect(() => {
     if (project === null || viewMode !== "files") return;
     const controller = new AbortController();
     setTree({ kind: "loading" });
@@ -294,7 +394,10 @@ export function App() {
   }, [project, viewMode, treePath, fileRefresh]);
 
   useEffect(() => {
-    if (project === null || submittedQuery === null) return;
+    if (project === null || submittedQuery === null) {
+      if (route?.section === "search" && submittedQuery === null) setSearchState({ kind: "idle" });
+      return;
+    }
     const controller = new AbortController();
     setSearchState({ kind: "loading" });
     fetchProjectSearch(project.id, submittedQuery, controller.signal).then(
@@ -305,61 +408,28 @@ export function App() {
   }, [project, submittedQuery, searchRefresh]);
 
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!drawerOpen && !menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDrawerOpen(false);
+      if (event.key === "Escape") { setDrawerOpen(false); setMenuOpen(false); }
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawerOpen]);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKeyDown); };
+  }, [drawerOpen, menuOpen]);
 
   useEffect(() => {
     if (project !== null) saveOpenCards(project.id, expandedKeys);
   }, [project, expandedKeys]);
 
-  async function selectFolder(selectedPath: string): Promise<void> {
+  function selectFolder(selectedPath: string): void {
     if (opening) return;
     if (root.kind !== "ready") {
       setNotice("The host folder root is not available yet.");
       return;
     }
-    setOpening(true);
     setNotice(null);
-    try {
-      const selected = await openProject(selectedPath, new AbortController().signal);
-      setStatus({ kind: "loading" });
-      setPendingUpdate(false);
-      setChangeCheckError(false);
-      reviewPosition.current = null;
-      setProject(selected);
-      setComments(readCommentStore(selected.id));
-      setEditor(null);
-      setFeedbackOpen(false);
-      setReattachId(null);
-      setExpandedKeys(readOpenCards(selected.id));
-      setPath(selected.path);
-      setTreePath("");
-      setSelectedFile(null);
-      setSearchQuery("");
-      setSubmittedQuery(null);
-      setSearchState({ kind: "idle" });
-      setSearchTarget(null);
-      setViewMode("changes");
-      setSettingsOpen(false);
-      setSidebarMode("changes");
-      setDrawerOpen(false);
-      saveActiveProject(root.value.path, selected.path);
-      setSaved((current) => {
-        const scoped = current.rootPath === root.value.path ? current : emptyWorkspace(root.value.path);
-        const next = withSelectedPath(scoped, selected.path);
-        saveWorkspace(next);
-        return next;
-      });
-    } catch (error: unknown) {
-      setNotice(messageFor(error));
-    } finally {
-      setOpening(false);
-    }
+    navigate({ section: "changes", projectPath: selectedPath, target: { kind: "all" } });
   }
 
   function toggleEntry(entry: ChangeEntry): void {
@@ -373,10 +443,10 @@ export function App() {
   }
 
   function selectEntry(entry: ChangeEntry): void {
+    if (project === null) return;
     const key = diffCardKey(entry);
     setExpandedKeys((current) => new Set(current).add(key));
-    setSettingsOpen(false);
-    setDrawerOpen(false);
+    navigate({ section: "changes", projectPath: project.path, target: { kind: "file", layer: entry.layer, path: entry.path } });
     requestAnimationFrame(() => {
       const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
       document.getElementById(diffCardId(entry))?.scrollIntoView({ behavior, block: "start" });
@@ -402,10 +472,10 @@ export function App() {
   }
 
   function chooseView(mode: "changes" | "files" | "search"): void {
-    setSettingsOpen(false);
-    setViewMode(mode);
-    if (mode !== "search") setSidebarMode(mode);
-    if (mode === "files" && selectedFile === null && window.matchMedia("(max-width: 900px)").matches) setDrawerOpen(true);
+    if (project === null) return;
+    if (mode === "changes") navigate({ section: "changes", projectPath: project.path, target: { kind: window.matchMedia("(max-width: 600px)").matches ? "list" : "all" } });
+    else if (mode === "files") navigate({ section: "files", projectPath: project.path, directory: "", target: { kind: "list" } });
+    else navigate({ section: "search", projectPath: project.path, query: lastSubmittedQuery, target: { kind: "results" } });
   }
 
   function updateCodeTypography(next: CodeTypography): void {
@@ -423,44 +493,44 @@ export function App() {
   }
 
   function openSettings(): void {
-    if (!settingsOpen) reviewScrollY.current = window.scrollY;
-    setSettingsOpen(true);
-    setDrawerOpen(false);
-    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    if (!settingsOpen) settingsBackRoute.current = route;
+    navigate({ section: "settings", projectPath: project?.path ?? null });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   function closeSettings(): void {
-    setSettingsOpen(false);
-    requestAnimationFrame(() => window.scrollTo({ top: reviewScrollY.current, behavior: "instant" }));
+    const previous = settingsBackRoute.current;
+    settingsBackRoute.current = null;
+    if (previous !== null) {
+      window.history.back();
+      return;
+    }
+    navigate(project === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: project.path, target: { kind: "all" } }, "replace");
   }
 
-  function submitSearch(): void {
-    const query = searchQuery.trim();
+  function submitSearch(input: string): void {
+    const query = input.trim();
     if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query)) {
       setSearchState({ kind: "error", message: "Enter 1–128 characters on one line." });
       return;
     }
-    if (query === submittedQuery) setSearchRefresh((value) => value + 1);
-    else setSubmittedQuery(query);
+    setSearchQuery(query);
+    setLastSubmittedQuery(query);
+    if (query === submittedQuery && route?.section === "search" && route.target.kind === "results") setSearchRefresh((value) => value + 1);
+    else if (project !== null) navigate({ section: "search", projectPath: project.path, query, target: { kind: "results" } });
   }
 
   function searchSelectedCode(query: string): void {
+    if (project === null) return;
     setSearchQuery(query);
-    if (query === submittedQuery) setSearchRefresh((value) => value + 1);
-    else setSubmittedQuery(query);
-    setViewMode("search");
-    setDrawerOpen(false);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    setLastSubmittedQuery(query);
+    if (query === submittedQuery && route?.section === "search" && route.target.kind === "results") setSearchRefresh((value) => value + 1);
+    navigate({ section: "search", projectPath: project.path, query, target: { kind: "results" } });
   }
 
   function openSearchMatch(match: SearchMatch, query: string): void {
-    setSelectedFile(match.path);
-    setTreePath(match.path.includes("/") ? match.path.slice(0, match.path.lastIndexOf("/")) : "");
-    setSearchTarget({ path: match.path, line: match.line, query });
-    setViewMode("files");
-    setSidebarMode("files");
-    setDrawerOpen(false);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    if (project === null) return;
+    navigate({ section: "search", projectPath: project.path, query, target: { kind: "file", path: match.path, line: match.line } });
   }
 
   function updateComments(change: (current: CommentStore) => CommentStore): void {
@@ -483,8 +553,8 @@ export function App() {
   }
 
   function closeEditor(): void {
-    if (editor !== null && editor.body.trim().length > 0) {
-      const savedEditor = editor;
+    setEditor((savedEditor) => {
+      if (savedEditor === null || savedEditor.body.trim().length === 0) return null;
       updateComments((current) => {
         const now = Date.now();
         if (savedEditor.draftId !== null) return { ...current, drafts: current.drafts.map((draft) => draft.id === savedEditor.draftId ? { ...draft, body: savedEditor.body.trim(), updatedAt: now } : draft) };
@@ -495,8 +565,8 @@ export function App() {
         const draft: DraftComment = { id: newLocalId(), anchor: savedEditor.anchor, body: savedEditor.body.trim(), createdAt: now, updatedAt: now, state: "current" };
         return { ...current, drafts: [...current.drafts, draft] };
       });
-    }
-    setEditor(null);
+      return null;
+    });
   }
 
   function deleteEditor(): void {
@@ -584,9 +654,22 @@ export function App() {
     setNotice("Copied comments restored to your draft.");
   }
 
+  function showList(): void {
+    if (route === null || route.section === "projects" || route.section === "settings") return;
+    if (window.matchMedia("(min-width: 601px) and (max-width: 899px)").matches) {
+      setDrawerOpen(true);
+      return;
+    }
+    if (route.section === "changes") navigate({ section: "changes", projectPath: route.projectPath, target: { kind: "list" } });
+    else if (route.section === "files") navigate({ section: "files", projectPath: route.projectPath, directory: route.directory, target: { kind: "list" } });
+    else navigate({ section: "search", projectPath: route.projectPath, query: route.query, target: { kind: "results" } });
+  }
+
   const rootLabel = root.kind === "ready" ? root.value.label : "Host folders";
   const folderLabel = listing.kind === "ready" ? shortName(listing.value.path) : shortName(path);
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
+  const listSection = route?.section === "settings" ? project === null ? "projects" : "changes" : route?.section ?? "projects";
+  const mobilePane = route?.section === "projects" || route?.section === "changes" && route.target.kind === "list" || route?.section === "files" && route.target.kind === "list" || route?.section === "search" && route.target.kind === "results" ? "list" : "content";
 
   return (
     <div class="app" data-code-font={codeTypography.fontFamily} style={`--code-font-size: ${codeTypography.fontSize}px`}>
@@ -595,52 +678,52 @@ export function App() {
           <span class="brand-mark" aria-hidden="true">{`{ }`}</span>
           <span>git<span class="brand-accent">review</span></span>
         </div>
-        <span class="topbar-divider" aria-hidden="true" />
-        <span class="topbar-context">Local workspace</span>
-        <button class="project-switch" type="button" onClick={() => { setSidebarMode(project === null ? "folders" : viewMode === "search" ? "files" : viewMode); setDrawerOpen(true); }}>
+        <button class="project-switch" type="button" aria-label="Open workspace menu" aria-expanded={menuOpen} onClick={() => {
+          if (window.matchMedia("(min-width: 1200px)").matches) navigate({ section: "projects", directory: "" });
+          else setMenuOpen((open) => !open);
+        }}>
           <span class="switch-icon" aria-hidden="true">▦</span>
           <span class="switch-label">{project?.name ?? "Choose folder"}</span>
           <span aria-hidden="true">⌄</span>
         </button>
       </header>
 
-      <div class="workspace">
+      <div class="workspace" data-section={routeState.kind === "invalid" ? "invalid" : route?.section ?? "projects"} data-mobile-pane={mobilePane}>
+        {menuOpen && <button class="menu-scrim" type="button" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)} />}
+        <aside class={`workspace-menu${menuOpen ? " workspace-menu-open" : ""}`} aria-label="Workspace menu">
+          <div class="workspace-menu-head"><button class="icon-button close-menu" type="button" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)}>×</button></div>
+          <button class="menu-project" type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Choose a project <span aria-hidden="true">→</span></button>
+          {saved.recentPaths.length > 0 && <div class="menu-recents"><span class="section-label">RECENT PROJECTS</span>{saved.recentPaths.map((recentPath) => <button type="button" key={recentPath} onClick={() => selectFolder(recentPath)}><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></button>)}</div>}
+          <button class="sidebar-settings" type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings <span aria-hidden="true">⚙</span></button>
+        </aside>
         {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
-        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={project !== null && sidebarMode === "changes" ? "Changed files" : project !== null && sidebarMode === "files" ? "Project files" : "Folder picker"}>
+        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={listSection === "changes" ? "Changed files" : listSection === "files" ? "Project files" : listSection === "search" ? "Search results" : "Folder picker"}>
           <div class="sidebar-head">
-            <div>
-              <p class="eyebrow">ON THIS HOST</p>
-              <h2>{project !== null && sidebarMode === "changes" ? "Changes" : project !== null && sidebarMode === "files" ? "Files" : "Folders"}</h2>
-            </div>
+            {listSection === "projects" || project === null ? <h2>Folders</h2> : <div class="sidebar-project-identity">
+              <h2 class="sidebar-project-title">{project.name}</h2>
+              <p class="sidebar-project-path" title={project.absolutePath}>{project.absolutePath}</p>
+            </div>}
             <button class="icon-button close-drawer" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)}>×</button>
           </div>
+          {listSection !== "projects" && project !== null && <nav class="project-view-tabs sidebar-project-tabs" aria-label="Project views">
+            <button type="button" aria-current={viewMode === "changes" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("changes")}>Changes</button>
+            <button type="button" aria-current={viewMode === "files" ? "page" : undefined} onClick={() => chooseView("files")}>Files</button>
+            <button type="button" aria-current={viewMode === "search" ? "page" : undefined} onClick={() => chooseView("search")}>Search</button>
+          </nav>}
 
-          <button class="sidebar-settings" type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings <span aria-hidden="true">⚙</span></button>
-
-          {sidebarMode === "files" && project !== null ? <div class="sidebar-files">
-            <div class="sidebar-project-name" title={project.absolutePath}>{project.name}</div>
-            <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("folders")}>Browse host folders <span aria-hidden="true">→</span></button>
-            <div class="file-tree-location">
-              <span class="section-label">CURRENT DIRECTORY</span>
-              <div class="folder-name-row">
-                {treePath !== "" && <button class="back-button" type="button" aria-label="Go to parent directory" onClick={() => setTreePath(treePath.split("/").slice(0, -1).join("/"))}>←</button>}
-                <strong title={treePath}>{treePath === "" ? project.name : shortName(treePath)}</strong>
-              </div>
-              <span class="folder-path">/{treePath}</span>
-            </div>
+          {listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <div class="sidebar-files">
+            {treePath !== "" && <div class="file-tree-breadcrumb"><button class="back-button" type="button" aria-label="Go to parent directory" onClick={() => navigate({ section: "files", projectPath: project.path, directory: parentDirectory(treePath), target: { kind: "list" } })}><Icon name="back" /></button><span title={treePath}>/{treePath}</span></div>}
             {tree.kind === "loading" && <p class="sidebar-message">Loading files…</p>}
             {tree.kind === "error" && <div class="sidebar-error" role="alert">{tree.message} <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Retry</button></div>}
             {tree.kind === "ready" && tree.value.entries.length === 0 && <p class="sidebar-message">This directory is empty.</p>}
             {tree.kind === "ready" && <div class="file-tree-list">{tree.value.entries.map((entry) => <button class={`file-tree-row${selectedFile === entry.path ? " file-tree-row-selected" : ""}`} type="button" key={entry.path} onClick={() => {
-              if (entry.kind === "directory") setTreePath(entry.path);
-              else { setSelectedFile(entry.path); setSearchTarget(null); setSettingsOpen(false); setDrawerOpen(false); window.scrollTo({ top: 0, behavior: "instant" }); }
+              if (entry.kind === "directory") navigate({ section: "files", projectPath: project.path, directory: entry.path, target: { kind: "list" } });
+              else navigate({ section: "files", projectPath: project.path, directory: treePath, target: { kind: "file", path: entry.path, line: null } });
             }} title={entry.path}>
-              <span class="file-tree-icon" aria-hidden="true">{entry.kind === "directory" ? "▰" : entry.kind === "symlink" ? "↗" : entry.kind === "other" ? "◇" : "▤"}</span>
+              <span class="file-tree-icon"><Icon name={entry.kind === "directory" ? "folder" : entry.kind === "symlink" ? "link" : entry.kind === "other" ? "other" : "file"} /></span>
               <span>{entry.name}</span>{entry.kind === "directory" && <span class="row-arrow" aria-hidden="true">›</span>}
             </button>)}</div>}
-          </div> : sidebarMode === "changes" && project !== null ? <div class="sidebar-changes">
-            <div class="sidebar-project-name" title={project.absolutePath}>{project.name}</div>
-            <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode("folders")}>Browse host folders <span aria-hidden="true">→</span></button>
+          </div> : listSection === "changes" && project !== null ? <div class="sidebar-changes">
             {status.kind === "loading" && <p class="sidebar-message">Reading Git changes…</p>}
             {status.kind === "error" && <p class="sidebar-error" role="alert">{status.message}</p>}
             {status.kind === "ready" && status.value.kind === "not_git" && <p class="sidebar-message">This folder is not a Git worktree.</p>}
@@ -659,12 +742,12 @@ export function App() {
             <span class="section-label">CURRENT FOLDER</span>
             <div class="folder-name-row">
               {listing.kind === "ready" && listing.value.parentPath !== null && (
-                <button class="back-button" type="button" aria-label="Go to parent folder" onClick={() => setPath(listing.value.parentPath ?? "")}>←</button>
+                <button class="back-button" type="button" aria-label="Go to parent folder" onClick={() => navigate({ section: "projects", directory: listing.value.parentPath ?? "" })}><Icon name="back" /></button>
               )}
               <strong title={path}>{folderLabel}</strong>
             </div>
             <span class="folder-path">{path === "" ? "/" : `/${path}`}</span>
-            <button class="open-button" type="button" disabled={root.kind !== "ready" || listing.kind !== "ready" || opening} onClick={() => void selectFolder(path)}>
+            <button class="open-button" type="button" disabled={root.kind !== "ready" || listing.kind !== "ready" || opening} onClick={() => selectFolder(path)}>
               {opening ? "Opening…" : "Open this folder"} <span aria-hidden="true">↗</span>
             </button>
           </div>
@@ -675,13 +758,13 @@ export function App() {
             {listing.kind === "error" && (
               <div class="sidebar-error" role="alert">
                 <p>{listing.message}</p>
-                <button type="button" onClick={() => setPath("")}>Back to root</button>
+                <button type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Back to root</button>
               </div>
             )}
             {listing.kind === "ready" && listing.value.entries.length === 0 && <p class="sidebar-message">No subfolders here.</p>}
             {listing.kind === "ready" && listing.value.entries.map((entry) => (
-              <button class="folder-row" type="button" key={entry.path} onClick={() => setPath(entry.path)}>
-                <span class="folder-glyph" aria-hidden="true">▰</span>
+              <button class="folder-row" type="button" key={entry.path} onClick={() => navigate({ section: "projects", directory: entry.path })}>
+                <span class="folder-glyph"><Icon name="folder" /></span>
                 <span class="folder-row-name">{entry.name}</span>
                 <span class="row-arrow" aria-hidden="true">›</span>
               </button>
@@ -692,61 +775,49 @@ export function App() {
             <div class="recent-section">
               <span class="section-label">RECENT FOLDERS</span>
               {saved.recentPaths.map((recentPath) => (
-                <button class="recent-row" type="button" key={recentPath} onClick={() => void selectFolder(recentPath)}>
+                <button class="recent-row" type="button" key={recentPath} onClick={() => selectFolder(recentPath)}>
                   <span aria-hidden="true">↺</span>
                   <span><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></span>
                 </button>
               ))}
             </div>
           )}
-          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => setSidebarMode(viewMode === "search" ? "files" : viewMode)}>Back to project files <span aria-hidden="true">→</span></button>}
+          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => chooseView(viewMode ?? "changes")}>Back to project <span aria-hidden="true">→</span></button>}
           </>}
-          <button class="sidebar-install-data" type="button" onClick={() => { setDrawerOpen(false); setInstallDataOpen(true); }}>Install & local data <span aria-hidden="true">↗</span></button>
         </aside>
 
         <main class="main-content">
-          <div class="page-topline">
-            <span class="local-indicator"><span aria-hidden="true" /> LOCAL ONLY</span>
-            <span class="page-topline-note">Your files stay on this host</span>
-          </div>
           {notice !== null && <div class="notice" role="alert">{notice}<button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
           {root.kind === "error" && <div class="notice" role="alert">{root.message}</div>}
 
           <div hidden={settingsOpen}>
-          {project === null ? (
+          {routeState.kind === "invalid" ? <div class="welcome"><h1>That link cannot be opened.</h1><p class="welcome-copy">{routeState.message}</p><button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose a project <span aria-hidden="true">→</span></button></div> : route?.section === "projects" || route === null ? (
             <div class="welcome">
               <div class="hero-orb" aria-hidden="true"><span>⌁</span></div>
               <p class="eyebrow">A CLEARER WAY TO REVIEW</p>
               <h1>Start with a folder.</h1>
               <p class="welcome-copy">Choose a project on this computer to make it your review workspace.</p>
-              <button class="primary-action" type="button" onClick={() => setDrawerOpen(true)}>Browse host folders <span aria-hidden="true">→</span></button>
+              <button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Browse host folders <span aria-hidden="true">→</span></button>
               <div class="welcome-foot"><span class="line-decor" aria-hidden="true" /> Staged, unstaged, and untracked changes will live here.</div>
             </div>
-          ) : (
+          ) : project === null ? <div class="status-message" role="status">{opening ? "Opening project…" : <>This project could not be opened. <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button> or try this link again.</>}</div> : (
             <div class="project-view project-view-changes">
-              <div class="project-intro">
-                <p class="eyebrow">CURRENT WORKSPACE</p>
-                <h1>{project.name}</h1>
-                <p class="project-path">{project.absolutePath}</p>
-              </div>
-              <nav class="project-view-tabs" aria-label="Project views">
-                <button type="button" aria-current={viewMode === "changes" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("changes")}>Changes</button>
-                <button type="button" aria-current={viewMode === "files" ? "page" : undefined} onClick={() => chooseView("files")}>Files</button>
-                <button type="button" aria-current={viewMode === "search" ? "page" : undefined} onClick={() => chooseView("search")}>Search</button>
-              </nav>
-              {viewMode === "search" ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : viewMode === "files" ? <>
+              {viewMode === "search" ? <>
+                <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{selectedFile === null ? "Search files" : "Search result"}</h2></div></div>
+                {selectedFile === null ? <p class="status-message">Search this project from the results list. Select a match to read its file here.</p> : <><div class="file-location-bar"><span>{selectedFile}</span></div><FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} searchTarget={searchTarget} /></>}
+              </> : viewMode === "files" ? <>
                 <div class="changes-heading">
-                  <div><p class="eyebrow">WORKING TREE</p><h2>Browse files</h2></div>
+                  <div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>Browse files</h2></div>
                   <div class="changes-actions">
                     <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
                     <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Refresh</button>
                   </div>
                 </div>
-                <div class="file-location-bar"><span>{selectedFile ?? (treePath === "" ? "Choose a file to read" : `/${treePath}`)}</span><button type="button" onClick={() => { setSidebarMode("files"); setDrawerOpen(true); }}>Browse files <span aria-hidden="true">☰</span></button></div>
+                <div class="file-location-bar"><span>{selectedFile ?? (treePath === "" ? "Choose a file to read" : `/${treePath}`)}</span></div>
                 {selectedFile === null ? <p class="status-message">Open a folder or file from the Files list. Changes and feedback remain available when you return to review.</p> : <FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} searchTarget={searchTarget?.path === selectedFile ? searchTarget : null} />}
               </> : <>
               <div class="changes-heading">
-                <div><p class="eyebrow">GIT REVIEW</p><h2>Changed files</h2></div>
+                <div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>Changed files</h2></div>
                 <div class="changes-actions">
                   <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
                   <span class="visually-hidden" role="status">{pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}</span>
@@ -789,11 +860,11 @@ export function App() {
             </div>
           )}
           </div>
-          {settingsOpen && <SettingsView typography={codeTypography} onTypography={updateCodeTypography} appearance={appearance} onAppearance={updateAppearance} onBack={closeSettings} />}
+          {settingsOpen && <SettingsView typography={codeTypography} onTypography={updateCodeTypography} appearance={appearance} onAppearance={updateAppearance} onBack={closeSettings} onInstallData={() => setInstallDataOpen(true)} />}
         </main>
       </div>
-      {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files") && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
-      {!settingsOpen && project !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
+      {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files" || viewMode === "search" && selectedFile !== null) && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
+      {!settingsOpen && project !== null && viewMode !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
       {reattachId !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={() => setReattachId(null)}>Cancel</button></div>}
       {editor !== null && <CommentEditor editor={editor} onBody={(body) => setEditor((current) => current === null ? current : { ...current, body })} onClose={closeEditor} onDelete={deleteEditor} />}
       {feedbackOpen && project !== null && comments?.projectId === project.id && <FeedbackDialog store={comments} projectPath={project.absolutePath} checkState={checkState} error={checkError} copyError={copyError} onClose={() => setFeedbackOpen(false)} onCheck={() => void checkComments()} onCopy={() => void copyFeedback()} onEdit={(draft) => { setFeedbackOpen(false); setEditor({ anchor: draft.anchor, draftId: draft.id, body: draft.body }); }} onReattach={(draft) => { setFeedbackOpen(false); setReattachId(draft.id); selectEntry({ layer: draft.anchor.layer, path: draft.anchor.path, kind: "modified", oldPath: null, isSubmodule: false }); }} onUndo={undoLastCopy} canUndo={undoCopyId !== null && comments.history[0]?.id === undoCopyId} onCopyHistory={(text) => void copyHistory(text)} />}

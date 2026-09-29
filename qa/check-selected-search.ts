@@ -14,7 +14,6 @@ try {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await page.goto(url.href, { waitUntil: "load" });
-    await page.getByRole("button", { name: "Browse host folders" }).click();
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
 
@@ -44,6 +43,7 @@ try {
     await page.waitForTimeout(100);
     const after = await action.boundingBox();
     if (Math.abs(moved) > 2 && (after === null || Math.abs((after.y - before.y) + moved) > 4)) throw new Error("Selected-code action did not follow page scrolling");
+    await page.setViewportSize({ width: 390, height: 320 });
     await page.evaluate(() => {
       const range = document.getSelection()?.getRangeAt(0);
       if (range === undefined) throw new Error("Selected range was lost");
@@ -51,6 +51,7 @@ try {
     });
     await page.locator(".code-selection-action-docked").waitFor({ state: "visible" });
     await action.click();
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("searchbox", { name: "Find text" }).waitFor({ state: "visible" });
     if (await page.getByRole("searchbox", { name: "Find text" }).inputValue() !== "export const") throw new Error("Selected code did not fill Search");
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).waitFor({ state: "visible" });
@@ -65,7 +66,7 @@ try {
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).waitFor({ state: "visible" });
 
     await page.getByRole("button", { name: "Files", exact: true }).click();
-    await page.getByRole("button", { name: /Browse files/ }).click();
+    await page.locator('.file-tree-row[title="src"]').click();
     await page.locator('.file-tree-row[title="src/long-line.ts"]').click();
     const longCode = page.locator('.file-panel[data-path="src/long-line.ts"] .file-code-line');
     await longCode.waitFor({ state: "visible" });
@@ -84,7 +85,7 @@ try {
     });
     await longAction.waitFor({ state: "visible" });
 
-    await page.getByRole("button", { name: /Browse files/ }).click();
+    await page.getByRole("button", { name: "Back to list" }).click();
     await page.locator('.file-tree-row[title="src/tall-review.ts"]').click();
     await page.locator('.file-panel[data-path="src/tall-review.ts"] .file-code-line').nth(1).waitFor({ state: "visible" });
     await page.evaluate(() => {

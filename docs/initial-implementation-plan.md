@@ -17,7 +17,7 @@ The initial release also supports voice dictation into a comment without an Open
 | UI | Preact with hooks and plain CSS. One browser application with responsive layouts. |
 | Type checking | Project-local, stable TypeScript 7 native compiler. Bun transpiles; `tsc --noEmit` is the required type-check gate. |
 | Syntax highlighting | Shiki on the server, returning per-line tokens. Reuse one highlighter and load grammars as needed. |
-| Persistence | Project selection belongs to each tab's `sessionStorage`; recent folders, drafts, copy history, and preferences use versioned `localStorage` records per browser origin and project. No account or sync service in the initial release. See [the independent tabs and PWA proposal](independent-tabs-and-pwa-proposal.md). |
+| Persistence and navigation | Explicit URLs identify the project and navigable screen; `/` restores a tab's active project from `sessionStorage`. Recent folders, drafts, copy history, and preferences use versioned `localStorage` records per browser origin and project. No account or sync service in the initial release. See [the navigation record](navigation-and-url-history-slice-proposal.md) and [the independent tabs and PWA proposal](independent-tabs-and-pwa-proposal.md). |
 | Speech to text | Browser recording sent to the Bun server, normalized by FFmpeg to 16 kHz mono WAV, then transcribed by Handy's local headless CLI. |
 | Repository access | Read-only APIs. Explicit host directory roots, path containment checks, and no shell interpolation. |
 
@@ -33,25 +33,30 @@ This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy
 
 The [working-tree Files browser](file-browser-slice-proposal.md), [Working-tree Search](search-slice-proposal.md), [selected-code Search shortcut](selected-code-search-slice-proposal.md), and [local voice comment slice](local-voice-comment-slice-proposal.md) are implemented and approved. Repository and file commit history, including opening files at older revisions, is a distant optional slice.
 
-A [deferred navigation and URL history slice](navigation-and-url-history-slice-proposal.md) proposes browser Back/Forward and direct links for the main destinations, plus a separate menu, list screen, and content screen. It is planned near the end of the roadmap, immediately before optional Git history browsing. The maintainer chose continuous Changes review as the default and kept Changes / Files / Search tabs in the project content area. The responsive layout below describes the current implementation and near-term baseline; the navigation proposal describes the later redesign.
+The [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) is implemented: browser Back/Forward and direct links cover the main destinations, with a separate menu, contextual list, and content pane. Continuous Changes review remains the default. Changes / Files / Search tabs and the project identity live in the contextual list. On phones, tabs appear only on that full-width list screen. The contextual list stays beside content at widths of 900 px and above; narrower tablets can reveal it from the content heading.
 
 ## Responsive interface
 
-### Desktop and tablet landscape
+### Wide desktop
 
-- Sticky top bar: project picker, Changes / Files / Search, wrap toggle, Feedback count, and Copy feedback.
-- Persistent file sidebar: filter, Staged / Unstaged / Untracked counts, filenames, change counts, and comment badges.
-- Main region: one continuous review page of collapsible file cards, followed by a full-file viewer when browsing.
+- Sticky top bar with the active project. The menu, contextual list, and content pane are visible together.
+- The menu holds project switching, recents, and Settings. Installation and local data tools live in Settings. The contextual list shows the project name and path, Changes / Files / Search tabs, and the corresponding changed files, project files, or Search results. The reading pane opens directly with its task content.
+- Changes opens a continuous review page of collapsible cards by default. Files and Search can open a working-tree file beside their list. Feedback remains reachable while scrolling.
 
-### Phone and tablet portrait
+### Tablet
 
-- Compact sticky top bar with project name, file-drawer button, and Copy feedback. Keep the copy action reachable while scrolling.
-- The file sidebar becomes an off-canvas drawer. Selecting a file closes the drawer and scrolls to its card.
-- One-column inline diffs only. Wrapping is on by default. When off, each code pane scrolls horizontally without widening the page or hiding line numbers.
+- At widths of 900 px and above, the contextual list stays beside the content pane while the menu is a drawer. Below 900 px, the contextual list is a drawer. The host folder picker fills the available screen when that route is open.
+- A single back arrow beside the Changes, Files, or Search content title reveals the list drawer when it is hidden. Feedback stays reachable while scrolling.
+
+### Phone
+
+- The Changes / Files / Search tabs appear only on the full-width contextual list screen. Switching tabs stays on that screen. The menu is a drawer; choosing a host folder, browsing a contextual list, or reading content uses the full width.
+- Selecting a changed file, browsed file, or search result opens the full-width content screen. The same back arrow beside its title returns to the relevant list. Browser Back and Forward follow URL history, including folder navigation and Search result files.
+- One-column inline diffs only. Wrapping is on by default. When off, each code pane scrolls horizontally without widening the page. A row tap reveals the hidden phone gutters and comment action.
 - Comment editor and feedback preview open as bottom sheets. Touch controls have comfortable targets and stay clear of browser safe areas and the on-screen keyboard.
 - Avoid nested vertical scroll areas. All expanded review cards remain in one page flow; fetch each card's diff only when needed.
 
-Use text labels and symbols as well as color for added, removed, moved, and outdated content. Restore scroll position, open cards, and wrap preference after reload.
+Use text labels and symbols as well as color for added, removed, and outdated content. Restore open cards and wrap preference after reload; retain list and review scroll positions during route navigation where practical. Phone diff gutters are hidden for code width and revealed by tapping a row, as described below.
 
 ### Appearance settings
 
@@ -194,7 +199,7 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
 
-The selected-code Search shortcut, local voice work, appearance settings, and portrait-gutter refinement are implemented. Schedule the [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) late, before the optional Git history browser. Review its screen flow and URL model with the maintainer before implementation.
+The selected-code Search shortcut, local voice work, appearance settings, portrait-gutter refinement, and [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) are implemented. The maintainer reviewed and approved the navigation redesign on phone, tablet, and desktop.
 
 ## Remaining roadmap
 
@@ -203,4 +208,4 @@ The selected-code Search shortcut, local voice work, appearance settings, and po
 - **Diff fidelity (complete):** bounded word-change spans decorate clear line pairs across multi-line edit chunks. The [slice record](diff-fidelity-slice-proposal.md) covers matching limits and QA. Moved-block indicators are optional later work.
 - **Phone and personal layout (complete):** the [phone line action](phone-portrait-gutter-slice-proposal.md), [code typography Settings slice](code-typography-slice-proposal.md), and [app and code theme selectors](theme-settings-slice-proposal.md) are reviewed and complete.
 - **Convenience:** [live change detection](live-change-detection-slice-proposal.md) is complete. Recent files remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs today.
-- **Later navigation:** implement the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) so Back/Forward and direct file links work. General file Git history and PDF previews are later optional expansions.
+- **Navigation (implemented):** the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) supports Back/Forward, direct file links, and the menu/list/content hierarchy. Real-device testing will decide whether a swipe gesture adds value. General file Git history and PDF previews are later optional expansions.

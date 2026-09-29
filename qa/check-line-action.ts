@@ -30,7 +30,6 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(url, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Browse host folders" }).click();
   await page.getByRole("button", { name: new RegExp(folder) }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
   const staged = page.locator('main .diff-card[data-layer="staged"][data-path="src/sample.ts"]');
@@ -99,7 +98,6 @@ try {
   const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const widePage = await desktop.newPage();
   await widePage.goto(url, { waitUntil: "load" });
-  await widePage.getByRole("button", { name: "Browse host folders" }).click();
   await widePage.getByRole("button", { name: new RegExp(folder) }).click();
   await widePage.getByRole("button", { name: /Open this folder/ }).click();
   const wideCard = widePage.locator('main .diff-card[data-layer="staged"][data-path="src/sample.ts"]');

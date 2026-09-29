@@ -13,7 +13,6 @@ try {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await page.goto(url.href, { waitUntil: "load" });
-    await page.getByRole("button", { name: "Browse host folders" }).click();
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
     const staged = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
@@ -21,6 +20,7 @@ try {
     await staged.locator(".diff-card-toggle").click();
     await staged.locator(".diff-row").first().waitFor({ state: "visible" });
 
+    await page.getByRole("button", { name: "Back to list" }).click();
     await page.getByRole("button", { name: "Files", exact: true }).click();
     await page.locator('.file-tree-row[title="src"]').click();
     await page.locator('.file-tree-row[title="src/math.c"]').click();
@@ -28,8 +28,8 @@ try {
     if (await page.locator(".sidebar").evaluate((element) => element.classList.contains("sidebar-open"))) throw new Error("Mobile drawer remained open after file selection");
     if ((await page.locator(".file-panel .syntax-token-keyword").count()) === 0) throw new Error("C file was not syntax highlighted");
 
-    await page.getByRole("button", { name: /Browse files/ }).click();
-    if (!(await page.locator(".sidebar").evaluate((element) => element.classList.contains("sidebar-open")))) throw new Error("Browse files did not open the mobile drawer");
+    await page.getByRole("button", { name: "Back to list" }).click();
+    if (new URL(page.url()).searchParams.get("file") !== null || await page.locator(".workspace").getAttribute("data-mobile-pane") !== "list") throw new Error("Back did not open the full-width file list");
     await page.locator('.file-tree-row[title="src/long-line.ts"]').click();
     await page.locator(".file-code-row").waitFor({ state: "visible" });
     if (await page.getByRole("button", { name: "Wrap: on" }).count()) await page.getByRole("button", { name: "Wrap: on" }).click();
@@ -45,7 +45,9 @@ try {
     });
     if (wrapped.scroll > wrapped.client + 2) throw new Error(`Code did not wrap inside its pane: ${JSON.stringify(wrapped)}`);
 
+    await page.getByRole("button", { name: "Back to list" }).click();
     await page.getByRole("button", { name: "Changes", exact: true }).click();
+    await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
     if ((await staged.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true") throw new Error("Open diff was lost after visiting Files");
 
     if (pageErrors.length > 0) throw new Error(`Page errors: ${pageErrors.join("; ")}`);
@@ -58,12 +60,11 @@ try {
   try {
     const page = await desktop.newPage();
     await page.goto(url.href, { waitUntil: "load" });
-    await page.getByRole("button", { name: "Browse host folders" }).click();
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
     await page.getByRole("button", { name: "Files", exact: true }).click();
     await page.locator(".file-tree-row").first().waitFor({ state: "visible" });
-    if (await page.locator(".file-location-bar button").isVisible()) throw new Error("Browse files button is redundant while the desktop sidebar is visible");
+    if (await page.locator(".file-location-bar button").count() !== 0) throw new Error("File path bar still contains a separate navigation button");
     if (!(await page.locator(".sidebar").isVisible())) throw new Error("Desktop file sidebar is missing");
   } finally {
     await desktop.close();

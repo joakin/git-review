@@ -6,15 +6,8 @@ const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(base.href);
-  await page.evaluate(async (selectedPath) => {
-    const response = await fetch("/api/roots");
-    const value: unknown = await response.json() as unknown;
-    if (typeof value !== "object" || value === null || !("root" in value) || typeof value.root !== "object" || value.root === null || !("path" in value.root) || typeof value.root.path !== "string") throw new Error("Invalid root response");
-    sessionStorage.setItem("git-review:active-project:v1", JSON.stringify({ version: 1, rootPath: value.root.path, activePath: selectedPath }));
-  }, activePath);
-  await page.reload();
-  await page.locator(".project-view-tabs button").filter({ hasText: "Files" }).click();
+  await page.goto(new URL(`/?section=changes&project=${encodeURIComponent(activePath)}`, base).href);
+  await page.locator(".sidebar-project-tabs").getByRole("button", { name: "Files" }).click();
   await page.locator('.file-tree-row[title="art.svg"]').click();
   await page.locator(".file-panel .media-preview img").waitFor();
   await page.waitForFunction(() => {

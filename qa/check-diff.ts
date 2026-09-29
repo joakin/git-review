@@ -29,13 +29,12 @@ async function main(): Promise<void> {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await page.goto(url.href, { waitUntil: "load" });
-      await page.getByRole("button", { name: "Browse host folders" }).click();
       await page.getByRole("button", { name: new RegExp(folder) }).click();
       await page.getByRole("button", { name: /Open this folder/ }).click();
       const staged = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
       await staged.waitFor({ state: "visible" });
 
-      await page.locator(".project-switch").click();
+      await page.getByRole("button", { name: "Back to list" }).click();
       await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
       await staged.locator(".diff-row").first().waitFor({ state: "visible" });
       if ((await staged.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true") {

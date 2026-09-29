@@ -25,14 +25,7 @@ async function seek(page: Page, selector: string): Promise<void> {
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await context.newPage();
-  await page.goto(base.href);
-  await page.evaluate(async (selectedPath) => {
-    const response = await fetch("/api/roots");
-    const value: unknown = await response.json() as unknown;
-    if (typeof value !== "object" || value === null || !("root" in value) || typeof value.root !== "object" || value.root === null || !("path" in value.root) || typeof value.root.path !== "string") throw new Error("Invalid root response");
-    sessionStorage.setItem("git-review:active-project:v1", JSON.stringify({ version: 1, rootPath: value.root.path, activePath: selectedPath }));
-  }, activePath);
-  await page.reload();
+  await page.goto(new URL(`/?section=changes&project=${encodeURIComponent(activePath)}`, base).href);
   await page.locator('.diff-card[data-layer="staged"][data-path="clip.mp4"] .diff-card-toggle').click();
   await page.locator('.diff-card[data-layer="staged"][data-path="sound.wav"] .diff-card-toggle').click();
   await seek(page, '.diff-card[data-layer="staged"][data-path="clip.mp4"] video');
@@ -44,10 +37,11 @@ try {
     return { status: response.status, contentRange: response.headers.get("content-range"), byteLength: (await response.arrayBuffer()).byteLength };
   }, raw);
   if (range.status !== 206 || range.contentRange?.startsWith("bytes 0-31/") !== true || range.byteLength !== 32) throw new Error("Raw video range failed");
-  await page.locator(".project-view-tabs button").filter({ hasText: "Files" }).click();
+  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.locator(".sidebar-project-tabs").getByRole("button", { name: "Files" }).click();
   await page.locator('.file-tree-row[title="clip.mp4"]').click();
   await seek(page, ".file-panel video");
-  await page.locator(".file-location-bar button").click();
+  await page.getByRole("button", { name: "Back to list" }).click();
   await page.locator('.file-tree-row[title="sound.wav"]').click();
   await seek(page, ".file-panel audio");
   console.log("Audio and video loaded and sought in staged cards and Files; raw video range returned 206.");

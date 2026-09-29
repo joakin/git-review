@@ -10,7 +10,7 @@ export function SearchView({ query, state, onQuery, onSubmit, onRefresh, canRefr
   query: string;
   state: SearchState;
   onQuery: (query: string) => void;
-  onSubmit: () => void;
+  onSubmit: (query: string) => void;
   onRefresh: () => void;
   canRefresh: boolean;
   onOpen: (match: SearchMatch, query: string) => void;
@@ -24,14 +24,15 @@ export function SearchView({ query, state, onQuery, onSubmit, onRefresh, canRefr
     }
   }
   return <section class="search-view" aria-label="Search project files">
-    <div class="changes-heading">
-      <div><p class="eyebrow">WORKING TREE</p><h2>Search files</h2></div>
-      {state.kind === "ready" && <div class="changes-actions"><button type="button" onClick={onRefresh}>Refresh results</button></div>}
-    </div>
+    {state.kind === "ready" && <div class="search-refresh-row"><button type="button" onClick={onRefresh}>Refresh results</button></div>}
     <p class="search-scope">Search current text files in this folder, including untracked files. Ignored files and Git internals are skipped.</p>
-    <form class="search-form" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
+    <form class="search-form" onSubmit={(event) => {
+      event.preventDefault();
+      const value = new FormData(event.currentTarget).get("query");
+      if (typeof value === "string") onSubmit(value);
+    }}>
       <label for="project-search-query">Find text</label>
-      <div class="search-form-row"><input id="project-search-query" type="search" value={query} maxLength={128} required autoComplete="off" placeholder="Symbol or text" onInput={(event) => onQuery(event.currentTarget.value)} /><button type="submit" disabled={state.kind === "loading"}>{state.kind === "loading" ? "Searching…" : "Search"}</button></div>
+      <div class="search-form-row"><input id="project-search-query" name="query" type="search" value={query} maxLength={128} required autoComplete="off" placeholder="Symbol or text" onInput={(event) => onQuery(event.currentTarget.value)} /><button type="submit" disabled={state.kind === "loading"}>{state.kind === "loading" ? "Searching…" : "Search"}</button></div>
     </form>
     {state.kind === "idle" && <p class="status-message">Enter a word or phrase to search this project.</p>}
     {state.kind === "loading" && <p class="status-message" role="status">Searching files…</p>}

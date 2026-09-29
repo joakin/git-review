@@ -1,6 +1,6 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap an old or new diff line number to draft feedback, dictate into the comment, check the current lines, and copy a line-numbered summary. The selected folder survives reload **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. Git commit history is a distant optional slice in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [voice comment](docs/local-voice-comment-slice-proposal.md), [Files browser](docs/file-browser-slice-proposal.md), [selected-code Search](docs/selected-code-search-slice-proposal.md), [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
+A local, browser-based code review app in progress. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap a diff row to reveal its line information and comment action, dictate into the comment, check the current lines, and copy a line-numbered summary. Projects, directories, files, and Search results have URLs for direct links and browser Back/Forward. With no explicit URL, the selected folder is restored **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. Git commit history is a distant optional slice in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [navigation design](docs/navigation-and-url-history-slice-proposal.md), [voice comment](docs/local-voice-comment-slice-proposal.md), [Files browser](docs/file-browser-slice-proposal.md), [selected-code Search](docs/selected-code-search-slice-proposal.md), [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
 
 ## Run the app
 
@@ -32,9 +32,9 @@ tailscale serve --https=8443 --bg 39879
 
 The macOS Tailscale app includes a CLI in `/Applications/Tailscale.app/Contents/MacOS/Tailscale` if `tailscale` is not on `PATH`. The first Serve command may ask the tailnet owner to enable Serve and HTTPS. Tailscale's HTTPS certificate publishes the machine DNS name in Certificate Transparency. Use **Serve**, not Funnel, to keep access limited to the tailnet. Port 8443 leaves the machine domain's default HTTPS root free for another app. Keep the old HTTP address available until any local drafts have been exported.
 
-Open the HTTPS address on a connected phone. On Android, use **Install app** in the browser menu or the app's **Install & local data** entry. On iPhone, use **Share → Add to Home Screen** and enable **Open as Web App**. The installed app needs the host and Tailscale connection to read live Git data; offline navigation shows a host-unavailable page.
+Open the HTTPS address on a connected phone. On Android, use **Install app** in the browser menu or **Settings → Install & local data** in the app. On iPhone, use **Share → Add to Home Screen** and enable **Open as Web App**. The installed app needs the host and Tailscale connection to read live Git data; offline navigation shows a host-unavailable page.
 
-Browser storage is separate between HTTP and HTTPS, and an iPhone Home Screen app may also have separate storage from Safari. In the old address, open **Install & local data → Export local review data**, then import the downloaded JSON file in the new address or installed app. The file stays on the device. Import previews the record counts and requires an explicit replace action; matching project records are replaced while other projects are kept.
+Browser storage is separate between HTTP and HTTPS, and an iPhone Home Screen app may also have separate storage from Safari. In the old address, open **Settings → Install & local data → Export local review data**, then import the downloaded JSON file in the new address or installed app. The file stays on the device. Import previews the record counts and requires an explicit replace action; matching project records are replaced while other projects are kept.
 
 ## Checks
 
@@ -45,6 +45,7 @@ bun run qa:check
 bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:files http://127.0.0.1:3000/
+bun run qa:navigation http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
 bun run qa:voice http://127.0.0.1:3000/
 bun run qa:tabs http://127.0.0.1:3000/

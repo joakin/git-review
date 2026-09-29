@@ -13,9 +13,9 @@ try {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await page.goto(url.href, { waitUntil: "load" });
-    await page.getByRole("button", { name: "Browse host folders" }).click();
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
+    await page.getByRole("button", { name: "Back to list" }).click();
     await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Search" }).click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
     await page.locator(".search-form button").click();
@@ -23,7 +23,7 @@ try {
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).click();
     await page.locator('.file-panel[data-path="src/view.ts"] .file-code-row-target[data-line="1"]').waitFor({ state: "visible" });
     if (await page.locator(".sidebar").evaluate((element) => element.classList.contains("sidebar-open"))) throw new Error("Mobile drawer remained open after result navigation");
-    await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Back to list" }).click();
     if (!(await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).isVisible())) throw new Error("Search results were lost after opening a file");
     await page.getByRole("button", { name: "Refresh results" }).click();
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).waitFor({ state: "visible" });
@@ -36,8 +36,8 @@ try {
     if (targetBox === null || targetBox.y < 0 || targetBox.y > 844) throw new Error("A deep search result did not scroll into the phone viewport");
     const location = page.locator(".file-location-bar");
     const locationBox = await location.boundingBox();
-    if (locationBox === null || locationBox.y < 60 || locationBox.y > 80 || !(await location.textContent())?.includes("src/tall-review.ts")) throw new Error("The file path did not stay visible above a deep search result");
-    await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Search" }).click();
+    if (locationBox === null || locationBox.y < 60 || locationBox.y > 90 || !(await location.textContent())?.includes("src/tall-review.ts")) throw new Error("The file path did not stay visible below the top bar above a deep search result");
+    await page.getByRole("button", { name: "Back to list" }).click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
     await page.locator(".search-form button").click();
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).waitFor({ state: "visible" });

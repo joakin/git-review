@@ -1,18 +1,18 @@
-# Deferred slice proposal: URL history and navigation
+# URL history and navigation
 
-Status: proposal for maintainer review; implementation deferred. Place this late in the roadmap, immediately before optional repository and file Git history browsing.
+Status: implemented, manually reviewed on phone, tablet, and desktop, and approved for commit on 2026-09-29.
 
 ## Why revisit navigation
 
-The current app keeps Changes / Files / Search, the folder or file sidebar, the selected file, and the Search query in component state. Opening a Search result switches to Files without adding a browser history entry. Browser Back therefore cannot return to the result list. The sidebar also switches between unrelated jobs: choosing a host folder, listing changes, and browsing project files. That makes the phone drawer feel like another screen without giving it normal screen navigation.
+The former app kept Changes / Files / Search, the folder or file sidebar, the selected file, and the Search query in component state. Opening a Search result switched to Files without adding a browser history entry. Browser Back therefore could not return to the result list. The sidebar also switched between unrelated jobs: choosing a host folder, listing changes, and browsing project files. That made the phone drawer feel like another screen without giving it normal screen navigation.
 
 The proposed destination has **three distinct levels**:
 
-1. **Menu:** choose a project, revisit recent projects, and eventually open Settings or local data controls.
+1. **Menu:** choose a project, revisit recent projects, and open Settings. Settings contains the installation and local data controls.
 2. **List screen:** browse host folders, Git changes, project files, or Search results. Its identity and selection come from the route.
 3. **Content screen:** read a diff or working-tree file, add comments, and open feedback. The content keeps the list it came from as context.
 
-These are logical screens, not a fixed number of visible columns. A wide desktop can show menu, list, and content together. A tablet can show content with a toggleable list and a compact menu. A phone shows one full-width screen at a time, with a visible List/Back control. Keep **Changes / Files / Search tabs in the project content area**, separate from the global menu; the active tab determines which list appears beside or behind the content. Keep those tabs reachable on the phone when either its list or content screen is visible. A guarded horizontal swipe may offer the same transition after real-device testing. The code pane must keep its own horizontal scroll, text selection, and line gestures; the app must not take over browser edge Back gestures. [MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action), [MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
+These are logical screens, not a fixed number of visible columns. A wide desktop can show menu, list, and content together. A tablet can show content with a toggleable list and a compact menu. A phone shows one full-width screen at a time, with a visible List/Back control. **Changes / Files / Search tabs belong to the contextual list**, separate from the global menu; the active tab determines which list appears beside or behind the content. On a phone, keep a compact copy of those tabs below the top bar so they remain reachable when the list screen is hidden. A guarded horizontal swipe may offer the same transition after real-device testing. The code pane must keep its own horizontal scroll, text selection, and line gestures; the app must not take over browser edge Back gestures. [MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action), [MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
 
 ## Proposed user flow
 
@@ -47,7 +47,8 @@ type Route =
   | { section: "projects"; directory: string }
   | { section: "changes"; projectPath: string; target: ChangesTarget }
   | { section: "files"; projectPath: string; directory: string; target: FileTarget }
-  | { section: "search"; projectPath: string; query: string | null; target: SearchTarget };
+  | { section: "search"; projectPath: string; query: string | null; target: SearchTarget }
+  | { section: "settings"; projectPath: string | null };
 
 type ChangesTarget =
   | { kind: "list" }
@@ -88,4 +89,13 @@ Behavior tests should cover URL parsing/serialization, invalid and unusual paths
 
 ## Maintainer review
 
-The maintainer confirmed that continuous review is the default Changes content and that the Changes / Files / Search tabs stay in the main project content area. The Search result flow keeps Search as its parent list. Implementation remains a later slice, before optional Git history browsing.
+The maintainer confirmed that continuous review is the default Changes content. The Search result flow keeps Search as its parent list. After reviewing the first implementation, the maintainer moved Changes / Files / Search tabs to the contextual list and the project name and path above them. The global menu now contains project choice, recents, and Settings; Install & local data moved into Settings. The main reading pane no longer repeats the project heading or host-status subtitles. A further review placed phone tabs only on the list screen and replaced view-specific list buttons with one back arrow beside the content title.
+
+## Implementation record
+
+- `src/client/navigation.ts` owns the URL parser, serializer, and route variants. It rejects duplicate/unknown parameters, traversal, malformed encoding, invalid combinations, and out-of-range lines. Direct links are normalized with `replaceState`; meaningful destinations use `pushState`. `/` restores the active project in this tab or opens the project picker. Explicit URLs take precedence over tab storage.
+- The route chooses the project, section, list context, selected file/diff, submitted Search query, and optional file line. A direct project link reopens it through the existing validated project endpoint. Search results remain the parent list when a result opens; Back and Forward restore each route. Switching routes saves an open comment as a draft through the existing draft path.
+- At 1200 px and above, menu, contextual list, and content appear together. From 900 to 1199 px, the menu becomes a drawer while the list stays beside content. Below 900 px, the list becomes a drawer and the back arrow beside the content title reveals it. The list begins with the project name, absolute path, and project tabs; a subdirectory breadcrumb appears only after entering a folder. The project picker fills the tablet screen. On phones up to 600 px, the list and content are separate full-width route screens: tabs appear only with the list, switching tabs stays there, and the same content-heading arrow returns to it. Settings is a route so Back returns to the prior work. Menu and drawer reveals remain transient.
+- A visual follow-up gives phone Changes groups rounded cards, uses shared local SVGs for folder, file, link, and back icons, and keeps a selected file's path in its sticky location bar. The working-tree card names the source and shows file metadata without repeating the path. [Devicon](https://github.com/devicons/devicon) focuses on language and tool logos; generic navigation icons use the small shared SVG set.
+- The optional swipe gesture is deferred until real iOS/Android tests can establish that it does not interfere with browser Back, horizontal code scrolling, text selection, or line taps. Visible controls implement every transition.
+- `bun test src/client/navigation.test.ts` protects route round trips and invalid URL behavior. `bun run qa:navigation <url>` checks Back/Forward, Search → result → Back, reload/direct links, Files and Changes targets, a draft across Back, the phone list/content flow, tablet list toggle, the 899/900 px sidebar boundary, desktop panes, and invalid-link recovery. Existing feature QA was adapted to use routes. The [QA workflow](qa-workflow.md) has capture and device checks.

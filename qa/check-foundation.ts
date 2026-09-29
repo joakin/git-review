@@ -34,22 +34,24 @@ async function main(): Promise<void> {
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await page.goto(url.href, { waitUntil: "load" });
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      await page.getByRole("button", { name: "Browse host folders" }).click();
-      await page.getByRole("button", { name: new RegExp(folder) }).click();
+      await page.locator(".folder-row", { hasText: folder }).click();
       await page.getByRole("button", { name: /Open this folder/ }).click();
       await page.locator(".project-view").waitFor();
-      if ((await page.locator(".project-intro h1").textContent()) !== folder) {
+      if ((await page.locator(".project-switch .switch-label").textContent()) !== folder) {
         throw new Error("Opening the folder did not show it as the active workspace");
       }
       await page.reload({ waitUntil: "load" });
       await page.locator(".project-view").waitFor();
-      if ((await page.locator(".project-intro h1").textContent()) !== folder) {
+      if ((await page.locator(".project-switch .switch-label").textContent()) !== folder) {
         throw new Error("The selected workspace was not restored after reload");
       }
       await page.locator(".project-switch").click();
-      await page.getByRole("button", { name: /Browse host folders/ }).click();
+      await page.locator(".menu-project").click();
+      await page.locator(".folder-row", { hasText: folder }).click();
       await page.locator(".folder-name-row strong").getByText(folder, { exact: true }).waitFor();
-      await page.getByRole("button", { name: "Close sidebar" }).last().click();
+      await page.goBack();
+      await page.goBack();
+      await page.locator(".project-view").waitFor({ state: "visible" });
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
       const statePath = resolve(artifactDirectory, "foundation-storage.json");
       await context.storageState({ path: statePath });

@@ -28,7 +28,6 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(url, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Browse host folders" }).click();
   await page.getByRole("button", { name: /inventory-fixture/ }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
