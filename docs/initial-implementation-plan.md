@@ -53,9 +53,9 @@ A [deferred navigation and URL history slice](navigation-and-url-history-slice-p
 
 Use text labels and symbols as well as color for added, removed, moved, and outdated content. Restore scroll position, open cards, and wrap preference after reload.
 
-### Future appearance settings
+### Appearance settings
 
-The [code typography slice](code-typography-slice-proposal.md) adds a Settings screen with 11–20 px and System mono/Courier choices, live preview, browser persistence, and backup support. The [Google code fonts follow-up](google-code-fonts-followup.md) adds 20 optional monospace web fonts and removes diff-row dividers. A later separate slice will add each person's preferred app and code themes. Apply themes in the frontend through design tokens; the server continues to return semantic syntax roles. Review theme choices and the visual model with the maintainer before implementing them.
+The [code typography slice](code-typography-slice-proposal.md) adds a Settings screen with 11–20 px and System mono/Courier choices, live preview, browser persistence, and backup support. The [Google code fonts follow-up](google-code-fonts-followup.md) adds 20 optional monospace web fonts and removes diff-row dividers. The [theme settings slice](theme-settings-slice-proposal.md) adds reviewed personal app and code palettes through frontend design tokens; the server continues to return semantic syntax roles.
 
 ### Phone portrait line action slice
 
@@ -194,13 +194,13 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
 
-After review of the selected-code Search shortcut and the local voice work, keep appearance and portrait-gutter refinements available as separate small slices. Schedule the [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) late, before the optional Git history browser. Review its screen flow and URL model with the maintainer before implementation.
+The selected-code Search shortcut, local voice work, appearance settings, and portrait-gutter refinement are implemented. Schedule the [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) late, before the optional Git history browser. Review its screen flow and URL model with the maintainer before implementation.
 
 ## Remaining roadmap
 
 - **Device and performance pass:** check iOS selection and microphone behavior, clipboard and keyboard layouts on real devices, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed the selected-code Search action and dictation work on their phone.
 - **Native media previews (complete):** images including SVG, audio, and video appear inline in Files and in source-correct Old/New Git change cards, with raw new-tab links. The [media slice record](media-preview-slice-proposal.md) contains the API and QA details.
 - **Diff fidelity (complete):** bounded word-change spans decorate clear line pairs across multi-line edit chunks. The [slice record](diff-fidelity-slice-proposal.md) covers matching limits and QA. Moved-block indicators are optional later work.
-- **Phone and personal layout:** the [phone line action](phone-portrait-gutter-slice-proposal.md) and [code typography Settings slice](code-typography-slice-proposal.md) are complete. App and code theme selectors remain a separate future slice.
+- **Phone and personal layout (complete):** the [phone line action](phone-portrait-gutter-slice-proposal.md), [code typography Settings slice](code-typography-slice-proposal.md), and [app and code theme selectors](theme-settings-slice-proposal.md) are reviewed and complete.
 - **Convenience:** [live change detection](live-change-detection-slice-proposal.md) is complete. Recent files remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs today.
 - **Later navigation:** implement the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) so Back/Forward and direct file links work. General file Git history and PDF previews are later optional expansions.

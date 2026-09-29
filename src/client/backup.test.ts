@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { parseReviewBackup } from "./backup.ts";
-import { validateCodeTypography } from "./storage.ts";
+import { validateAppearance, validateCodeTypography } from "./storage.ts";
 
 const rootPath = "/approved/root";
 const valid = {
@@ -40,4 +40,22 @@ test("version 2 backups require valid typography while version 1 remains importa
   expect(parseReviewBackup(valid, rootPath).version).toBe(1);
   expect(() => parseReviewBackup({ ...current, codeTypography: { ...current.codeTypography, fontSize: 100 } }, rootPath)).toThrow();
   expect(() => parseReviewBackup({ ...current, codeTypography: null }, rootPath)).toThrow();
+});
+
+test("appearance accepts only known combinations and version 3 backups reject bad choices", () => {
+  const appearance = { version: 1, appTheme: "system", codeTheme: "dark" } as const;
+  expect(validateAppearance(appearance)).toEqual(appearance);
+  for (const value of [
+    { ...appearance, version: 2 },
+    { ...appearance, appTheme: "sepia" },
+    { ...appearance, codeTheme: "dracula" },
+    { ...appearance, codeTheme: null },
+  ]) expect(validateAppearance(value)).toBeNull();
+
+  const current = { ...valid, version: 3, codeTypography: { version: 1, fontSize: 14, fontFamily: "system" }, appearance };
+  expect(parseReviewBackup(current, rootPath)).toMatchObject({ version: 3, appearance });
+  expect(() => parseReviewBackup({ ...current, appearance: { ...appearance, appTheme: "sepia" } }, rootPath)).toThrow("Backup appearance is invalid");
+  expect(() => parseReviewBackup({ ...current, appearance: null }, rootPath)).toThrow("Backup appearance is invalid");
+  expect(() => parseReviewBackup({ ...current, codeTypography: null }, rootPath)).toThrow("Backup code typography is invalid");
+  expect(parseReviewBackup({ ...current, version: 2, appearance: null }, rootPath).version).toBe(2);
 });

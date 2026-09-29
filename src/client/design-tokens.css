@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   /* Type */
   --font-ui: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -83,6 +84,7 @@
 
   /* Accent and feedback */
   --color-accent: #176f62;
+  --color-on-accent: #ffffff;
   --color-accent-strong: #166b60;
   --color-accent-hover: #0e594f;
   --color-accent-ink: #327f71;
@@ -118,6 +120,15 @@
   --color-diff-selection-bg: #8ebbe9;
   --color-diff-hunk-bg: #edf3f5;
   --color-diff-gutter: #718790;
+  --color-code-surface: #ffffff;
+  --color-code-text: #192838;
+  --color-code-muted: #607781;
+  --color-code-border: #e9eef0;
+  --color-code-hover: #e1f4eb;
+  --color-code-target: #e1f4eb;
+  --color-code-accent: #176f62;
+  --color-code-added-sign: #176f62;
+  --color-code-removed-sign: #a8453b;
   --diff-row-bg: var(--color-surface);
   --color-syntax-comment: #5b6d73;
   --color-syntax-keyword: #713f88;
@@ -140,6 +151,98 @@
   --shadow-action: 0 9px 19px #247d6533;
   --shadow-panel: 0 12px 36px #213f4912;
   --shadow-drawer: 22px 0 52px #10232e35;
+}
+
+:root[data-app-theme="dark"] {
+  color-scheme: dark;
+  --color-ink: #e8f1f0;
+  --color-heading: #f2f8f6;
+  --color-text: #d8e5e4;
+  --color-text-muted: #b2c5c7;
+  --color-text-muted-strong: #c1d2d3;
+  --color-text-subtle: #99aeb2;
+  --color-text-faint: #8da4aa;
+  --color-surface: #192a32;
+  --color-page: #11212a;
+  --color-canvas: #0d1a22;
+  --color-border: #314850;
+  --color-border-strong: #47626b;
+  --color-divider: #2b4049;
+  --color-nav: #08151d;
+  --color-nav-surface: #203640;
+  --color-nav-surface-hover: #2b4951;
+  --color-nav-border: #3a555d;
+  --color-nav-text: #f3f9f8;
+  --color-nav-muted: #b2c9cb;
+  --color-nav-accent: #a4e9d0;
+  --color-accent: #90e0c4;
+  --color-on-accent: #102620;
+  --color-accent-strong: #87d7ba;
+  --color-accent-hover: #b0efd8;
+  --color-accent-ink: #9ee5cc;
+  --color-accent-label: #9de0c7;
+  --color-accent-soft: #78bba7;
+  --color-accent-pale: #afeed8;
+  --color-success: #69d7ab;
+  --color-success-halo: #274b3f;
+  --color-mint-surface: #203b37;
+  --color-mint-hover: #27473f;
+  --color-mint-deep: #295046;
+  --color-mint-gradient: #214b40;
+  --color-mint-faint: #142c2a;
+  --color-accent-border: #4f8978;
+  --color-error: #f4a998;
+  --color-error-text: #f2baa7;
+  --color-error-border: #81574e;
+  --color-error-surface: #3b2b2c;
+  --color-update-surface: #3d3223;
+  --color-update-border: #927248;
+  --color-update-text: #f4ce92;
+  --color-overlay: #020a0dd1;
+  --color-change-staged: #82dcb9;
+  --color-change-unstaged: #efbd80;
+  --color-change-untracked: #9bc8e7;
+  --color-change-conflict: #f2a297;
+  --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, #17332f 0%, transparent 100%), var(--color-canvas);
+  --background-hero: linear-gradient(135deg, var(--color-mint-gradient), var(--color-mint-faint));
+  --shadow-topbar: 0 3px 14px #020b0d55;
+  --shadow-hero: 0 19px 34px #020b0d55, inset 0 0 0 7px var(--color-mint-faint);
+  --shadow-action: 0 9px 19px #020b0d88;
+  --shadow-panel: 0 12px 36px #020b0d40;
+  --shadow-drawer: 22px 0 52px #020b0dbb;
+}
+
+:root[data-code-theme="dark"] {
+  --color-code-surface: #111d25;
+  --color-code-text: #e4edf1;
+  --color-code-muted: #a8bbc3;
+  --color-code-border: #374a54;
+  --color-code-hover: #2b4945;
+  --color-code-target: #274a4a;
+  --color-code-accent: #91dfc3;
+  --color-code-added-sign: #8de1b9;
+  --color-code-removed-sign: #f1a195;
+  --color-diff-added-bg: #18392f;
+  --color-diff-removed-bg: #432b2e;
+  --color-diff-added-word-bg: #214d39;
+  --color-diff-removed-word-bg: #63393b;
+  --color-diff-added-word-edge: #78d8a0;
+  --color-diff-removed-word-edge: #f1a79b;
+  --color-diff-selection-bg: #526f9d;
+  --color-diff-hunk-bg: #283943;
+  --color-diff-gutter: #a3b9c1;
+  --color-syntax-comment: #a9b8bf;
+  --color-syntax-keyword: #d4b1f0;
+  --color-syntax-string: #f0b294;
+  --color-syntax-number: #e8d184;
+  --color-syntax-type: #a2d0ee;
+  --color-syntax-function: #92dbe0;
+  --color-syntax-variable: #d1e2eb;
+  --color-syntax-property: #ceb6ed;
+  --color-syntax-operator: #dfc1d5;
+  --color-syntax-punctuation: #bccbd0;
+  --color-syntax-tag: #95d8e1;
+  --color-syntax-attribute: #ebcd8f;
 }
 
 .app[data-code-font="courier"] { --code-font-family: "Courier New", Courier, monospace; }

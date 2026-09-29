@@ -39,6 +39,8 @@ try {
   await page.locator(".sidebar-settings").click();
   await page.locator("#code-font-size").selectOption("17");
   await page.locator("#code-font-family").selectOption("courier");
+  await page.locator("#app-theme").selectOption("dark");
+  await page.locator("#code-theme").selectOption("light");
   await page.getByRole("button", { name: "Back to review" }).click();
   await page.locator(".project-switch").click();
   await page.getByRole("button", { name: /Install & local data/ }).click();
@@ -52,7 +54,8 @@ try {
   const backupBytes = await Bun.file(downloadPath).arrayBuffer();
   const backup: unknown = JSON.parse(new TextDecoder().decode(backupBytes)) as unknown;
   if (typeof backup !== "object" || backup === null || !("comments" in backup) || !Array.isArray(backup.comments) || backup.comments.length !== 1) throw new Error("Export omitted the review record");
-  if (!("version" in backup) || backup.version !== 2 || !("codeTypography" in backup) || typeof backup.codeTypography !== "object" || backup.codeTypography === null || !("fontSize" in backup.codeTypography) || backup.codeTypography.fontSize !== 17 || !("fontFamily" in backup.codeTypography) || backup.codeTypography.fontFamily !== "courier") throw new Error("Export omitted code typography");
+  if (!("version" in backup) || backup.version !== 3 || !("codeTypography" in backup) || typeof backup.codeTypography !== "object" || backup.codeTypography === null || !("fontSize" in backup.codeTypography) || backup.codeTypography.fontSize !== 17 || !("fontFamily" in backup.codeTypography) || backup.codeTypography.fontFamily !== "courier") throw new Error("Export omitted code typography");
+  if (!("appearance" in backup) || typeof backup.appearance !== "object" || backup.appearance === null || !("appTheme" in backup.appearance) || backup.appearance.appTheme !== "dark" || !("codeTheme" in backup.appearance) || backup.appearance.codeTheme !== "light") throw new Error("Export omitted appearance");
   await dialog.locator('input[type="file"]').setInputFiles({ name: "backup.json", mimeType: "application/json", buffer: Buffer.from(backupBytes) });
   await dialog.getByText("including 1 existing draft", { exact: false }).waitFor({ state: "visible" });
 
@@ -71,6 +74,7 @@ try {
   await freshPage.locator(".project-switch").click();
   await freshPage.locator(".sidebar-settings").click();
   if (await freshPage.locator("#code-font-size").inputValue() !== "17" || await freshPage.locator("#code-font-family").inputValue() !== "courier") throw new Error("Imported typography was not restored");
+  if (await freshPage.locator("#app-theme").inputValue() !== "dark" || await freshPage.locator("#code-theme").inputValue() !== "light") throw new Error("Imported appearance was not restored");
   await freshPage.getByRole("button", { name: "Back to review" }).click();
   await freshPage.getByRole("button", { name: "Browse host folders" }).click();
   await freshPage.locator(".folder-row", { hasText: "inventory-fixture" }).click();
@@ -89,7 +93,7 @@ try {
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
   await fresh.close();
   await context.close();
-  console.log("PWA manifest, icon dimensions, offline fallback, no API cache, draft and typography backup export/import, and invalid backup rejection passed.");
+  console.log("PWA manifest, icon dimensions, offline fallback, no API cache, draft, typography, and appearance backup export/import, and invalid backup rejection passed.");
 } finally {
   await browser.close();
 }

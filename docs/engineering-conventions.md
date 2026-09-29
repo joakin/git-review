@@ -6,6 +6,6 @@ Use [the shared validation helpers](../src/shared/validation.ts) for generic che
 
 ## Visual design values
 
-[Design tokens](../src/client/design-tokens.css) define the palette, type scale, common spacing, corner radii, layout widths, and shadows. Component selectors in `src/client/styles.css` use those tokens. Keep values reused across components or useful for global tuning in the token file; one-off component geometry can stay next to its selector. The CSS token check runs with `bun run qa:check` so an undefined variable fails before visual QA.
+[Design tokens](../src/client/design-tokens.css) define the light/dark app and code palettes, type scale, common spacing, corner radii, layout widths, and shadows. Component selectors in `src/client/styles.css` use those tokens. Keep app surfaces separate from code surfaces and use the on-accent role for text placed on accent buttons. Keep values reused across components or useful for global tuning in the token file; one-off component geometry can stay next to its selector. The CSS token check runs with `bun run qa:check` so an undefined variable fails before visual QA.
 
 After changing a token or a layout selector, build the client and inspect desktop, tablet, and phone screenshots as described in [the QA workflow](qa-workflow.md).

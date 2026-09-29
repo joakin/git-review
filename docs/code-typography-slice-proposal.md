@@ -1,6 +1,6 @@
 # Code typography settings slice
 
-Status: implemented and committed. Theme controls remain a separate later slice.
+Status: implemented and committed. Theme controls are complete in the [theme settings slice](theme-settings-slice-proposal.md).
 
 ## User flow and smallest slice
 
@@ -14,7 +14,7 @@ The later [Google code fonts follow-up](google-code-fonts-followup.md) adds 20 o
 
 The frontend saves `{version: 1, fontSize, fontFamily}` under one versioned `localStorage` key for this browser origin. A boundary parser accepts only integer sizes in range and known font IDs (the two local choices plus the 20 Google families). Missing, malformed, or future versions fall back to the defaults. Storage failure leaves the current page usable. Changes in another tab update the current tab.
 
-Backups export a version 2 record with required typography settings. Version 1 backups remain importable and leave the current browser's typography alone. Invalid version 2 typography rejects the import before any writes. The server continues to return semantic syntax roles; CSS design tokens and frontend settings supply the visual style.
+This slice introduced version 2 backups with required typography settings. The later [theme settings slice](theme-settings-slice-proposal.md) moves exports to version 3 and keeps version 1 and 2 imports available. Invalid typography rejects the import before any writes. The server continues to return semantic syntax roles; CSS design tokens and frontend settings supply the visual style.
 
 ## Edge cases and checks
 

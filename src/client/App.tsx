@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
@@ -9,7 +9,7 @@ import { CommentEditor, FeedbackDialog, type CheckState, type EditorState } from
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
 import { googleFontStylesheet } from "./code-fonts.ts";
-import { codeTypographyStorageKey, emptyWorkspace, readActiveProject, readCodeTypography, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveCodeTypography, saveOpenCards, saveWorkspace, saveWrapPreference, validateCodeTypography, withSelectedPath, type CodeTypography, type SavedWorkspace } from "./storage.ts";
+import { appearanceStorageKey, codeTypographyStorageKey, emptyWorkspace, readActiveProject, readAppearance, readCodeTypography, readOpenCards, readSavedWorkspace, readWrapPreference, resolveAppearance, saveActiveProject, saveAppearance, saveCodeTypography, saveOpenCards, saveWorkspace, saveWrapPreference, validateAppearance, validateCodeTypography, withSelectedPath, type Appearance, type CodeTypography, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo, SearchMatch } from "../shared/api.ts";
 
 type LoadState<T> =
@@ -82,6 +82,8 @@ export function App() {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
   const [codeTypography, setCodeTypography] = useState(readCodeTypography);
+  const [appearance, setAppearance] = useState(readAppearance);
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const reviewScrollY = useRef(0);
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
@@ -103,10 +105,26 @@ export function App() {
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === codeTypographyStorageKey || event.key === null) setCodeTypography(readCodeTypography());
+      if (event.key === appearanceStorageKey || event.key === null) setAppearance(readAppearance());
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setSystemDark(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  const { appTheme, codeTheme } = resolveAppearance(appearance, systemDark);
+  useLayoutEffect(() => {
+    document.documentElement.dataset["appTheme"] = appTheme;
+    document.documentElement.dataset["codeTheme"] = codeTheme;
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (themeColor !== null) themeColor.content = appTheme === "dark" ? "#08151d" : "#101823";
+  }, [appTheme, codeTheme]);
 
   useEffect(() => {
     const stylesheet = googleFontStylesheet(codeTypography.fontFamily);
@@ -395,6 +413,13 @@ export function App() {
     if (validated === null) return;
     setCodeTypography(validated);
     saveCodeTypography(validated);
+  }
+
+  function updateAppearance(next: Appearance): void {
+    const validated = validateAppearance(next);
+    if (validated === null) return;
+    setAppearance(validated);
+    saveAppearance(validated);
   }
 
   function openSettings(): void {
@@ -764,7 +789,7 @@ export function App() {
             </div>
           )}
           </div>
-          {settingsOpen && <SettingsView typography={codeTypography} onTypography={updateCodeTypography} onBack={closeSettings} />}
+          {settingsOpen && <SettingsView typography={codeTypography} onTypography={updateCodeTypography} appearance={appearance} onAppearance={updateAppearance} onBack={closeSettings} />}
         </main>
       </div>
       {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files") && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}

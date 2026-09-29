@@ -6,6 +6,7 @@ const legacyKey = "git-review:workspace:v2";
 const activeProjectKey = "git-review:active-project:v1";
 export const wrapStorageKey = "git-review:wrap:v1";
 export const codeTypographyStorageKey = "git-review:code-typography:v1";
+export const appearanceStorageKey = "git-review:appearance:v1";
 export const openCardsStoragePrefix = "git-review:open-cards:v1:";
 export const languageStoragePrefix = "git-review:language:v1:";
 const maxRecent = 8;
@@ -13,6 +14,39 @@ const maxOpenCards = 100;
 
 export type CodeTypography = { version: 1; fontSize: number; fontFamily: CodeFontFamily };
 export const defaultCodeTypography: CodeTypography = { version: 1, fontSize: 12, fontFamily: "system" };
+export type Appearance = { version: 1; appTheme: "light" | "dark" | "system"; codeTheme: "match" | "light" | "dark" };
+export const defaultAppearance: Appearance = { version: 1, appTheme: "light", codeTheme: "match" };
+
+export function resolveAppearance(value: Appearance, systemDark: boolean): { appTheme: "light" | "dark"; codeTheme: "light" | "dark" } {
+  const appTheme = value.appTheme === "system" ? systemDark ? "dark" : "light" : value.appTheme;
+  return { appTheme, codeTheme: value.codeTheme === "match" ? appTheme : value.codeTheme };
+}
+
+export function validateAppearance(value: unknown): Appearance | null {
+  if (!isRecord(value) || value["version"] !== 1) return null;
+  const appTheme = value["appTheme"];
+  const codeTheme = value["codeTheme"];
+  if (appTheme !== "light" && appTheme !== "dark" && appTheme !== "system") return null;
+  if (codeTheme !== "match" && codeTheme !== "light" && codeTheme !== "dark") return null;
+  return { version: 1, appTheme, codeTheme };
+}
+
+export function readAppearance(): Appearance {
+  try {
+    const raw = localStorage.getItem(appearanceStorageKey);
+    return raw === null ? defaultAppearance : validateAppearance(JSON.parse(raw) as unknown) ?? defaultAppearance;
+  } catch {
+    return defaultAppearance;
+  }
+}
+
+export function saveAppearance(value: Appearance): void {
+  try {
+    localStorage.setItem(appearanceStorageKey, JSON.stringify(value));
+  } catch {
+    // The selected appearance remains usable in memory when storage is unavailable.
+  }
+}
 
 export function validateCodeTypography(value: unknown): CodeTypography | null {
   if (!isRecord(value) || value["version"] !== 1) return null;

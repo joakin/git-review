@@ -52,15 +52,17 @@ const handleApiRequest = createApiHandler(root, publicOrigin);
 const htmlPath = resolve("src/client/index.html");
 const scriptPath = resolve("dist/assets/main.js");
 const stylesPath = resolve("dist/assets/styles.css");
+const themeBootstrapPath = resolve("dist/assets/theme-bootstrap.js");
 const workerPath = resolve("dist/assets/sw.js");
 const publicPath = resolve("src/client/public");
-if (!(await Bun.file(scriptPath).exists()) || !(await Bun.file(stylesPath).exists()) || !(await Bun.file(workerPath).exists())) {
+if (!(await Bun.file(scriptPath).exists()) || !(await Bun.file(stylesPath).exists()) || !(await Bun.file(themeBootstrapPath).exists()) || !(await Bun.file(workerPath).exists())) {
   throw new Error("Built client assets are missing. Run `bun run build` first, or use `bun run dev`.");
 }
 
 const staticAssets = new Map<string, { path: string; contentType: string; cacheControl: string }>([
   ["/assets/main.js", { path: scriptPath, contentType: "text/javascript; charset=utf-8", cacheControl: "no-store" }],
   ["/assets/styles.css", { path: stylesPath, contentType: "text/css; charset=utf-8", cacheControl: "no-store" }],
+  ["/assets/theme-bootstrap.js", { path: themeBootstrapPath, contentType: "text/javascript; charset=utf-8", cacheControl: "no-store" }],
   ["/sw.js", { path: workerPath, contentType: "text/javascript; charset=utf-8", cacheControl: "no-cache" }],
   ["/manifest.webmanifest", { path: resolve(publicPath, "manifest.webmanifest"), contentType: "application/manifest+json; charset=utf-8", cacheControl: "no-cache" }],
   ["/icons/icon-192.png", { path: resolve(publicPath, "icons/icon-192.png"), contentType: "image/png", cacheControl: "public, max-age=86400" }],

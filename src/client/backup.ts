@@ -1,5 +1,5 @@
 import { commentStoragePrefix, validateCommentStore, type CommentStore } from "./comments.ts";
-import { codeTypographyStorageKey, isLanguageOverride, languageStoragePrefix, openCardsStoragePrefix, readCodeTypography, readSavedWorkspace, readWrapPreference, validateCodeTypography, validateOpenCards, validateSavedWorkspace, workspaceStorageKey, wrapStorageKey, type CodeTypography, type SavedWorkspace } from "./storage.ts";
+import { appearanceStorageKey, codeTypographyStorageKey, isLanguageOverride, languageStoragePrefix, openCardsStoragePrefix, readAppearance, readCodeTypography, readSavedWorkspace, readWrapPreference, validateAppearance, validateCodeTypography, validateOpenCards, validateSavedWorkspace, workspaceStorageKey, wrapStorageKey, type Appearance, type CodeTypography, type SavedWorkspace } from "./storage.ts";
 import { isRecord } from "../shared/validation.ts";
 
 export const maxBackupBytes = 25 * 1024 * 1024;
@@ -20,7 +20,8 @@ type ReviewBackupData = {
 };
 export type ReviewBackup =
   | (ReviewBackupData & { version: 1 })
-  | (ReviewBackupData & { version: 2; codeTypography: CodeTypography });
+  | (ReviewBackupData & { version: 2; codeTypography: CodeTypography })
+  | (ReviewBackupData & { version: 3; codeTypography: CodeTypography; appearance: Appearance });
 
 function safePath(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0 || value.length > 4096 || value.includes("\0")) return false;
@@ -34,9 +35,12 @@ function uniqueProjectId(value: unknown, seen: Set<string>): value is string {
 }
 
 export function parseReviewBackup(value: unknown, rootPath: string): ReviewBackup {
-  if (!isRecord(value) || (value["version"] !== 1 && value["version"] !== 2) || value["rootPath"] !== rootPath) throw new Error("This backup belongs to a different host root or uses an unsupported format.");
-  const typography = value["version"] === 2 ? validateCodeTypography(value["codeTypography"]) : null;
-  if (value["version"] === 2 && typography === null) throw new Error("Backup code typography is invalid.");
+  if (!isRecord(value) || (value["version"] !== 1 && value["version"] !== 2 && value["version"] !== 3) || value["rootPath"] !== rootPath) throw new Error("This backup belongs to a different host root or uses an unsupported format.");
+  const version = value["version"];
+  const typography = version === 1 ? null : validateCodeTypography(value["codeTypography"]);
+  if (version !== 1 && typography === null) throw new Error("Backup code typography is invalid.");
+  const appearance = version === 3 ? validateAppearance(value["appearance"]) : null;
+  if (version === 3 && appearance === null) throw new Error("Backup appearance is invalid.");
   const workspace = validateSavedWorkspace(value["workspace"], rootPath);
   if (workspace === null || typeof value["wrap"] !== "boolean") throw new Error("Backup preferences are invalid.");
   const rawWorkspace = value["workspace"];
@@ -81,7 +85,9 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   const data = { rootPath, workspace, wrap: value["wrap"], comments, openCards, languages };
   if (value["version"] === 1) return { version: 1, ...data };
   if (typography === null) throw new Error("Backup code typography is invalid.");
-  return { version: 2, ...data, codeTypography: typography };
+  if (version === 2) return { version: 2, ...data, codeTypography: typography };
+  if (appearance === null) throw new Error("Backup appearance is invalid.");
+  return { version: 3, ...data, codeTypography: typography, appearance };
 }
 
 export function createReviewBackup(rootPath: string): ReviewBackup {
@@ -114,7 +120,7 @@ export function createReviewBackup(rootPath: string): ReviewBackup {
       languages.push({ projectId: match[1], path, language: value });
     }
   }
-  const backup = parseReviewBackup({ version: 2, rootPath, workspace, wrap: readWrapPreference(), codeTypography: readCodeTypography(), comments, openCards, languages }, rootPath);
+  const backup = parseReviewBackup({ version: 3, rootPath, workspace, wrap: readWrapPreference(), codeTypography: readCodeTypography(), appearance: readAppearance(), comments, openCards, languages }, rootPath);
   if (new Blob([JSON.stringify(backup)]).size > maxBackupBytes) throw new Error("Review data exceeds the 25 MiB backup limit.");
   return backup;
 }
@@ -124,7 +130,8 @@ export function applyReviewBackup(backup: ReviewBackup): void {
     [workspaceStorageKey, JSON.stringify(backup.workspace)],
     [wrapStorageKey, JSON.stringify(backup.wrap)],
   ]);
-  if (backup.version === 2) writes.set(codeTypographyStorageKey, JSON.stringify(backup.codeTypography));
+  if (backup.version !== 1) writes.set(codeTypographyStorageKey, JSON.stringify(backup.codeTypography));
+  if (backup.version === 3) writes.set(appearanceStorageKey, JSON.stringify(backup.appearance));
   for (const store of backup.comments) writes.set(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store));
   for (const cards of backup.openCards) writes.set(`${openCardsStoragePrefix}${cards.projectId}`, JSON.stringify({ version: 1, keys: cards.keys }));
   for (const language of backup.languages) writes.set(`${languageStoragePrefix}${language.projectId}:${encodeURIComponent(language.path)}`, language.language);
