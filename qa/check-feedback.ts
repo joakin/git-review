@@ -60,7 +60,7 @@ try {
   if (await fallbackPage.locator("#review-export-text").inputValue() !== preview) throw new Error("Clipboard failure removed selectable text");
   await fallbackPage.getByRole("button", { name: "Close feedback" }).click();
   await fallbackPage.route("**/api/projects/*/status", async (route) => {
-    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ kind: "git", revision: "00000000000000000000", entries: [] }) });
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ kind: "git", revision: "00000000000000000000", changeToken: "00000000000000000000", entries: [] }) });
   });
   await fallbackPage.getByRole("button", { name: "Feedback 1" }).click();
   await fallbackPage.getByText("Line changed or disappeared.", { exact: false }).waitFor({ state: "visible" });

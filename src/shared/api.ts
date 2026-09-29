@@ -47,7 +47,7 @@ export type ChangeEntry = {
 
 export type ProjectStatus =
   | { kind: "not_git" }
-  | { kind: "git"; revision: string; entries: ChangeEntry[] };
+  | { kind: "git"; revision: string; changeToken: string; entries: ChangeEntry[] };
 
 export type DiffLine = {
   kind: "context" | "added" | "removed";
@@ -278,6 +278,8 @@ export function parseStatusResponse(value: unknown): ProjectStatus {
   if (outer["kind"] !== "git") throw new Error("Expected a Git status response");
   const revision = expectString(outer["revision"], "revision");
   if (!/^[0-9a-f]{20}$/.test(revision)) throw new Error("Expected a valid status revision");
+  const changeToken = expectString(outer["changeToken"], "changeToken");
+  if (!/^[0-9a-f]{20}$/.test(changeToken)) throw new Error("Expected a valid change token");
   const rawEntries = outer["entries"];
   if (!Array.isArray(rawEntries)) throw new Error("Expected status entries to be an array");
   const entries: ChangeEntry[] = rawEntries.map((raw: unknown) => {
@@ -305,7 +307,7 @@ export function parseStatusResponse(value: unknown): ProjectStatus {
       isSubmodule: entry["isSubmodule"],
     };
   });
-  return { kind: "git", revision, entries };
+  return { kind: "git", revision, changeToken, entries };
 }
 
 export function parseDiffResponse(value: unknown): DiffResult {

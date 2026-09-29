@@ -32,6 +32,9 @@ const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
   { key: "unstaged", label: "Unstaged" },
   { key: "untracked", label: "Untracked" },
 ];
+const changePollIntervalMs = 10_000;
+
+type ReviewPosition = { projectId: string; cardId: string | null; cardIndex: number; top: number; scrollY: number };
 
 function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; onSelect: (entry: ChangeEntry) => void }) {
   return <div class="change-groups change-groups-compact">
@@ -62,6 +65,9 @@ export function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
+  const [pendingUpdate, setPendingUpdate] = useState(false);
+  const [changeCheckError, setChangeCheckError] = useState(false);
+  const reviewPosition = useRef<ReviewPosition | null>(null);
   const [viewMode, setViewMode] = useState<"changes" | "files" | "search">("changes");
   const [treePath, setTreePath] = useState("");
   const [tree, setTree] = useState<LoadState<FileTree>>({ kind: "loading" });
@@ -191,7 +197,7 @@ export function App() {
     const controller = new AbortController();
     setRefreshing(true);
     fetchProjectStatus(project.id, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setRefreshing(false); if (value.kind === "not_git") { setViewMode((mode) => mode === "changes" ? "files" : mode); setSidebarMode((mode) => mode === "folders" ? mode : "files"); } } },
+      (value) => { if (!controller.signal.aborted) { setStatus({ kind: "ready", value }); setPendingUpdate(false); setChangeCheckError(false); setRefreshing(false); if (value.kind === "not_git") { setViewMode((mode) => mode === "changes" ? "files" : mode); setSidebarMode((mode) => mode === "folders" ? mode : "files"); } } },
       (error: unknown) => {
         if (controller.signal.aborted) return;
         const message = messageFor(error);
@@ -202,6 +208,61 @@ export function App() {
     );
     return () => controller.abort();
   }, [project, statusRefresh]);
+
+  useEffect(() => {
+    if (project === null || status.kind !== "ready" || status.value.kind !== "git" || viewMode !== "changes" || settingsOpen || editor !== null || feedbackOpen || installDataOpen || refreshing) return;
+    const projectId = project.id;
+    const displayedToken = status.value.changeToken;
+    let timer: number | null = null;
+    let request: AbortController | null = null;
+    let disposed = false;
+    let checkOnResume = false;
+    let failures = 0;
+    const clearTimer = (): void => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
+    const check = async (): Promise<void> => {
+      if (disposed || document.visibilityState !== "visible" || request !== null) return;
+      clearTimer();
+      const controller = new AbortController();
+      request = controller;
+      try {
+        const latest = await fetchProjectStatus(projectId, controller.signal);
+        if (disposed || controller.signal.aborted) return;
+        setPendingUpdate(latest.kind !== "git" || latest.changeToken !== displayedToken);
+        setChangeCheckError(false);
+        failures = 0;
+      } catch {
+        if (disposed || controller.signal.aborted) return;
+        failures += 1;
+        if (failures >= 2) setChangeCheckError(true);
+      } finally {
+        if (request === controller) request = null;
+        if (!disposed && document.visibilityState === "visible") {
+          if (checkOnResume) { checkOnResume = false; void check(); }
+          else timer = window.setTimeout(() => void check(), changePollIntervalMs);
+        }
+      }
+    };
+    const onVisibility = (): void => {
+      if (document.visibilityState !== "visible") { clearTimer(); request?.abort(); return; }
+      if (request !== null) checkOnResume = true;
+      else void check();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    void check();
+    return () => { disposed = true; clearTimer(); request?.abort(); document.removeEventListener("visibilitychange", onVisibility); };
+  }, [project, status, viewMode, settingsOpen, editor, feedbackOpen, installDataOpen, refreshing]);
+
+  useEffect(() => {
+    const position = reviewPosition.current;
+    if (position === null || project?.id !== position.projectId || status.kind !== "ready" || refreshing) return;
+    reviewPosition.current = null;
+    requestAnimationFrame(() => {
+      const cards = [...document.querySelectorAll<HTMLElement>("main .diff-card")];
+      const target = (position.cardId === null ? null : document.getElementById(position.cardId)) ?? cards[Math.min(position.cardIndex, cards.length - 1)] ?? document.querySelector<HTMLElement>(".changes-heading");
+      if (target === null) { window.scrollTo({ top: position.scrollY, behavior: "instant" }); return; }
+      window.scrollBy({ top: target.getBoundingClientRect().top - position.top, behavior: "instant" });
+    });
+  }, [project, status, refreshing]);
 
   useEffect(() => {
     if (project === null || viewMode !== "files") return;
@@ -249,6 +310,9 @@ export function App() {
     try {
       const selected = await openProject(selectedPath, new AbortController().signal);
       setStatus({ kind: "loading" });
+      setPendingUpdate(false);
+      setChangeCheckError(false);
+      reviewPosition.current = null;
       setProject(selected);
       setComments(readCommentStore(selected.id));
       setEditor(null);
@@ -307,6 +371,16 @@ export function App() {
       saveWrapPreference(next);
       return next;
     });
+  }
+
+  function refreshChanges(): void {
+    if (project === null || refreshing) return;
+    const cards = [...document.querySelectorAll<HTMLElement>("main .diff-card")];
+    const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
+    const cardIndex = cards.findIndex((card) => card.getBoundingClientRect().bottom > topbarBottom + 8);
+    const card = cardIndex < 0 ? null : cards[cardIndex] ?? null;
+    reviewPosition.current = { projectId: project.id, cardId: card?.id ?? null, cardIndex: Math.max(0, cardIndex), top: card?.getBoundingClientRect().top ?? topbarBottom, scrollY: window.scrollY };
+    setStatusRefresh((value) => value + 1);
   }
 
   function chooseView(mode: "changes" | "files" | "search"): void {
@@ -650,9 +724,12 @@ export function App() {
                 <div><p class="eyebrow">GIT REVIEW</p><h2>Changed files</h2></div>
                 <div class="changes-actions">
                   <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
-                  <button type="button" disabled={refreshing} onClick={() => setStatusRefresh((value) => value + 1)}>{refreshing ? "Refreshing…" : "Refresh"}</button>
+                  <span class="visually-hidden" role="status">{pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}</span>
+                  {pendingUpdate && <button class="changes-update" type="button" disabled={refreshing} onClick={refreshChanges}>{refreshing ? "Updating…" : "New edits · Update"}</button>}
+                  <button type="button" disabled={refreshing} onClick={refreshChanges}>{refreshing ? "Refreshing…" : "Refresh"}</button>
                 </div>
               </div>
+              {changeCheckError && <p class="changes-check-error" role="status">Could not check for new edits. Refresh is still available.</p>}
               {status.kind === "loading" && <p class="status-message">Reading Git changes…</p>}
               {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
               {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. Use Files to browse its contents.</p>}
@@ -674,7 +751,7 @@ export function App() {
                         wrap={wrapCode}
                         languages={languages}
                         onToggle={() => toggleEntry(entry)}
-                        onStale={() => setStatusRefresh((value) => value + 1)}
+                        onStale={refreshChanges}
                         onComment={chooseCommentLine}
                         reattachSide={reattachId === null ? null : comments?.drafts.find((draft) => draft.id === reattachId)?.anchor.side ?? null}
                         drafts={comments?.projectId === project.id ? comments.drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path) : []}

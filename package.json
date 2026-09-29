@@ -21,6 +21,7 @@
     "qa:voice": "bun qa/check-voice.ts",
     "qa:feedback": "bun qa/check-feedback.ts",
     "qa:line-action": "bun qa/check-line-action.ts",
+    "qa:live-changes": "bun qa/check-live-changes.ts",
     "qa:typography": "bun qa/check-typography.ts",
     "qa:pwa": "bun qa/check-pwa.ts",
     "qa:fixture": "bun qa/prepare-inventory-fixture.ts",

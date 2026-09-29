@@ -70,7 +70,7 @@ export async function openProject(path: string, signal: AbortSignal): Promise<Pr
 }
 
 export async function fetchProjectStatus(id: string, signal: AbortSignal): Promise<ProjectStatus> {
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, { signal });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, { signal, cache: "no-store" });
   return parseStatusResponse(await responseBody(response));
 }
 

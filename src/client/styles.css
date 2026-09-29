@@ -133,6 +133,10 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .changes-heading button:hover, .sidebar-switch-mode:hover { background: var(--color-mint-hover); }
 .changes-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
 .changes-actions button[aria-pressed="true"] { border-color: var(--color-accent-border); background: var(--color-mint-surface); }
+.changes-heading .changes-update { min-height: 44px; border-color: var(--color-update-border); background: var(--color-update-surface); color: var(--color-update-text); }
+.changes-heading .changes-update:hover:not(:disabled) { background: var(--color-update-border); }
+.changes-check-error { margin: -8px 0 var(--space-5); color: var(--color-error-text); font-size: var(--font-size-12); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .status-message { padding: var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); color: var(--color-text-muted); font-size: var(--font-size-14); line-height: 1.5; }
 .change-groups { display: grid; gap: var(--space-4); }
 .change-group { min-width: 0; padding: 17px var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-panel); }
@@ -422,6 +426,7 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .settings-controls { grid-template-columns: 1fr; margin: var(--space-6) 0; }
   .main-content { padding-bottom: 105px; }
   .feedback-launch { right: max(var(--space-3), env(safe-area-inset-right)); bottom: max(var(--space-3), env(safe-area-inset-bottom)); }
+  .changes-heading .changes-update { position: fixed; z-index: 26; right: max(var(--space-3), env(safe-area-inset-right)); bottom: calc(max(var(--space-3), env(safe-area-inset-bottom)) + 60px); border-radius: 24px; box-shadow: var(--shadow-action); }
   .diff-sign, .diff-number { display: none; }
   .diff-code { padding-left: var(--space-2); }
   .diff-mobile-line-trigger { position: absolute; top: 0; left: 0; display: block; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); }

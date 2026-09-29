@@ -1,7 +1,7 @@
 # Initial Implementation Plan
 
 Status: planning document  
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Goal
 
@@ -202,5 +202,5 @@ After review of the selected-code Search shortcut and the local voice work, keep
 - **Native media previews (complete):** images including SVG, audio, and video appear inline in Files and in source-correct Old/New Git change cards, with raw new-tab links. The [media slice record](media-preview-slice-proposal.md) contains the API and QA details.
 - **Diff fidelity (complete):** bounded word-change spans decorate clear line pairs across multi-line edit chunks. The [slice record](diff-fidelity-slice-proposal.md) covers matching limits and QA. Moved-block indicators are optional later work.
 - **Phone and personal layout:** the [phone line action](phone-portrait-gutter-slice-proposal.md) and [code typography Settings slice](code-typography-slice-proposal.md) are complete. App and code theme selectors remain a separate future slice.
-- **Convenience:** recent files and status polling while the page is active remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs.
+- **Convenience:** [live change detection](live-change-detection-slice-proposal.md) is complete. Recent files remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs today.
 - **Later navigation:** implement the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) so Back/Forward and direct file links work. General file Git history and PDF previews are later optional expansions.

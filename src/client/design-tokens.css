@@ -101,6 +101,9 @@
   --color-error-text: #794732;
   --color-error-border: #e7c5b3;
   --color-error-surface: #fff6ed;
+  --color-update-surface: #fff8eb;
+  --color-update-border: #eacda0;
+  --color-update-text: #85501d;
   --color-overlay: #0a1c2aa3;
   --color-change-staged: #176f62;
   --color-change-unstaged: #a26425;

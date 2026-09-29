@@ -63,3 +63,39 @@ test("non-Git folders and repositories without commits have clear inventory stat
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("change token notices edits behind unchanged Git status entries", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "git-review-change-token-"));
+  try {
+    git(directory, "init", "-q");
+    await writeFile(join(directory, "tracked.txt"), "base\n");
+    git(directory, "add", "tracked.txt");
+    git(directory, "-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "base");
+
+    await writeFile(join(directory, "tracked.txt"), "first\n");
+    const trackedBefore = await readProjectStatus(directory);
+    await writeFile(join(directory, "tracked.txt"), "other\n");
+    const trackedAfter = await readProjectStatus(directory);
+    if (trackedBefore.kind !== "git" || trackedAfter.kind !== "git") throw new Error("Expected Git statuses");
+    expect(trackedAfter.entries).toEqual(trackedBefore.entries);
+    expect(trackedAfter.revision).toBe(trackedBefore.revision);
+    expect(trackedAfter.changeToken).not.toBe(trackedBefore.changeToken);
+
+    await writeFile(join(directory, "new.txt"), "first\n");
+    const untrackedBefore = await readProjectStatus(directory);
+    await writeFile(join(directory, "new.txt"), "other\n");
+    const untrackedAfter = await readProjectStatus(directory);
+    if (untrackedBefore.kind !== "git" || untrackedAfter.kind !== "git") throw new Error("Expected Git statuses");
+    expect(untrackedAfter.entries).toEqual(untrackedBefore.entries);
+    expect(untrackedAfter.revision).toBe(untrackedBefore.revision);
+    expect(untrackedAfter.changeToken).not.toBe(untrackedBefore.changeToken);
+
+    git(directory, "add", "tracked.txt");
+    const staged = await readProjectStatus(directory);
+    if (staged.kind !== "git") throw new Error("Expected Git status");
+    expect(staged.revision).not.toBe(untrackedAfter.revision);
+    expect(staged.changeToken).not.toBe(untrackedAfter.changeToken);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

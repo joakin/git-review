@@ -1,7 +1,10 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { posix } from "node:path";
+import { lstat, realpath } from "node:fs/promises";
+import { dirname, posix, resolve } from "node:path";
 import type { ChangeEntry, ChangeKind, ProjectStatus } from "../shared/api.ts";
+import { hasErrorCode } from "../shared/validation.ts";
+import { AppError, isWithinRoot } from "./paths.ts";
 
 const maxOutputBytes = 8 * 1024 * 1024;
 const gitTimeoutMs = 10_000;
@@ -148,6 +151,21 @@ export function parsePorcelainStatus(output: Buffer): ChangeEntry[] {
   return entries;
 }
 
+async function workingPathFingerprint(projectPath: string, path: string): Promise<string> {
+  const candidate = resolve(projectPath, path);
+  if (!isWithinRoot(projectPath, candidate)) throw new AppError("forbidden", 403, "Changed file is outside the selected folder");
+  try {
+    const parent = await realpath(dirname(candidate));
+    if (!isWithinRoot(projectPath, parent)) throw new AppError("forbidden", 403, "Changed file is outside the selected folder");
+    const metadata = await lstat(candidate, { bigint: true });
+    return [metadata.mode, metadata.dev, metadata.ino, metadata.size, metadata.mtimeNs, metadata.ctimeNs].join(":");
+  } catch (error: unknown) {
+    if (hasErrorCode(error, "ENOENT") || hasErrorCode(error, "ENOTDIR") || hasErrorCode(error, "ELOOP")) return "missing";
+    if (hasErrorCode(error, "EACCES") || hasErrorCode(error, "EPERM")) throw new AppError("forbidden", 403, "Cannot read changed file metadata");
+    throw error;
+  }
+}
+
 export async function readProjectStatus(projectPath: string): Promise<ProjectStatus> {
   let insideWorkTree: Buffer;
   try {
@@ -174,9 +192,17 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectSta
       oldPath: entry.oldPath === null ? null : posix.relative(prefix === "" ? "." : prefix.slice(0, -1), entry.oldPath),
     };
   });
+  const tokenHash = createHash("sha256").update(output);
+  const workingPaths = [...new Set(entries.filter((entry) => entry.layer !== "staged").map((entry) => entry.path))].sort();
+  const realProjectPath = await realpath(projectPath);
+  for (let offset = 0; offset < workingPaths.length; offset += 16) {
+    const fingerprints = await Promise.all(workingPaths.slice(offset, offset + 16).map(async (path) => ({ path, value: await workingPathFingerprint(realProjectPath, path) })));
+    for (const fingerprint of fingerprints) tokenHash.update("\0").update(fingerprint.path).update("\0").update(fingerprint.value);
+  }
   return {
     kind: "git",
     revision: createHash("sha256").update(output).digest("hex").slice(0, 20),
+    changeToken: tokenHash.digest("hex").slice(0, 20),
     entries,
   };
 }
