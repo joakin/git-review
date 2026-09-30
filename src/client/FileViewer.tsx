@@ -3,6 +3,7 @@ import type { FileReadResult, LanguageOption } from "../shared/api.ts";
 import { fetchProjectFile } from "./api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 import { MediaPreview } from "./MediaPreview.tsx";
+import { DelayedLoading } from "./DelayedLoading.tsx";
 
 type FileState = { kind: "loading" } | { kind: "ready"; value: FileReadResult } | { kind: "error"; message: string };
 
@@ -22,7 +23,7 @@ export function FileViewer({ projectId, path, wrap, languages, refreshKey, searc
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ kind: "loading" });
+    setState((current) => current.kind === "ready" ? current : { kind: "loading" });
     fetchProjectFile(projectId, path, effectiveOverride, controller.signal).then(
       (value) => { if (!controller.signal.aborted) setState({ kind: "ready", value }); },
       (error: unknown) => { if (!controller.signal.aborted) setState({ kind: "error", message: error instanceof Error ? error.message : "File could not be loaded" }); },
@@ -53,7 +54,7 @@ export function FileViewer({ projectId, path, wrap, languages, refreshKey, searc
     }}><option value="auto">Auto detect</option><option value="text">Plain text</option>{languages.map((language) => <option key={language.id} value={language.id}>{language.name}</option>)}</select></label>
       {result?.kind === "text" && <span>{result.syntax.kind === "highlighted" ? result.syntax.language : "Plain text"}</span>}
     </div>}
-    {state.kind === "loading" && <p class="diff-message">Loading file…</p>}
+    {state.kind === "loading" && <DelayedLoading className="diff-message" message="Loading file…" />}
     {state.kind === "error" && <div class="diff-message" role="alert">{searchTarget?.query === undefined || searchTarget.query === null ? state.message : `This search result may have changed or been deleted. ${state.message} Refresh Search for updated results.`} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
     {result?.kind === "binary" && <p class="diff-message">This file contains binary or invalid UTF-8 content. There are no text lines to show.</p>}
     {result?.kind === "media" && <MediaPreview resource={result.resource} path={result.path} label="Current file" />}

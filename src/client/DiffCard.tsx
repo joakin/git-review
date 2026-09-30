@@ -5,6 +5,8 @@ import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 import { anchorForLine, type CommentAnchor, type DraftComment, type ReviewSide } from "./comments.ts";
 import { MediaDiff } from "./MediaPreview.tsx";
 import { decorateDiffTokens } from "./diff-detail.ts";
+import { DelayedLoading } from "./DelayedLoading.tsx";
+import { diffCacheKey, readCachedDiff, rememberDiff } from "./diff-cache.ts";
 
 type DiffState =
   | { kind: "loading" }
@@ -15,6 +17,7 @@ type DiffCardProps = {
   entry: ChangeEntry;
   projectId: string;
   revision: string;
+  changeToken: string;
   refreshKey: number;
   expanded: boolean;
   wrap: boolean;
@@ -187,20 +190,23 @@ function DiffBody({ result, wrap, entry, onComment, drafts, reattachSide }: { re
   </>;
 }
 
-export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wrap, languages, onToggle, onStale, onComment, drafts, reattachSide }: DiffCardProps) {
+export function DiffCard({ entry, projectId, revision, changeToken, refreshKey, expanded, wrap, languages, onToggle, onStale, onComment, drafts, reattachSide }: DiffCardProps) {
   const [override, setOverride] = useState<string | null>(() => readLanguageOverride(projectId, entry.path));
   const effectiveOverride = override === null || override === "text" || languages.some((language) => language.id === override) ? override : null;
-  const requestKey = `${revision}:${refreshKey}:${effectiveOverride ?? "auto"}`;
+  const requestKey = diffCacheKey({ projectId, layer: entry.layer, path: entry.path, revision, changeToken, refreshKey, language: effectiveOverride });
   const [loaded, setLoaded] = useState<{ key: string; state: DiffState } | null>(null);
   const [retry, setRetry] = useState(0);
+  const cached = expanded ? readCachedDiff(requestKey) : null;
+  const current: DiffState = loaded?.key === requestKey ? loaded.state : cached === null ? { kind: "loading" } : { kind: "ready", value: cached };
 
   useEffect(() => {
-    if (!expanded || (loaded?.key === requestKey && loaded.state.kind === "ready")) return;
+    if (!expanded || current.kind === "ready") return;
     const controller = new AbortController();
     setLoaded({ key: requestKey, state: { kind: "loading" } });
     fetchProjectDiff(projectId, entry.layer, entry.path, revision, effectiveOverride, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
+        rememberDiff(requestKey, value);
         setLoaded({ key: requestKey, state: { kind: "ready", value } });
         if (value.kind === "stale") onStale();
       },
@@ -211,7 +217,6 @@ export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wra
     return () => controller.abort();
   }, [expanded, projectId, entry.layer, entry.path, requestKey, retry]);
 
-  const current = loaded?.key === requestKey ? loaded.state : { kind: "loading" } as const;
   return <article class={`diff-card diff-card-${entry.layer}`} id={diffCardId(entry)} data-layer={entry.layer} data-path={entry.path}>
     <button class="diff-card-toggle" type="button" aria-expanded={expanded} onClick={onToggle}>
       <span class="diff-card-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</span>
@@ -226,7 +231,7 @@ export function DiffCard({ entry, projectId, revision, refreshKey, expanded, wra
       }}><option value="auto">Auto detect</option><option value="text">Plain text</option>{languages.map((language) => <option key={language.id} value={language.id}>{language.name}</option>)}</select></label>
         {current.kind === "ready" && current.value.kind === "text" && <span>{current.value.syntax.kind === "highlighted" ? current.value.syntax.language : "Plain text"}</span>}
       </div>}
-      {current.kind === "loading" && <p class="diff-message">Loading diff…</p>}
+      {current.kind === "loading" && <DelayedLoading key={requestKey} className="diff-message" message="Loading diff…" />}
       {current.kind === "error" && <div class="diff-message" role="alert">{current.message} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div>}
       {current.kind === "ready" && <DiffBody result={current.value} wrap={wrap} entry={entry} onComment={onComment} drafts={drafts} reattachSide={reattachSide} />}
     </div>}

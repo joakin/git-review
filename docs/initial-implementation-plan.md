@@ -1,7 +1,7 @@
 # Initial Implementation Plan
 
 Status: planning document  
-Updated: 2026-09-29
+Updated: 2026-09-30
 
 ## Goal
 
@@ -208,4 +208,5 @@ The selected-code Search shortcut, local voice work, appearance settings, portra
 - **Diff fidelity (complete):** bounded word-change spans decorate clear line pairs across multi-line edit chunks. The [slice record](diff-fidelity-slice-proposal.md) covers matching limits and QA. Moved-block indicators are optional later work.
 - **Phone and personal layout (complete):** the [phone line action](phone-portrait-gutter-slice-proposal.md), [code typography Settings slice](code-typography-slice-proposal.md), and [app and code theme selectors](theme-settings-slice-proposal.md) are reviewed and complete.
 - **Convenience:** [live change detection](live-change-detection-slice-proposal.md) is complete. Recent files remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs today.
-- **Navigation (implemented):** the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) supports Back/Forward, direct file links, and the menu/list/content hierarchy. Real-device testing will decide whether a swipe gesture adds value. General file Git history and PDF previews are later optional expansions.
+- **Navigation (complete):** the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) supports Back/Forward, direct file links, and the menu/list/content hierarchy. The maintainer has reviewed the phone, tablet, and desktop flows. Real-device testing will decide whether a swipe gesture adds value. General file Git history and PDF previews are later optional expansions.
+- **Loading and navigation polish (complete):** [delayed loading feedback and tab-memory diff caching](loading-and-transition-polish.md) keep section changes smooth and preserve expanded cards. URL-selected diffs focus once per navigation, so toggling cards or refreshing does not pull the reader back or force a card open. The maintainer approved these changes on 2026-09-30.

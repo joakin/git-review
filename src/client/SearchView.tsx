@@ -1,4 +1,5 @@
 import type { SearchMatch, SearchResponse } from "../shared/api.ts";
+import { DelayedLoading } from "./DelayedLoading.tsx";
 
 export type SearchState =
   | { kind: "idle" }
@@ -32,10 +33,10 @@ export function SearchView({ query, state, onQuery, onSubmit, onRefresh, canRefr
       if (typeof value === "string") onSubmit(value);
     }}>
       <label for="project-search-query">Find text</label>
-      <div class="search-form-row"><input id="project-search-query" name="query" type="search" value={query} maxLength={128} required autoComplete="off" placeholder="Symbol or text" onInput={(event) => onQuery(event.currentTarget.value)} /><button type="submit" disabled={state.kind === "loading"}>{state.kind === "loading" ? "Searching…" : "Search"}</button></div>
+      <div class="search-form-row"><input id="project-search-query" name="query" type="search" value={query} maxLength={128} required autoComplete="off" placeholder="Symbol or text" onInput={(event) => onQuery(event.currentTarget.value)} /><button type="submit" disabled={state.kind === "loading"}>Search</button></div>
     </form>
     {state.kind === "idle" && <p class="status-message">Enter a word or phrase to search this project.</p>}
-    {state.kind === "loading" && <p class="status-message" role="status">Searching files…</p>}
+    {state.kind === "loading" && <DelayedLoading className="status-message" message="Searching files…" />}
     {state.kind === "error" && <div class="status-message" role="alert">{state.message} {canRefresh && <button type="button" onClick={onRefresh}>Retry</button>}</div>}
     {state.kind === "ready" && <>
       <p class="search-count" role="status">Results for “{state.value.query}”: {state.value.matches.length} matching {state.value.matches.length === 1 ? "line" : "lines"} in {groups.size} {groups.size === 1 ? "file" : "files"}{state.value.truncated ? " · Results are incomplete" : ""}</p>

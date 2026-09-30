@@ -9,7 +9,72 @@ async function waitForRoute(page: Page, section: string): Promise<void> {
   await page.waitForURL((value) => value.searchParams.get("section") === section);
 }
 
+async function waitForSelectedDiffFocus(page: Page): Promise<void> {
+  try {
+    await page.waitForFunction(() => {
+      const card = document.querySelector('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
+      const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
+      // A short inventory may clamp scrolling before the card can align exactly at the top.
+      return card !== null && card.getBoundingClientRect().top >= topbarBottom - 2 && card.getBoundingClientRect().top < innerHeight / 2;
+    }, null, { timeout: 5_000 });
+  } catch (error) {
+    const position = await page.evaluate(() => {
+      const card = document.querySelector('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
+      return { url: location.href, width: innerWidth, scrollY, top: card?.getBoundingClientRect().top, margin: card === null ? null : getComputedStyle(card).scrollMarginTop, scrollHeight: document.documentElement.scrollHeight, viewportHeight: innerHeight };
+    });
+    throw new Error(`Selected diff was not focused: ${JSON.stringify(position)}`, { cause: error });
+  }
+}
+
+async function checkChangesCardFocus(page: Page): Promise<void> {
+  await page.goto(new URL("/?section=changes&project=inventory-fixture&target=list", base).href);
+  await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
+  const selected = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
+  await selected.locator(".diff-row").first().waitFor({ state: "visible" });
+  await waitForSelectedDiffFocus(page);
+  const selectedUrl = page.url();
+  const other = page.locator('main .diff-card[data-layer="untracked"][data-path="src/tall-review.ts"]');
+  await other.locator(".diff-card-toggle").scrollIntoViewIfNeeded();
+  const readingScroll = await page.evaluate(() => window.scrollY);
+  await other.locator(".diff-card-toggle").click();
+  await other.locator(".diff-row").first().waitFor({ state: "visible" });
+  // Let queued view effects finish before checking for an unwanted return to the URL target.
+  await page.waitForTimeout(350);
+  if (Math.abs(await page.evaluate(() => window.scrollY) - readingScroll) > 2) throw new Error("Expanding another card scrolled back to the selected diff");
+  await other.locator(".diff-card-toggle").click();
+  await page.waitForTimeout(350);
+  if (Math.abs(await page.evaluate(() => window.scrollY) - readingScroll) > 2) throw new Error("Collapsing another card scrolled back to the selected diff");
+  if (page.url() !== selectedUrl) throw new Error("Card toggles changed the navigation URL");
+
+  await selected.locator(".diff-card-toggle").click();
+  await page.waitForTimeout(350);
+  if (await selected.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("The URL target reopened after being collapsed");
+
+  const refreshed = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/status"));
+  await page.locator(".changes-actions").getByRole("button", { name: "Refresh", exact: true }).click();
+  await refreshed;
+  await page.waitForTimeout(350);
+  if (await selected.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("Refreshing reopened the collapsed URL target");
+
+  if (await page.getByRole("button", { name: "Back to list" }).isVisible()) await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
+  await selected.locator(".diff-row").first().waitFor({ state: "visible" });
+  await waitForSelectedDiffFocus(page);
+  await page.goBack();
+  await page.waitForURL((url) => url.searchParams.get("target") === "list");
+  await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).waitFor({ state: "visible" });
+  await page.goForward();
+  await page.waitForURL(selectedUrl);
+  await selected.locator(".diff-row").first().waitFor({ state: "visible" });
+  await waitForSelectedDiffFocus(page);
+}
+
 try {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    const focusContext = await browser.newContext({ viewport, isMobile: viewport.width < 600, hasTouch: viewport.width < 600 });
+    try { await checkChangesCardFocus(await focusContext.newPage()); }
+    finally { await focusContext.close(); }
+  }
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors: string[] = [];
@@ -60,6 +125,7 @@ try {
   if (!direct.url().includes("dir=src")) throw new Error("A direct file link did not normalize its directory");
   await direct.goto(new URL("/?section=changes&project=inventory-fixture&layer=staged&file=src%2Fview.ts", base).href);
   await direct.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"] .diff-row').first().waitFor({ state: "visible" });
+  await waitForSelectedDiffFocus(direct);
   await direct.close();
 
   await page.getByRole("button", { name: "Back to list" }).click();
@@ -179,7 +245,7 @@ try {
   await waitForRoute(invalid, "projects");
   await invalid.close();
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
-  console.log("URL navigation, Back/Forward, direct links, phone list/content, tablet drawer, 900px sidebar boundary, desktop panes, and invalid-link recovery passed.");
+  console.log("Diff card toggles and Refresh preserve review control; reselection, direct links, URL navigation, Back/Forward, responsive panes, and invalid-link recovery passed.");
 } finally {
   await browser.close();
 }

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
+import { DelayedLoading } from "./DelayedLoading.tsx";
 import { Icon } from "./Icons.tsx";
 import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
@@ -62,27 +63,36 @@ function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; 
 export function App() {
   const [saved, setSaved] = useState<SavedWorkspace>(() => emptyWorkspace(""));
   const [root, setRoot] = useState<LoadState<RootInfo>>({ kind: "loading" });
-  const [listing, setListing] = useState<LoadState<DirectoryListing>>({ kind: "loading" });
-  const [project, setProject] = useState<Project | null>(null);
+  const [listingLoad, setListingLoad] = useState<{ key: string; state: LoadState<DirectoryListing> }>({ key: "", state: { kind: "loading" } });
+  const [openedProject, setOpenedProject] = useState<Project | null>(null);
+  const openedProjectRef = useRef<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
   const [pendingUpdate, setPendingUpdate] = useState(false);
   const [changeCheckError, setChangeCheckError] = useState(false);
   const reviewPosition = useRef<ReviewPosition | null>(null);
-  const [tree, setTree] = useState<LoadState<FileTree>>({ kind: "loading" });
+  const [treeLoad, setTreeLoad] = useState<{ key: string; state: LoadState<FileTree> } | null>(null);
   const [fileRefresh, setFileRefresh] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [lastSubmittedQuery, setLastSubmittedQuery] = useState<string | null>(null);
   const [searchRefresh, setSearchRefresh] = useState(0);
-  const [searchState, setSearchState] = useState<SearchState>({ kind: "idle" });
+  const [searchLoad, setSearchLoad] = useState<{ key: string; state: SearchState } | null>(null);
   const [routeState, setRouteState] = useState<RouteState>(() => parseNavigationSearch(window.location.search));
   const route = routeState.kind === "ready" ? routeState.route : null;
+  const routeRef = useRef<Route | null>(route);
+  const focusedChangesRoute = useRef<Route | null>(null);
   const routeProject = route === null ? null : routeProjectPath(route);
+  const project = openedProject?.path === routeProject ? openedProject : null;
   const viewMode = route === null ? null : routeSection(route);
   const path = route?.section === "projects" ? route.directory : "";
+  const listing = listingLoad.key === path ? listingLoad.state : { kind: "loading" } as const;
   const treePath = route?.section === "files" ? route.directory : route?.section === "search" && route.target.kind === "file" ? parentDirectory(route.target.path) : "";
+  const treeKey = project === null ? null : `${project.id}\0${treePath}`;
+  const tree = treeKey !== null && treeLoad?.key === treeKey ? treeLoad.state : { kind: "loading" } as const;
   const selectedFile = route?.section === "files" && route.target.kind === "file" || route?.section === "search" && route.target.kind === "file" ? route.target.path : null;
   const submittedQuery = route?.section === "search" ? route.query : null;
+  const searchKey = project === null ? null : `${project.id}\0${submittedQuery ?? ""}`;
+  const searchState = searchKey === null ? { kind: "idle" } as const : searchLoad?.key === searchKey ? searchLoad.state : submittedQuery === null ? { kind: "idle" } as const : { kind: "loading" } as const;
   const searchTarget = route?.section === "search" && route.target.kind === "file" && route.query !== null ? { path: route.target.path, line: route.target.line, query: route.query } : route?.section === "files" && route.target.kind === "file" && route.target.line !== null ? { path: route.target.path, line: route.target.line, query: null } : null;
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
@@ -97,6 +107,7 @@ export function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [projectOpenError, setProjectOpenError] = useState<{ path: string; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentStore | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -110,7 +121,9 @@ export function App() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
 
   function navigate(next: Route, mode: "push" | "replace" = "push"): void {
-    if (route !== null) scrollPositions.current.set(routeUrl(route), window.scrollY);
+    const previous = routeRef.current;
+    if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
+    routeRef.current = next;
     closeEditor();
     setFeedbackOpen(false);
     setDrawerOpen(false);
@@ -125,12 +138,14 @@ export function App() {
   useEffect(() => {
     window.history.scrollRestoration = "manual";
     const onPopState = (): void => {
-      if (route !== null) scrollPositions.current.set(routeUrl(route), window.scrollY);
+      const previous = routeRef.current;
+      if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
       const parsed = parseNavigationSearch(window.location.search);
       if (parsed.kind === "empty" && root.kind === "ready") {
         const active = readActiveProject(root.value.path);
         navigate(active === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: active, target: { kind: "all" } }, "replace");
       } else {
+        routeRef.current = parsed.kind === "ready" ? parsed.route : null;
         closeEditor();
         setFeedbackOpen(false);
         setDrawerOpen(false);
@@ -140,7 +155,7 @@ export function App() {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [route, root]);
+  }, [root]);
 
   useEffect(() => {
     if (routeState.kind !== "ready") return;
@@ -235,21 +250,24 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (root.kind !== "ready" || routeProject === null) return;
+    if (root.kind !== "ready" || routeProject === null || openedProjectRef.current?.path === routeProject) return;
     const controller = new AbortController();
     setOpening(true);
+    setProjectOpenError(null);
     setStatus({ kind: "loading" });
     setPendingUpdate(false);
     setChangeCheckError(false);
     reviewPosition.current = null;
-    setProject(null);
+    openedProjectRef.current = null;
+    setOpenedProject(null);
     setEditor(null);
     setFeedbackOpen(false);
     setReattachId(null);
     openProject(routeProject, controller.signal).then(
       (selected) => {
         if (controller.signal.aborted) return;
-        setProject(selected);
+        openedProjectRef.current = selected;
+        setOpenedProject(selected);
         setComments(readCommentStore(selected.id));
         setExpandedKeys(readOpenCards(selected.id));
         saveActiveProject(root.value.path, selected.path);
@@ -263,7 +281,7 @@ export function App() {
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        setNotice(`Could not open this project: ${messageFor(error)}`);
+        setProjectOpenError({ path: routeProject, message: messageFor(error) });
         setOpening(false);
       },
     );
@@ -272,11 +290,11 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setListing({ kind: "loading" });
+    setListingLoad((current) => current.key === path && current.state.kind === "ready" ? current : { key: path, state: { kind: "loading" } });
     fetchDirectory(path, controller.signal).then(
-      (value) => setListing({ kind: "ready", value }),
+      (value) => { if (!controller.signal.aborted) setListingLoad({ key: path, state: { kind: "ready", value } }); },
       (error: unknown) => {
-        if (!controller.signal.aborted) setListing({ kind: "error", message: messageFor(error) });
+        if (!controller.signal.aborted) setListingLoad({ key: path, state: { kind: "error", message: messageFor(error) } });
       },
     );
     return () => controller.abort();
@@ -362,7 +380,7 @@ export function App() {
   }, [project, status, refreshing]);
 
   useEffect(() => {
-    if (route?.section !== "changes" || route.target.kind !== "file" || project?.path !== route.projectPath || status.kind !== "ready" || status.value.kind !== "git") return;
+    if (route?.section !== "changes" || route.target.kind !== "file" || focusedChangesRoute.current === route || project?.path !== route.projectPath || status.kind !== "ready" || status.value.kind !== "git") return;
     const target = route.target;
     const entry = status.value.entries.find((candidate) => candidate.layer === target.layer && candidate.path === target.path);
     if (entry === undefined) {
@@ -370,39 +388,44 @@ export function App() {
       return;
     }
     const key = diffCardKey(entry);
-    if (!expandedKeys.has(key)) setExpandedKeys((current) => new Set(current).add(key));
-    const frame = requestAnimationFrame(() => document.getElementById(diffCardId(entry))?.scrollIntoView({ block: "start", behavior: "instant" }));
+    setExpandedKeys((current) => current.has(key) ? current : new Set(current).add(key));
+    const frame = requestAnimationFrame(() => {
+      if (routeRef.current !== route) return;
+      const card = document.getElementById(diffCardId(entry));
+      if (card === null) return;
+      // The URL selects a card once per navigation; later review interactions stay put.
+      focusedChangesRoute.current = route;
+      card.scrollIntoView({ block: "start", behavior: "instant" });
+    });
     return () => cancelAnimationFrame(frame);
-  }, [route, project, status, expandedKeys]);
+  }, [route, project, status]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (route === null || route.section === "changes" && route.target.kind === "file" || route.section === "files" && route.target.kind === "file" || route.section === "search" && route.target.kind === "file") return;
     if (route.section === "search" && route.query !== null && searchState.kind === "loading") return;
-    const frame = requestAnimationFrame(() => window.scrollTo({ top: scrollPositions.current.get(routeUrl(route)) ?? 0, behavior: "instant" }));
-    return () => cancelAnimationFrame(frame);
+    window.scrollTo({ top: scrollPositions.current.get(routeUrl(route)) ?? 0, behavior: "instant" });
   }, [route, searchState.kind]);
 
   useEffect(() => {
     if (project === null || viewMode !== "files") return;
     const controller = new AbortController();
-    setTree({ kind: "loading" });
+    const key = `${project.id}\0${treePath}`;
+    setTreeLoad((current) => current?.key === key && current.state.kind === "ready" ? current : { key, state: { kind: "loading" } });
     fetchProjectTree(project.id, treePath, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) setTree({ kind: "ready", value }); },
-      (error: unknown) => { if (!controller.signal.aborted) setTree({ kind: "error", message: messageFor(error) }); },
+      (value) => { if (!controller.signal.aborted) setTreeLoad({ key, state: { kind: "ready", value } }); },
+      (error: unknown) => { if (!controller.signal.aborted) setTreeLoad({ key, state: { kind: "error", message: messageFor(error) } }); },
     );
     return () => controller.abort();
   }, [project, viewMode, treePath, fileRefresh]);
 
   useEffect(() => {
-    if (project === null || submittedQuery === null) {
-      if (route?.section === "search" && submittedQuery === null) setSearchState({ kind: "idle" });
-      return;
-    }
+    if (project === null || submittedQuery === null) return;
     const controller = new AbortController();
-    setSearchState({ kind: "loading" });
+    const key = `${project.id}\0${submittedQuery}`;
+    setSearchLoad((current) => current?.key === key && current.state.kind === "ready" ? current : { key, state: { kind: "loading" } });
     fetchProjectSearch(project.id, submittedQuery, controller.signal).then(
-      (value) => { if (!controller.signal.aborted) setSearchState({ kind: "ready", value }); },
-      (error: unknown) => { if (!controller.signal.aborted) setSearchState({ kind: "error", message: messageFor(error) }); },
+      (value) => { if (!controller.signal.aborted) setSearchLoad({ key, state: { kind: "ready", value } }); },
+      (error: unknown) => { if (!controller.signal.aborted) setSearchLoad({ key, state: { kind: "error", message: messageFor(error) } }); },
     );
     return () => controller.abort();
   }, [project, submittedQuery, searchRefresh]);
@@ -429,6 +452,10 @@ export function App() {
       return;
     }
     setNotice(null);
+    if (routeProject !== selectedPath && openedProjectRef.current?.path === selectedPath) {
+      openedProjectRef.current = null;
+      setOpenedProject(null);
+    }
     navigate({ section: "changes", projectPath: selectedPath, target: { kind: "all" } });
   }
 
@@ -444,13 +471,7 @@ export function App() {
 
   function selectEntry(entry: ChangeEntry): void {
     if (project === null) return;
-    const key = diffCardKey(entry);
-    setExpandedKeys((current) => new Set(current).add(key));
     navigate({ section: "changes", projectPath: project.path, target: { kind: "file", layer: entry.layer, path: entry.path } });
-    requestAnimationFrame(() => {
-      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
-      document.getElementById(diffCardId(entry))?.scrollIntoView({ behavior, block: "start" });
-    });
   }
 
   function toggleWrap(): void {
@@ -511,7 +532,7 @@ export function App() {
   function submitSearch(input: string): void {
     const query = input.trim();
     if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query)) {
-      setSearchState({ kind: "error", message: "Enter 1–128 characters on one line." });
+      if (searchKey !== null) setSearchLoad({ key: searchKey, state: { kind: "error", message: "Enter 1–128 characters on one line." } });
       return;
     }
     setSearchQuery(query);
@@ -683,7 +704,7 @@ export function App() {
           else setMenuOpen((open) => !open);
         }}>
           <span class="switch-icon" aria-hidden="true">▦</span>
-          <span class="switch-label">{project?.name ?? "Choose folder"}</span>
+          <span class="switch-label">{project?.name ?? (routeProject === null ? "Choose folder" : shortName(routeProject))}</span>
           <span aria-hidden="true">⌄</span>
         </button>
       </header>
@@ -699,7 +720,7 @@ export function App() {
         {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
         <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={listSection === "changes" ? "Changed files" : listSection === "files" ? "Project files" : listSection === "search" ? "Search results" : "Folder picker"}>
           <div class="sidebar-head">
-            {listSection === "projects" || project === null ? <h2>Folders</h2> : <div class="sidebar-project-identity">
+            {listSection === "projects" ? <h2>Folders</h2> : project === null ? <h2>{routeProject === null ? "Folders" : shortName(routeProject)}</h2> : <div class="sidebar-project-identity">
               <h2 class="sidebar-project-title">{project.name}</h2>
               <p class="sidebar-project-path" title={project.absolutePath}>{project.absolutePath}</p>
             </div>}
@@ -713,7 +734,7 @@ export function App() {
 
           {listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <div class="sidebar-files">
             {treePath !== "" && <div class="file-tree-breadcrumb"><button class="back-button" type="button" aria-label="Go to parent directory" onClick={() => navigate({ section: "files", projectPath: project.path, directory: parentDirectory(treePath), target: { kind: "list" } })}><Icon name="back" /></button><span title={treePath}>/{treePath}</span></div>}
-            {tree.kind === "loading" && <p class="sidebar-message">Loading files…</p>}
+            {tree.kind === "loading" && <DelayedLoading key={treeKey ?? "files"} className="sidebar-message" message="Loading files…" />}
             {tree.kind === "error" && <div class="sidebar-error" role="alert">{tree.message} <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Retry</button></div>}
             {tree.kind === "ready" && tree.value.entries.length === 0 && <p class="sidebar-message">This directory is empty.</p>}
             {tree.kind === "ready" && <div class="file-tree-list">{tree.value.entries.map((entry) => <button class={`file-tree-row${selectedFile === entry.path ? " file-tree-row-selected" : ""}`} type="button" key={entry.path} onClick={() => {
@@ -724,17 +745,17 @@ export function App() {
               <span>{entry.name}</span>{entry.kind === "directory" && <span class="row-arrow" aria-hidden="true">›</span>}
             </button>)}</div>}
           </div> : listSection === "changes" && project !== null ? <div class="sidebar-changes">
-            {status.kind === "loading" && <p class="sidebar-message">Reading Git changes…</p>}
+            {status.kind === "loading" && <DelayedLoading className="sidebar-message" message="Reading Git changes…" />}
             {status.kind === "error" && <p class="sidebar-error" role="alert">{status.message}</p>}
             {status.kind === "ready" && status.value.kind === "not_git" && <p class="sidebar-message">This folder is not a Git worktree.</p>}
             {gitStatus !== null && <ChangeGroups entries={gitStatus.entries} onSelect={selectEntry} />}
-          </div> : <>
+          </div> : listSection !== "projects" && project === null ? <DelayedLoading key={routeProject ?? "project"} className="sidebar-message" message="Opening project…" /> : <>
 
           <div class="root-card">
             <span class="root-dot" aria-hidden="true" />
             <div class="root-copy">
               <strong>{rootLabel}</strong>
-              <span>{root.kind === "ready" ? root.value.path : "Connecting to the local server"}</span>
+              {root.kind === "ready" ? <span>{root.value.path}</span> : root.kind === "error" ? <span>{root.message}</span> : <DelayedLoading className="root-loading" message="Connecting to the local server…" />}
             </div>
           </div>
 
@@ -754,7 +775,7 @@ export function App() {
 
           <div class="folder-list-section">
             <div class="section-heading"><span class="section-label">SUBFOLDERS</span><span>{listing.kind === "ready" ? listing.value.entries.length : ""}</span></div>
-            {listing.kind === "loading" && <p class="sidebar-message">Loading folders…</p>}
+            {listing.kind === "loading" && <DelayedLoading key={path} className="sidebar-message" message="Loading folders…" />}
             {listing.kind === "error" && (
               <div class="sidebar-error" role="alert">
                 <p>{listing.message}</p>
@@ -791,7 +812,7 @@ export function App() {
           {root.kind === "error" && <div class="notice" role="alert">{root.message}</div>}
 
           <div hidden={settingsOpen}>
-          {routeState.kind === "invalid" ? <div class="welcome"><h1>That link cannot be opened.</h1><p class="welcome-copy">{routeState.message}</p><button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose a project <span aria-hidden="true">→</span></button></div> : route?.section === "projects" || route === null ? (
+          {routeState.kind === "invalid" ? <div class="welcome"><h1>That link cannot be opened.</h1><p class="welcome-copy">{routeState.message}</p><button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose a project <span aria-hidden="true">→</span></button></div> : route === null ? null : route.section === "projects" ? (
             <div class="welcome">
               <div class="hero-orb" aria-hidden="true"><span>⌁</span></div>
               <p class="eyebrow">A CLEARER WAY TO REVIEW</p>
@@ -800,7 +821,7 @@ export function App() {
               <button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Browse host folders <span aria-hidden="true">→</span></button>
               <div class="welcome-foot"><span class="line-decor" aria-hidden="true" /> Staged, unstaged, and untracked changes will live here.</div>
             </div>
-          ) : project === null ? <div class="status-message" role="status">{opening ? "Opening project…" : <>This project could not be opened. <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button> or try this link again.</>}</div> : (
+          ) : project === null ? projectOpenError?.path === routeProject ? <div class="status-message" role="alert">This project could not be opened: {projectOpenError.message} <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button>.</div> : <DelayedLoading key={routeProject ?? "project"} className="status-message" message="Opening project…" /> : (
             <div class="project-view project-view-changes">
               {viewMode === "search" ? <>
                 <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{selectedFile === null ? "Search files" : "Search result"}</h2></div></div>
@@ -826,7 +847,7 @@ export function App() {
                 </div>
               </div>
               {changeCheckError && <p class="changes-check-error" role="status">Could not check for new edits. Refresh is still available.</p>}
-              {status.kind === "loading" && <p class="status-message">Reading Git changes…</p>}
+              {status.kind === "loading" && <DelayedLoading className="status-message" message="Reading Git changes…" />}
               {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
               {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. Use Files to browse its contents.</p>}
               {gitStatus !== null && <>
@@ -842,6 +863,7 @@ export function App() {
                         entry={entry}
                         projectId={project.id}
                         revision={gitStatus.revision}
+                        changeToken={gitStatus.changeToken}
                         refreshKey={statusRefresh}
                         expanded={expandedKeys.has(diffCardKey(entry))}
                         wrap={wrapCode}
