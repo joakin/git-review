@@ -1,4 +1,5 @@
 import type { ChangeLayer } from "../shared/api.ts";
+import { isGitOid, validGitRef } from "../shared/git.ts";
 
 export type ChangesTarget =
   | { kind: "all" }
@@ -6,15 +7,17 @@ export type ChangesTarget =
   | { kind: "file"; layer: ChangeLayer; path: string };
 export type FileTarget = { kind: "list" } | { kind: "file"; path: string; line: number | null };
 export type SearchTarget = { kind: "results" } | { kind: "file"; path: string; line: number };
+export type GitRoute = { section: "git"; projectPath: string; ref: string | null; target: { kind: "list" } | { kind: "commit"; oid: string } };
 export type Route =
   | { section: "projects"; directory: string }
   | { section: "changes"; projectPath: string; target: ChangesTarget }
   | { section: "files"; projectPath: string; directory: string; target: FileTarget }
   | { section: "search"; projectPath: string; query: string | null; target: SearchTarget }
+  | GitRoute
   | { section: "settings"; projectPath: string | null };
 export type RouteState = { kind: "empty" } | { kind: "ready"; route: Route } | { kind: "invalid"; message: string };
 
-const keys = new Set(["section", "project", "dir", "target", "layer", "file", "line", "q"]);
+const keys = new Set(["section", "project", "dir", "target", "layer", "file", "line", "q", "ref", "commit"]);
 const routeError = "This link has invalid navigation information. Choose a project to continue.";
 
 function validPath(value: string, allowRoot: boolean): boolean {
@@ -53,6 +56,9 @@ export function parseNavigationSearch(search: string): RouteState {
   const file = params.get("file");
   const lineText = params.get("line");
   const query = params.get("q");
+  const ref = params.get("ref");
+  const commit = params.get("commit");
+  if (section !== "git" && (ref !== null || commit !== null)) return { kind: "invalid", message: routeError };
   if (section === "projects") {
     if (project !== null || target !== null || layer !== null || file !== null || lineText !== null || query !== null || !validPath(directory ?? "", true)) return { kind: "invalid", message: routeError };
     return { kind: "ready", route: { section, directory: directory ?? "" } };
@@ -62,6 +68,10 @@ export function parseNavigationSearch(search: string): RouteState {
     return { kind: "ready", route: { section, projectPath: project } };
   }
   if (project === null || !validPath(project, true)) return { kind: "invalid", message: routeError };
+  if (section === "git") {
+    if (directory !== null || target !== null || layer !== null || file !== null || lineText !== null || query !== null || ref !== null && !validGitRef(ref) || commit !== null && !isGitOid(commit)) return { kind: "invalid", message: routeError };
+    return { kind: "ready", route: { section, projectPath: project, ref, target: commit === null ? { kind: "list" } : { kind: "commit", oid: commit } } };
+  }
   if (section === "changes") {
     if (directory !== null || lineText !== null || query !== null) return { kind: "invalid", message: routeError };
     if (target === "list" && layer === null && file === null) return { kind: "ready", route: { section, projectPath: project, target: { kind: "list" } } };
@@ -113,6 +123,9 @@ export function routeUrl(route: Route): string {
         params.set("file", route.target.path);
         if (route.target.line !== null) params.set("line", String(route.target.line));
       }
+    } else if (route.section === "git") {
+      if (route.ref !== null) params.set("ref", route.ref);
+      if (route.target.kind === "commit") params.set("commit", route.target.oid);
     } else {
       if (route.query !== null) params.set("q", route.query);
       if (route.target.kind === "file") { params.set("file", route.target.path); params.set("line", String(route.target.line)); }
@@ -125,6 +138,6 @@ export function routeProjectPath(route: Route): string | null {
   return route.section === "projects" ? null : route.projectPath;
 }
 
-export function routeSection(route: Route): "changes" | "files" | "search" | null {
-  return route.section === "changes" || route.section === "files" || route.section === "search" ? route.section : null;
+export function routeSection(route: Route): "changes" | "files" | "search" | "git" | null {
+  return route.section === "changes" || route.section === "files" || route.section === "search" || route.section === "git" ? route.section : null;
 }

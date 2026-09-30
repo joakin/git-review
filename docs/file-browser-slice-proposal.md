@@ -29,7 +29,7 @@ Files provides a path from a selected project to a readable working-tree file on
 
 ## Deferred ideas
 
-- Much later, optionally add repository and file commit history, with a commit list and files opened at a chosen revision. This is a larger Git browser and is not needed for agent code review now. Index and `HEAD` version selection can be considered with that work. [Git tree listing](https://git-scm.com/docs/git-ls-tree), [Git object reads](https://git-scm.com/docs/git-cat-file)
+- A focused [branch and commit browser](git-history-slice-proposal.md) was promoted to the next priority on 2026-09-30. File-specific history and browsing a whole tree at a chosen revision remain optional later work; Files continues to read the working tree. Index and `HEAD` version selection can be considered with that later work. [Git tree listing](https://git-scm.com/docs/git-ls-tree), [Git object reads](https://git-scm.com/docs/git-cat-file)
 - Native images (including SVG), audio, and video are covered by the [media preview slice](media-preview-slice-proposal.md). PDF is deferred; HTML preview is not planned.
 - Bounded server-side Search and the selected-code action are implemented in their [Search](search-slice-proposal.md) and [selection](selected-code-search-slice-proposal.md) records.
 
@@ -37,7 +37,7 @@ Files provides a path from a selected project to a readable working-tree file on
 
 A phone can open this repository, enter Files, browse into `src/client`, read a syntax-highlighted TypeScript file, toggle wrapping, and return to Changes. A non-Git folder can do the same. The file and tree APIs pass containment and content-boundary tests, and the four viewport captures show no page-wide overflow.
 
-The maintainer chose the working-tree-only Files view. Git history is a distant optional slice.
+The maintainer chose the working-tree-only Files view. [Git inspection](git-history-slice-proposal.md) now uses a separate Git tab for branches and commit comparisons; it keeps Files on the working tree. File-specific history and browsing an entire old tree remain later work.
 
 ## Verification for this slice
 

@@ -5,7 +5,7 @@ import type { ChangeEntry, DiffHunk, DiffLine, DiffResult, Project } from "../sh
 import { hasErrorCode } from "../shared/validation.ts";
 import { GitCommandError, runGit } from "./git-status.ts";
 import { AppError, isWithinRoot, type ApprovedRoot } from "./paths.ts";
-import { detectLanguage, highlightSource } from "./syntax.ts";
+import { withDiffSyntax } from "./diff-syntax.ts";
 import { withWordDetails } from "./diff-words.ts";
 
 const maxTextBytes = 1024 * 1024;
@@ -100,7 +100,7 @@ export function parseGitPatch(output: Buffer): DiffResult {
   return withWordDetails({ kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks });
 }
 
-function untrackedDiff(content: Buffer): DiffResult {
+export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): DiffResult {
   if (content.byteLength > maxTextBytes) return { kind: "too_large" };
   if (content.includes(0)) return { kind: "binary", reason: "binary" };
   let text: string;
@@ -115,15 +115,15 @@ function untrackedDiff(content: Buffer): DiffResult {
   if (hasFinalNewline) sourceLines.pop();
   if (sourceLines.length > maxDiffLines) return { kind: "too_large" };
   const lines: DiffLine[] = sourceLines.map((source, index) => ({
-    kind: "added",
-    oldLine: null,
-    newLine: index + 1,
+    kind: side === "new" ? "added" : "removed",
+    oldLine: side === "old" ? index + 1 : null,
+    newLine: side === "new" ? index + 1 : null,
     text: source,
     tokens: [{ text: source, role: "plain" }],
     detail: { kind: "none" },
     noNewlineAtEnd: !hasFinalNewline && index === sourceLines.length - 1,
   }));
-  return { kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks: [{ oldStart: 0, oldCount: 0, newStart: 1, newCount: lines.length, lines }] };
+  return { kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks: [{ oldStart: side === "old" ? 1 : 0, oldCount: side === "old" ? lines.length : 0, newStart: side === "new" ? 1 : 0, newCount: side === "new" ? lines.length : 0, lines }] };
 }
 
 type WorkingFile = { kind: "content"; content: Buffer } | { kind: "binary"; reason: "binary" | "symlink" } | { kind: "too_large" } | { kind: "stale" };
@@ -164,10 +164,10 @@ async function readWorkingFile(root: ApprovedRoot, project: Project, path: strin
 
 async function readUntrackedFile(root: ApprovedRoot, project: Project, path: string): Promise<DiffResult> {
   const file = await readWorkingFile(root, project, path);
-  return file.kind === "content" ? untrackedDiff(file.content) : file;
+  return file.kind === "content" ? diffFromContent(file.content) : file;
 }
 
-function decodedText(content: Buffer): string | null {
+export function decodedText(content: Buffer): string | null {
   if (content.byteLength > maxTextBytes || content.includes(0)) return null;
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(content);
@@ -192,50 +192,21 @@ async function readWorkingSource(root: ApprovedRoot, project: Project, path: str
 
 async function withSyntax(root: ApprovedRoot, project: Project, entry: ChangeEntry, diff: DiffResult, override: string | null): Promise<DiffResult> {
   if (diff.kind !== "text" || diff.hunks.length === 0) return diff;
-  if (override === "text") return { ...diff, syntax: { kind: "plain", reason: "selected" } };
-  const language = override ?? detectLanguage(entry.path);
-  if (language === null) return { ...diff, syntax: { kind: "plain", reason: "unknown_language" } };
-  try {
-    const prefixOutput = await runGit(project.absolutePath, ["rev-parse", "--show-prefix"]);
-    const prefix = prefixOutput.toString("utf8");
-    if (!prefix.endsWith("\n")) return diff;
-    const projectPrefix = prefix.slice(0, -1);
-    const gitPath = (path: string): string | null => {
-      const relative = posix.normalize(posix.join(projectPrefix, path));
-      return relative === ".." || relative.startsWith("../") || relative.startsWith("/") ? null : relative;
-    };
-    const lines = diff.hunks.flatMap((hunk) => hunk.lines);
-    const needsOld = lines.some((line) => line.kind === "removed");
-    const needsNew = lines.some((line) => line.kind !== "removed");
-    const oldPath = entry.oldPath ?? entry.path;
-    const oldGitPath = gitPath(oldPath);
-    const newGitPath = gitPath(entry.path);
-    if ((needsOld && oldGitPath === null) || (needsNew && newGitPath === null)) return diff;
-    if (needsOld && !isWithinRoot(root.realPath, resolve(project.absolutePath, oldPath))) return diff;
-    let oldSource: string | null = "";
-    let newSource: string | null = "";
-    if (needsOld && oldGitPath !== null) {
-      oldSource = entry.layer === "staged" ? await readBlob(project, `HEAD:${oldGitPath}`) : await readBlob(project, `:${oldGitPath}`);
-    }
-    if (needsNew && newGitPath !== null) {
-      newSource = entry.layer === "staged" ? await readBlob(project, `:${newGitPath}`) : await readWorkingSource(root, project, entry.path);
-    }
-    if (oldSource === null || newSource === null) return diff;
-    const [oldTokens, newTokens] = await Promise.all([
-      needsOld ? highlightSource(oldSource, language) : Promise.resolve([]),
-      needsNew ? highlightSource(newSource, language) : Promise.resolve([]),
-    ]);
-    if (oldTokens === null || newTokens === null) return diff;
-    const hunks = diff.hunks.map((hunk) => ({ ...hunk, lines: hunk.lines.map((line) => {
-      const index = (line.kind === "removed" ? line.oldLine : line.newLine) ?? 0;
-      const tokens = (line.kind === "removed" ? oldTokens : newTokens)[index - 1];
-      if (tokens === undefined || tokens.map((token) => token.text).join("") !== line.text) throw new Error("Syntax tokens do not match the diff");
-      return { ...line, tokens };
-    }) }));
-    return { kind: "text", syntax: { kind: "highlighted", language }, hunks };
-  } catch {
-    return diff;
-  }
+  const prefixOutput = await runGit(project.absolutePath, ["rev-parse", "--show-prefix"]);
+  const prefix = new TextDecoder("utf-8", { fatal: true }).decode(prefixOutput);
+  if (!prefix.endsWith("\n")) throw new Error("Git returned an invalid project prefix");
+  const projectPrefix = prefix.slice(0, -1);
+  const gitPath = (path: string): string | null => {
+    const relative = posix.normalize(posix.join(projectPrefix, path));
+    return relative === ".." || relative.startsWith("../") || relative.startsWith("/") ? null : relative;
+  };
+  const oldPath = entry.oldPath ?? entry.path;
+  const oldGitPath = gitPath(oldPath);
+  const newGitPath = gitPath(entry.path);
+  return withDiffSyntax(diff, entry.path, override,
+    () => oldGitPath === null || !isWithinRoot(root.realPath, resolve(project.absolutePath, oldPath)) ? Promise.resolve(null) : readBlob(project, `${entry.layer === "staged" ? "HEAD" : ""}:${oldGitPath}`),
+    () => newGitPath === null ? Promise.resolve(null) : entry.layer === "staged" ? readBlob(project, `:${newGitPath}`) : readWorkingSource(root, project, entry.path),
+  );
 }
 
 export async function readProjectDiff(root: ApprovedRoot, project: Project, entry: ChangeEntry, languageOverride: string | null = null): Promise<DiffResult> {

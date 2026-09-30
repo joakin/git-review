@@ -1,8 +1,10 @@
 # git-review
 
-A local, browser-based code review app. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap a diff row to reveal its line information and comment action, dictate into the comment, check the current lines, and copy a line-numbered summary. Projects, directories, files, and Search results have URLs for direct links and browser Back/Forward. With no explicit URL, the selected folder is restored **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. The [documentation map](docs/README.md) links current behavior and engineering records; the [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) covers the device/performance pass, recent files, and optional Git history.
+A local, browser-based code review app. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap a working-copy diff row to reveal its line information and comment action, dictate into the comment, check the current lines, and copy a line-numbered summary. The Git tab browses local and already-present remote branches and opens full commit messages with historical diff cards, without checking out a branch. Projects, directories, files, Search results, branches, and commits have URLs for direct links and browser Back/Forward. With no explicit URL, the selected folder is restored **in its own tab**; recent folders, code wrapping, working-copy open cards, language overrides, comments, and copy history survive reload in this browser. The [documentation map](docs/README.md) links current behavior and engineering records, with the [remaining device/performance pass and recent files](docs/initial-implementation-plan.md#remaining-roadmap) next.
 
 Expanded diffs stay cached in tab memory across section navigation, preserving their content and height. The cache is bounded and is cleared by a page reload; preferences and drafts remain in browser storage. See [loading and screen transitions](docs/loading-and-transition-polish.md).
+
+Historical cards read exact commit/parent blobs, including media. Root commits compare with an empty tree; merges compare with their first parent. The list and commit summary show date and time plus added/deleted line totals for the same project scope and comparison. Git is an inspection view: line information is available, while comments and Search retain their working-copy meaning. Historical card state and loaded history pages stay in this tab's memory. See [Git inspection behavior and limits](docs/git-history-slice-proposal.md).
 
 ## Run the app
 
@@ -49,6 +51,8 @@ bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:files http://127.0.0.1:3000/
 bun run qa:navigation http://127.0.0.1:3000/
 bun run qa:loading http://127.0.0.1:3000/
+bun run qa:git-fixture
+bun run qa:git http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
 bun run qa:voice http://127.0.0.1:3000/
 bun run qa:tabs http://127.0.0.1:3000/

@@ -6,7 +6,7 @@ Updated: 2026-09-30
 
 ## Goal
 
-Build a read-only, host-served code review app that works well on a phone, tablet, and desktop. A user opens the web UI, selects a folder on the host, reviews staged, unstaged, and untracked changes, adds line comments, and copies a line-numbered feedback summary into an editing session. The same app browses and searches current working-tree files; browsing older Git versions remains optional later work. Drafts and convenience state survive reloads in the browser.
+Build a read-only, host-served code review app that works well on a phone, tablet, and desktop. A user opens the web UI, selects a folder on the host, reviews staged, unstaged, and untracked changes, adds line comments, and copies a line-numbered feedback summary into an editing session. The same app browses and searches current working-tree files and inspects branches and commits. General browsing of older file trees remains optional later work. Drafts and convenience state survive reloads in the browser.
 
 The initial release also supports voice dictation into a comment without an OpenAI API key or per-request API charge. The selected implementation uses the locally installed Handy model through Handy's headless file transcription command.
 
@@ -28,34 +28,35 @@ The initial host research recorded Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, H
 
 1. **Open a project.** The web app lists host directories inside server-approved roots. Select a folder. If it is a Git repository, open Changes; otherwise, open Files with a clear non-Git state. Recent projects are shown in the picker.
 2. **Review changes.** The file list groups Staged, Unstaged, and Untracked. Select a file to jump to its card. Expand or collapse cards, inspect highlighted code, toggle wrapping, and add comments to old or new lines.
-3. **Browse and search.** Open any allowed working-tree file. Select code text and use its Search action to find it in the working tree; tap a result to open that file at its matching line. Repository and file commit history is a distant optional expansion.
+3. **Browse and search.** Open any allowed working-tree file. Select code text and use its Search action to find it in the working tree; tap a result to open that file at its matching line.
 4. **Dictate a comment.** Place the caret in a line comment, tap the textarea-footer microphone, record on the phone, and send the clip for local transcription. Insert the returned text at that caret, then edit the draft normally. The recording footer has separate Cancel and Send controls, a five-minute limit, and audible start/stop cues.
 5. **Send feedback.** Preview comments grouped by file and Git layer, copy the text, and paste it into an editing session. Successful copies enter history. An unsuccessful copy preserves the draft.
+6. **Inspect commits.** Choose Git, select a local or already-present remote branch, and browse its paginated commit list. Open a commit's full message and all changed-file diffs in the existing review style, including historical media. Line taps reveal Old/New information. This flow is inspection only; file-specific history and historical comments remain optional.
 
-The [working-tree Files browser](file-browser-slice-proposal.md), [Working-tree Search](search-slice-proposal.md), [selected-code Search shortcut](selected-code-search-slice-proposal.md), and [local voice comment slice](local-voice-comment-slice-proposal.md) are implemented and approved. Repository and file commit history, including opening files at older revisions, is a distant optional slice.
+The [working-tree Files browser](file-browser-slice-proposal.md), [Working-tree Search](search-slice-proposal.md), [selected-code Search shortcut](selected-code-search-slice-proposal.md), and [local voice comment slice](local-voice-comment-slice-proposal.md) are implemented and approved. The maintainer promoted [branch and commit inspection](git-history-slice-proposal.md) on 2026-09-30 and approved the completed delivery, including line totals and date/time metadata. File-specific history and browsing old trees remain optional later work.
 
-The [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) is implemented: browser Back/Forward and direct links cover the main destinations, with a separate menu, contextual list, and content pane. Continuous Changes review remains the default. Changes / Files / Search tabs and the project identity live in the contextual list. On phones, tabs appear only on that full-width list screen. The contextual list stays beside content at widths of 900 px and above; narrower tablets can reveal it from the content heading.
+The [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) is implemented: browser Back/Forward and direct links cover the main destinations, with a separate menu, contextual list, and content pane. Continuous Changes review remains the default. Changes / Files / Search / Git tabs and the project identity live in the contextual list. On phones, tabs appear only on that full-width list screen. The contextual list stays beside content at widths of 900 px and above; narrower tablets can reveal it from the content heading.
 
 ## Responsive interface
 
 ### Wide desktop
 
 - Sticky top bar with the active project. The menu, contextual list, and content pane are visible together.
-- The menu holds project switching, recents, and Settings. Installation and local data tools live in Settings. The contextual list shows the project name and path, Changes / Files / Search tabs, and the corresponding changed files, project files, or Search results. The reading pane opens directly with its task content.
+- The menu holds project switching, recents, and Settings. Installation and local data tools live in Settings. The contextual list shows the project name and path, Changes / Files / Search / Git tabs, and the corresponding changed files, project files, Search results, or branch/commit list. The reading pane opens directly with its task content.
 - Changes opens a continuous review page of collapsible cards by default. Files and Search can open a working-tree file beside their list. Feedback remains reachable while scrolling.
 
 ### Tablet
 
 - At widths of 900 px and above, the contextual list stays beside the content pane while the menu is a drawer. Below 900 px, the contextual list is a drawer. The host folder picker fills the available screen when that route is open.
-- A single back arrow beside the Changes, Files, or Search content title reveals the list drawer when it is hidden. Feedback stays reachable while scrolling.
+- A single back arrow beside the Changes, Files, Search, or Git content title reveals the list drawer when it is hidden. Feedback stays reachable while scrolling.
 
 ### Phone
 
-- The Changes / Files / Search tabs appear only on the full-width contextual list screen. Switching tabs stays on that screen. The menu is a drawer; choosing a host folder, browsing a contextual list, or reading content uses the full width.
-- Selecting a changed file, browsed file, or search result opens the full-width content screen. The same back arrow beside its title returns to the relevant list. Browser Back and Forward follow URL history, including folder navigation and Search result files.
+- The Changes / Files / Search / Git tabs appear only on the full-width contextual list screen. Switching tabs stays on that screen. The menu is a drawer; choosing a host folder, browsing a contextual list, or reading content uses the full width.
+- Selecting a changed file, browsed file, search result, or commit opens the full-width content screen. The same back arrow beside its title returns to the relevant list. Browser Back and Forward follow URL history, including folder navigation, Search result files, branches, and commits.
 - One-column inline diffs only. Wrapping is on by default. When off, each code pane scrolls horizontally without widening the page. A row tap reveals the hidden phone gutters and comment action.
 - Comment editor and feedback preview open as bottom sheets. Touch controls have comfortable targets and stay clear of browser safe areas and the on-screen keyboard.
-- Avoid nested vertical scroll areas. All expanded review cards remain in one page flow; fetch each card's diff only when needed.
+- Avoid nested vertical scroll areas. All expanded review cards remain in one page flow; fetch each card's diff only when needed. Commit cards start expanded and use at most three concurrent diff requests.
 
 Use text labels and symbols as well as color for added, removed, and outdated content. Restore open cards and wrap preference after reload; retain list and review scroll positions during route navigation where practical. Phone diff gutters are hidden for code width and revealed by tapping a row, as described below.
 
@@ -89,7 +90,9 @@ Each text diff has a layer, source-correct old/new sides, and hunks. Each `DiffL
 
 Shiki supplies grammar scopes for line tokens. Keep its full language bundle on the server and load the needed grammar on demand. Return bounded syntax roles with exact token text; the browser applies colors from CSS variables so theme changes need no new diff response. Detect languages from filenames and extensions, and offer a per-file override for ambiguous or unknown types. Reuse the highlighter and loaded grammars; consider caching tokenization by content hash and language if profiling shows a need. Highlight source text before combining it with diff word spans. [Shiki usage](https://shiki.style/guide/install), [Shiki bundles](https://shiki.style/guide/bundles), [Shiki performance](https://shiki.style/guide/best-performance)
 
-The first Files slice shows bounded working-tree text and named states for binary, link, oversized, and unsupported files. The [media preview slice](media-preview-slice-proposal.md) now adds native image (including SVG), audio, and video previews in Files and source-correct Git change cards, each with raw new-tab links. Change cards show Old then New vertically; Files shows the current working-tree file. PDF can wait; HTML preview is not needed. Historical blobs for general browsing and commit navigation remain a distant optional Git browser.
+The first Files slice shows bounded working-tree text and named states for binary, link, oversized, and unsupported files. The [media preview slice](media-preview-slice-proposal.md) now adds native image (including SVG), audio, and video previews in Files and source-correct Git change cards, each with raw new-tab links. Change cards show Old then New vertically; Files shows the current working-tree file. PDF can wait; HTML preview is not needed. [Git inspection](git-history-slice-proposal.md) reuses this presentation with historical Old/New blobs; general browsing of old trees remains deferred.
+
+Git's commit list is scoped to the selected project, including a repository subdirectory. The list and commit summary show aligned author/date-time and hash/line-total rows, with a compact parent label in the summary. Totals follow the same comparison as the cards: parent → commit, empty tree → root commit, or first parent → merge commit. Read historical metadata, syntax, diffs, and previews from exact Git objects. Missing shallow parents have an explicit unavailable comparison and totals. History paging stays pinned to its tip until Refresh; immutable commit payloads use bounded tab-memory caches and keep historical card state separate from working-copy preferences.
 
 ## Search
 
@@ -161,13 +164,16 @@ Mobile microphone capture and programmatic Copy feedback both require a secure b
 | `POST /api/projects/open` | Resolve a selected folder to a stable project ID. |
 | `GET /api/projects/:id/status` | Return Git layer groups, a status revision, and a metadata-based change token. |
 | `GET /api/projects/:id/diff` | Return one file/layer's parsed hunks and highlighted lines. |
+| `GET /api/projects/:id/git/refs`, `GET /api/projects/:id/git/log` | Read local/remote branches and bounded history pages pinned to a tip. |
+| `GET /api/projects/:id/git/commits/:oid`, `GET /api/projects/:id/git/commits/:oid/diff` | Read full commit metadata, comparison inventory, and per-file historical diffs. |
 | `GET /api/languages` | Return Shiki's bundled language IDs and display names for overrides. |
 | `GET /api/projects/:id/tree`, `GET /api/projects/:id/file` | Browse working-tree paths and read bounded current files. |
 | `GET/HEAD /api/projects/:id/raw/file`, `GET/HEAD /api/projects/:id/raw/diff` | Serve version-checked image/audio/video bytes from the correct worktree or Git side, including bounded byte ranges. |
+| `GET/HEAD /api/projects/:id/raw/commit` | Serve version-checked historical Old/New media from the exact comparison blobs. |
 | `GET /api/projects/:id/search` | Return bounded server-side search matches. |
 | `POST /api/transcriptions` | Transcribe one bounded audio clip locally over the private, same-origin HTTPS service. |
 
-Use a small shared TypeScript schema for responses and validate all untrusted inputs at runtime. Resolve paths beneath configured roots after symlinks, prevent traversal, and pass Git/FFmpeg/Handy arguments without a shell. Default to loopback binding; explicit binding to the host's Tailscale IPv4 address supports direct tailnet access, and Serve proxies HTTPS to a loopback backend. Same-origin checks and no permissive CORS apply today. Broader LAN access and Git history need separate designs. Keep the app read-only with respect to repository files.
+Use a small shared TypeScript schema for responses and validate all untrusted inputs at runtime. Resolve paths beneath configured roots after symlinks, prevent traversal, and pass Git/FFmpeg/Handy arguments without a shell. Default to loopback binding; explicit binding to the host's Tailscale IPv4 address supports direct tailnet access, and Serve proxies HTTPS to a loopback backend. Same-origin checks and no permissive CORS apply today. The [Git inspection record](git-history-slice-proposal.md) defines its read-only APIs; broader LAN access still needs a separate design. Keep the app read-only with respect to repository files.
 
 ## Project structure
 
@@ -197,18 +203,19 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 ## Delivery record and acceptance checks
 
 1. **Foundation and secure access (complete):** Bun/Preact scaffold, native TypeScript type-check gate, folder picker, approved-root enforcement, loopback/direct-tailnet serving, and private HTTPS installation.
-2. **Git and file model (complete):** Status, lazy diffs, bounded current-file reads, native media, binary handling, and Search. Historical file reads remain optional. Git fixtures protect layer/source mapping, unusual paths, stale reads, and containment.
+2. **Git and file model (complete):** Status, lazy diffs, bounded current-file reads, native media, binary handling, and Search. Git fixtures protect layer/source mapping, unusual paths, stale reads, and containment. Branch/commit inspection has since been implemented and reviewed; a general historical Files browser remains optional.
 3. **Review UI (complete):** Responsive menu/list/content layout, continuous collapsible cards, syntax and word overlays, wrap toggle, full-file view, and URL navigation. Browser captures cover narrow phones and both tablet orientations.
 4. **Feedback (complete):** Line interactions, durable drafts, conservative anchor checks and reattachment, preview, copy, and history. Copy output identifies every comment's file, layer, side, and line.
 5. **Voice (complete):** Handy headless transcription, browser recording, FFmpeg normalization, a bounded endpoint, and insertion at the saved comment caret. Browser QA covers cancellation, Retry, five-minute automatic Send, and keyboard-sized layout; real-device interruptions and iOS capture remain in the final pass.
-6. **Final device and performance pass:** Check actual touch behavior, clipboard and microphone operation over LAN HTTPS, large files, search limits, and refreshes while comments are present.
+6. **Git inspection (complete):** Read-only branches and paginated history, full messages, immutable parent/root/merge comparisons, historical media, Git URLs, cached card/scroll state, and matching list/detail totals and timestamps. Fixture tests and four-size browser QA pass; maintainer delivery review and approval to commit are complete.
+7. **Final device and performance pass:** Check actual touch behavior, clipboard and microphone operation over private HTTPS, large files, search limits, and refreshes while comments are present.
 
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
 
-The core Git review, Files, Search, media, feedback, voice, appearance, live-update, and navigation slices are implemented and reviewed. The maintainer approved the navigation redesign on phone, tablet, and desktop. The [loading and navigation polish](loading-and-transition-polish.md) is committed as `471521e`, including tab-memory diff caching and one-time URL target focus. The [documentation map](README.md) links the behavior and QA records.
+The core Git review, Git inspection, Files, Search, media, feedback, voice, appearance, live-update, and navigation slices are implemented and reviewed. The maintainer approved the navigation redesign on phone, tablet, and desktop. The [loading and navigation polish](loading-and-transition-polish.md) is committed as `471521e`, including tab-memory diff caching and one-time URL target focus. The [documentation map](README.md) links the behavior and QA records.
 
 ## Remaining roadmap
 
 - **Device and performance pass:** check iOS selection and microphone behavior, clipboard and keyboard layouts on real devices, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed the selected-code Search action and dictation work on their phone.
 - **Recent files:** a bounded per-project recent-file list remains from the initial plan. Its user flow and storage shape need a proposal and maintainer agreement before implementation.
-- **Optional later work:** repository/file Git history, PDF previews, moved-block indicators, and a phone list/content swipe only if real-device testing establishes that it adds value without conflicting with native gestures.
+- **Optional later work:** file-specific Git history and old-tree browsing, historical comments, PDF previews, moved-block indicators, and a phone list/content swipe only if real-device testing establishes that it adds value without conflicting with native gestures.

@@ -2,6 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
+import { CommitViewer } from "./CommitViewer.tsx";
+import { GitSidebar } from "./GitSidebar.tsx";
+import { useGitBrowser } from "./git-browser.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { Icon } from "./Icons.tsx";
 import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
@@ -84,6 +87,7 @@ export function App() {
   const routeProject = route === null ? null : routeProjectPath(route);
   const project = openedProject?.path === routeProject ? openedProject : null;
   const viewMode = route === null ? null : routeSection(route);
+  const gitRoute = route?.section === "git" ? route : null;
   const path = route?.section === "projects" ? route.directory : "";
   const listing = listingLoad.key === path ? listingLoad.state : { kind: "loading" } as const;
   const treePath = route?.section === "files" ? route.directory : route?.section === "search" && route.target.kind === "file" ? parentDirectory(route.target.path) : "";
@@ -119,6 +123,23 @@ export function App() {
   const [reattachId, setReattachId] = useState<string | null>(null);
   const [installDataOpen, setInstallDataOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const git = useGitBrowser(project, gitRoute);
+  const lastGitRefs = useRef(new Map<string, string>());
+
+  useEffect(() => {
+    if (project === null || gitRoute === null) return;
+    if (gitRoute.ref !== null) { lastGitRefs.current.set(project.id, gitRoute.ref); return; }
+    if (git.refs.kind !== "ready" || git.refs.value.kind !== "git") return;
+    const head = git.refs.value.head;
+    // Resolving the default branch completes this destination. Keep an opened
+    // list drawer and its reading position while canonicalizing the URL.
+    const next = { ...gitRoute, ref: head.kind === "detached" ? "HEAD" : head.ref };
+    const url = routeUrl(next);
+    scrollPositions.current.set(url, window.scrollY);
+    routeRef.current = next;
+    window.history.replaceState(null, "", url);
+    setRouteState({ kind: "ready", route: next });
+  }, [project, gitRoute, git.refs]);
 
   function navigate(next: Route, mode: "push" | "replace" = "push"): void {
     const previous = routeRef.current;
@@ -403,8 +424,9 @@ export function App() {
   useLayoutEffect(() => {
     if (route === null || route.section === "changes" && route.target.kind === "file" || route.section === "files" && route.target.kind === "file" || route.section === "search" && route.target.kind === "file") return;
     if (route.section === "search" && route.query !== null && searchState.kind === "loading") return;
+    if (route.section === "git" && (route.target.kind === "commit" ? git.detail.kind === "loading" : git.refs.kind === "loading" || route.ref !== null && !git.unborn && git.history.kind === "loading" && git.refs.kind === "ready" && git.refs.value.kind === "git")) return;
     window.scrollTo({ top: scrollPositions.current.get(routeUrl(route)) ?? 0, behavior: "instant" });
-  }, [route, searchState.kind]);
+  }, [route, searchState.kind, git.detail.kind, git.history.kind, git.refs.kind, git.unborn]);
 
   useEffect(() => {
     if (project === null || viewMode !== "files") return;
@@ -492,10 +514,11 @@ export function App() {
     setStatusRefresh((value) => value + 1);
   }
 
-  function chooseView(mode: "changes" | "files" | "search"): void {
+  function chooseView(mode: "changes" | "files" | "search" | "git"): void {
     if (project === null) return;
     if (mode === "changes") navigate({ section: "changes", projectPath: project.path, target: { kind: window.matchMedia("(max-width: 600px)").matches ? "list" : "all" } });
     else if (mode === "files") navigate({ section: "files", projectPath: project.path, directory: "", target: { kind: "list" } });
+    else if (mode === "git") navigate({ section: "git", projectPath: project.path, ref: lastGitRefs.current.get(project.id) ?? null, target: { kind: "list" } });
     else navigate({ section: "search", projectPath: project.path, query: lastSubmittedQuery, target: { kind: "results" } });
   }
 
@@ -683,6 +706,7 @@ export function App() {
     }
     if (route.section === "changes") navigate({ section: "changes", projectPath: route.projectPath, target: { kind: "list" } });
     else if (route.section === "files") navigate({ section: "files", projectPath: route.projectPath, directory: route.directory, target: { kind: "list" } });
+    else if (route.section === "git") navigate({ ...route, target: { kind: "list" } });
     else navigate({ section: "search", projectPath: route.projectPath, query: route.query, target: { kind: "results" } });
   }
 
@@ -690,7 +714,7 @@ export function App() {
   const folderLabel = listing.kind === "ready" ? shortName(listing.value.path) : shortName(path);
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
   const listSection = route?.section === "settings" ? project === null ? "projects" : "changes" : route?.section ?? "projects";
-  const mobilePane = route?.section === "projects" || route?.section === "changes" && route.target.kind === "list" || route?.section === "files" && route.target.kind === "list" || route?.section === "search" && route.target.kind === "results" ? "list" : "content";
+  const mobilePane = route?.section === "projects" || route?.section === "changes" && route.target.kind === "list" || route?.section === "files" && route.target.kind === "list" || route?.section === "search" && route.target.kind === "results" || route?.section === "git" && route.target.kind === "list" ? "list" : "content";
 
   return (
     <div class="app" data-code-font={codeTypography.fontFamily} style={`--code-font-size: ${codeTypography.fontSize}px`}>
@@ -718,7 +742,7 @@ export function App() {
           <button class="sidebar-settings" type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings <span aria-hidden="true">⚙</span></button>
         </aside>
         {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
-        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={listSection === "changes" ? "Changed files" : listSection === "files" ? "Project files" : listSection === "search" ? "Search results" : "Folder picker"}>
+        <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={listSection === "changes" ? "Changed files" : listSection === "files" ? "Project files" : listSection === "search" ? "Search results" : listSection === "git" ? "Git history" : "Folder picker"}>
           <div class="sidebar-head">
             {listSection === "projects" ? <h2>Folders</h2> : project === null ? <h2>{routeProject === null ? "Folders" : shortName(routeProject)}</h2> : <div class="sidebar-project-identity">
               <h2 class="sidebar-project-title">{project.name}</h2>
@@ -730,9 +754,10 @@ export function App() {
             <button type="button" aria-current={viewMode === "changes" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("changes")}>Changes</button>
             <button type="button" aria-current={viewMode === "files" ? "page" : undefined} onClick={() => chooseView("files")}>Files</button>
             <button type="button" aria-current={viewMode === "search" ? "page" : undefined} onClick={() => chooseView("search")}>Search</button>
+            <button type="button" aria-current={viewMode === "git" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("git")}>Git</button>
           </nav>}
 
-          {listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <div class="sidebar-files">
+          {listSection === "git" && project !== null && gitRoute !== null ? <GitSidebar browser={git} route={gitRoute} onBranch={(ref) => navigate({ ...gitRoute, ref, target: { kind: "list" } })} onCommit={(oid) => navigate({ ...gitRoute, target: { kind: "commit", oid } })} /> : listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <div class="sidebar-files">
             {treePath !== "" && <div class="file-tree-breadcrumb"><button class="back-button" type="button" aria-label="Go to parent directory" onClick={() => navigate({ section: "files", projectPath: project.path, directory: parentDirectory(treePath), target: { kind: "list" } })}><Icon name="back" /></button><span title={treePath}>/{treePath}</span></div>}
             {tree.kind === "loading" && <DelayedLoading key={treeKey ?? "files"} className="sidebar-message" message="Loading files…" />}
             {tree.kind === "error" && <div class="sidebar-error" role="alert">{tree.message} <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Retry</button></div>}
@@ -823,7 +848,10 @@ export function App() {
             </div>
           ) : project === null ? projectOpenError?.path === routeProject ? <div class="status-message" role="alert">This project could not be opened: {projectOpenError.message} <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button>.</div> : <DelayedLoading key={routeProject ?? "project"} className="status-message" message="Opening project…" /> : (
             <div class="project-view project-view-changes">
-              {viewMode === "search" ? <>
+              {viewMode === "git" && gitRoute !== null ? <>
+                <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{gitRoute.target.kind === "commit" ? "Commit" : "Git history"}</h2></div><div class="changes-actions"><button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button><button type="button" disabled={git.refreshing} onClick={git.refreshHistory}>Refresh</button></div></div>
+                {gitRoute.target.kind === "list" ? <p class="status-message">{git.refs.kind === "ready" && git.refs.value.kind === "not_git" ? "This folder is not a Git worktree." : git.unborn ? "This branch has no commits yet." : "Select a commit from the Git list to inspect its message and changes."}</p> : git.detail.kind === "loading" ? <DelayedLoading key={gitRoute.target.oid} className="status-message" message="Reading commit…" /> : git.detail.kind === "error" ? <div class="status-message" role="alert">{git.detail.message} <button type="button" onClick={git.retryCommit}>Retry</button></div> : <CommitViewer key={`${project.id}:${git.detail.value.oid}`} project={project} detail={git.detail.value} wrap={wrapCode} languages={languages} />}
+              </> : viewMode === "search" ? <>
                 <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{selectedFile === null ? "Search files" : "Search result"}</h2></div></div>
                 {selectedFile === null ? <p class="status-message">Search this project from the results list. Select a match to read its file here.</p> : <><div class="file-location-bar"><span>{selectedFile}</span></div><FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} searchTarget={searchTarget} /></>}
               </> : viewMode === "files" ? <>

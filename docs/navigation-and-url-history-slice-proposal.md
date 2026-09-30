@@ -9,10 +9,10 @@ The former app kept Changes / Files / Search, the folder or file sidebar, the se
 The implemented navigation has **three distinct levels**:
 
 1. **Menu:** choose a project, revisit recent projects, and open Settings. Settings contains the installation and local data controls.
-2. **List screen:** browse host folders, Git changes, project files, or Search results. Its identity and selection come from the route.
-3. **Content screen:** read a diff or working-tree file, add comments, and open feedback. The content keeps the list it came from as context.
+2. **List screen:** browse host folders, Git changes, project files, Search results, or branches and commits. Its identity and selection come from the route.
+3. **Content screen:** read a diff, working-tree file, or full commit comparison, add working-copy comments, and open feedback. The content keeps the list it came from as context.
 
-These are logical screens, not a fixed number of visible columns. A wide desktop shows menu, list, and content together. The list stays beside content at 900 px and above; narrower tablets reveal it as a drawer using the content-heading back arrow. Phones up to 600 px show one full-width list or content screen at a time. **Changes / Files / Search tabs belong only to the contextual list**, separate from the global menu; phone content shows the shared back arrow instead of repeating the tabs. A guarded horizontal swipe remains optional after real-device testing. The code pane keeps its own horizontal scroll, text selection, and line gestures; the app must not take over browser edge Back gestures. [MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action), [MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
+These are logical screens, not a fixed number of visible columns. A wide desktop shows menu, list, and content together. The list stays beside content at 900 px and above; narrower tablets reveal it as a drawer using the content-heading back arrow. Phones up to 600 px show one full-width list or content screen at a time. **Changes / Files / Search / Git tabs belong only to the contextual list**, separate from the global menu; phone content shows the shared back arrow instead of repeating the tabs. A guarded horizontal swipe remains optional after real-device testing. The code pane keeps its own horizontal scroll, text selection, and line gestures; the app must not take over browser edge Back gestures. [MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action), [MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
 
 ## Current user flow
 
@@ -21,6 +21,7 @@ These are logical screens, not a fixed number of visible columns. A wide desktop
 3. Open Files, walk directories, and select a file. The URL records the project, list context, file, and optional line. On a phone, Files list and file content are separate full-width screens; on a wide display they can sit side by side.
 4. Submit Search. The results list becomes a route. Tap a result: the file opens while Search remains its parent list. Browser Back returns to those results and Forward reopens the file. On a wide display, the Search results can remain visible next to the file.
 5. Open the host folder picker from the menu. It is a navigable list screen rather than a special sidebar mode. Selecting a folder changes the active project in this tab.
+6. Open Git, choose a branch, and select a commit. Branch and commit destinations use the same list/content and Back/Forward patterns. The [Git inspection record](git-history-slice-proposal.md) describes immutable comparisons, paging, and cached reading positions; its delivery review is pending.
 
 Feedback drafts, copy history, wrap choice, theme preferences, and recent projects remain browser-local. Opening or dismissing a menu, drawer, keyboard, or comment sheet does not by itself create a new URL. Before a route transition, close or save an edited comment sheet through the existing draft rules.
 
@@ -38,9 +39,11 @@ Example URLs (values shown decoded for readability; construct them with `URLSear
 /?project=git-review&section=files&dir=src/client&file=src/client/App.tsx&line=170
 /?project=git-review&section=search&q=selectedWord
 /?project=git-review&section=search&q=selectedWord&file=src/client/App.tsx&line=170
+/?project=git-review&section=git&ref=refs/heads/main
+/?project=git-review&section=git&ref=refs/heads/main&commit=<full-object-id>
 ```
 
-The last two URLs are the key Search flow: selecting a result adds a file target to the Search route, so the result list remains its parent. The plain Changes URL means continuous review; `target=list` opens its file list on a phone. Changes can also target an individual diff; Files can target a directory or file. The [route parser](../src/client/navigation.ts) produces a precise discriminated union:
+The Search URLs illustrate selecting a result: adding a file target keeps the result list as its parent. The plain Changes URL means continuous review; `target=list` opens its file list on a phone. Changes can also target an individual diff; Files can target a directory or file. A Git URL records the full branch ref (or `HEAD`) and an optional full commit ID. The [route parser](../src/client/navigation.ts) produces a precise discriminated union:
 
 ```ts
 type Route =
@@ -48,6 +51,7 @@ type Route =
   | { section: "changes"; projectPath: string; target: ChangesTarget }
   | { section: "files"; projectPath: string; directory: string; target: FileTarget }
   | { section: "search"; projectPath: string; query: string | null; target: SearchTarget }
+  | { section: "git"; projectPath: string; ref: string | null; target: GitTarget }
   | { section: "settings"; projectPath: string | null };
 
 type ChangesTarget =
@@ -56,6 +60,7 @@ type ChangesTarget =
   | { kind: "file"; layer: "staged" | "unstaged" | "untracked" | "conflict"; path: string };
 type FileTarget = { kind: "list" } | { kind: "file"; path: string; line: number | null };
 type SearchTarget = { kind: "results" } | { kind: "file"; path: string; line: number };
+type GitTarget = { kind: "list" } | { kind: "commit"; oid: string };
 ```
 
 The URL stores a **root-relative project path**, because the server's current project ID is registered only in memory. A direct link or reload first calls the existing project-open endpoint, which revalidates the approved root and returns a fresh ID, then loads the requested content. File paths remain project-relative. No repository path becomes a server filesystem write. No new backend endpoint is required for the first URL checkpoint. The server still validates every project, file, and search request independently.
@@ -64,7 +69,7 @@ Keep only navigable state in the URL. Search typing before submission, list filt
 
 ## History and responsive rules
 
-- Push an entry when changing project, section, directory, submitted Search query, or selected file/diff. Do not push for each keystroke, wrap toggle, menu reveal, or drawer toggle.
+- Push an entry when changing project, section, directory, submitted Search query, Git branch, or selected file/diff/commit. Do not push for each keystroke, wrap toggle, menu reveal, or drawer toggle.
 - Back/Forward must parse the current URL and render it without writing another history entry. If results are still cached in the tab, reuse them; after reload, rerun the bounded Search query. Restore the prior list/content scroll position after asynchronous loading where practical.
 - A direct link to a file must work without prior navigation in this tab. Its visible List control opens the route's parent list; browser Back follows the browser's actual previous entry. Never assume that the previous entry belongs to this app.
 - The route describes the logical destination. Viewport width decides which panes are visible, so rotating a phone or resizing a browser does not rewrite history.

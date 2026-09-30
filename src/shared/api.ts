@@ -190,7 +190,7 @@ function parseMediaResource(value: unknown): MediaResource {
   const byteLength = expectNonNegativeInteger(raw["byteLength"], "media byte length");
   if (byteLength === 0 || byteLength > (kind === "image" ? 25 : 200) * 1024 * 1024) throw new Error("Expected bounded media bytes");
   const url = expectString(raw["url"], "media URL");
-  if (!/^\/api\/projects\/[0-9a-f]{20}\/raw\/(file|diff)\?/.test(url) || /[\r\n\\]/.test(url)) throw new Error("Expected a project media URL");
+  if (!/^\/api\/projects\/[0-9a-f]{20}\/raw\/(file|diff|commit)\?/.test(url) || /[\r\n\\]/.test(url)) throw new Error("Expected a project media URL");
   return { kind, mimeType, byteLength, url };
 }
 

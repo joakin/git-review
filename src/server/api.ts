@@ -5,12 +5,14 @@ import { readProjectStatus } from "./git-status.ts";
 import { readProjectDiff } from "./git-diff.ts";
 import { languageOverride, languages } from "./syntax.ts";
 import { openWorkingAudioVideo, readProjectFile, readProjectTree, readWorkingImageBytes } from "./project-files.ts";
-import { describeDiffMedia, diffMediaType, imageResponse, openDiffAudioVideo, readDiffImageBytes } from "./media.ts";
+import { commitMediaResponse, describeCommitMedia, describeDiffMedia, diffMediaType, imageResponse, openDiffAudioVideo, readDiffImageBytes } from "./media.ts";
 import { audioVideoResponse } from "./media-stream.ts";
 import { imageMimeType } from "./image-types.ts";
 import { searchProject } from "./search.ts";
 import { createTranscriptionHandler } from "./transcription.ts";
 import type { ChangeLayer, Project } from "../shared/api.ts";
+import { commitFile, readCommit, readCommitDiff, readGitHistory, readGitRefs } from "./git-history.ts";
+import { isGitOid, validGitRef } from "../shared/git.ts";
 
 const maxBodyBytes = 4096;
 
@@ -66,6 +68,20 @@ function changeLayer(value: string): ChangeLayer {
   throw new AppError("invalid_request", 400, "Invalid change layer");
 }
 
+function onlyQueryKeys(url: URL, allowed: readonly string[]): void {
+  const seen = new Set<string>();
+  for (const [key] of url.searchParams) {
+    if (!allowed.includes(key) || seen.has(key)) throw new AppError("invalid_request", 400, "Invalid or repeated Git query field");
+    seen.add(key);
+  }
+}
+
+function requestedLanguage(url: URL): string | null {
+  const value = url.searchParams.get("language");
+  if (value !== null && languageOverride(value) === null) throw new AppError("invalid_request", 400, "Invalid language override");
+  return value;
+}
+
 export function createApiHandler(root: ApprovedRoot, publicOrigin: string | null = null): (request: Request) => Promise<Response> {
   const openProjects = new Map<string, Project>();
   const transcribe = createTranscriptionHandler();
@@ -100,7 +116,39 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       openProjects.set(project.id, project);
       return Response.json({ project });
     }
-    const rawRoute = /^\/api\/projects\/([0-9a-f]{20})\/raw\/(file|diff)$/.exec(url.pathname);
+    const gitRoute = /^\/api\/projects\/([0-9a-f]{20})\/git\/(refs|log|commits\/((?:[0-9a-f]{40}|[0-9a-f]{64}))(\/diff)?)$/.exec(url.pathname);
+    if (gitRoute !== null && request.method === "GET") {
+      const id = gitRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined) throw new AppError("not_found", 404, "Open this folder before browsing its Git history");
+      const current = await openProject(root, project.path);
+      if (current.id !== id) throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      if (gitRoute[2] === "refs") {
+        onlyQueryKeys(url, []);
+        return Response.json(await readGitRefs(current));
+      }
+      if (gitRoute[2] === "log") {
+        onlyQueryKeys(url, ["ref", "tip", "offset"]);
+        if (url.searchParams.has("ref")) {
+          const ref = oneQueryValue(url, "ref");
+          if (!validGitRef(ref) || url.searchParams.has("tip") || url.searchParams.has("offset")) throw new AppError("invalid_request", 400, "Specify one branch ref or history snapshot");
+          return Response.json(await readGitHistory(current, { kind: "ref", ref }));
+        }
+        const tip = oneQueryValue(url, "tip");
+        const offset = oneQueryValue(url, "offset");
+        if (!isGitOid(tip) || !/^(?:0|[1-9][0-9]{0,6})$/.test(offset)) throw new AppError("invalid_request", 400, "Invalid history snapshot");
+        return Response.json(await readGitHistory(current, { kind: "page", tip, offset: Number(offset) }));
+      }
+      const oid = gitRoute[3];
+      if (oid === undefined) throw new AppError("invalid_request", 400, "Specify a commit ID");
+      onlyQueryKeys(url, gitRoute[4] === undefined ? [] : ["path", "language"]);
+      const language = gitRoute[4] === undefined ? null : requestedLanguage(url);
+      const detail = await readCommit(current, oid);
+      if (gitRoute[4] === undefined) return Response.json(detail);
+      const file = commitFile(detail, oneQueryValue(url, "path"));
+      return Response.json(await describeCommitMedia(current, detail, file) ?? await readCommitDiff(current, detail, file, language));
+    }
+    const rawRoute = /^\/api\/projects\/([0-9a-f]{20})\/raw\/(file|diff|commit)$/.exec(url.pathname);
     if (rawRoute !== null && (request.method === "GET" || request.method === "HEAD")) {
       const id = rawRoute[1];
       const project = id === undefined ? undefined : openProjects.get(id);
@@ -110,6 +158,13 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       const path = oneQueryValue(url, "path");
       const version = oneQueryValue(url, "version");
       if (!/^(?:[0-9a-f]{20}|[0-9a-f]{40,64})$/.test(version)) throw new AppError("invalid_request", 400, "Invalid media version");
+      if (rawRoute[2] === "commit") {
+        onlyQueryKeys(url, ["path", "version", "commit", "side"]);
+        const side = oneQueryValue(url, "side");
+        if (side !== "old" && side !== "new") throw new AppError("invalid_request", 400, "Invalid commit media side");
+        const detail = await readCommit(current, oneQueryValue(url, "commit"));
+        return await commitMediaResponse(request, current, commitFile(detail, path), side, version);
+      }
       if (rawRoute[2] === "file") {
         if (imageMimeType(path) !== null) {
           const image = await readWorkingImageBytes(root, current, path, version);

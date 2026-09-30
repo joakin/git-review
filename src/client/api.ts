@@ -22,7 +22,7 @@ import {
 } from "../shared/api.ts";
 import { expectRecord, expectString } from "../shared/validation.ts";
 
-async function responseBody(response: Response): Promise<unknown> {
+export async function responseBody(response: Response): Promise<unknown> {
   let body: unknown;
   try {
     body = await response.json() as unknown;

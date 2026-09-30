@@ -18,6 +18,7 @@ type CaptureOptions = {
   selectText: { selector: string; text: string } | null;
   fakeMicrophone: boolean;
   mediaReady: boolean;
+  revealList: boolean;
 };
 
 type ParsedArgs = { kind: "help" } | { kind: "capture"; options: CaptureOptions };
@@ -52,6 +53,7 @@ Options:
   --select-text <CSS selector> <text> Select code text and show its contextual action
   --fake-microphone       Grant Chrome's synthetic microphone for recording UI captures
   --media-ready           Wait for audio/video metadata before each screenshot
+  --reveal-list           Open the contextual list drawer on narrow tablets
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
 
@@ -83,6 +85,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let selectText: CaptureOptions["selectText"] = null;
   let fakeMicrophone = false;
   let mediaReady = false;
+  let revealList = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -147,6 +150,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       case "--media-ready":
         mediaReady = true;
         break;
+      case "--reveal-list":
+        revealList = true;
+        break;
       default:
         throw new Error(`Unknown option: ${flag ?? "(missing)"}`);
     }
@@ -171,7 +177,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 
   if (afterClickReady !== null && !actions.some((action) => action.kind === "click")) throw new Error("--after-click-ready requires --click");
   if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText, fakeMicrophone, mediaReady } };
+  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText, fakeMicrophone, mediaReady, revealList } };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -212,6 +218,11 @@ async function capture(options: CaptureOptions): Promise<void> {
         });
         if (response === null || !response.ok()) {
           throw new Error(`${view.name}: page load returned ${response?.status() ?? "no response"}`);
+        }
+        if (options.revealList && view.width > 600 && view.width < 900) {
+          const back = page.getByRole("button", { name: "Back to list" });
+          await back.waitFor({ state: "visible", timeout: 15_000 });
+          await back.click();
         }
         if (options.ready !== null) {
           await page.locator(options.ready).first().waitFor({ state: "visible", timeout: 15_000 });

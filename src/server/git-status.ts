@@ -15,9 +15,9 @@ export class GitCommandError extends Error {
   }
 }
 
-export function runGit(cwd: string, args: readonly string[], maxBytes = maxOutputBytes): Promise<Buffer> {
+export function runGit(cwd: string, args: readonly string[], maxBytes = maxOutputBytes, input: string | null = null): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       "git",
       ["--literal-pathspecs", "-c", "core.fsmonitor=false", ...args],
       {
@@ -29,12 +29,18 @@ export function runGit(cwd: string, args: readonly string[], maxBytes = maxOutpu
       },
       (error, stdout, stderr) => {
         if (error !== null) {
-          reject(new GitCommandError(stderr.toString("utf8").trim(), error.code ?? null));
+          const code = error.code ?? (error.killed ? "ETIMEDOUT" : null);
+          reject(new GitCommandError(stderr.toString("utf8").trim() || (code === "ETIMEDOUT" ? "Git read timed out" : ""), code));
           return;
         }
         resolve(stdout);
       },
     );
+    if (input !== null) {
+      if (child.stdin === null) { child.kill(); reject(new Error("Git input pipe is unavailable")); return; }
+      child.stdin.on("error", (error: Error) => { child.kill(); reject(error); });
+      child.stdin.end(input);
+    }
   });
 }
 

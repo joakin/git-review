@@ -111,6 +111,8 @@
   --color-change-unstaged: #a26425;
   --color-change-untracked: #45729a;
   --color-change-conflict: #a8453b;
+  --color-stat-added: var(--color-change-staged);
+  --color-stat-deleted: var(--color-change-conflict);
   --color-diff-added-bg: #e9f7ef;
   --color-diff-removed-bg: #fff0ed;
   --color-diff-added-word-bg: #b9ebc9;

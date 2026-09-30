@@ -11,6 +11,9 @@ describe("browser navigation", () => {
       { section: "files", projectPath: "project ü", directory: "src", target: { kind: "file", path: "src/a ?#%.ts", line: 170 } },
       { section: "search", projectPath: "project ü", query: "a+b ?#%", target: { kind: "file", path: "src/a ?#%.ts", line: 170 } },
       { section: "settings", projectPath: "project ü" },
+      { section: "git", projectPath: "project ü", ref: null, target: { kind: "list" } },
+      { section: "git", projectPath: "project ü", ref: "refs/heads/feature/ü+#", target: { kind: "commit", oid: "a".repeat(40) } },
+      { section: "git", projectPath: "", ref: "HEAD", target: { kind: "commit", oid: "b".repeat(64) } },
     ];
     for (const route of routes) expect(parseNavigationSearch(new URL(routeUrl(route), "https://example.test").search)).toEqual({ kind: "ready", route });
   });
@@ -28,6 +31,13 @@ describe("browser navigation", () => {
       "?section=changes&project=x&unknown=y",
       "?section=projects&dir=%ZZ",
       "?section=files&project=%EF%BF%BD",
+      "?section=git&project=x&ref=main~1",
+      "?section=git&project=x&ref=refs/heads/a..b",
+      "?section=git&project=x&commit=HEAD",
+      "?section=git&project=x&commit=abcdef",
+      "?section=git&project=x&file=a.ts",
+      "?section=files&project=x&ref=HEAD",
+      "?section=git&project=x&ref=HEAD&ref=HEAD",
     ]) expect(parseNavigationSearch(search).kind).toBe("invalid");
   });
 
