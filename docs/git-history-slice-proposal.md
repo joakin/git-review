@@ -1,6 +1,6 @@
 # Git tab: branches and commit inspection
 
-Status: implemented and reviewed; maintainer approved committing the Git slice and metadata refinement on 2026-09-30.
+Status: implemented, reviewed, and committed as `22de40e` on 2026-09-30. The [initial implementation stage is closed](initial-implementation-plan.md#stage-closure--2026-09-30); broader Git features are optional future work.
 
 Updated: 2026-09-30
 
@@ -97,7 +97,7 @@ The smallest complete result is a phone that can choose a branch, open any ordin
 - `qa:navigation`, `qa:line-action`, and `qa:loading` pass after sharing the renderer, including working-copy comment/export anchors and one-time route focus. This guards the existing Changes workflow during the refactor.
 - All 12 images in the four-size [Git list](../qa/screenshots/git-history-list/mobile.png), [full-message and diff](../qa/screenshots/git-commit-inspection/mobile.png), and [historical code](../qa/screenshots/git-historical-code/mobile.png) capture sets were inspected. They have no page-wide overflow.
 - Chrome opened this repository through the running private HTTPS origin, read the full current commit message and all 23 historical cards, and navigated between the phone commit/list screens without page errors or overflow. This was a browser check on the host, not a physical phone check.
-- Browser emulation does not prove native iOS/Android selection or the installed app's navigation. Dedicated real-device checks remain in the device and performance pass.
+- Browser emulation does not prove native iOS/Android selection or the installed app's navigation. Dedicated real-device checks remain unverified [optional future work](initial-implementation-plan.md#remaining-roadmap).
 
 ## Agreed scope and later work
 
@@ -105,7 +105,7 @@ The maintainer approved local and already-present remote branches, merge compari
 
 ## Proposed follow-up: line totals and time
 
-Status: implemented and reviewed; maintainer approved committing this refinement with the Git slice on 2026-09-30. The section heading is retained for existing review links.
+Status: implemented, reviewed, and committed with the Git slice as `22de40e` on 2026-09-30. The section heading is retained for existing review links.
 
 ### User flow and appearance
 
@@ -149,4 +149,4 @@ Research on 2026-09-30 confirmed the fixture yields `+163 −163` for its five-f
 - `bun run typecheck`, `bun test`, and `bun run qa:check` pass: 48 tests, 406 assertions. Totals agree between list and detail for ordinary/root/merge/empty commits, binary changes, deletion, mode-only changes, renames across subfolder boundaries, filenames with tabs/newlines, and SHA-256 IDs. Missing shallow parents and oversized batch reads preserve explicit unavailable statistics; malformed HTTP counts are rejected.
 - `qa:git` passes at 390, 820, 1180, and 1440 px. It checks matching list/detail totals and times, two-row alignment, parent/root/first-parent labels, and the existing navigation/cache/media flows. Its extra 320 px check covers long author names, full hashes, and large totals. A delayed-ref tablet check ensures resolving the default branch cannot close an already opened list drawer.
 - All eight new [list metadata](../qa/screenshots/git-metadata-list-review/mobile.png) and [commit metadata](../qa/screenshots/git-metadata-summary-review/mobile.png) captures were inspected: phone, tablet portrait, tablet landscape, and desktop. There is no page-wide overflow.
-- The running private HTTPS app was rebuilt and its servers restarted. Host Chrome verified the live phone list/content flow, matching totals/timestamps, full message, and all 23 historical cards. The maintainer approved the delivery and committing it on 2026-09-30; dedicated real-device checks remain in the final pass.
+- The running private HTTPS app was rebuilt and its servers restarted. Host Chrome verified the live phone list/content flow, matching totals/timestamps, full message, and all 23 historical cards. The maintainer approved the delivery and committing it on 2026-09-30; dedicated real-device checks remain optional and unverified.

@@ -1,6 +1,6 @@
 # Phone diff line action without gutters
 
-Status: implemented, reviewed by the maintainer, and committed. Dedicated iOS/Android selection and gesture checks remain in the device pass.
+Status: implemented, reviewed by the maintainer, and committed. Additional iOS/Android selection and gesture checks remain unverified [optional future work](initial-implementation-plan.md#remaining-roadmap).
 
 ## Job and user flow
 

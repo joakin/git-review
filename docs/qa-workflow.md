@@ -1,6 +1,6 @@
 # Testing and visual QA
 
-This document records how we verify the app as it grows. The product plan is in [Initial Implementation Plan](initial-implementation-plan.md).
+This document records the verification tools, procedures, and evidence for the app. The initial implementation stage is closed as of 2026-09-30. Additional device and performance checks are [optional future work](initial-implementation-plan.md#remaining-roadmap), not an active acceptance gate. Keep the procedures below available for future fixes and improvements; recorded uncertainty remains unverified until the relevant check is actually performed.
 
 ## Every small change
 

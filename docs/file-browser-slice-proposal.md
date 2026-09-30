@@ -19,7 +19,7 @@ Files provides a path from a selected project to a readable working-tree file on
 - `GET /api/projects/:id/file?path=<project-relative file>&source=worktree` returns a discriminated result: `text` with `path`, byte length, `syntax`, and numbered `{ text, tokens }` lines; `media` with a version-checked raw resource; or `binary`, `too_large`, `symlink`, or `unsupported` with byte length. A language override uses the bundled-language list and project/path local preference.
 - Both routes require an opened project ID, revalidate that project under the approved root, parse each path once, and confine reads to the selected project's real directory as well as the approved root. Do not follow symlinks in this first slice. Read only regular files. Use no shell for subprocesses.
 - Bound text reads to 1 MiB and 20,000 lines. Media has separate byte limits in its [behavior record](media-preview-slice-proposal.md). Detect NUL bytes and invalid UTF-8 before syntax highlighting. Return semantic token roles; the client applies its own theme. Parse every response at the client boundary.
-- The validated URL owns the project, directory, selected file, and optional line. Direct links and browser Back/Forward use the [navigation model](navigation-and-url-history-slice-proposal.md). Recent-file history remains planned.
+- The validated URL owns the project, directory, selected file, and optional line. Direct links and browser Back/Forward use the [navigation model](navigation-and-url-history-slice-proposal.md). Recent-file history is [optional future work](initial-implementation-plan.md#remaining-roadmap).
 
 ## Edge cases and QA
 
@@ -29,7 +29,7 @@ Files provides a path from a selected project to a readable working-tree file on
 
 ## Deferred ideas
 
-- A focused [branch and commit browser](git-history-slice-proposal.md) was promoted to the next priority on 2026-09-30. File-specific history and browsing a whole tree at a chosen revision remain optional later work; Files continues to read the working tree. Index and `HEAD` version selection can be considered with that later work. [Git tree listing](https://git-scm.com/docs/git-ls-tree), [Git object reads](https://git-scm.com/docs/git-cat-file)
+- The focused [branch and commit browser](git-history-slice-proposal.md) is implemented, reviewed, and committed as `22de40e`. File-specific history and browsing a whole tree at a chosen revision remain optional later work; Files continues to read the working tree. Index and `HEAD` version selection can be considered with that later work. [Git tree listing](https://git-scm.com/docs/git-ls-tree), [Git object reads](https://git-scm.com/docs/git-cat-file)
 - Native images (including SVG), audio, and video are covered by the [media preview slice](media-preview-slice-proposal.md). PDF is deferred; HTML preview is not planned.
 - Bounded server-side Search and the selected-code action are implemented in their [Search](search-slice-proposal.md) and [selection](selected-code-search-slice-proposal.md) records.
 

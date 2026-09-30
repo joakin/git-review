@@ -1,6 +1,6 @@
 # Native media previews in Files and change cards
 
-Status: approved by the maintainer and implemented. Image and audio/video checkpoints passed local and private HTTPS browser QA. Real phone playback and raw-tab behavior remain to be checked on devices.
+Status: approved by the maintainer and implemented. Image and audio/video checkpoints passed local and private HTTPS browser QA. Additional real-phone playback and raw-tab checks remain unverified [optional future work](initial-implementation-plan.md#remaining-roadmap).
 
 ## Job and user flow
 

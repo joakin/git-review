@@ -1,8 +1,10 @@
 # Initial Implementation Plan
 
-Status: implementation record and remaining roadmap
+Status: initial implementation stage complete and closed; remaining ideas are optional
 
 Updated: 2026-09-30
+
+The maintainer confirmed the app is usable and useful and closed this stage on 2026-09-30. No implementation or acceptance slice remains active. Further improvements can be chosen in new threads from the [optional backlog](#remaining-roadmap); they are not required to complete this stage.
 
 ## Goal
 
@@ -104,7 +106,7 @@ The selected-code shortcut submits a validated single-line selection as a case-s
 
 A project-keyed comment store holds each anchor's path, Git layer, old/new side, line number, exact source text, and neighboring context. Opening Feedback rechecks the current Git status and diffs. A changed or missing anchor becomes outdated and is excluded from export until explicitly reattached and checked again. Automatic relocation by context remains a possible future refinement; the current behavior never silently moves an anchor.
 
-Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Recent projects, wrap choice, collapsed-card state, language overrides, appearance, typography, and bounded copy history persist there as well; the active project uses per-tab `sessionStorage`. Recent-file history remains planned. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the copied drafts, with an immediate Undo action. On failure, keep the drafts and show selectable feedback text.
+Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Recent projects, wrap choice, collapsed-card state, language overrides, appearance, typography, and bounded copy history persist there as well; the active project uses per-tab `sessionStorage`. Recent-file history is optional future work. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the copied drafts, with an immediate Undo action. On failure, keep the drafts and show selectable feedback text.
 
 Export plain text with relative paths, Git layer, side, line number, source text, and the comment. The current formatter produces text like:
 
@@ -206,16 +208,29 @@ Type checking runs with the project-local native TypeScript 7 compiler. Enable `
 2. **Git and file model (complete):** Status, lazy diffs, bounded current-file reads, native media, binary handling, and Search. Git fixtures protect layer/source mapping, unusual paths, stale reads, and containment. Branch/commit inspection has since been implemented and reviewed; a general historical Files browser remains optional.
 3. **Review UI (complete):** Responsive menu/list/content layout, continuous collapsible cards, syntax and word overlays, wrap toggle, full-file view, and URL navigation. Browser captures cover narrow phones and both tablet orientations.
 4. **Feedback (complete):** Line interactions, durable drafts, conservative anchor checks and reattachment, preview, copy, and history. Copy output identifies every comment's file, layer, side, and line.
-5. **Voice (complete):** Handy headless transcription, browser recording, FFmpeg normalization, a bounded endpoint, and insertion at the saved comment caret. Browser QA covers cancellation, Retry, five-minute automatic Send, and keyboard-sized layout; real-device interruptions and iOS capture remain in the final pass.
+5. **Voice (complete):** Handy headless transcription, browser recording, FFmpeg normalization, a bounded endpoint, and insertion at the saved comment caret. Browser QA covers cancellation, Retry, five-minute automatic Send, and keyboard-sized layout; additional real-device interruption and iOS capture checks are optional and remain unverified.
 6. **Git inspection (complete):** Read-only branches and paginated history, full messages, immutable parent/root/merge comparisons, historical media, Git URLs, cached card/scroll state, and matching list/detail totals and timestamps. Fixture tests and four-size browser QA pass; maintainer delivery review and approval to commit are complete.
-7. **Final device and performance pass:** Check actual touch behavior, clipboard and microphone operation over private HTTPS, large files, search limits, and refreshes while comments are present.
+7. **Device and performance pass (optional, deferred):** Additional touch, clipboard, microphone, large-project, and interruption checks can be selected in a future thread. This pass is not a remaining acceptance gate for the closed stage.
 
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
 
 The core Git review, Git inspection, Files, Search, media, feedback, voice, appearance, live-update, and navigation slices are implemented and reviewed. The maintainer approved the navigation redesign on phone, tablet, and desktop. The [loading and navigation polish](loading-and-transition-polish.md) is committed as `471521e`, including tab-memory diff caching and one-time URL target focus. The [documentation map](README.md) links the behavior and QA records.
 
+## Stage closure — 2026-09-30
+
+- **Accepted result:** the maintainer considers the app usable and useful for their code review workflow and has chosen to close this implementation stage.
+- **Delivered baseline:** `22de40e` (`feat: add branch and commit inspection with line totals`) includes the final reviewed Git work, its tests, documentation, and QA captures. The preceding review, Files, Search, feedback, voice, media, appearance, installation, navigation, and loading slices are also delivered.
+- **Verification record:** the latest code delivery passed strict type checking, the CSS token check, 48 tests with 406 assertions, and focused Git browser QA on phone, both tablet orientations, and desktop. The [Git record](git-history-slice-proposal.md#verification--metadata-refinement-2026-09-30) preserves the evidence and its device limits. Previously unverified checks remain unverified.
+- **Future collaboration:** there is no active next slice. Further improvements will be discussed in new threads, with the existing proposal/review workflow. Use the optional backlog below to choose work when the maintainer requests further improvements.
+- **Operation:** the app remains available using the existing host services and HTTPS setup, with its stored drafts/preferences. Run instructions remain in the [root README](../README.md).
+
 ## Remaining roadmap
 
-- **Device and performance pass:** check iOS selection and microphone behavior, clipboard and keyboard layouts on real devices, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed the selected-code Search action and dictation work on their phone.
-- **Recent files:** a bounded per-project recent-file list remains from the initial plan. Its user flow and storage shape need a proposal and maintainer agreement before implementation.
-- **Optional later work:** file-specific Git history and old-tree browsing, historical comments, PDF previews, moved-block indicators, and a phone list/content swipe only if real-device testing establishes that it adds value without conflicting with native gestures.
+**All items are optional future work.** There is no assigned order, deadline, or active next item. This heading is retained for existing links. Select scope and agree an approach with the maintainer in a new thread before starting another feature.
+
+- **Additional device and performance checks:** iOS selection and microphone behavior, clipboard and keyboard layouts, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed selected-code Search and dictation work on their phone; the additional checks remain unverified.
+- **Recent files:** a bounded per-project recent-file list. Its user flow and storage shape need a proposal and maintainer agreement.
+- **Broader Git inspection:** file-specific history, browsing complete old trees, and historical comments. Current Git branch/commit inspection is already complete.
+- **Additional previews:** PDF previews. Images, SVG, audio, and video are already supported; HTML preview is not planned.
+- **Diff detail:** moved-block indicators, if they become useful enough to justify the work. Word-level detail is already complete.
+- **Phone navigation gesture:** a list/content swipe only if real-device testing establishes that it adds value without conflicting with browser Back, code scrolling, or native selection.

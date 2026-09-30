@@ -21,7 +21,7 @@ These are logical screens, not a fixed number of visible columns. A wide desktop
 3. Open Files, walk directories, and select a file. The URL records the project, list context, file, and optional line. On a phone, Files list and file content are separate full-width screens; on a wide display they can sit side by side.
 4. Submit Search. The results list becomes a route. Tap a result: the file opens while Search remains its parent list. Browser Back returns to those results and Forward reopens the file. On a wide display, the Search results can remain visible next to the file.
 5. Open the host folder picker from the menu. It is a navigable list screen rather than a special sidebar mode. Selecting a folder changes the active project in this tab.
-6. Open Git, choose a branch, and select a commit. Branch and commit destinations use the same list/content and Back/Forward patterns. The [Git inspection record](git-history-slice-proposal.md) describes immutable comparisons, paging, and cached reading positions; its delivery review is pending.
+6. Open Git, choose a branch, and select a commit. Branch and commit destinations use the same list/content and Back/Forward patterns. The [Git inspection record](git-history-slice-proposal.md) describes immutable comparisons, paging, and cached reading positions; it is reviewed and committed as `22de40e`.
 
 Feedback drafts, copy history, wrap choice, theme preferences, and recent projects remain browser-local. Opening or dismissing a menu, drawer, keyboard, or comment sheet does not by itself create a new URL. Before a route transition, close or save an edited comment sheet through the existing draft rules.
 

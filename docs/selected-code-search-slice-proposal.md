@@ -1,6 +1,6 @@
 # Selected code text → Search
 
-Status: implemented and committed as part of `da9ba46`. The server-side working-tree Search was already implemented; this adds the entry point from code. The maintainer confirmed the action works on their phone. iOS selection behavior remains for device review.
+Status: implemented and committed as part of `da9ba46`. The server-side working-tree Search was already implemented; this adds the entry point from code. The maintainer confirmed the action works on their phone. Additional iOS selection checks remain unverified [optional future work](initial-implementation-plan.md#remaining-roadmap).
 
 ## User flow and smallest checkpoint
 

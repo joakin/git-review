@@ -1,12 +1,16 @@
 # Working on git-review
 
+## Project status
+
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. There is no active implementation slice. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional backlog for future threads; start further work only when the maintainer requests it.
+
 ## Collaboration
 
 - Work in small, reviewable steps. Explain the intended behavior and the result of each step so the maintainer can course-correct early.
 - Before implementing a **new feature**, write down the proposed user flow, data/API shape, edge cases, and the smallest useful slice. Ask the maintainer for feedback on that approach, then implement the agreed slice. Routine fixes and already-agreed work can proceed directly.
 - Keep completed changes uncommitted for maintainer review. Commit when the maintainer explicitly approves the reviewed work; approval to implement a slice does not by itself approve committing it.
 - Keep the app usable on phones and tablets throughout development. Check touch behavior, narrow layouts, wrapping, and horizontal overflow as features are added.
-- Maintain `docs/` as the project record. Start with [the documentation map](docs/README.md), then read the relevant behavior record and [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap). Update stale descriptions and review status when implementation decisions change; add focused documents when they clarify a real design decision.
+- Maintain `docs/` as the project record. Start with [the documentation map](docs/README.md), then read the relevant behavior record and [optional backlog](docs/initial-implementation-plan.md#remaining-roadmap). Update stale descriptions and review status when implementation decisions change; add focused documents when they clarify a real design decision.
 - Reuse [shared validation helpers](src/shared/validation.ts) for generic unknown-value checks, while keeping domain parsers at their boundaries. Tune visual design through [CSS design tokens](src/client/design-tokens.css); see [engineering conventions](docs/engineering-conventions.md).
 - Keep the running app available for the maintainer to review. Rebuild client assets after frontend edits; restart the relevant server after backend edits. Use a separate port and fixture root for local QA, and stop only QA processes you started when cleaning up. Run and HTTPS instructions are in [README.md](README.md).
 

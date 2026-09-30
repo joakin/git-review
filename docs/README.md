@@ -1,20 +1,20 @@
 # Documentation map
 
-The core review workflow is implemented and reviewed. Start here to find its current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. There is no active next slice; further improvements belong to new threads and the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 
-- [Initial Implementation Plan](initial-implementation-plan.md): product scope, completed delivery, and the [remaining roadmap](initial-implementation-plan.md#remaining-roadmap).
+- [Initial Implementation Plan](initial-implementation-plan.md): product scope, [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the [optional backlog](initial-implementation-plan.md#remaining-roadmap).
 - [Engineering conventions](engineering-conventions.md): validation boundaries, URL ownership, loading, caching, scroll behavior, and design tokens.
-- [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and remaining real-device checks.
+- [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and optional further device checks.
 
-The `*-proposal.md` filenames preserve links from earlier reviews. Their status and current behavior describe the accepted implementation; implementation sequences and dated QA evidence record how it was developed. Keep new work in a focused proposal until agreed, then update that document into a behavior record. Use the initial plan for the remaining roadmap instead of maintaining competing task lists.
+The `*-proposal.md` filenames preserve links from earlier reviews. Their status and current behavior describe the accepted implementation; implementation sequences and dated QA evidence record how it was developed. Keep new work in a focused proposal until agreed, then update that document into a behavior record. Use the initial plan for the optional backlog instead of maintaining competing task lists. Historical implementation checkpoints describe completed development.
 
 ## Latest reviewed delivery
 
-[Git tab: branches and commit inspection](git-history-slice-proposal.md) is implemented and approved by the maintainer on 2026-09-30: a branch selector, commit list, full messages, and historical diff cards. The record includes API/data boundaries and four-size QA evidence.
+[Git tab: branches and commit inspection](git-history-slice-proposal.md) is implemented, reviewed, and committed as `22de40e` on 2026-09-30: a branch selector, commit list, full messages, and historical diff cards. The record includes API/data boundaries and four-size QA evidence.
 
-The same record includes the approved [line-total and time refinement](git-history-slice-proposal.md#proposed-follow-up-line-totals-and-time). The [remaining roadmap](initial-implementation-plan.md#remaining-roadmap) starts with the device and performance pass.
+The same commit includes the approved [line-total and time refinement](git-history-slice-proposal.md#proposed-follow-up-line-totals-and-time). It closes the implementation stage; the optional backlog has no assigned next item or priority.
 
 ## Behavior records
 
@@ -46,6 +46,6 @@ The same record includes the approved [line-total and time refinement](git-histo
 
 - Files reads the working tree. Comments anchor to working-copy Git diff lines; general file comments are not implemented. Git opens historical commit comparisons with line information and media; historical comments, file-specific history, and a full old-tree browser remain optional later work.
 - Draft checking requires the same side, line, source text, and neighboring context. Outdated drafts need explicit reattachment; automatic relocation is not implemented.
-- Recent projects exist; recent-file history remains planned. Diff payloads are cached only within the current tab and disappear on reload.
+- Recent projects exist; recent-file history is optional future work. Diff payloads are cached only within the current tab and disappear on reload.
 - Local data belongs to one browser origin. It does not sync between devices, and simultaneous draft edits in two tabs on the same project have no conflict handling. The PWA record describes backup transfer.
-- Maintainer review has covered phone, tablet, and desktop navigation, phone dictation, selected-code Search, and phone installation. Dedicated iOS, interruption, and larger-project performance checks remain in the roadmap. Dated browser captures are evidence for the recorded milestone, not a claim of real-device testing.
+- Maintainer review has covered phone, tablet, and desktop navigation, phone dictation, selected-code Search, and phone installation. Dedicated iOS, interruption, and larger-project performance checks remain optional and unverified. Dated browser captures are evidence for the recorded milestone, not a claim of real-device testing.
