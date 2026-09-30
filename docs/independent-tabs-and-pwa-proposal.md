@@ -4,9 +4,9 @@ Status: implemented and served through private Tailscale HTTPS after maintainer 
 
 ## Why this slice
 
-The active project currently lives beside recent folders in one `localStorage` record. Selecting a project in one tab changes what every other tab restores on reload. The server already accepts multiple opened project IDs, so this is a browser-state change rather than a new project API.
+The former active project lived beside recent folders in one `localStorage` record, so a selection affected what other tabs restored. The implementation moved that fallback to per-tab `sessionStorage`; explicit URLs now take precedence through the [navigation model](navigation-and-url-history-slice-proposal.md). The server accepts multiple opened project IDs and has no global active project.
 
-The current phone address is `http://joaquns-macbook-pro-2.churra-boga.ts.net:39878/`. As checked on 2026-09-28, its HTTPS port 443 is not serving the app. Chrome's install promotion requires HTTPS and a manifest with a name, icons, start URL, and standalone display mode. [Chrome install criteria](https://web.dev/articles/install-criteria) Tailscale Serve can provide a private HTTPS URL and proxy to a local HTTP server. [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)
+The original phone address used HTTP on port 39878. The installed app now uses private HTTPS on port 8443, leaving port 443 free for another app. The [run instructions](../README.md#install-on-a-phone) describe that setup. Chrome's install promotion requires HTTPS and a manifest with a name, icons, start URL, and standalone display mode. [Chrome install criteria](https://web.dev/articles/install-criteria) Tailscale Serve supplies the private HTTPS proxy to the loopback backend. [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)
 
 ## Step 1: one active project per tab
 
@@ -26,8 +26,8 @@ The current phone address is `http://joaquns-macbook-pro-2.churra-boga.ts.net:39
 
 ### Edge cases and checks
 
-- Missing, malformed, or inaccessible session data yields the picker and a clear notice. A changed approved root invalidates the selection.
-- A failed project open clears only that tab's active selection; it does not remove recent folders or drafts.
+- Missing or malformed session data yields the picker. A changed approved root invalidates the stored selection. An explicit project URL still takes precedence and gets its own recoverable error if opening fails.
+- A failed project open does not replace the last successful session selection, recent folders, or drafts. The explicit failed route remains visible with a Choose another project action.
 - Two tabs reviewing the *same* project can still edit the same project-keyed draft store; cross-tab edit conflict handling is a separate future issue. This slice verifies tabs on different projects do not switch each other or mix drafts.
 - Browser QA: select A in tab 1 and B in tab 2; reload both; check independent restoration and shared recents. Include a fresh tab and a duplicated tab.
 
@@ -37,7 +37,7 @@ The current phone address is `http://joaquns-macbook-pro-2.churra-boga.ts.net:39
 
 1. Open the app at a tailnet-only `https://…ts.net/` URL. Android Chrome offers **Install app**; the installed icon opens a standalone window. On iPhone, **Add to Home Screen** opens a standalone web app when the manifest declares `display: standalone`. [Chrome install criteria](https://web.dev/articles/install-criteria), [WebKit Home Screen apps](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/)
 2. The installed app starts at `/`, shows recent folders, and requires the host and Tailscale connection for live Git data. If unreachable, show a plain offline/host-unavailable page rather than an old cached diff.
-3. Provide an unobtrusive install entry in the project switcher: use the browser install prompt when available; otherwise show short platform instructions. Keep it out of the code viewport.
+3. Open **Settings → Install & local data** for the browser install prompt when available or short platform instructions otherwise. The global menu keeps this control out of the code viewport.
 
 ### Assets, server, and hosting
 

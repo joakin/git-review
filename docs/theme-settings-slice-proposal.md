@@ -1,14 +1,14 @@
-# App and code theme settings: next slice proposal
+# App and code theme settings
 
 Status: implemented, reviewed, and committed on 2026-09-29.
 
-## Why this is next
+## Why this slice
 
 The existing Settings screen already owns code typography, and syntax highlighting arrives from the server as semantic roles. Theme choices can therefore stay in the browser and apply to the current review without another API or Git change. This also finishes the appearance controls requested alongside font size and family. Recent-file shortcuts and the larger navigation redesign can follow separately.
 
-## Proposed user flow
+## Current user flow
 
-1. Open **Settings → Appearance** from the current sidebar or phone menu, even before choosing a project. Keep Typography as its own section.
+1. Open **Settings → Appearance** from the global menu, even before choosing a project. Typography remains its own section.
 2. Choose an **App theme**: Light, Dark, or System. Light is the initial value so existing browsers keep today's appearance. System follows the device's light/dark preference as it changes.
 3. Choose a **Code theme**: Match app, Light, or Dark. Match app is the initial value. A reader can therefore keep the interface dark and code light, or the reverse. The code choice applies to Changes, Files, code excerpts, feedback source excerpts, and the Settings preview.
 4. Changes apply immediately without resetting the selected project, open cards, drafts, scroll position, font, or wrap setting. A separate **Reset appearance** control restores Light + Match app; Typography's Reset continues to affect only typography.

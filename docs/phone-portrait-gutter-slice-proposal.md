@@ -1,10 +1,10 @@
 # Phone diff line action without gutters
 
-Status: implemented, pending maintainer review and real-device gesture check.
+Status: implemented, reviewed by the maintainer, and committed. Dedicated iOS/Android selection and gesture checks remain in the device pass.
 
 ## Job and user flow
 
-The phone diff currently reserves about 104 px for the change sign and two line-number columns before code begins. At narrow widths, hide all three columns in both wrap modes. Keep row backgrounds for added and removed lines. Wider screens retain the visible gutter and direct old/new comment buttons, while row click reveals the same line action at every viewport size.
+The former phone diff reserved about 104 px for the change sign and two line-number columns. Phones up to 600 px now hide all three columns in both wrap modes and retain added/removed backgrounds. Wider screens keep the visible gutter and direct old/new comment buttons, while row click reveals the same line action at every viewport size.
 
 1. A short tap on a code row opens a floating line action near that row. It shows the change sign for added or removed lines, the available old and new line numbers, a separator, and **Comment**. A context row shows both numbers without a change sign. The entire action is one button; tapping anywhere on it opens the comment editor.
 2. The action uses the existing comment anchor: added lines use New, removed lines use Old, and context lines default to New. An existing old-side draft being reattached to a context line keeps its Old side. The editor and exported feedback continue to show the exact side and line number.
@@ -35,7 +35,7 @@ The existing copied feedback groups comments by `[staged]`, `[unstaged]`, or `[u
 
 ## Edge cases and QA
 
-- The single Comment action can choose only one side on a context row. The proposed default is **New**. This means a new Old-side comment on unchanged context code has no touch path in this slice; removed lines still use Old, and an old-side draft can still be reattached to context. Do not add a side picker later in the editor without discussing it.
+- The single Comment action uses **New** for an unchanged context row, as agreed by the maintainer. Phones have no separate Old-side action for new comments on that row; removed lines use Old, and an old-side draft can still be reattached to context. Wider screens retain both number buttons. A side picker would need a separate design discussion.
 - Show only available numbers on added and removed rows. Handle large line numbers and lines with multiple existing comments without clipping; existing comment counts remain available in the feedback list and can appear in the tapped line action.
 - Check short tap, slow tap, long press, double tap, selection drag, vertical swipe, and horizontal code scroll on phone. Verify that Search appears for selected text and Comment for a plain line tap, never both. Verify the exact side and line number after saving and copying feedback.
 - Check 320 px and 390 px phones, tablet portrait and landscape, and desktop; wrap on/off; short and long code lines; sticky file headings; no page-wide overflow. Capture the standard four QA screenshots. Browser emulation is an early check; verify selection gestures and tapping on real Android/iOS devices.

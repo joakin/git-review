@@ -1,4 +1,4 @@
-# Selected code text → Search proposal
+# Selected code text → Search
 
 Status: implemented and committed as part of `da9ba46`. The server-side working-tree Search was already implemented; this adds the entry point from code. The maintainer confirmed the action works on their phone. iOS selection behavior remains for device review.
 
@@ -8,7 +8,7 @@ Status: implemented and committed as part of `da9ba46`. The server-side working-
 2. When a valid selection is inside **one code line**, show a compact **Search selected text** tooltip next to it, with a short preview. On touch screens, place it below the selected text to avoid Android's native selection menu above the text; on mouse-driven screens, prefer above. Keep it outside the code pane's clipping and horizontal scroll container. Deselecting or pressing Escape dismisses it.
 3. Tapping the action opens the existing Search tab, fills its query, submits one bounded literal search, and shows the results. The query stays editable. A result still opens the current working-tree file at the matching line.
 
-The first checkpoint uses the selected text literally with the current case-sensitive, fixed-string Search API. It does not silently expand to a whole identifier or add whole-word matching. The browser URL/history redesign is deferred, so browser Back behavior remains as documented in the [navigation proposal](navigation-and-url-history-slice-proposal.md).
+The selected text uses the case-sensitive, fixed-string Search API. It does not silently expand to a whole identifier or add whole-word matching. Submitted queries and selected result files now have URLs through the [navigation model](navigation-and-url-history-slice-proposal.md), so browser Back returns to earlier destinations.
 
 ## Data and implementation boundary
 
@@ -22,7 +22,7 @@ The first checkpoint uses the selected text literally with the current case-sens
 
 - Selection may start in one syntax token and end in another, include whitespace, or include punctuation. Trim surrounding whitespace; reject empty, multiline, or overlong text with no Search action. A selected word in a removed diff line is still a working-tree search query, not a historical-file search.
 - Selection handles and the browser's own menu may overlap the tooltip. Check that long press still allows copying, dragging handles, vertical scrolling, and horizontal code scrolling. Do not search just because a long press occurred; the user chooses the action. Hide the tooltip if the browser removes the selection or if it cannot be placed without covering the selected text.
-- Search state currently holds one submitted query per tab. Starting a selected-code search replaces that query; the later URL navigation slice can provide Back/Forward between Search destinations.
+- Search keeps the latest loaded result in tab memory; the URL owns the submitted query and selected result file. Starting a selected-code search navigates to that query. Back/Forward restores earlier Search URLs, rerunning queries whose results are no longer loaded.
 - Browser QA should exercise a word split across syntax spans, wrapped and unwrapped code, one invalid cross-line selection, a diff line, a full-file line, nested horizontal scrolling, page scrolling, viewport resize, and dismissal. Capture phone, both tablet orientations, and desktop. Real Android Chrome and iOS Safari checks are required for the native selection interaction.
 
 ## Maintainer feedback

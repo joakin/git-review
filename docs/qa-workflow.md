@@ -4,12 +4,14 @@ This document records how we verify the app as it grows. The product plan is in 
 
 ## Every small change
 
-1. Run the project-local native TypeScript type checker with `bun run typecheck` and the CSS token check with `bun run qa:check`.
+1. For code changes, run the project-local native TypeScript type checker with `bun run typecheck` and the CSS token check with `bun run qa:check`. For documentation-only changes, check local links, referenced commands, and whitespace; browser captures and code tests are needed only when app behavior changes.
 2. Exercise the behavior that changed. Add a lasting automated test when it protects an observable invariant or a bug that could recur.
 3. For a UI change, capture the relevant state at four sizes and inspect the images for clipped controls, page-wide overflow, unreadable code, and obscured feedback actions.
 4. Describe the behavior, checks, and any remaining device-specific uncertainty in the handoff to the maintainer.
 
 Keep unit and integration tests focused on inputs and outputs. Prefer Git fixture repositories for status/diff behavior, bounded invalid-input cases for APIs, and browser interactions for comment, drawer, wrap, and copy flows. Avoid tests of private function call order, redundant getters, and snapshots of incidental DOM structure. Remove exploratory tests that would only create maintenance noise.
+
+Keep the maintainer's running app available for review. Start fixture QA on a separate port with `--root "$PWD/qa/.artifacts"`; the inventory fixture is created by `bun run qa:fixture`, which refuses to overwrite an existing fixture. Client assets are shared under `dist/`, so rebuild the current client before the handoff and reload the review tab. Clean up QA processes you started without stopping the existing review service. Backend source changes need a restart of the relevant service; frontend-only edits need `bun run build`.
 
 ## Screenshot command
 

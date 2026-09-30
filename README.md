@@ -1,6 +1,8 @@
 # git-review
 
-A local, browser-based code review app in progress. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap a diff row to reveal its line information and comment action, dictate into the comment, check the current lines, and copy a line-numbered summary. Projects, directories, files, and Search results have URLs for direct links and browser Back/Forward. With no explicit URL, the selected folder is restored **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. Git commit history is a distant optional slice in the [Initial Implementation Plan](docs/initial-implementation-plan.md). See the [navigation design](docs/navigation-and-url-history-slice-proposal.md), [voice comment](docs/local-voice-comment-slice-proposal.md), [Files browser](docs/file-browser-slice-proposal.md), [selected-code Search](docs/selected-code-search-slice-proposal.md), [Git inventory](docs/git-status-slice.md), [diff card](docs/diff-slice.md), [syntax highlighting](docs/syntax-highlighting-slice.md), [feedback](docs/feedback-slice-proposal.md), and [independent tabs and PWA](docs/independent-tabs-and-pwa-proposal.md) documents for current behavior.
+A local, browser-based code review app. Choose a host folder within an approved root, review staged, unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search current files in the working tree. Select text in a code line for a contextual Search action. Tap a diff row to reveal its line information and comment action, dictate into the comment, check the current lines, and copy a line-numbered summary. Projects, directories, files, and Search results have URLs for direct links and browser Back/Forward. With no explicit URL, the selected folder is restored **in its own tab**; recent folders, code wrapping, open cards, language overrides, comments, and copy history survive reload in this browser. The [documentation map](docs/README.md) links current behavior and engineering records; the [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) covers the device/performance pass, recent files, and optional Git history.
+
+Expanded diffs stay cached in tab memory across section navigation, preserving their content and height. The cache is bounded and is cleared by a page reload; preferences and drafts remain in browser storage. See [loading and screen transitions](docs/loading-and-transition-polish.md).
 
 ## Run the app
 
@@ -46,6 +48,7 @@ bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:files http://127.0.0.1:3000/
 bun run qa:navigation http://127.0.0.1:3000/
+bun run qa:loading http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
 bun run qa:voice http://127.0.0.1:3000/
 bun run qa:tabs http://127.0.0.1:3000/

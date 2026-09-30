@@ -1,12 +1,12 @@
 # Foundation slice: local project picker
 
-Status: implemented; Tailscale IP binding added for remote access to this slice.
+Status: implemented and committed. Private HTTPS installation is covered by the [PWA record](independent-tabs-and-pwa-proposal.md); current navigation is in the [URL record](navigation-and-url-history-slice-proposal.md).
 
 ## User flow
 
-Run the Bun server with an approved host root (`--root /path/to/projects`; default: the current working directory). The browser starts at a local page with a folder drawer. Open folders inside that root, select the current folder, and see it as the active project. The last selection and a short recent-path list survive reloads in this browser. Selecting a recent path asks the server to validate it again.
+Run the Bun server with an approved host root (`--root /path/to/projects`; default: the current working directory). The folder picker is a navigable list screen. Open folders inside that root and select one as the project for this tab. An explicit project URL takes precedence; `/` restores this tab's active selection from session storage. Shared recent paths survive reloads in browser-local storage. Selecting a path asks the server to validate it again.
 
-This slice stops at project selection. Git status, diff cards, file browsing, comments, search, LAN access, and speech input remain subsequent reviewable slices.
+This slice established project selection and root containment. Git status, diff cards, file browsing, comments, Search, voice input, and private HTTPS were completed in later slices; the [documentation map](README.md) links their current behavior.
 
 ## Wire shape
 

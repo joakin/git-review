@@ -1,20 +1,20 @@
 # URL history and navigation
 
-Status: implemented, manually reviewed on phone, tablet, and desktop, and approved for commit on 2026-09-29.
+Status: implemented, manually reviewed on phone, tablet, and desktop, and committed as `6c82a81`. Loading/cache and route-focus follow-ups are committed as `471521e`.
 
 ## Why revisit navigation
 
 The former app kept Changes / Files / Search, the folder or file sidebar, the selected file, and the Search query in component state. Opening a Search result switched to Files without adding a browser history entry. Browser Back therefore could not return to the result list. The sidebar also switched between unrelated jobs: choosing a host folder, listing changes, and browsing project files. That made the phone drawer feel like another screen without giving it normal screen navigation.
 
-The proposed destination has **three distinct levels**:
+The implemented navigation has **three distinct levels**:
 
 1. **Menu:** choose a project, revisit recent projects, and open Settings. Settings contains the installation and local data controls.
 2. **List screen:** browse host folders, Git changes, project files, or Search results. Its identity and selection come from the route.
 3. **Content screen:** read a diff or working-tree file, add comments, and open feedback. The content keeps the list it came from as context.
 
-These are logical screens, not a fixed number of visible columns. A wide desktop can show menu, list, and content together. A tablet can show content with a toggleable list and a compact menu. A phone shows one full-width screen at a time, with a visible List/Back control. **Changes / Files / Search tabs belong to the contextual list**, separate from the global menu; the active tab determines which list appears beside or behind the content. On a phone, keep a compact copy of those tabs below the top bar so they remain reachable when the list screen is hidden. A guarded horizontal swipe may offer the same transition after real-device testing. The code pane must keep its own horizontal scroll, text selection, and line gestures; the app must not take over browser edge Back gestures. [MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action), [MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
+These are logical screens, not a fixed number of visible columns. A wide desktop shows menu, list, and content together. The list stays beside content at 900 px and above; narrower tablets reveal it as a drawer using the content-heading back arrow. Phones up to 600 px show one full-width list or content screen at a time. **Changes / Files / Search tabs belong only to the contextual list**, separate from the global menu; phone content shows the shared back arrow instead of repeating the tabs. A guarded horizontal swipe remains optional after real-device testing. The code pane keeps its own horizontal scroll, text selection, and line gestures; the app must not take over browser edge Back gestures. [MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action), [MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
 
-## Proposed user flow
+## Current user flow
 
 1. Open the installed app or a normal tab. With no explicit route, show the project menu/recent projects or restore this tab's active project. An explicit project URL always wins over tab storage.
 2. Choose a project. The Changes tab opens with the continuous **Review all changes** page by default. Its staged, unstaged, and untracked file list remains available alongside the content on a wide screen or as a full-width screen on a phone. Selecting an entry focuses its diff.
@@ -40,7 +40,7 @@ Example URLs (values shown decoded for readability; construct them with `URLSear
 /?project=git-review&section=search&q=selectedWord&file=src/client/App.tsx&line=170
 ```
 
-The last two URLs are the key Search flow: selecting a result adds a file target to the Search route, so the result list remains its parent. The plain Changes URL means continuous review; `target=list` opens its file list on a phone. Changes can also target an individual diff; Files can target a directory or file. A route parser should produce a precise discriminated union, for example:
+The last two URLs are the key Search flow: selecting a result adds a file target to the Search route, so the result list remains its parent. The plain Changes URL means continuous review; `target=list` opens its file list on a phone. Changes can also target an individual diff; Files can target a directory or file. The [route parser](../src/client/navigation.ts) produces a precise discriminated union:
 
 ```ts
 type Route =
@@ -69,7 +69,8 @@ Keep only navigable state in the URL. Search typing before submission, list filt
 - A direct link to a file must work without prior navigation in this tab. Its visible List control opens the route's parent list; browser Back follows the browser's actual previous entry. Never assume that the previous entry belongs to this app.
 - The route describes the logical destination. Viewport width decides which panes are visible, so rotating a phone or resizing a browser does not rewrite history.
 - On a phone, use explicit controls first. Add swipe between list and content only if real iOS and Android checks show no conflict with code horizontal scrolling, browser navigation, selecting text, or comment gestures. Use the same route transitions as the visible controls.
-- The present continuous Changes page remains the default destination for the Changes tab. The Changes file list remains available without replacing its content on wide screens.
+- The plain Changes route remains continuous review. Switching project tabs on a phone stays on the relevant list screen; selecting a changed file then opens the continuous content and focuses that card. On wide screens, the list stays available beside content.
+- A selected diff URL expands and focuses its card once per navigation. Card toggles and Refresh do not repeat that focus. Choosing the same file again or Back/Forward to its URL can focus it again. Matching expanded diff payloads come from the tab cache on the first render; see [loading and screen transitions](loading-and-transition-polish.md).
 
 ## Boundaries and failure cases
 
@@ -79,7 +80,7 @@ Keep only navigable state in the URL. Search typing before submission, list filt
 - Switching routes while a comment is open must preserve its draft. Back should never clear feedback or copy history. Two tabs can show different project URLs and retain separate active projects.
 - Check installed PWA reload and deep links over the existing HTTPS origin. Query URLs use the already served `/` path, so no new HTML route fallback is needed for this first design.
 
-## Smallest useful checkpoint and sequence
+## Implementation sequence
 
 1. **URL history checkpoint:** add one typed route parser/serializer and a small navigation adapter in the Preact client. Derive Changes, Files, Search, project, selected file, and submitted query from it while keeping the current visual shell. Prove Search → result → browser Back → results → Forward → file, including reload/direct link and independent tabs. Do this before rearranging panes so the history behavior is reviewable on its own.
 2. **Screen structure checkpoint:** separate the menu, list screens, and content screens. Keep current feedback and continuous diff behavior. Show all three levels on a wide display, make the tablet list toggleable, and give phone list/content full-width views with visible navigation. Check narrow widths and both tablet orientations at every change.
@@ -98,4 +99,5 @@ The maintainer confirmed that continuous review is the default Changes content. 
 - At 1200 px and above, menu, contextual list, and content appear together. From 900 to 1199 px, the menu becomes a drawer while the list stays beside content. Below 900 px, the list becomes a drawer and the back arrow beside the content title reveals it. The list begins with the project name, absolute path, and project tabs; a subdirectory breadcrumb appears only after entering a folder. The project picker fills the tablet screen. On phones up to 600 px, the list and content are separate full-width route screens: tabs appear only with the list, switching tabs stays there, and the same content-heading arrow returns to it. Settings is a route so Back returns to the prior work. Menu and drawer reveals remain transient.
 - A visual follow-up gives phone Changes groups rounded cards, uses shared local SVGs for folder, file, link, and back icons, and keeps a selected file's path in its sticky location bar. The working-tree card names the source and shows file metadata without repeating the path. [Devicon](https://github.com/devicons/devicon) focuses on language and tool logos; generic navigation icons use the small shared SVG set.
 - The optional swipe gesture is deferred until real iOS/Android tests can establish that it does not interfere with browser Back, horizontal code scrolling, text selection, or line taps. Visible controls implement every transition.
+- The later [loading and cache follow-up](loading-and-transition-polish.md) reuses the opened project in the tab, restores expanded diff height before scroll, records the latest route during rapid history changes, and limits selected-card focus to one action per navigation. The maintainer approved the corrected card behavior on 2026-09-30.
 - `bun test src/client/navigation.test.ts` protects route round trips and invalid URL behavior. `bun run qa:navigation <url>` checks Back/Forward, Search → result → Back, reload/direct links, Files and Changes targets, a draft across Back, the phone list/content flow, tablet list toggle, the 899/900 px sidebar boundary, desktop panes, and invalid-link recovery. Existing feature QA was adapted to use routes. The [QA workflow](qa-workflow.md) has capture and device checks.

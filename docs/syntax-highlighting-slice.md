@@ -1,10 +1,10 @@
 # Syntax highlighting in diff cards
 
-Status: implemented. Theme selection, word-level changes, and moved-block detection remain later slices.
+Status: implemented and committed. [Theme selection](theme-settings-slice-proposal.md) and [word-level changes](diff-fidelity-slice-proposal.md) are also complete; moved-block detection remains optional.
 
 ## User flow
 
-Opening a source diff colors syntax inside the existing added, removed, and context rows. The frontend chooses all colors and font treatments from `design-tokens.css`; the response contains no theme name, CSS, HTML, or color values. A future theme selector can switch CSS variables without refetching a diff. Line numbers, diff backgrounds, wrapping, horizontal scrolling, and collapse behavior stay as they are.
+Opening a source diff colors syntax inside the existing added, removed, and context rows. The frontend chooses all colors and font treatments from `design-tokens.css`; the response contains no theme name, CSS, HTML, or color values. Settings switches the app and code themes through CSS variables without refetching a diff. Line numbers, diff backgrounds, wrapping, horizontal scrolling, and collapse behavior retain their existing meaning.
 
 The server uses Shiki's **full bundle**, so any language grammar it ships can be used, including C and C++. It loads the needed grammar on demand into a reused highlighter. Detection uses the filename, extension, and Shiki's known IDs and aliases. Each expanded card has a language picker with `Auto detect`, `Plain text`, and all bundled languages. This resolves ambiguous names such as `.h` and unknown extensions. The override is saved for this project and path in browser storage; the client never sends an arbitrary grammar definition.
 
@@ -12,7 +12,7 @@ The server uses Shiki's **full bundle**, so any language grammar it ships can be
 
 The text diff response has `syntax: { kind: "highlighted", language: string } | { kind: "plain", reason: ... }`. Each displayed line has `tokens: { text: string, role: SyntaxRole }[]`. Roles are the bounded set `plain`, `comment`, `keyword`, `string`, `number`, `type`, `function`, `variable`, `property`, `operator`, `punctuation`, `tag`, and `attribute`. Joining token text must reproduce the line's `text` exactly. The client validates the role and reconstruction at the HTTP boundary before rendering ordinary Preact spans. Plain fallback uses one unstyled token. Shiki's TextMate scopes supply lexical categories; these are not compiler-resolved semantic symbols.
 
-The server maps Shiki scope stacks to those stable roles in `src/server/syntax.ts`. This mapping determines *what kind* of text a token is, while CSS determines *how it looks*. The palette is in `design-tokens.css`. An unknown scope maps to `plain`. A later theme selector can swap token variables without changing the API.
+The server maps Shiki scope stacks to those stable roles in `src/server/syntax.ts`. This mapping determines *what kind* of text a token is, while CSS determines *how it looks*. The palettes are in `design-tokens.css`. An unknown scope maps to `plain`. The frontend theme selector swaps token variables without changing the API.
 
 `GET /api/projects/:id/diff` keeps its stale-revision contract and accepts an optional validated `language` override: a Shiki bundled language ID or `text`. `GET /api/languages` returns bundled IDs and display names for the picker. The browser stores only its chosen ID. The server verifies it against the installed bundle.
 

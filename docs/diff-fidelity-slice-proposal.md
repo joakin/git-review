@@ -1,6 +1,6 @@
 # Diff fidelity: changed words across edit chunks
 
-Status: implemented for maintainer review. Word-level detail is live in the text-diff code; moved-block detection remains optional later work.
+Status: implemented, reviewed by the maintainer, and committed. Word-level detail is live in the text-diff code; moved-block detection remains optional later work.
 
 ## Job and user flow
 
@@ -57,4 +57,4 @@ If word detail performs well and moved-code cues still seem useful, we can separ
 
 `bun run typecheck`, `bun test` (33 tests), and `bun run qa:check` pass. Browser checks passed for mobile diff wrapping, horizontal scrolling, selected-code Search across a decorated line, and line comments with feedback copy. The [wrapped review screenshots](../qa/screenshots/word-detail-review/mobile.png) and [horizontally scrolled screenshots](../qa/screenshots/word-detail-scroll/mobile.png) each include phone, tablet portrait, tablet landscape, and desktop captures; all four views were inspected and showed no page-wide overflow. The private HTTPS backend on port 8443 was restarted and returned five decorated rows for the multi-line fixture. Browser emulation does not verify real-device selection handles or touch behavior.
 
-The implementation is ready for maintainer visual review. In particular, check whether the highlight strength is comfortable on your phone and whether there are common multi-line changes that should pair more often without producing misleading matches. Moved-code indicators stay deferred.
+The maintainer reviewed the rendering and code, confirmed the word detail looks good, and approved the commit. Further matching changes should be driven by concrete examples that can be paired without misleading highlights. Moved-code indicators stay deferred.

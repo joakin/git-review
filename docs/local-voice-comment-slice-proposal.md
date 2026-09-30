@@ -1,4 +1,4 @@
-# Local voice dictation in comments: first slice proposal
+# Local voice dictation in comments
 
 Status: implemented and approved by the maintainer on 2026-09-28. The [initial plan](initial-implementation-plan.md) records the earlier engine comparison and full voice scope.
 
@@ -30,7 +30,7 @@ The first reviewable checkpoint is one recording from the comment textarea foote
 - Check that closing the editor stops the microphone, discards unsent audio, and retains already typed feedback. Confirm insertion at the beginning, middle, and end of a comment and replacement of only a selected range. Browser reload should retain saved comment text; audio remains temporary.
 - Add focused behavior tests for bounded upload/CLI result parsing and error cleanup. Capture comment-sheet states at phone, tablet portrait, tablet landscape, and desktop sizes. Verify the real device microphone and keyboard layout before calling the feature complete.
 
-## Design assumptions to confirm
+## Accepted workflow
 
 The maintainer chose a textarea-footer workflow: microphone → live timer/level with separate Cancel and Send → progress → automatic insertion at the saved cursor. The textarea is temporarily read-only while a voice clip is pending, which keeps the saved insertion position exact. At five minutes, recording stops with an audible cue and automatically submits for transcription.
 

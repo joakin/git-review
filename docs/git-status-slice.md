@@ -1,10 +1,10 @@
 # Git change inventory
 
-Status: implemented in the first Git slice. [Diff cards](diff-slice.md) now build on this inventory; file previews remain planned.
+Status: implemented and committed. [Diff cards](diff-slice.md), [media previews](media-preview-slice-proposal.md), and [live change detection](live-change-detection-slice-proposal.md) build on this inventory.
 
 ## User flow
 
-After choosing a folder, the main view lists staged, unstaged, and untracked files with counts. Conflicts get a separate group when present. A path with both staged and unstaged edits appears in both groups. The desktop and tablet sidebar shows the same inventory; on a phone, the sidebar opens from the project button in the top bar. The sidebar also has a Browse host folders control. Refresh changes rereads Git without changing the selected folder.
+The Changes contextual list groups staged, unstaged, and untracked files with counts. Conflicts get a separate group when present. A path with both staged and unstaged edits appears in both groups. The list stays beside content at widths of 900 px and above, uses a drawer on narrower tablets, and is a full-width screen on phones. The shared content-heading back arrow reveals or returns to it. Project choice belongs to the global menu. Refresh rereads Git without changing the selected folder.
 
 Sidebar rows show state and path and now open the corresponding diff card. The main inventory has become the continuous card list described in [the diff slice](diff-slice.md).
 
@@ -22,19 +22,20 @@ The response is one of:
 {
   "kind": "git",
   "revision": "20-character-status-hash",
+  "changeToken": "20-character-metadata-hash",
   "entries": [
     { "layer": "unstaged", "kind": "modified", "path": "src/view.ts", "oldPath": null, "isSubmodule": false }
   ]
 }
 ```
 
-The revision is a digest of the raw status output, including branch information, so it changes when the displayed inventory changes. Entries are relative to the selected folder. Git's porcelain v2 `-z` output is parsed with NUL delimiters, preserving spaces and newlines in names. For a selected subfolder, `-- .` scopes changes to that subtree, and the repository prefix is removed from returned paths. Rename origins outside that subtree currently remain repository-relative in `oldPath`; the diff slice will define how to display those origins consistently.
+The revision is a digest of the raw status output, including branch information. The separate change token also includes metadata fingerprints for working-tree paths, so another edit can be detected even when its status code stays unchanged. It is not a content hash; see [live change detection](live-change-detection-slice-proposal.md). Git's porcelain v2 `-z` output is parsed with NUL delimiters, preserving spaces and newlines in names. For a selected subfolder, `-- .` scopes changes to that subtree, and returned paths are relative to that folder. Rename origins use the same relative basis and can include `../` when outside the selected subtree; the diff server checks containment before using them.
 
 Git runs with fixed argument arrays, a timeout, a bounded output buffer, and no shell. The parser validates record structure, modes, hashes, status codes, and paths before creating typed entries. The client validates the JSON response before rendering it.
 
 ## Edge cases
 
-Non-Git folders show a clear message. A repository without a first commit shows untracked files. Staged and unstaged edits on one path are separate entries. Renames, deletions, conflicts, and submodule states remain visible. Binary classification needs a file diff or file read and is deferred to that slice. Status is refreshed by the visible button for now. Active-page polling can be added with the diff cards so it preserves card and scroll state.
+Non-Git folders open Files. A repository without a first commit can show untracked files or staged additions. Staged and unstaged edits on one path are separate entries. Renames, deletions, conflicts, and submodule states remain visible. Binary/media classification belongs to the file/diff read. Active-page polling detects new edits and offers Update; it does not replace the reader's content until requested. Manual Refresh remains available.
 
 ## Verification
 

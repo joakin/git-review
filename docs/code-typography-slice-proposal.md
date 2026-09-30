@@ -4,7 +4,7 @@ Status: implemented and committed. Theme controls are complete in the [theme set
 
 ## User flow and smallest slice
 
-Settings is reachable near the top of the sidebar, including the phone drawer and the folder picker before a project is open. It replaces the main pane with two controls and a live code preview. Back to review restores the previous view and scroll position. Choosing a font size or family applies immediately to diff rows, Files code, search excerpts, and feedback source excerpts. It does not change file names, controls, or other interface text.
+Settings is reachable from the global menu, including before a project is open. It has its own URL and shows typography controls with a live code preview alongside Appearance and Install & local data. Back returns to the previous work. Choosing a font size or family applies immediately to diff rows, Files code, search excerpts, and feedback source excerpts. It does not change file names, controls, or other interface text.
 
 The first choices are 11–20 px in 1 px steps, and two local monospace stacks: System mono (the existing default) and Courier. No font download or server endpoint is needed. Reset restores 12 px System mono.
 

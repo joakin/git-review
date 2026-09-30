@@ -1,11 +1,12 @@
 # Initial Implementation Plan
 
-Status: planning document  
+Status: implementation record and remaining roadmap
+
 Updated: 2026-09-30
 
 ## Goal
 
-Build a read-only, host-served code review app that works well on a phone, tablet, and desktop. A user opens the web UI, selects a folder on the host, reviews staged, unstaged, and untracked changes, adds line comments, and copies a line-numbered feedback summary into an editing session. The same app can browse and search files, including older Git versions. Drafts and convenience state survive reloads in the browser.
+Build a read-only, host-served code review app that works well on a phone, tablet, and desktop. A user opens the web UI, selects a folder on the host, reviews staged, unstaged, and untracked changes, adds line comments, and copies a line-numbered feedback summary into an editing session. The same app browses and searches current working-tree files; browsing older Git versions remains optional later work. Drafts and convenience state survive reloads in the browser.
 
 The initial release also supports voice dictation into a comment without an OpenAI API key or per-request API charge. The selected implementation uses the locally installed Handy model through Handy's headless file transcription command.
 
@@ -21,7 +22,7 @@ The initial release also supports voice dictation into a comment without an Open
 | Speech to text | Browser recording sent to the Bun server, normalized by FFmpeg to 16 kHz mono WAV, then transcribed by Handy's local headless CLI. |
 | Repository access | Read-only APIs. Explicit host directory roots, path containment checks, and no shell interpolation. |
 
-This machine currently has Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, and Handy 0.9.6. The global `tsc` is 5.9.3, so TypeScript 7 must be installed within the project. Bun is preferred because its server and browser bundler are built in; Deno's current browser bundling command is experimental. TypeScript 7 is the native compiler release. [Bun bundler](https://bun.sh/docs/bundler), [Deno bundle](https://docs.deno.com/runtime/reference/cli/bundle/), [TypeScript 7 announcement](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+The initial host research recorded Bun 1.3.1, Deno 2.7.11, Git 2.55.0, FFmpeg, Handy 0.9.6, and a global TypeScript 5.9.3 compiler. The project installed its own TypeScript 7 native compiler; current dependency versions belong in `package.json` and `bun.lock`. Bun was selected for its built-in server, browser bundler, and test runner. These versions and the original Deno comparison are research context, not a requirement to keep host tools at those versions. [Bun bundler](https://bun.sh/docs/bundler), [Deno bundle](https://docs.deno.com/runtime/reference/cli/bundle/), [TypeScript 7 announcement](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
 
 ## User journeys
 
@@ -94,13 +95,13 @@ The first Files slice shows bounded working-tree text and named states for binar
 
 Use ripgrep (`rg`) as a bounded read-only subprocess for fixed-string searches in both Git and non-Git working-tree folders. Its JSON Lines output provides paths, line numbers, and matching text; keep project ignore rules, include hidden source files, explicitly exclude `.git`, and never follow symlinks. Limit result count, subprocess output, individual file size, and wall time; cancel stale client requests and show grouped results with path, line number, and excerpt. Search results open the current working-tree file and scroll to the line. The HTTPS service checks Homebrew locations because its launch environment omits Homebrew from `PATH`; `GIT_REVIEW_RG_PATH` is an override. The [Search behavior document](search-slice-proposal.md) records the first reviewable scope. [Ripgrep guide](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md)
 
-Extract a held identifier from code and offer whole-word or literal substring search. Search is initiated on the server; the browser does not receive or index the entire codebase.
+The selected-code shortcut submits a validated single-line selection as a case-sensitive literal query. Whole-word and case options are not implemented. Search runs on the server; the browser does not receive or index the entire codebase.
 
 ## Comments, persistence, and export
 
-A comment anchor stores project, path, Git layer or revision, old/new side, line number, and a small text/context fingerprint. On refresh, attempt a unique relocation when lines move. If relocation is ambiguous, mark the comment outdated and require review before exporting it under a new line number.
+A project-keyed comment store holds each anchor's path, Git layer, old/new side, line number, exact source text, and neighboring context. Opening Feedback rechecks the current Git status and diffs. A changed or missing anchor becomes outdated and is excluded from export until explicitly reattached and checked again. Automatic relocation by context remains a possible future refinement; the current behavior never silently moves an anchor.
 
-Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Keep recent projects, recent files, wrap choice, collapsed-card state, and a bounded copy-history list there as well; keep the active project in per-tab `sessionStorage`. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the active draft, with an immediate Undo action. On failure, keep the draft and show selectable feedback text.
+Save drafts as edits occur, using versioned `localStorage` keys and a small migration path. Recent projects, wrap choice, collapsed-card state, language overrides, appearance, typography, and bounded copy history persist there as well; the active project uses per-tab `sessionStorage`. Recent-file history remains planned. A copy succeeds only after the clipboard API resolves; then store an immutable history snapshot and clear the copied drafts, with an immediate Undo action. On failure, keep the drafts and show selectable feedback text.
 
 Export plain text with relative paths, Git layer, side, line number, source text, and the comment. The current formatter produces text like:
 
@@ -118,9 +119,11 @@ Review feedback for "/repo"
 
 History and drafts are local to each browser and origin; they do not sync across devices. Do not store audio recordings in browser storage.
 
-## Voice transcription plan
+## Voice transcription design
 
-### Finding and recommendation
+### Original engine research
+
+The engine comparison below records the research used to choose Handy. It is historical context; the [voice behavior record](local-voice-comment-slice-proposal.md) describes the implemented integration.
 
 OpenAI Docs describe Codex and ChatGPT desktop voice or dictation as input to their own conversations and composer. The documented OpenAI CLI transcription command calls the API. There is no documented subscription-backed transcription endpoint for an unrelated web UI, so Codex or ChatGPT are not the integration path for this app. API-key usage follows API pricing, which conflicts with the no-API-cost requirement. [ChatGPT Voice](https://learn.chatgpt.com/docs/features/voice), [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode), [OpenAI CLI transcription](https://developers.openai.com/api/docs/libraries/openai-cli), [OpenAI Docs pricing](https://learn.chatgpt.com/docs/pricing)
 
@@ -144,11 +147,11 @@ The host already has a Handy Parakeet V3 model installed. This is a direct local
 
 FFmpeg is present on this host; packaging should make it an explicit optional runtime requirement for voice. Keep the transcription adapter behind a small interface so a future supported Handy IPC/API or another local engine can replace the subprocess without changing the UI. Limit one active transcription per host initially, set a timeout, and show a useful error when Handy or its model is unavailable. Never log audio or transcript content by default. [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder), [FFmpeg resampling](https://www.ffmpeg.org/ffmpeg-resampler.html)
 
-Handy's normal desktop shortcut can also dictate directly into a focused comment field when reviewing on the Mac. It uses the Mac microphone, so it does not solve phone recording by itself. Handy's proposed local HTTP transcription API is still an open pull request; this plan does not depend on it. [Handy local API proposal](https://github.com/cjpais/Handy/pull/509)
+Handy's normal desktop shortcut can also dictate directly into a focused comment field when reviewing on the Mac. It uses the Mac microphone, so it does not solve phone recording by itself. The original research also found a proposed Handy local HTTP API; the implemented app uses the verified file-transcription CLI and does not depend on that proposal. [Handy local API proposal](https://github.com/cjpais/Handy/pull/509)
 
 ### Secure origin requirement
 
-Mobile microphone capture and programmatic Copy feedback both require a secure browser context. Localhost is trusted for desktop use; a phone reaching the host by a LAN address needs trusted HTTPS. Provide a LAN setup path with a trusted certificate, explicit bind address, pairing, and approved filesystem roots. If microphone access is unavailable, keep text entry and file upload available as fallbacks. [MDN microphone security](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia), [MDN clipboard security](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API), [secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts.)
+Mobile microphone capture and programmatic Copy feedback both require a secure browser context. Localhost is trusted for desktop use. The current remote setup uses private Tailscale Serve HTTPS on port 8443, an exact configured public origin, and approved filesystem roots; run instructions are in [README](../README.md). Text entry remains available when microphone capture is unavailable. General LAN pairing and certificate setup are not implemented. [MDN microphone security](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia), [MDN clipboard security](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API), [secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts.)
 
 ## Server/API outline
 
@@ -156,14 +159,15 @@ Mobile microphone capture and programmatic Copy feedback both require a secure b
 | --- | --- |
 | `GET /api/roots`, `GET /api/directories` | Browse permitted host folders. |
 | `POST /api/projects/open` | Resolve a selected folder to a stable project ID. |
-| `GET /api/projects/:id/status` | Return Git layer groups and a revision marker. |
+| `GET /api/projects/:id/status` | Return Git layer groups, a status revision, and a metadata-based change token. |
 | `GET /api/projects/:id/diff` | Return one file/layer's parsed hunks and highlighted lines. |
+| `GET /api/languages` | Return Shiki's bundled language IDs and display names for overrides. |
 | `GET /api/projects/:id/tree`, `GET /api/projects/:id/file` | Browse working-tree paths and read bounded current files. |
-| `GET /api/projects/:id/history` | Optional distant Git browser: list older revisions of a tracked file. |
+| `GET/HEAD /api/projects/:id/raw/file`, `GET/HEAD /api/projects/:id/raw/diff` | Serve version-checked image/audio/video bytes from the correct worktree or Git side, including bounded byte ranges. |
 | `GET /api/projects/:id/search` | Return bounded server-side search matches. |
 | `POST /api/transcriptions` | Transcribe one bounded audio clip locally over the private, same-origin HTTPS service. |
 
-Use a small shared TypeScript schema for responses and validate all untrusted inputs at runtime. Resolve paths beneath configured roots after symlinks, prevent traversal, and pass Git/FFmpeg/Handy arguments without a shell. Default to loopback binding; explicit binding to the host's Tailscale IPv4 address supports tailnet access to the current foundation. Broader LAN mode requires pairing, trusted HTTPS, same-origin checks, and no permissive CORS. Keep the app read-only with respect to repository files.
+Use a small shared TypeScript schema for responses and validate all untrusted inputs at runtime. Resolve paths beneath configured roots after symlinks, prevent traversal, and pass Git/FFmpeg/Handy arguments without a shell. Default to loopback binding; explicit binding to the host's Tailscale IPv4 address supports direct tailnet access, and Serve proxies HTTPS to a loopback backend. Same-origin checks and no permissive CORS apply today. Broader LAN access and Git history need separate designs. Keep the app read-only with respect to repository files.
 
 ## Project structure
 
@@ -171,6 +175,7 @@ Use a small shared TypeScript schema for responses and validate all untrusted in
 AGENTS.md          Collaboration, type safety, and verification rules
 README.md          Run instructions and current status
 docs/initial-implementation-plan.md
+docs/README.md     Documentation map and state lifetimes
 docs/foundation-slice.md
 docs/qa-workflow.md
 qa/capture.ts      Browser screenshot capture at review milestones
@@ -178,8 +183,9 @@ qa/check-foundation.ts  Mobile folder selection and reload check
 qa/screenshots/    Curated desktop, tablet, and mobile images
 src/client/        Preact UI, styles, local state, audio capture
 src/server/        Bun routes, Git adapter, file access, search, transcription
-src/shared/        Wire types, runtime validation, comment/export model
-tests/             Git fixture and focused model tests
+src/shared/        Wire types and runtime validation
+src/client/comments.ts  Comment anchors, persistence, and feedback export
+src/**/*.test.ts   Behavior tests colocated with their domain code
 tsconfig.base.json
 tsconfig.client.json
 tsconfig.server.json
@@ -188,25 +194,21 @@ package.json
 
 Type checking runs with the project-local native TypeScript 7 compiler. Enable `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noFallthroughCasesInSwitch`, `noUncheckedSideEffectImports`, and unused-code checks. Keep server and client library/type environments separate. Use Bun's build and test commands without a framework-specific toolchain.
 
-## Delivery order and acceptance checks
+## Delivery record and acceptance checks
 
-1. **Foundation and secure access:** Create the Bun/Preact scaffold, native TypeScript type-check gate, folder picker, approved-root enforcement, and desktop/LAN serving modes. A phone can open the UI through trusted HTTPS in LAN mode.
-2. **Git and file model:** Implement status, lazy diffs, bounded current-file reads, binary handling, and search. Historical file reads remain optional. Fixture repositories cover an initial commit, staged plus unstaged edits on one path, untracked files, renames, deletions, conflicts, binary files, unusual filenames, and symlink containment.
-3. **Review UI:** Implement responsive drawer, continuous collapsible cards, syntax plus diff overlays, wrap toggle, full-file view, and search navigation. Test narrow phone widths and tablet orientations.
-4. **Feedback:** Implement line interactions, durable drafts, stale-anchor handling, preview, copy, and history. Copy output identifies every comment's file, layer, side, and line.
-5. **Voice:** Verify Handy headless transcription with a non-sensitive WAV fixture, then wire browser recording, FFmpeg normalization, a bounded server endpoint, and transcript review in the comment sheet. Test iPhone Safari and Android Chrome capture, permission denial, cancellation, timeouts, and model-unavailable errors.
+1. **Foundation and secure access (complete):** Bun/Preact scaffold, native TypeScript type-check gate, folder picker, approved-root enforcement, loopback/direct-tailnet serving, and private HTTPS installation.
+2. **Git and file model (complete):** Status, lazy diffs, bounded current-file reads, native media, binary handling, and Search. Historical file reads remain optional. Git fixtures protect layer/source mapping, unusual paths, stale reads, and containment.
+3. **Review UI (complete):** Responsive menu/list/content layout, continuous collapsible cards, syntax and word overlays, wrap toggle, full-file view, and URL navigation. Browser captures cover narrow phones and both tablet orientations.
+4. **Feedback (complete):** Line interactions, durable drafts, conservative anchor checks and reattachment, preview, copy, and history. Copy output identifies every comment's file, layer, side, and line.
+5. **Voice (complete):** Handy headless transcription, browser recording, FFmpeg normalization, a bounded endpoint, and insertion at the saved comment caret. Browser QA covers cancellation, Retry, five-minute automatic Send, and keyboard-sized layout; real-device interruptions and iOS capture remain in the final pass.
 6. **Final device and performance pass:** Check actual touch behavior, clipboard and microphone operation over LAN HTTPS, large files, search limits, and refreshes while comments are present.
 
 Keep a visible Refresh action and poll status while the page is active so new edits appear without losing the review position. Set size limits and progressive loading for unusually large files; an ordinary change set should remain a single continuous page.
 
-The selected-code Search shortcut, local voice work, appearance settings, portrait-gutter refinement, and [URL history and navigation redesign](navigation-and-url-history-slice-proposal.md) are implemented. The maintainer reviewed and approved the navigation redesign on phone, tablet, and desktop.
+The core Git review, Files, Search, media, feedback, voice, appearance, live-update, and navigation slices are implemented and reviewed. The maintainer approved the navigation redesign on phone, tablet, and desktop. The [loading and navigation polish](loading-and-transition-polish.md) is committed as `471521e`, including tab-memory diff caching and one-time URL target focus. The [documentation map](README.md) links the behavior and QA records.
 
 ## Remaining roadmap
 
 - **Device and performance pass:** check iOS selection and microphone behavior, clipboard and keyboard layouts on real devices, interruptions during recording, large changes, and refreshes while drafts are present. The maintainer has confirmed the selected-code Search action and dictation work on their phone.
-- **Native media previews (complete):** images including SVG, audio, and video appear inline in Files and in source-correct Old/New Git change cards, with raw new-tab links. The [media slice record](media-preview-slice-proposal.md) contains the API and QA details.
-- **Diff fidelity (complete):** bounded word-change spans decorate clear line pairs across multi-line edit chunks. The [slice record](diff-fidelity-slice-proposal.md) covers matching limits and QA. Moved-block indicators are optional later work.
-- **Phone and personal layout (complete):** the [phone line action](phone-portrait-gutter-slice-proposal.md), [code typography Settings slice](code-typography-slice-proposal.md), and [app and code theme selectors](theme-settings-slice-proposal.md) are reviewed and complete.
-- **Convenience:** [live change detection](live-change-detection-slice-proposal.md) is complete. Recent files remain from the initial plan. Explicit Refresh, row click actions, and wide-screen line-number controls cover the essential jobs today.
-- **Navigation (complete):** the [URL and screen redesign](navigation-and-url-history-slice-proposal.md) supports Back/Forward, direct file links, and the menu/list/content hierarchy. The maintainer has reviewed the phone, tablet, and desktop flows. Real-device testing will decide whether a swipe gesture adds value. General file Git history and PDF previews are later optional expansions.
-- **Loading and navigation polish (complete):** [delayed loading feedback and tab-memory diff caching](loading-and-transition-polish.md) keep section changes smooth and preserve expanded cards. URL-selected diffs focus once per navigation, so toggling cards or refreshing does not pull the reader back or force a card open. The maintainer approved these changes on 2026-09-30.
+- **Recent files:** a bounded per-project recent-file list remains from the initial plan. Its user flow and storage shape need a proposal and maintainer agreement before implementation.
+- **Optional later work:** repository/file Git history, PDF previews, moved-block indicators, and a phone list/content swipe only if real-device testing establishes that it adds value without conflicting with native gestures.

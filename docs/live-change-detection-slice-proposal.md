@@ -1,6 +1,6 @@
 # Live change detection slice proposal
 
-Status: implemented and approved for commit by the maintainer on 2026-09-29.
+Status: implemented, approved by the maintainer on 2026-09-29, and committed as `aa9d091`.
 
 ## Finding
 

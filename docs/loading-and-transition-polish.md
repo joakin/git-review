@@ -1,6 +1,6 @@
 # Loading and screen transitions
 
-Status: implemented, reviewed by the maintainer, and approved for commit on 2026-09-30. The maintainer confirmed snappy navigation and the corrected expand/collapse behavior.
+Status: implemented, reviewed by the maintainer, and committed as `471521e` on 2026-09-30. The maintainer confirmed snappy navigation and the corrected expand/collapse behavior.
 
 ## Behavior
 

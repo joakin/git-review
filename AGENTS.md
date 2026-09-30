@@ -4,9 +4,11 @@
 
 - Work in small, reviewable steps. Explain the intended behavior and the result of each step so the maintainer can course-correct early.
 - Before implementing a **new feature**, write down the proposed user flow, data/API shape, edge cases, and the smallest useful slice. Ask the maintainer for feedback on that approach, then implement the agreed slice. Routine fixes and already-agreed work can proceed directly.
+- Keep completed changes uncommitted for maintainer review. Commit when the maintainer explicitly approves the reviewed work; approval to implement a slice does not by itself approve committing it.
 - Keep the app usable on phones and tablets throughout development. Check touch behavior, narrow layouts, wrapping, and horizontal overflow as features are added.
-- Maintain `docs/` as the project record. Update the relevant design or behavior document when implementation decisions change. Start with [the initial plan](docs/initial-implementation-plan.md) and [the QA workflow](docs/qa-workflow.md); add focused documents when they clarify a real design decision.
+- Maintain `docs/` as the project record. Start with [the documentation map](docs/README.md), then read the relevant behavior record and [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap). Update stale descriptions and review status when implementation decisions change; add focused documents when they clarify a real design decision.
 - Reuse [shared validation helpers](src/shared/validation.ts) for generic unknown-value checks, while keeping domain parsers at their boundaries. Tune visual design through [CSS design tokens](src/client/design-tokens.css); see [engineering conventions](docs/engineering-conventions.md).
+- Keep the running app available for the maintainer to review. Rebuild client assets after frontend edits; restart the relevant server after backend edits. Use a separate port and fixture root for local QA, and stop only QA processes you started when cleaning up. Run and HTTPS instructions are in [README.md](README.md).
 
 ## Type safety and boundaries
 
@@ -14,6 +16,7 @@
 - Treat HTTP input, Git output, filesystem data, browser storage, subprocess output, and imported state as untrusted. Parse and validate them at their boundaries; return a clear error or bail out early when invalid.
 - Represent validated internal data with precise types and explicit variants. Use discriminated unions and purpose-built records for distinct states. Do not hide uncertain states behind pervasive optional properties, casts, non-null assertions, or `any`.
 - Keep server paths confined to approved roots, pass subprocess arguments as arrays without a shell, and keep repository access read-only unless the maintainer explicitly changes that scope.
+- Preserve the [navigation and loading boundaries](docs/engineering-conventions.md): URLs own navigable destinations, card toggles do not repeat route focus, and cached data must belong to the current resource and version.
 
 ## Tests and visual QA
 
