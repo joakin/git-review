@@ -116,13 +116,6 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .welcome-foot { display: flex; align-items: center; gap: 13px; margin-top: 76px; color: var(--color-text-faint); font-size: var(--font-size-12); }
 .line-decor { width: 30px; height: 1px; background: var(--color-accent-border); }
 .project-view { max-width: 850px; margin: clamp(85px, 12vh, 150px) auto 0; }
-.project-ready { display: flex; align-items: center; gap: var(--space-5); margin-top: 53px; padding: var(--space-7); border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); box-shadow: var(--shadow-panel); }
-.ready-icon { display: grid; place-items: center; width: var(--space-10); height: var(--space-10); flex: 0 0 var(--space-10); border-radius: var(--radius-card); color: var(--color-accent-ink); background: var(--color-mint-deep); font-size: var(--font-size-21); }
-.project-ready h2 { margin: 0 0 5px; font-size: var(--font-size-18); letter-spacing: -.03em; }
-.project-ready p { max-width: 410px; margin: 0; color: var(--color-text-muted); font-size: var(--font-size-13); line-height: 1.5; }
-.project-ready button { display: flex; gap: 15px; margin-left: auto; padding: 10px var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); color: var(--color-accent); background: var(--color-surface); white-space: nowrap; font-size: var(--font-size-12); font-weight: var(--font-weight-semibold); }
-.project-ready button:hover { background: var(--color-mint-hover); }
-.project-view-changes { margin-top: clamp(38px, 6vh, 72px); }
 .project-view-tabs { display: flex; gap: var(--space-2); margin-top: var(--space-6); border-bottom: 1px solid var(--color-border); }
 .project-view-tabs button { min-height: 44px; padding: 10px var(--space-4); border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--color-text-muted); font-size: var(--font-size-14); font-weight: var(--font-weight-semibold); }
 .project-view-tabs button[aria-current="page"] { border-bottom-color: var(--color-accent); color: var(--color-accent); }
@@ -131,8 +124,8 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .content-heading-title { display: flex; align-items: center; min-width: 0; gap: var(--space-2); }
 .changes-heading h2 { margin: 0; color: var(--color-heading); font-size: var(--font-size-26); line-height: 1.2; letter-spacing: -.04em; }
 .changes-heading .content-back { display: none; flex: 0 0 40px; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; font-size: var(--font-size-20); }
-.changes-heading button, .sidebar-switch-mode { min-height: 40px; padding: 9px 13px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font-size: var(--font-size-12); font-weight: var(--font-weight-semibold); }
-.changes-heading button:hover, .sidebar-switch-mode:hover { background: var(--color-mint-hover); }
+.changes-heading button { min-height: 40px; padding: 9px 13px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface); color: var(--color-accent); font-size: var(--font-size-12); font-weight: var(--font-weight-semibold); }
+.changes-heading button:hover { background: var(--color-mint-hover); }
 .changes-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
 .changes-actions button[aria-pressed="true"] { border-color: var(--color-accent-border); background: var(--color-mint-surface); }
 .changes-heading .changes-update { min-height: 44px; border-color: var(--color-update-border); background: var(--color-update-surface); color: var(--color-update-text); }
@@ -158,8 +151,6 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
 .change-file small { overflow-wrap: anywhere; color: var(--color-text-subtle); font-size: var(--font-size-11); line-height: 1.45; }
 .change-kind { text-transform: capitalize; }
 .change-empty { margin: 12px 0 0; color: var(--color-text-subtle); font-size: var(--font-size-12); }
-.changes-footnote { margin: 17px 0 0; color: var(--color-text-subtle); font-size: var(--font-size-12); }
-.sidebar-switch-mode { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: calc(100% - 16px); margin: 0 var(--space-2) 22px; text-align: left; }
 .sidebar-changes .change-groups { gap: 18px; }
 .file-tree-breadcrumb { display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: 0 var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-family: var(--font-code); font-size: var(--font-size-12); }
 .file-tree-breadcrumb span { min-width: 0; overflow-wrap: anywhere; }
@@ -362,8 +353,6 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .workspace { grid-template-columns: var(--sidebar-width-compact) minmax(0, 1fr); }
   .sidebar { padding-left: 14px; padding-right: 14px; }
   .main-content { padding-left: 35px; padding-right: 35px; }
-  .project-ready { align-items: flex-start; flex-wrap: wrap; }
-  .project-ready button { margin-left: var(--ready-action-indent); }
 }
 
 @media (max-width: 900px) {
@@ -383,9 +372,6 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .welcome-copy { font-size: var(--font-size-17); }
   .welcome-foot { margin-top: 60px; line-height: 1.5; }
   .project-view { margin-top: 100px; }
-  .project-ready { margin-top: 43px; padding: 22px; }
-  .project-ready button { margin: 5px 0 0 var(--ready-action-indent); }
-  .project-view-changes { margin-top: 38px; }
   .changes-heading { margin-top: 39px; }
   .file-location-bar { top: var(--topbar-height-mobile); }
   .change-group { padding: 15px; }
@@ -401,8 +387,6 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .project-switch { gap: 5px; max-width: 39vw; }
   .main-content { padding-left: 19px; padding-right: 19px; }
   .welcome h1 { font-size: var(--font-size-display-narrow); }
-  .project-ready { gap: 13px; }
-  .project-ready button { margin-left: 0; }
   .changes-heading { align-items: flex-start; flex-direction: column; }
   .changes-actions { width: 100%; justify-content: space-between; }
   .project-view-tabs { gap: 0; }

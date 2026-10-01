@@ -2,7 +2,7 @@
 
 ## Project status
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`. M04 separates routine QA output from milestone captures and is accepted and approved for commit as of 2026-10-01. M05 is the next authorized slice. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`. M04 separates routine QA output from milestone captures and is accepted and committed as `0e55b07`. M05a removes confirmed obsolete UI/CSS remnants and is accepted and approved for commit as of 2026-10-01. M05b, navigation CSS consolidation, is the next authorized step. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
 
 ## Collaboration
 

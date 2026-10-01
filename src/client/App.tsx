@@ -801,7 +801,6 @@ export function App() {
               ))}
             </div>
           )}
-          {project !== null && <button class="sidebar-switch-mode" type="button" onClick={() => chooseView(viewMode ?? "changes")}>Back to project <span aria-hidden="true">→</span></button>}
           </>}
         </aside>
 
@@ -820,7 +819,7 @@ export function App() {
               <div class="welcome-foot"><span class="line-decor" aria-hidden="true" /> Staged, unstaged, and untracked changes will live here.</div>
             </div>
           ) : project === null ? projectOpenError?.path === routeProject ? <div class="status-message" role="alert">This project could not be opened: {projectOpenError.message} <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button>.</div> : <DelayedLoading key={routeProject ?? "project"} className="status-message" message="Opening project…" /> : (
-            <div class="project-view project-view-changes">
+            <div class="project-view">
               {viewMode === "git" && gitRoute !== null ? <>
                 <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{gitRoute.target.kind === "commit" ? "Commit" : "Git history"}</h2></div><div class="changes-actions"><button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button><button type="button" disabled={git.refreshing} onClick={git.refreshHistory}>Refresh</button></div></div>
                 {gitRoute.target.kind === "list" ? <p class="status-message">{git.refs.kind === "ready" && git.refs.value.kind === "not_git" ? "This folder is not a Git worktree." : git.unborn ? "This branch has no commits yet." : "Select a commit from the Git list to inspect its message and changes."}</p> : git.detail.kind === "loading" ? <DelayedLoading key={gitRoute.target.oid} className="status-message" message="Reading commit…" /> : git.detail.kind === "error" ? <div class="status-message" role="alert">{git.detail.message} <button type="button" onClick={git.retryCommit}>Retry</button></div> : <CommitViewer key={`${project.id}:${git.detail.value.oid}`} project={project} detail={git.detail.value} wrap={wrapCode} languages={languages} />}
