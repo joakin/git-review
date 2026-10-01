@@ -723,7 +723,7 @@ export function App() {
             </div>}
             <button class="icon-button close-drawer" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)}>×</button>
           </div>
-          {listSection !== "projects" && project !== null && <nav class="project-view-tabs sidebar-project-tabs" aria-label="Project views">
+          {listSection !== "projects" && project !== null && <nav class="sidebar-project-tabs" aria-label="Project views">
             <button type="button" aria-current={viewMode === "changes" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("changes")}>Changes</button>
             <button type="button" aria-current={viewMode === "files" ? "page" : undefined} onClick={() => chooseView("files")}>Files</button>
             <button type="button" aria-current={viewMode === "search" ? "page" : undefined} onClick={() => chooseView("search")}>Search</button>

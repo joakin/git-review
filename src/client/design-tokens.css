@@ -51,8 +51,8 @@
   --radius-hero: 23px;
   --topbar-height: 68px;
   --topbar-height-mobile: 62px;
-  --sidebar-width: 330px;
-  --sidebar-width-compact: 280px;
+  --workspace-menu-width: 216px;
+  --project-list-width: 300px;
   --drawer-width-max: 370px;
   --diff-gutter-width: 44px;
   --diff-sign-width: 20px;

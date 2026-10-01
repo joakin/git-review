@@ -230,7 +230,7 @@ try {
   const visible = await Promise.all([desktopPage.locator(".workspace-menu").isVisible(), desktopPage.locator(".sidebar").isVisible(), desktopPage.locator(".main-content").isVisible()]);
   if (visible.some((value) => !value)) throw new Error("Desktop did not show menu, list, and content together");
   await desktopPage.locator(".sidebar-project-title").getByText("inventory-fixture").waitFor({ state: "visible" });
-  if (!(await desktopPage.locator(".sidebar-project-tabs").isVisible()) || await desktopPage.locator(".main-content .project-view-tabs").count() !== 0) throw new Error("Project tabs are not in the contextual list");
+  if (!(await desktopPage.locator(".sidebar-project-tabs").isVisible()) || await desktopPage.locator(".main-content").getByRole("navigation", { name: "Project views" }).count() !== 0) throw new Error("Project tabs are not in the contextual list");
   if (await desktopPage.locator(".workspace-menu").getByText("CURRENT PROJECT").count() !== 0 || await desktopPage.locator(".main-content").getByText("LOCAL ONLY").count() !== 0) throw new Error("Redundant project or host headings remain");
   await desktop.close();
 
