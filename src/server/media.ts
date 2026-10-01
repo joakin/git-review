@@ -30,7 +30,8 @@ async function oidForSource(project: Project, source: Exclude<ImageSource, { kin
   if (source.kind === "worktree") return null;
   if (source.kind === "commit") return source.oid;
   if (source.kind === "head") {
-    try { return gitOid(await runGit(project.absolutePath, ["rev-parse", "--verify", "--end-of-options", `HEAD:${source.path}`], 4096)); }
+    // :./ resolves from the selected project's cwd rather than the repository root.
+    try { return gitOid(await runGit(project.absolutePath, ["rev-parse", "--verify", "--end-of-options", `HEAD:./${source.path}`], 4096)); }
     catch { return null; }
   }
   let output: Buffer;

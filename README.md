@@ -8,7 +8,7 @@ Historical cards read exact commit/parent blobs, including media. Root commits c
 
 ## Project status
 
-The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer considers the app usable and useful; the final reviewed feature delivery is `22de40e`. There is no active next slice. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is entirely optional, and further improvements will be discussed in new threads. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves acceptance and verification context.
+The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer considers the app usable and useful; the final reviewed feature delivery is `22de40e`. A subsequent [maintenance pass](docs/maintenance-plan.md) is underway: M01 corrects staged media sources for repository subfolders and is accepted and approved for commit as of 2026-10-01. M02 is the next authorized slice. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves acceptance and verification context.
 
 ## Run the app
 

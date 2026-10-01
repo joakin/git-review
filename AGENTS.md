@@ -2,7 +2,7 @@
 
 ## Project status
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. There is no active implementation slice. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional backlog for future threads; start further work only when the maintainer requests it.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01 is accepted and approved for commit as of 2026-10-01; M02 is the next authorized slice. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
 
 ## Collaboration
 

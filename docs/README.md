@@ -1,14 +1,15 @@
 # Documentation map
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. There is no active next slice; further improvements belong to new threads and the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01 corrects scoped staged media sources and is accepted and approved for commit as of 2026-10-01. M02 is the next authorized slice. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope, [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the [optional backlog](initial-implementation-plan.md#remaining-roadmap).
+- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01 is accepted and M02 is the next authorized slice.
 - [Engineering conventions](engineering-conventions.md): validation boundaries, URL ownership, loading, caching, scroll behavior, and design tokens.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and optional further device checks.
 
-The `*-proposal.md` filenames preserve links from earlier reviews. Their status and current behavior describe the accepted implementation; implementation sequences and dated QA evidence record how it was developed. Keep new work in a focused proposal until agreed, then update that document into a behavior record. Use the initial plan for the optional backlog instead of maintaining competing task lists. Historical implementation checkpoints describe completed development.
+The `*-proposal.md` filenames preserve links from earlier reviews. Their status and current behavior describe the accepted implementation; implementation sequences and dated QA evidence record how it was developed. Keep new work in a focused proposal until agreed, then update that document into a behavior record. Use the initial plan for the optional product backlog and the maintenance plan for the bounded cleanup pass. Historical implementation checkpoints describe completed development.
 
 ## Latest reviewed delivery
 
