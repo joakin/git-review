@@ -1,11 +1,11 @@
 # Documentation map
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01–M05b are accepted and committed, most recently navigation CSS consolidation as `1d28fc5`. M05c fixes canceled project opening and is accepted with explicit approval to commit as of 2026-10-01. M06 cache reuse is the next authorized step. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01–M05c are accepted and committed, most recently the canceled project-opening fix as `b20b514`. M06 cache reuse is accepted with explicit approval to commit, with M07 syntax validator reuse next authorized. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope, [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the [optional backlog](initial-implementation-plan.md#remaining-roadmap).
-- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01–M05b are committed, M05c is accepted and approved for commit, and M06 is next authorized.
+- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01–M05c are committed, M06 is accepted and approved for commit, and M07 is next authorized.
 - [Engineering conventions](engineering-conventions.md): validation boundaries, URL ownership, loading, caching, scroll behavior, and design tokens.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and optional further device checks.
 
@@ -13,7 +13,7 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 
 ## Latest reviewed delivery
 
-The latest reviewed maintenance slice is [M05b: navigation CSS consolidation](maintenance-plan.md#m05b-handoff--2026-10-01), accepted and committed as `1d28fc5` on 2026-10-01. [M05c: canceled project opening](maintenance-plan.md#m05c-handoff--2026-10-01) is accepted and approved for commit: Back restores an enabled picker, and abandoned responses cannot change current project or saved-selection state. The maintenance plan owns their status and verification records.
+The latest reviewed maintenance slice is [M05c: canceled project opening](maintenance-plan.md#m05c-handoff--2026-10-01), accepted and committed as `b20b514` on 2026-10-01: Back restores an enabled picker, and abandoned responses cannot change current project or saved-selection state. [M06: cache reuse](maintenance-plan.md#m06-handoff--2026-10-01) is accepted and approved for commit. The maintenance plan owns their status and verification records.
 
 The final implementation-stage feature, [Git tab: branches and commit inspection](git-history-slice-proposal.md), is implemented, reviewed, and committed as `22de40e` on 2026-09-30: a branch selector, commit list, full messages, and historical diff cards. The record includes API/data boundaries and four-size QA evidence.
 
@@ -44,6 +44,8 @@ The same commit includes the approved [line-total and time refinement](git-histo
 | Browser-local storage | Recent projects, drafts, copy history, wrapping, open-card preferences, language overrides, typography, and appearance | [storage.ts](../src/client/storage.ts), [comments.ts](../src/client/comments.ts), [backup.ts](../src/client/backup.ts) |
 | Tab memory | Open project handle, loaded data, bounded diff and Git caches, historical collapsed cards, route scroll positions, transient UI, and pending audio | [App.tsx](../src/client/App.tsx), [diff-cache.ts](../src/client/diff-cache.ts), [git-browser.ts](../src/client/git-browser.ts), [CommitViewer.tsx](../src/client/CommitViewer.tsx), [VoiceComment.tsx](../src/client/VoiceComment.tsx) |
 | Service worker | Offline fallback page only; API responses and raw media are not cached | [sw.ts](../src/client/sw.ts) |
+
+[ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff adapter and Git browser own resource identities, freshness, and individual budgets.
 
 ## Current scope and limits
 

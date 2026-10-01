@@ -79,6 +79,8 @@ Git supplies structured ref fields and full commit messages, so no new dependenc
 
 [git-browser.ts](../src/client/git-browser.ts) keeps validated refs (16 projects, about 1 MiB), loaded history snapshots (16 lists, about 4 MiB), and commit metadata (64 commits, about 4 MiB) in bounded tab-memory caches. Historical diffs share the existing 128-entry/about-32-MiB diff cache with working-copy diffs. Byte accounting estimates serialized UTF-16 data size; it is a cache bound, not a total browser-memory measurement.
 
+[ResourceCache](../src/client/resource-cache.ts) owns the common bounded storage and LRU mechanism for these caches and the [diff adapter](../src/client/diff-cache.ts). [M06](maintenance-plan.md#m06--reuse-the-bounded-cache-implementation) removes the adapter's duplicate mechanism; Git snapshot pinning, refresh invalidation, exact commit identities, and the shared diff budget remain in their existing domain owners.
+
 Branch lists stay pinned until Refresh or reload. Each **Load older** action carries the existing tip and offset; refreshing starts a new snapshot without changing a selected commit ID. Three concurrent diff slots are shared across commit cards; canceled queued requests release their place. Successfully loaded diffs render immediately when returning to a commit. Historical collapsed-card and list-scroll records retain at most 64 destinations in tab memory. They reset on reload; wrapping, themes, typography, and per-path language choices use existing browser preferences. Git payloads do not enter local-data backups or the service-worker cache.
 
 ## Implementation checkpoints and verification
