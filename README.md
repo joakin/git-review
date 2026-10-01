@@ -8,7 +8,7 @@ Historical cards read exact commit/parent blobs, including media. Root commits c
 
 ## Project status
 
-The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer considers the app usable and useful; the final reviewed feature delivery is `22de40e`. The subsequent [maintenance pass](docs/maintenance-plan.md) is underway: M01–M05c are accepted and committed, most recently the canceled project-opening fix as `b20b514`. M06 cache reuse is accepted with explicit approval to commit, with M07 syntax validator reuse next authorized. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves acceptance and verification context.
+The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer considers the app usable and useful; the final reviewed feature delivery is `22de40e`. The subsequent [maintenance pass](docs/maintenance-plan.md) is underway: M01–M06 are accepted and committed, most recently bounded cache reuse as `737a09b`. M07 syntax validator reuse is accepted with explicit approval to commit, with M08a reviewable comment layers next authorized. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves acceptance and verification context.
 
 ## Run the app
 

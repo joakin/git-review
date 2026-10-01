@@ -2,7 +2,7 @@
 
 ## Project status
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01–M05c are accepted and committed; the latest is the canceled project-opening fix, `b20b514`. M06 reuses the bounded cache implementation and is accepted with explicit approval to commit. M07 syntax validator reuse is the next authorized step. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01–M06 are accepted and committed; the latest is bounded cache reuse, `737a09b`. M07 reuses syntax response validators and is accepted with explicit approval to commit. M08a reviewable comment layers is the next authorized step. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
 
 ## Collaboration
 

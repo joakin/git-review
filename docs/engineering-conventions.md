@@ -4,6 +4,8 @@
 
 Use [the shared validation helpers](../src/shared/validation.ts) for generic checks on unknown values, such as records and strings. Keep each wire format's parser near its domain: API response shapes in `src/shared/api.ts`, saved browser state in `src/client/storage.ts`, and filesystem path rules in `src/server/paths.ts`. Callers receive validated types or a clear failure; they do not cast raw data into app types.
 
+Files and diff response parsers share private syntax-state and syntax-token validators in [api.ts](../src/shared/api.ts). They validate supported variants/roles, bounded language strings, at most 20,000 tokens per line, and exact token-text reconstruction. Each response parser owns its 100,000-token aggregate budget; diff rejects overflow before parsing another batch. Keep diff side, newline, word-span, and hunk invariants in the diff parser. [Boundary tests](../src/shared/api.test.ts) exercise the public response parsers; the browser TypeScript project excludes test roots, and the dedicated test project checks them with Bun types.
+
 ## Browser navigation
 
 Keep navigable destinations in the typed [route model](../src/client/navigation.ts). Parse the URL before rendering, serialize routes with `URLSearchParams`, and use History API entries for meaningful destinations. Do not add a second component-state source of truth for the selected project, section, directory, file, submitted Search query, Git branch, or commit. The [navigation record](navigation-and-url-history-slice-proposal.md) describes the menu/list/content hierarchy and the distinction between URL state and local drafts or preferences.

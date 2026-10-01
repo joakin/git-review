@@ -323,17 +323,7 @@ export function parseDiffResponse(value: unknown): DiffResult {
     }
     case "media": return { kind: "media", old: parseMediaSide(outer["old"]), new: parseMediaSide(outer["new"]) };
     case "text": {
-      const rawSyntax = expectRecord(outer["syntax"], "syntax state");
-      let syntax: SyntaxState;
-      if (rawSyntax["kind"] === "highlighted") {
-        const language = expectString(rawSyntax["language"], "syntax language");
-        if (language.length === 0 || language.length > 80) throw new Error("Expected a valid syntax language");
-        syntax = { kind: "highlighted", language };
-      } else if (rawSyntax["kind"] === "plain") {
-        const reason = rawSyntax["reason"];
-        if (reason !== "unknown_language" && reason !== "selected" && reason !== "unavailable") throw new Error("Expected a plain syntax reason");
-        syntax = { kind: "plain", reason };
-      } else throw new Error("Expected a syntax state");
+      const syntax = parseSyntaxState(outer["syntax"]);
       const rawHunks = outer["hunks"];
       if (!Array.isArray(rawHunks) || rawHunks.length > 2000) throw new Error("Expected bounded diff hunks");
       let totalLines = 0;
@@ -360,19 +350,12 @@ export function parseDiffResponse(value: unknown): DiffResult {
           if (typeof line["noNewlineAtEnd"] !== "boolean") throw new Error("Expected a newline marker");
           const lineText = expectString(line["text"], "diff line text");
           const rawTokens = line["tokens"];
-          if (!Array.isArray(rawTokens) || rawTokens.length > 20_000) throw new Error("Expected bounded syntax tokens");
-          totalTokens += rawTokens.length;
-          if (totalTokens > 100_000) throw new Error("Expected bounded syntax tokens");
-          const tokens: SyntaxToken[] = rawTokens.map((rawToken: unknown) => {
-            const token = expectRecord(rawToken, "syntax token");
-            const text = expectString(token["text"], "token text");
-            const role = token["role"];
-            if (role !== "plain" && role !== "comment" && role !== "keyword" && role !== "string" && role !== "number" && role !== "type" && role !== "function" && role !== "variable" && role !== "property" && role !== "operator" && role !== "punctuation" && role !== "tag" && role !== "attribute") {
-              throw new Error("Expected a valid syntax role");
-            }
-            return { text, role };
-          });
-          if (tokens.map((token) => token.text).join("") !== lineText) throw new Error("Syntax tokens do not match their source line");
+          // Preflight the aggregate budget before parsing another token batch.
+          if (Array.isArray(rawTokens)) {
+            totalTokens += rawTokens.length;
+            if (totalTokens > 100_000) throw new Error("Expected bounded syntax tokens");
+          }
+          const tokens = parseSyntaxTokens(rawTokens, lineText);
           const rawDetail = expectRecord(line["detail"], "diff detail");
           let detail: DiffDetail;
           if (rawDetail["kind"] === "none") {

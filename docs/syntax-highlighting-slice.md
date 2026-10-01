@@ -1,6 +1,6 @@
 # Syntax highlighting in diff cards
 
-Status: implemented and committed. [Theme selection](theme-settings-slice-proposal.md) and [word-level changes](diff-fidelity-slice-proposal.md) are also complete; moved-block detection remains optional.
+Status: initial delivery implemented and committed. The M07 validator cleanup is accepted and approved for commit; its maintenance verification is recorded below. [Theme selection](theme-settings-slice-proposal.md) and [word-level changes](diff-fidelity-slice-proposal.md) are also complete; moved-block detection remains optional.
 
 ## User flow
 
@@ -11,6 +11,8 @@ The server uses Shiki's **full bundle**, so any language grammar it ships can be
 ## Data and API
 
 The text diff response has `syntax: { kind: "highlighted", language: string } | { kind: "plain", reason: ... }`. Each displayed line has `tokens: { text: string, role: SyntaxRole }[]`. Roles are the bounded set `plain`, `comment`, `keyword`, `string`, `number`, `type`, `function`, `variable`, `property`, `operator`, `punctuation`, `tag`, and `attribute`. Joining token text must reproduce the line's `text` exactly. The client validates the role and reconstruction at the HTTP boundary before rendering ordinary Preact spans. Plain fallback uses one unstyled token. Shiki's TextMate scopes supply lexical categories; these are not compiler-resolved semantic symbols.
+
+Files and diff responses use the same private syntax validators in [shared/api.ts](../src/shared/api.ts), consolidated by [M07](maintenance-plan.md#m07--reuse-syntax-validators). Highlighted language strings retain their 1–80-character wire bound; plain syntax retains its three reasons. Token arrays allow at most 20,000 tokens per line and 100,000 across the response. Each domain parser owns the aggregate limit, and diff rejects aggregate overflow before validating another batch. Exact reconstruction preserves spaces, tabs, Unicode, and CRLF source; diff side, newline, word-span, and hunk checks remain separate. The [public-parser tests](../src/shared/api.test.ts) guard these boundaries.
 
 The server maps Shiki scope stacks to those stable roles in `src/server/syntax.ts`. This mapping determines *what kind* of text a token is, while CSS determines *how it looks*. The palettes are in `design-tokens.css`. An unknown scope maps to `plain`. The frontend theme selector swaps token variables without changing the API.
 
@@ -29,3 +31,7 @@ The server tokenizes bounded old and new file snapshots separately, then maps ol
 - Tests cover C and TypeScript diffs, a multiline comment whose opening is outside the hunk, plain-text fallback, malformed token rejection, and override validation. Browser QA checks mobile picker persistence and horizontal containment. [Phone](../qa/screenshots/syntax-c-diff/mobile.png), [tablet portrait](../qa/screenshots/syntax-c-diff/tablet-portrait.png), [tablet landscape](../qa/screenshots/syntax-c-diff/tablet-landscape.png), and [desktop](../qa/screenshots/syntax-c-diff/desktop.png) screenshots were captured and inspected. Real-device touch remains unverified.
 
 The main Shiki package contains all bundled grammar loaders as lazy imports; preloading every grammar is discouraged. It exposes tokens and grammar scope explanations for custom rendering. [Bundles](https://shiki.style/guide/bundles), [usage](https://shiki.style/guide/install), [languages](https://shiki.style/languages), [performance](https://shiki.style/guide/best-performance).
+
+## Maintenance verification — 2026-10-01
+
+[M07](maintenance-plan.md#m07-handoff--2026-10-01) shares the existing syntax validators between Files and diff response parsing. Sixteen public-parser tests (89 assertions) pass on both the committed pre-refactor validators and the refactor, including exact per-line/aggregate limits and source reconstruction. Strict gates, the full 115-test suite, and build pass. Phone working-copy and Files browser checks pass highlighting, override persistence, wrapping, and contained scrolling; historical Git checks pass at all four standard sizes plus 320 px. The separate review found no remaining concern. No new screenshots were generated, all 451 tracked screenshot artifacts remain unchanged, and real-device behavior was not reverified. The maintainer accepted the change and explicitly approved committing it on 2026-10-01.

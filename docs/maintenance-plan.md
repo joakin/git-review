@@ -1,12 +1,12 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M05c committed; M06 cache reuse accepted and approved for commit; M07 syntax validators next authorized
+Status: in progress; M01–M06 committed; M07 syntax validators accepted and approved for commit; M08a reviewable comment layers next authorized
 
 Created: 2026-09-30
 
 Updated: 2026-10-01
 
-The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted and committed as `59cadf3`, following explicit approval to commit and continue. **M04: separate QA output from milestone captures** is accepted and committed as `0e55b07`, following explicit approval to commit and continue. **M05a: remove confirmed obsolete UI/CSS remnants** is accepted and committed as `2d6879d`, following explicit approval to commit and continue. **M05b: consolidate navigation/layout CSS** is accepted and committed as `1d28fc5`, following explicit approval to commit and continue. **M05c: reset canceled project opening** is accepted and committed as `b20b514`, following explicit approval to commit and continue. **M06: reuse the bounded cache implementation** is accepted with explicit approval to commit and continue to M07. M05b's navigation QA identified the preexisting cancellation defect; M05c addresses it before cache extraction. Completed slices stay uncommitted for maintainer review.
+The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted and committed as `59cadf3`, following explicit approval to commit and continue. **M04: separate QA output from milestone captures** is accepted and committed as `0e55b07`, following explicit approval to commit and continue. **M05a: remove confirmed obsolete UI/CSS remnants** is accepted and committed as `2d6879d`, following explicit approval to commit and continue. **M05b: consolidate navigation/layout CSS** is accepted and committed as `1d28fc5`, following explicit approval to commit and continue. **M05c: reset canceled project opening** is accepted and committed as `b20b514`, following explicit approval to commit and continue. **M06: reuse the bounded cache implementation** is accepted and committed as `737a09b`, following explicit approval to commit and continue. **M07: reuse syntax validators** is accepted with explicit approval to commit and continue to M08a. M05b's navigation QA identified the preexisting cancellation defect; M05c addresses it before cache extraction. Completed slices stay uncommitted for maintainer review.
 
 This is the work record for the bounded maintenance pass. The [initial implementation plan](initial-implementation-plan.md#remaining-roadmap) remains the optional product backlog. Its closed stage stays closed. The [documentation map](README.md), [engineering conventions](engineering-conventions.md), [QA workflow](qa-workflow.md), and [collaboration rules](../AGENTS.md) remain authoritative for current behavior and delivery.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; M04 as `0e55b07`. M05a is accepted and committed as `2d6879d`. M05b is accepted and committed as `1d28fc5`. M05c corrects the cancellation defect reproduced during M05b validation and is accepted and committed as `b20b514`. M06 cache reuse is accepted and approved for commit. M07–M15 are pending, with M07 syntax validator reuse next authorized. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M05, M09, and M13 contain independently reviewable substeps. M15 starts with measurement; an optimization depends on its evidence.
+M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; M04 as `0e55b07`. M05a is accepted and committed as `2d6879d`. M05b is accepted and committed as `1d28fc5`. M05c corrects the cancellation defect reproduced during M05b validation and is accepted and committed as `b20b514`. M06 cache reuse is accepted and committed as `737a09b`. M07 syntax validator reuse is accepted and approved for commit. M08–M15 are pending, with M08a reviewable comment layers next authorized. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M05, M09, and M13 contain independently reviewable substeps. M15 starts with measurement; an optimization depends on its evidence.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; 
 
 ## M06 — Reuse the bounded cache implementation
 
-**Status:** implemented and accepted 2026-10-01, explicitly approved for commit.
+**Status:** implemented and accepted 2026-10-01, committed as `737a09b` after explicit approval.
 
 **Finding:** [diff-cache.ts](../src/client/diff-cache.ts) repeats the LRU promotion, replacement accounting, oversized-value rejection, and eviction already in [resource-cache.ts](../src/client/resource-cache.ts).
 
@@ -158,11 +158,17 @@ M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; 
 
 ## M07 — Reuse syntax validators
 
+**Status:** implemented and accepted 2026-10-01, explicitly approved for commit.
+
 **Finding:** [shared/api.ts](../src/shared/api.ts) has `parseSyntaxState` and `parseSyntaxTokens` for Files but repeats their logic in diff parsing, including syntax-role allowlists and exact token-text reconstruction.
 
 **Smallest slice:** reuse these validators while preserving per-line and aggregate diff token limits. Keep source-text, span, line-number, and hunk consistency checks intact.
 
 **Validation:** malformed roles, token/source mismatch, invalid syntax state, and aggregate budgets through the relevant response parsers. Preserve existing word-detail tests. A later file split may group syntax/media/diff/file contracts with their parsers if it improves discovery; it is not a requirement to complete this de-duplication.
+
+**Implemented:** diff responses now reuse both existing private syntax helpers. They own syntax variants, bounded language strings, the 13 semantic roles, token shape/text checks, the 20,000-token per-line cap, and exact source reconstruction. Each domain response parser retains its aggregate budget; diff checks the 100,000-token total before parsing another token batch, preserving early overflow rejection. Source, line-side, newline, word-span, and hunk consistency checks are unchanged. No response shape, helper export, or language-catalog policy changed.
+
+**Boundary evidence:** 16 [public-parser tests](../src/shared/api.test.ts) cover both Files and diff inputs, accepted states/roles, malformed syntax/tokens, empty/whitespace/Unicode/CRLF reconstruction, exact line and aggregate token limits, overflow before token parsing, and adjacent side/newline/span/hunk guards. The final tests pass against both committed pre-refactor validators and the shared implementation. The [client type-check config](../tsconfig.client.json) excludes all `src/**/*.test.ts` from browser roots so the new shared Bun tests stay in the dedicated test project; production shared code remains included and strict settings are unchanged. The [handoff below](#m07-handoff--2026-10-01) records the full checks and review status.
 
 ## M08 — Tighten domain and view contracts
 
@@ -369,5 +375,17 @@ Use this compact entry for each handoff:
 - **Artifacts and limits:** no visible UI change was introduced. The live-change check produced diagnostic captures in ignored `qa/.artifacts/live-changes-runs/run-LBsdGo/`; no new curated milestone was added. All 451 tracked screenshot-tree files remain unchanged from `b20b514`. Browser checks use Chrome emulation; real iOS/Android gestures and installed-PWA interruption were not reverified. Cache size remains an estimate of serialized UTF-16 payloads, not measured total heap usage.
 - **Operation:** rebuilt client assets. Both maintained backends and the public HTTPS origin returned 200 for the app and `/api/roots` and served JS/CSS matching the final build. Stopped the isolated server on 39911 after QA; its temporary live-change Git fixture was removed by the check, and existing inventory/history fixtures remain. Maintained services stay available.
 - **Review status:** accepted by the maintainer on 2026-10-01.
-- **Commit status:** explicitly approved on 2026-10-01; M05c was committed separately as `b20b514`.
+- **Commit status:** committed as `737a09b` on 2026-10-01 after explicit approval; M05c was committed separately as `b20b514`.
 - **Next authorized slice:** M07, reuse syntax response validators while preserving diff token limits and reconstruction checks.
+
+### M07 handoff — 2026-10-01
+
+- **Result and files:** [shared/api.ts](../src/shared/api.ts) replaces duplicated diff syntax-state/token validation with the same private helpers used by Files. Syntax shape, language length, semantic-role checks, the 20,000-token line cap, and exact source reconstruction have one owner. Each domain retains its 100,000-token aggregate budget; diff checks that budget before parsing another token batch. All other diff guards remain unchanged. [tsconfig.client.json](../tsconfig.client.json) excludes shared Bun test roots while preserving production shared-code inclusion and strict checks. No wire format or helper export changed. M06's approved commit is recorded as `737a09b`.
+- **Boundary evidence:** 16 [new public-parser tests](../src/shared/api.test.ts), with 89 assertions, cover supported syntax states and all 13 roles; malformed variants, language strings, token arrays/records/text/roles; empty/whitespace/Unicode/CRLF reconstruction; exact per-line and total token limits; total diff limits across hunks; early aggregate overflow rejection; and side/newline/span/hunk guards. An isolated copy of the final tests passes against committed `737a09b` validators and was removed afterward. The same tests pass with the refactor. Two review suggestions were applied so context-detail rejection cannot be masked by hunk counts, and overlap rejection cannot be masked by surrogate-boundary validation.
+- **Automated checks:** `bun run typecheck`, `bun run qa:check`, `bun test`, and `bun run build` passed: 115 tests, zero failures, 1,293 assertions across 20 files; all 138 CSS token references resolve. After the final test-isolation adjustment, the type-check gate and all 16 boundary tests passed again. Existing Git diff, word-detail decoration, historical/API, Files, persistence, and transaction tests remain passing. The separate read-only review found no remaining concern.
+- **Browser evidence:** `qa:diff` passed the phone working-copy flow, staged content, C syntax, saved language override/reload, compact gutter-free rows, wrap, contained horizontal scrolling, and sticky long-file heading. `qa:files` passed phone file navigation, C syntax, scrolling/wrap, and return to expanded Changes. `qa:git` passed historical text/media, branch/history/commit navigation, immutable cache/card reuse, reading positions, independent tabs, and layout at 390, 820, 1180, and 1440 px plus 320 px. Peak diff concurrency stayed at three at every standard size.
+- **Artifacts and limits:** no visible UI change was introduced. These checks produced no new screenshots; all 451 tracked screenshot-tree files remain unchanged from `737a09b`. Existing captures remain dated evidence. Browser checks use Chrome emulation; real iOS/Android gestures and installed-PWA behavior were not reverified. The tests establish response-validator equivalence and budgets, rather than broader performance measurements.
+- **Operation:** rebuilt client assets. Both maintained backends and the public HTTPS origin returned 200 for the app and `/api/roots`, and their served JS/CSS match the final build. Production server references to the shared API module are type-only; the validators run at the browser response boundary. Maintained services stay available. Stopped the isolated QA server on 39911; inventory/history fixtures remain, and the temporary pre-refactor comparison fixture was removed.
+- **Review status:** accepted by the maintainer on 2026-10-01.
+- **Commit status:** explicitly approved on 2026-10-01; M06 was committed separately as `737a09b`.
+- **Next authorized step:** M08a, precise reviewable comment layers before the other independently reviewable domain/component contracts.
