@@ -484,19 +484,18 @@ button:focus-visible { outline: 3px solid var(--color-accent-soft); outline-offs
   .workspace .sidebar { position: fixed; top: 0; left: 0; z-index: 40; width: min(88vw, var(--drawer-width-max)); height: 100dvh; padding: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom)); border-right: 0; box-shadow: var(--shadow-drawer); transform: translateX(-110%); transition: transform .22s ease; }
   .workspace .sidebar-open { transform: translateX(0); }
   .workspace .main-content { min-height: calc(100dvh - var(--topbar-height-mobile)); padding-inline: clamp(22px, 5vw, 56px); }
-  .workspace[data-section="projects"] .sidebar { position: static; display: block; width: min(100%, 600px); min-height: calc(100dvh - var(--topbar-height-mobile)); height: auto; margin: 0 auto; padding: var(--space-6); overflow: visible; box-shadow: none; transform: none; border: 0; }
-  .workspace[data-section="projects"] .sidebar .close-drawer, .workspace[data-section="projects"] .main-content { display: none; }
 }
 
 @media (min-width: 900px) and (max-width: 1199px) {
   .workspace { display: grid; grid-template-columns: 300px minmax(0, 1fr); }
   .workspace .sidebar { position: sticky; top: var(--topbar-height-mobile); align-self: start; width: auto; height: calc(100dvh - var(--topbar-height-mobile)); padding: 30px var(--space-3) 42px; overflow-y: auto; border-right: 1px solid var(--color-border); box-shadow: none; transform: none; }
   .workspace .sidebar .close-drawer, .drawer-scrim { display: none; }
-  .workspace[data-section="projects"] { display: block; }
 }
 
 @media (max-width: 899px) {
   .changes-heading .content-back { display: inline-flex; }
+  .workspace[data-section="projects"] .sidebar { position: static; display: block; width: min(100%, 600px); min-height: calc(100dvh - var(--topbar-height-mobile)); height: auto; margin: 0 auto; padding: var(--space-6); overflow: visible; box-shadow: none; transform: none; border: 0; }
+  .workspace[data-section="projects"] .sidebar .close-drawer, .workspace[data-section="projects"] .main-content { display: none; }
 }
 
 @media (max-width: 600px) {
