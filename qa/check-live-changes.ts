@@ -21,7 +21,6 @@ const views = [
   { name: "tablet-landscape", width: 1180, height: 820, isMobile: true, hasTouch: true },
   { name: "desktop", width: 1440, height: 900, isMobile: false, hasTouch: false },
 ] as const;
-const screenshotDir = resolve("qa/screenshots/navigation-live-update-review");
 let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
 
 try {
@@ -69,9 +68,12 @@ try {
     if (!fit) throw new Error("Page-wide horizontal overflow with update action");
   }));
 
-  await mkdir(screenshotDir, { recursive: true });
+  const screenshotRoot = resolve(artifacts, "live-changes-runs");
+  await mkdir(screenshotRoot, { recursive: true });
+  const screenshotDir = await mkdtemp(resolve(screenshotRoot, "run-"));
   for (const { page, name } of openPages) await page.screenshot({ path: resolve(screenshotDir, `${name}.png`) });
   await writeFile(resolve(screenshotDir, "manifest.json"), JSON.stringify({ url, fixture: "temporary Git project", state: "New edits action with expanded diff" }, null, 2) + "\n");
+  console.log(`Live-change screenshots: ${screenshotDir}`);
 
   await phone.page.setViewportSize({ width: 320, height: 700 });
   const narrowFit = await phone.page.evaluate(() => {

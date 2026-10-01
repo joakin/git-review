@@ -1,12 +1,12 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M02 committed; M03 accepted and approved for commit; M04 next
+Status: in progress; M01–M03 committed; M04 accepted and approved for commit; M05 next authorized
 
 Created: 2026-09-30
 
 Updated: 2026-10-01
 
-The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted with explicit approval to commit and continue to M04. Later completed slices stay uncommitted for maintainer review.
+The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted and committed as `59cadf3`, following explicit approval to commit and continue. **M04: separate QA output from milestone captures** is accepted with explicit approval to commit and continue to M05. Completed slices stay uncommitted for maintainer review.
 
 This is the work record for the bounded maintenance pass. The [initial implementation plan](initial-implementation-plan.md#remaining-roadmap) remains the optional product backlog. Its closed stage stays closed. The [documentation map](README.md), [engineering conventions](engineering-conventions.md), [QA workflow](qa-workflow.md), and [collaboration rules](../AGENTS.md) remain authoritative for current behavior and delivery.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01 is accepted and committed as `ba62d1d`; M02 is accepted and committed as `cbe97fb`; M03 is accepted and approved for commit; M04 is next, and M04–M15 are pending. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M09 and M13 contain several independently reviewable extractions. M15 starts with measurement; an optimization depends on its evidence.
+M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`. M04 is accepted and approved for commit; M05–M15 are pending, with M05 next authorized. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M09 and M13 contain several independently reviewable extractions. M15 starts with measurement; an optimization depends on its evidence.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -103,7 +103,7 @@ M01 is accepted and committed as `ba62d1d`; M02 is accepted and committed as `cb
 
 **Validation:** hold status/diff and clipboard responses while editing, deleting, reattaching, undoing, adding drafts, navigating away/back, or starting another operation. Cover clipboard rejection and late results. Retain anchor matching, export formatting, history bounds, reload persistence, and ordinary `qa:feedback` coverage. Add four-size captures if dialog states or controls change. Update the [feedback record](feedback-slice-proposal.md). Fix behavior before the M09 extraction.
 
-**Implemented and accepted 2026-10-01; approved for commit:** [FeedbackTransactions](../src/client/feedback-transactions.ts) owns cancellable checks, operation generations, and a clipboard lease shared by draft/history writes. App commits through a synchronous current-store reference. [Comment-domain helpers](../src/client/comments.ts) merge only matching anchors, construct a checked export snapshot, and archive that exact batch into current history while clearing only unchanged copied versions. The ready state carries checked IDs/anchors so selectable text also excludes drafts added or restored after a check began. Navigation and existing-draft Edit cancel the active operation; an issued clipboard write retains its lease until it settles, and its canceled result preserves drafts/history. Closing Feedback alone permits a copy to finish. The [handoff below](#m03-handoff--2026-10-01) records validation and captures.
+**Implemented and accepted 2026-10-01; committed as `59cadf3`:** [FeedbackTransactions](../src/client/feedback-transactions.ts) owns cancellable checks, operation generations, and a clipboard lease shared by draft/history writes. App commits through a synchronous current-store reference. [Comment-domain helpers](../src/client/comments.ts) merge only matching anchors, construct a checked export snapshot, and archive that exact batch into current history while clearing only unchanged copied versions. The ready state carries checked IDs/anchors so selectable text also excludes drafts added or restored after a check began. Navigation and existing-draft Edit cancel the active operation; an issued clipboard write retains its lease until it settles, and its canceled result preserves drafts/history. Closing Feedback alone permits a copy to finish. The [handoff below](#m03-handoff--2026-10-01) records validation and captures.
 
 **Scope adjustment from regression review:** guard Undo against restoring more than 200 drafts, and guard automatic copy against the existing 250,000-character history-text limit. Both prevent valid working drafts from becoming a stored record rejected on reload. Undo keeps its history and retry available with an inline explanation; oversized feedback keeps selectable text and drafts. Storage version, IDs, anchor/export formats, and backup compatibility remain unchanged.
 
@@ -114,6 +114,8 @@ M01 is accepted and committed as `ba62d1d`; M02 is accepted and committed as `cb
 **Smallest slice:** send routine check output to an ignored per-run artifact directory. Keep curated milestone creation explicit, with a fresh label and preserved earlier captures.
 
 **Validation:** run the affected check on an isolated fixture server and verify that its assertions still pass and no tracked milestone image changes. Update the [QA workflow](qa-workflow.md) to describe the actual output. Implement this before generating maintenance captures or pruning screenshots.
+
+**Implemented and accepted 2026-10-01; approved for commit:** each live-change check allocates a fresh directory under ignored `qa/.artifacts/live-changes-runs/` using `mkdtemp`, writes its four viewport screenshots and manifest there, and prints the directory path. Runs preserve earlier diagnostic output as well as tracked milestones. The explicit `qa:capture` command continues to require a fresh milestone label. The [handoff below](#m04-handoff--2026-10-01) records repeated-run and preservation checks.
 
 ## M05 — Remove obsolete UI and consolidate layout CSS
 
@@ -288,5 +290,14 @@ Use this compact entry for each handoff:
 - **Scope adjustment and remaining uncertainty:** added the 200-draft Undo guard and existing 250,000-character export guard because exceeding either made a later reload reject otherwise valid working data. Both preserve drafts/history and offer recovery. Limit guards have domain regression coverage. Browser checks use Chrome emulation and controlled clipboard promises for race timing; they do not establish real iOS/Android clipboard permissions, native gestures, or keyboard behavior.
 - **Operation:** rebuilt shared client assets and stopped the isolated QA server on 39909 and capture proxy on 39910. Both existing review backends and the public HTTPS origin returned 200 for the app/root and served the exact final client bundle. Backend source was unchanged. The baseline bundle and QA helper state remain ignored artifacts for reproducibility; the eight reviewed screenshots are curated milestone evidence.
 - **Review status:** accepted by the maintainer on 2026-10-01.
-- **Commit status:** explicitly approved on 2026-10-01. M02 was committed separately as `cbe97fb`.
+- **Commit status:** committed as `59cadf3` on 2026-10-01, following explicit approval. M02 was committed separately as `cbe97fb`.
 - **Next authorized slice:** M04, separate ordinary QA output from curated milestone captures.
+
+### M04 handoff — 2026-10-01
+
+- **Result and files:** [qa/check-live-changes.ts](../qa/check-live-changes.ts) allocates a fresh `mkdtemp` directory under ignored `qa/.artifacts/live-changes-runs/`, writes its four viewport PNGs and manifest there, and prints the path. Earlier run output and tracked milestones are preserved. [The QA workflow](qa-workflow.md#live-change-detection) and [live-change record](live-change-detection-slice-proposal.md#maintenance-verification--2026-10-01) describe this ownership; project status records M03's approved commit as `59cadf3`.
+- **Checks and evidence:** `bun run typecheck` passed all five TypeScript projects; `bun run qa:check` passed with all 140 CSS token references resolved. Two consecutive `bun run qa:live-changes http://127.0.0.1:39911/` runs passed the existing four-viewport, 320 px, steady-code, Update/card/draft/scroll, hidden-tab, serialized-request, error-recovery, and manual Refresh assertions. Run output is retained locally in `qa/.artifacts/live-changes-runs/run-lIho1D/` and `run-rBLjes/`, with five expected files and validated manifests in each. SHA-256 comparisons confirm all 426 tracked screenshot/manifest files and the first run's five files remain unchanged. Git confirms both output directories are ignored. `qa:capture` refused the existing `maintenance-m03-feedback` label before opening Chrome, as expected.
+- **Operation and remaining uncertainty:** the isolated server used port 39911 and `qa/.artifacts` as its approved root. Both temporary Git fixtures were removed and the QA server was stopped; the maintainer's running services and built assets were unchanged. The check generated four-size diagnostic screenshots in each run; this slice has no visible UI changes and adds no curated milestone. Browser assertions use Chrome emulation; real iOS/Android behavior was not reverified.
+- **Review status:** accepted by the maintainer on 2026-10-01.
+- **Commit status:** explicitly approved on 2026-10-01. M03 was committed separately as `59cadf3`.
+- **Next authorized slice:** M05, starting with confirmed obsolete UI/CSS remnants before a separate review of navigation CSS consolidation.
