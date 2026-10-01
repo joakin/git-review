@@ -1,11 +1,11 @@
 # Documentation map
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01 corrects scoped staged media sources and is accepted and committed as `ba62d1d`. M02 restores transcription API error translation and is accepted and approved for commit as of 2026-10-01. M03 is the next authorized slice. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01 corrects scoped staged media sources and is accepted and committed as `ba62d1d`. M02 restores transcription API error translation and is accepted and committed as `cbe97fb`. M03 owns feedback check/copy transactions and is accepted and approved for commit as of 2026-10-01. M04 is the next authorized slice. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope, [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the [optional backlog](initial-implementation-plan.md#remaining-roadmap).
-- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01 is committed, M02 is accepted, and M03 is the next authorized slice.
+- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01–M02 are committed, M03 is accepted, and M04 is the next authorized slice.
 - [Engineering conventions](engineering-conventions.md): validation boundaries, URL ownership, loading, caching, scroll behavior, and design tokens.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and optional further device checks.
 
@@ -13,7 +13,9 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 
 ## Latest reviewed delivery
 
-[Git tab: branches and commit inspection](git-history-slice-proposal.md) is implemented, reviewed, and committed as `22de40e` on 2026-09-30: a branch selector, commit list, full messages, and historical diff cards. The record includes API/data boundaries and four-size QA evidence.
+The latest reviewed maintenance slice is [M03: feedback check/copy transactions](maintenance-plan.md#m03--own-feedback-check-and-copy-transactions), accepted and approved for commit on 2026-10-01. M01 is committed as `ba62d1d` and M02 as `cbe97fb`; M04 is the next authorized slice. The maintenance plan owns their status and verification records.
+
+The final implementation-stage feature, [Git tab: branches and commit inspection](git-history-slice-proposal.md), is implemented, reviewed, and committed as `22de40e` on 2026-09-30: a branch selector, commit list, full messages, and historical diff cards. The record includes API/data boundaries and four-size QA evidence.
 
 The same commit includes the approved [line-total and time refinement](git-history-slice-proposal.md#proposed-follow-up-line-totals-and-time). It closes the implementation stage; the optional backlog has no assigned next item or priority.
 

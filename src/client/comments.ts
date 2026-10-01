@@ -21,10 +21,13 @@ export type DraftComment = {
 };
 export type FeedbackHistory = { id: string; copiedAt: number; text: string; comments: DraftComment[] };
 export type CommentStore = { version: 1; projectId: string; drafts: DraftComment[]; history: FeedbackHistory[] };
+export type CheckedComments = { projectId: string; drafts: Pick<DraftComment, "id" | "anchor" | "state">[] };
+export type FeedbackSnapshot = { projectId: string; text: string; drafts: DraftComment[] };
 
 export const commentStoragePrefix = "git-review:comments:v1:";
 export const maxBodyLength = 5000;
 export const maxDrafts = 200;
+export const maxFeedbackLength = 250_000;
 const maxHistory = 20;
 
 export function newLocalId(): string {
@@ -74,7 +77,7 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
   }
   const history: FeedbackHistory[] = [];
   for (const item of value["history"]) {
-    if (!isRecord(item) || !validText(item["id"], 100) || item["id"].length === 0 || !validText(item["text"], 250_000) || typeof item["copiedAt"] !== "number" || !Number.isSafeInteger(item["copiedAt"]) || item["copiedAt"] < 0 || !Array.isArray(item["comments"]) || item["comments"].length > maxDrafts) return null;
+    if (!isRecord(item) || !validText(item["id"], 100) || item["id"].length === 0 || !validText(item["text"], maxFeedbackLength) || typeof item["copiedAt"] !== "number" || !Number.isSafeInteger(item["copiedAt"]) || item["copiedAt"] < 0 || !Array.isArray(item["comments"]) || item["comments"].length > maxDrafts) return null;
     const comments: DraftComment[] = [];
     for (const raw of item["comments"]) {
       const comment = parseDraft(raw);
@@ -149,9 +152,45 @@ export function formatFeedback(projectPath: string, drafts: readonly DraftCommen
   return lines.join("\n");
 }
 
-export function recordSuccessfulCopy(store: CommentStore, text: string, copiedAt: number, id: string): CommentStore {
-  const copied = store.drafts.filter((draft) => draft.state === "current");
-  if (copied.length === 0 || text.length === 0) return store;
-  const entry: FeedbackHistory = { id, copiedAt, text, comments: copied };
-  return { ...store, drafts: store.drafts.filter((draft) => draft.state === "outdated"), history: [entry, ...store.history].slice(0, maxHistory) };
+function sameAnchor(first: CommentAnchor, second: CommentAnchor): boolean {
+  return first.layer === second.layer && first.path === second.path && first.side === second.side && first.line === second.line &&
+    first.sourceText === second.sourceText && first.before === second.before && first.after === second.after;
+}
+
+export function mergeCheckedComments(store: CommentStore, checked: CheckedComments): CommentStore {
+  if (store.projectId !== checked.projectId) return store;
+  const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
+  return { ...store, drafts: store.drafts.map((draft) => {
+    const result = byId.get(draft.id);
+    return result !== undefined && sameAnchor(draft.anchor, result.anchor) ? { ...draft, state: result.state } : draft;
+  }) };
+}
+
+export function snapshotFeedback(projectPath: string, store: CommentStore, checked: CheckedComments): FeedbackSnapshot {
+  const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
+  const drafts = store.projectId !== checked.projectId ? [] : store.drafts.filter((draft) => {
+    const result = byId.get(draft.id);
+    return draft.state === "current" && result?.state === "current" && sameAnchor(draft.anchor, result.anchor);
+  }).map((draft) => ({ ...draft, anchor: { ...draft.anchor } }));
+  return { projectId: store.projectId, text: formatFeedback(projectPath, drafts), drafts };
+}
+
+export function recordSuccessfulCopy(store: CommentStore, snapshot: FeedbackSnapshot, copiedAt: number, id: string): CommentStore {
+  if (store.projectId !== snapshot.projectId || snapshot.drafts.length === 0 || snapshot.text.length === 0 || snapshot.text.length > maxFeedbackLength) return store;
+  const byId = new Map(snapshot.drafts.map((draft) => [draft.id, draft]));
+  const entry: FeedbackHistory = { id, copiedAt, text: snapshot.text, comments: snapshot.drafts };
+  return { ...store, drafts: store.drafts.filter((draft) => {
+    const copied = byId.get(draft.id);
+    return copied === undefined || draft.state !== "current" || draft.body !== copied.body || draft.createdAt !== copied.createdAt ||
+      draft.updatedAt !== copied.updatedAt || !sameAnchor(draft.anchor, copied.anchor);
+  }), history: [entry, ...store.history].slice(0, maxHistory) };
+}
+
+export function undoSuccessfulCopy(store: CommentStore, id: string): CommentStore {
+  const entry = store.history[0];
+  if (entry?.id !== id) return store;
+  const existing = new Set(store.drafts.map((draft) => draft.id));
+  const restored = entry.comments.filter((draft) => !existing.has(draft.id));
+  if (store.drafts.length + restored.length > maxDrafts) return store;
+  return { ...store, drafts: [...store.drafts, ...restored], history: store.history.slice(1) };
 }

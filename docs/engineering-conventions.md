@@ -22,6 +22,12 @@ Return cached expanded diffs on the first render before restoring scroll, so the
 
 Git inspection uses a separate lifetime: branch/history caches represent a snapshot until Refresh or reload, and paging carries its immutable tip. Commit metadata and diffs are keyed by exact object IDs, so working-copy change tokens cannot invalidate them. Historical collapsed cards are bounded tab-memory state. The [Git record](git-history-slice-proposal.md#data-lifetime) gives cache limits and the three-request diff queue. The shared diff presentation distinguishes working-copy review from historical inspection; never label historical anchors as Staged or Unstaged, or fall back to disk content for a missing Git side.
 
+## Feedback transactions
+
+[FeedbackTransactions](../src/client/feedback-transactions.ts) owns line-check cancellation, operation generations, and the shared clipboard lease for draft and history copies. Store reads and writes use the latest synchronous comment reference; a render's captured store is not a transaction commit target. The [comment model](../src/client/comments.ts) owns full-anchor matching, checked export snapshots, exact-version removal, bounded copy history, and Undo restoration. Keep those merge rules at this boundary rather than coordinating them in callers.
+
+A completed check changes validity only for existing drafts whose anchors still match its snapshot. Both manual preview and automatic copy use the successful check's ID/anchor set. A successful copy archives the exact exported batch into current history and removes only unchanged copied versions. Navigation or opening an existing draft editor cancels the active operation; an already issued browser clipboard write retains its lease until settlement, and a canceled result cannot clear drafts or change history, Undo, notices, or check errors. The [feedback record](feedback-slice-proposal.md) describes the user-visible contract and limits.
+
 ## Visual design values
 
 [Design tokens](../src/client/design-tokens.css) define the light/dark app and code palettes, type scale, common spacing, corner radii, layout widths, and shadows. Component selectors in `src/client/styles.css` use those tokens. Keep app surfaces separate from code surfaces and use the on-accent role for text placed on accent buttons. Keep values reused across components or useful for global tuning in the token file; one-off component geometry can stay next to its selector. The CSS token check runs with `bun run qa:check` so an undefined variable fails before visual QA.

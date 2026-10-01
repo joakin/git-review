@@ -84,6 +84,10 @@ For a long file header, use `--click` to expand its card, `--after-click-ready` 
 
 The command uses desktop Chrome with emulated touch, viewport, and mobile settings for smaller screens. This does not reproduce mobile Safari or Android Chrome exactly. Use real devices for long press, double tap, keyboard/safe-area layout, clipboard, and voice recording before those features are called complete.
 
+## Feedback transaction races
+
+For feedback transaction changes, also run `bun run qa:feedback-transactions http://127.0.0.1:39909/` against an isolated server approving `qa/.artifacts` with `inventory-fixture` present. It holds status/diff/clipboard results to check edits, same-project navigation, late-result cancellation, feedback/history write serialization, failure/retry, and persisted reloads. Clipboard promises are controlled; this does not establish real-device clipboard permission or gesture behavior. Its optional second command argument is a compiled baseline client bundle for a before/after regression comparison, served only inside the isolated browser contexts. The [feedback record](feedback-slice-proposal.md) links maintenance evidence.
+
 ## Native media previews
 
 Use `bun qa/prepare-media-fixture.ts` and `bun qa/prepare-media-av-fixture.ts` to create ignored Git fixtures under `qa/.artifacts/`; both commands refuse to overwrite an existing fixture. The audio/video fixture generator needs FFmpeg with H.264 encoding. Start the local app with `--root "$PWD/qa/.artifacts"`. Run `bun run qa:media http://127.0.0.1:3000/` for image rendering and the raw SVG script restriction, then `bun run qa:media-playback http://127.0.0.1:3000/` for mobile Chrome audio/video loading, seeking, and raw byte ranges.

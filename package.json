@@ -20,6 +20,7 @@
     "qa:selected-search": "bun qa/check-selected-search.ts",
     "qa:voice": "bun qa/check-voice.ts",
     "qa:feedback": "bun qa/check-feedback.ts",
+    "qa:feedback-transactions": "bun qa/check-feedback-transactions.ts",
     "qa:line-action": "bun qa/check-line-action.ts",
     "qa:live-changes": "bun qa/check-live-changes.ts",
     "qa:typography": "bun qa/check-typography.ts",
