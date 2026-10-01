@@ -90,6 +90,7 @@ export function createApiHandler(root: ApprovedRoot, publicOrigin: string | null
 
 async function handleApiRequest(request: Request, root: ApprovedRoot, openProjects: Map<string, Project>, publicOrigin: string | null, transcribe: (request: Request) => Promise<Response>): Promise<Response> {
   try {
+    // Await delegated response builders so their rejections reach this error boundary.
     const url = new URL(request.url);
     const origin = request.headers.get("origin");
     if (origin !== null && origin !== url.origin && origin !== publicOrigin) {
@@ -100,7 +101,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       return Response.json({ root: root.info });
     }
     if (url.pathname === "/api/languages" && request.method === "GET") return Response.json({ languages });
-    if (url.pathname === "/api/transcriptions" && request.method === "POST") return transcribe(request);
+    if (url.pathname === "/api/transcriptions" && request.method === "POST") return await transcribe(request);
     if (url.pathname === "/api/directories" && request.method === "GET") {
       const paths = url.searchParams.getAll("path");
       if (paths.length !== 1) throw new AppError("invalid_request", 400, "Specify one folder path");
@@ -171,7 +172,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
           return imageResponse(image.bytes, image.mimeType, path, request.method === "HEAD");
         }
         const media = await openWorkingAudioVideo(root, current, path, version);
-        return audioVideoResponse(request, { source: { kind: "file", file: media.file, version }, byteLength: media.byteLength, mimeType: media.mimeType, path: media.path });
+        return await audioVideoResponse(request, { source: { kind: "file", file: media.file, version }, byteLength: media.byteLength, mimeType: media.mimeType, path: media.path });
       }
       const layer = changeLayer(oneQueryValue(url, "layer"));
       const revision = oneQueryValue(url, "revision");
@@ -182,7 +183,7 @@ async function handleApiRequest(request: Request, root: ApprovedRoot, openProjec
       const entry = status.entries.find((item) => item.layer === layer && item.path === path);
       if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
       const type = diffMediaType(entry, side);
-      if (type === "audio-video") return audioVideoResponse(request, await openDiffAudioVideo(root, current, entry, side, version));
+      if (type === "audio-video") return await audioVideoResponse(request, await openDiffAudioVideo(root, current, entry, side, version));
       if (type === null) throw new AppError("not_found", 404, "This change has no previewable media on that side");
       const image = await readDiffImageBytes(root, current, entry, side, version);
       return imageResponse(image.bytes, image.mimeType, image.path, request.method === "HEAD");

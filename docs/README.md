@@ -1,11 +1,11 @@
 # Documentation map
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01 corrects scoped staged media sources and is accepted and approved for commit as of 2026-10-01. M02 is the next authorized slice. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01 corrects scoped staged media sources and is accepted and committed as `ba62d1d`. M02 restores transcription API error translation and is accepted and approved for commit as of 2026-10-01. M03 is the next authorized slice. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope, [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the [optional backlog](initial-implementation-plan.md#remaining-roadmap).
-- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01 is accepted and M02 is the next authorized slice.
+- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01 is committed, M02 is accepted, and M03 is the next authorized slice.
 - [Engineering conventions](engineering-conventions.md): validation boundaries, URL ownership, loading, caching, scroll behavior, and design tokens.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and optional further device checks.
 

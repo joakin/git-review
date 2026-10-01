@@ -244,6 +244,20 @@ test("audio ranges read the correct Git side and support seeking, HEAD, and stal
     const file = parseFileReadResponse(await (await handle(new Request(`${base}/file?path=sound.wav&source=worktree`))).json() as unknown);
     if (file.kind !== "media") throw new Error("Expected audio in Files");
     expect(file.resource.kind).toBe("audio");
+    const rawFileUrl = `http://localhost${file.resource.url}`;
+    const rawFile = await handle(new Request(rawFileUrl));
+    expect(rawFile.status).toBe(200);
+    expect(Buffer.from(await rawFile.arrayBuffer())).toEqual(current);
+    const fileRange = await handle(new Request(rawFileUrl, { headers: { range: "bytes=44-45" } }));
+    expect(fileRange.status).toBe(206);
+    expect(Buffer.from(await fileRange.arrayBuffer())).toEqual(current.subarray(44, 46));
+    const fileHead = await handle(new Request(rawFileUrl, { method: "HEAD" }));
+    expect(fileHead.status).toBe(200);
+    expect(fileHead.headers.get("content-length")).toBe(String(current.length));
+    expect(await fileHead.text()).toBe("");
+    const invalidFileRange = await handle(new Request(rawFileUrl, { headers: { range: "bytes=99-100" } }));
+    expect(invalidFileRange.status).toBe(416);
+    expect(invalidFileRange.headers.get("content-range")).toBe(`bytes */${current.length}`);
     await writeFile(join(projectPath, "sound.wav"), wav(400));
     expect((await handle(new Request(`http://localhost${file.resource.url}`))).status).toBe(409);
   } finally { await rm(rootPath, { recursive: true, force: true }); }

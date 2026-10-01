@@ -1,12 +1,12 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01 accepted and approved for commit; M02 next
+Status: in progress; M01 committed; M02 accepted and approved for commit; M03 next
 
 Created: 2026-09-30
 
 Updated: 2026-10-01
 
-The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted, with explicit approval to commit and continue to M02. Approval covers the reviewed M01 work and this plan; later completed slices stay uncommitted for maintainer review.
+The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted with explicit approval to commit and continue to M03. Later completed slices stay uncommitted for maintainer review.
 
 This is the work record for the bounded maintenance pass. The [initial implementation plan](initial-implementation-plan.md#remaining-roadmap) remains the optional product backlog. Its closed stage stays closed. The [documentation map](README.md), [engineering conventions](engineering-conventions.md), [QA workflow](qa-workflow.md), and [collaboration rules](../AGENTS.md) remain authoritative for current behavior and delivery.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01 is accepted and approved for commit; M02 is next, and M02–M15 are pending. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M09 and M13 contain several independently reviewable extractions. M15 starts with measurement; an optimization depends on its evidence.
+M01 is accepted and committed as `ba62d1d`; M02 is accepted and approved for commit; M03 is next, and M03–M15 are pending. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M09 and M13 contain several independently reviewable extractions. M15 starts with measurement; an optimization depends on its evidence.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ M01 is accepted and approved for commit; M02 is next, and M02–M15 are pending.
 
 **Edges and validation:** selected subfolder with an outside namesake; no namesake; rename and deletion; image and audio/video; unusual paths; root-level projects; source-correct HEAD/index/worktree sides. Prove both preview description and raw bytes refer to the scoped source. Retain current historical and SHA-256 coverage. Update the [media record](media-preview-slice-proposal.md) if its source-boundary description needs clarification.
 
-**Implemented and accepted 2026-10-01; approved for commit:** resolve the HEAD object as `HEAD:./${source.path}` from the selected project's working directory. Git performs the project-relative translation, avoiding another prefix lookup or a broader infrastructure extraction. The existing index/worktree and immutable commit paths remain compatible. [Focused API regression tests](../src/server/media-api.test.ts) cover preview metadata, raw bytes, HEAD/range requests, and rejection of an outside namesake's object ID. All five tests failed before the fix and passed afterward. The [handoff below](#m01-handoff--2026-10-01) records full validation and captures.
+**Implemented and accepted 2026-10-01; committed as `ba62d1d`:** resolve the HEAD object as `HEAD:./${source.path}` from the selected project's working directory. Git performs the project-relative translation, avoiding another prefix lookup or a broader infrastructure extraction. The existing index/worktree and immutable commit paths remain compatible. [Focused API regression tests](../src/server/media-api.test.ts) cover preview metadata, raw bytes, HEAD/range requests, and rejection of an outside namesake's object ID. All five tests failed before the fix and passed afterward. The [handoff below](#m01-handoff--2026-10-01) records full validation and captures.
 
 ## M02 — Restore transcription API error translation
 
@@ -88,6 +88,8 @@ M01 is accepted and approved for commit; M02 is next, and M02–M15 are pending.
 **Expected flow and contract:** unsupported recordings, missing or oversized uploads, and adapter failures return the documented HTTP status and JSON error shape, allowing the client to show the useful message. Success remains unchanged.
 
 **Validation:** unsupported MIME type, missing/empty body, and bounded-upload failure through `createApiHandler`; existing adapter tests and strict gates. Use invalid requests or controlled adapters so regression tests require no microphone, FFmpeg, Handy, or downloaded model. Actual engine/device behavior remains separately unverified.
+
+**Implemented and accepted 2026-10-01; approved for commit:** await transcription delegation inside the API's error-owning `try`, preserving useful `AppError` statuses/messages and the generic JSON 500 response for unexpected failures. The audit also found unawaited audio/video response builders on the raw Files and working-copy diff routes; both now await preparation at the same boundary, matching the existing commit-media route. This does not change errors after a media response has started streaming. [Transcription API regressions](../src/server/transcription-api.test.ts) cover ten invalid-upload and failure cases without engines. [Media API checks](../src/server/api.test.ts) also exercise Files GET, HEAD, valid range, and invalid range responses. The [handoff below](#m02-handoff--2026-10-01) records full validation and running-service checks.
 
 ## M03 — Own feedback check and copy transactions
 
@@ -258,5 +260,16 @@ Use this compact entry for each handoff:
 - **Operation:** stopped the isolated QA server. Restarted the existing HTTP and HTTPS backends; both and the public HTTPS origin returned 200 for the approved-root health check. The ignored fixture is retained under `qa/.artifacts/m01-media-repository/inside` for review. Client source/assets were unchanged.
 - **Remaining uncertainty:** browser captures use Chrome emulation. No new real-device gestures/playback checks were performed. Audio/video regression payloads exercise source and range fidelity, not decoder compatibility. No broader filesystem race claim is made.
 - **Review status:** accepted by the maintainer on 2026-10-01.
-- **Commit status:** explicitly approved on 2026-10-01, including the previously written maintenance plan.
+- **Commit status:** committed as `ba62d1d` on 2026-10-01 after explicit approval, including the maintenance plan.
 - **Next authorized slice:** M02, restore transcription API error translation.
+
+### M02 handoff — 2026-10-01
+
+- **Result and files:** corrected three asynchronous delegations in [api.ts](../src/server/api.ts), so transcription and audio/video response-preparation failures reach the existing JSON error boundary. Added [transcription API regressions](../src/server/transcription-api.test.ts) and expanded the existing raw Files audio checks in [api.test.ts](../src/server/api.test.ts). Updated the [voice behavior record](local-voice-comment-slice-proposal.md) with the error contract and this verification.
+- **Checks:** all ten new transcription tests failed before the fix and passed afterward. They verify missing/unsupported MIME, missing/empty body, invalid/oversized advertised length, actual streamed byte overflow and cancellation, concurrent request rejection, aborted uploads, generic unexpected-failure translation, and release of the job slot after each failure. New tests require no microphone, FFmpeg, Handy, or model. `bun run typecheck`, `bun run qa:check`, and `bun run test` passed: 63 tests, zero failures, 1,018 assertions across 16 files. Existing adapter, media, Git, containment, and client tests remain passing.
+- **HTTP evidence:** the real server on isolated port 39908 with an empty approved fixture root returned JSON 415 for an unsupported recording and JSON 400 for a zero-length POST, which Bun exposes as a missing body. Its root endpoint returned 200. After restarting both existing backends, the HTTP endpoint, HTTPS backend, and public HTTPS origin each returned 200 for the app/root and the expected JSON 415 transcription error.
+- **Operation:** stopped the isolated QA server and removed its empty temporary fixture. Both maintainer services remain running with the fix. No client source/assets changed; no new screenshots were needed for this server-only slice.
+- **Remaining uncertainty or scope adjustment:** the audit's two matching audio/video delegations are included in this slice; stream-body failures after response creation keep their existing stream-error behavior. Ordinary media GET/HEAD/range responses are covered, but descriptor-close failure was not injected. No new successful engine transcription, microphone, browser Retry, timeout, or real-device checks were performed. Earlier voice verification remains dated evidence.
+- **Review status:** accepted by the maintainer on 2026-10-01.
+- **Commit status:** explicitly approved on 2026-10-01. M01 and the maintenance plan were committed separately as `ba62d1d`.
+- **Next authorized slice:** M03, own feedback check/copy transactions so asynchronous work cannot overwrite newer comments or copy history.
