@@ -1,6 +1,6 @@
 # Syntax highlighting in diff cards
 
-Status: initial delivery implemented and committed. The M07 validator cleanup is accepted and approved for commit; its maintenance verification is recorded below. [Theme selection](theme-settings-slice-proposal.md) and [word-level changes](diff-fidelity-slice-proposal.md) are also complete; moved-block detection remains optional.
+Status: initial delivery implemented and committed. The M07 validator cleanup is accepted and committed as `4eac2ec`; its maintenance verification is recorded below. [Theme selection](theme-settings-slice-proposal.md) and [word-level changes](diff-fidelity-slice-proposal.md) are also complete; moved-block detection remains optional.
 
 ## User flow
 
@@ -34,4 +34,4 @@ The main Shiki package contains all bundled grammar loaders as lazy imports; pre
 
 ## Maintenance verification — 2026-10-01
 
-[M07](maintenance-plan.md#m07-handoff--2026-10-01) shares the existing syntax validators between Files and diff response parsing. Sixteen public-parser tests (89 assertions) pass on both the committed pre-refactor validators and the refactor, including exact per-line/aggregate limits and source reconstruction. Strict gates, the full 115-test suite, and build pass. Phone working-copy and Files browser checks pass highlighting, override persistence, wrapping, and contained scrolling; historical Git checks pass at all four standard sizes plus 320 px. The separate review found no remaining concern. No new screenshots were generated, all 451 tracked screenshot artifacts remain unchanged, and real-device behavior was not reverified. The maintainer accepted the change and explicitly approved committing it on 2026-10-01.
+[M07](maintenance-plan.md#m07-handoff--2026-10-01) shares the existing syntax validators between Files and diff response parsing. Sixteen public-parser tests (89 assertions) pass on both the committed pre-refactor validators and the refactor, including exact per-line/aggregate limits and source reconstruction. Strict gates, the full 115-test suite, and build pass. Phone working-copy and Files browser checks pass highlighting, override persistence, wrapping, and contained scrolling; historical Git checks pass at all four standard sizes plus 320 px. The separate review found no remaining concern. No new screenshots were generated, all 451 tracked screenshot artifacts remain unchanged, and real-device behavior was not reverified. The maintainer accepted the change and explicitly approved committing it on 2026-10-01; it is committed as `4eac2ec`.

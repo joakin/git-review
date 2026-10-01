@@ -1,12 +1,12 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M06 committed; M07 syntax validators accepted and approved for commit; M08a reviewable comment layers next authorized
+Status: in progress; M01–M07 committed; M08a reviewable comment layers accepted and approved for commit; M08b diff card source and interaction types next authorized
 
 Created: 2026-09-30
 
 Updated: 2026-10-01
 
-The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted and committed as `59cadf3`, following explicit approval to commit and continue. **M04: separate QA output from milestone captures** is accepted and committed as `0e55b07`, following explicit approval to commit and continue. **M05a: remove confirmed obsolete UI/CSS remnants** is accepted and committed as `2d6879d`, following explicit approval to commit and continue. **M05b: consolidate navigation/layout CSS** is accepted and committed as `1d28fc5`, following explicit approval to commit and continue. **M05c: reset canceled project opening** is accepted and committed as `b20b514`, following explicit approval to commit and continue. **M06: reuse the bounded cache implementation** is accepted and committed as `737a09b`, following explicit approval to commit and continue. **M07: reuse syntax validators** is accepted with explicit approval to commit and continue to M08a. M05b's navigation QA identified the preexisting cancellation defect; M05c addresses it before cache extraction. Completed slices stay uncommitted for maintainer review.
+The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted and committed as `59cadf3`, following explicit approval to commit and continue. **M04: separate QA output from milestone captures** is accepted and committed as `0e55b07`, following explicit approval to commit and continue. **M05a: remove confirmed obsolete UI/CSS remnants** is accepted and committed as `2d6879d`, following explicit approval to commit and continue. **M05b: consolidate navigation/layout CSS** is accepted and committed as `1d28fc5`, following explicit approval to commit and continue. **M05c: reset canceled project opening** is accepted and committed as `b20b514`, following explicit approval to commit and continue. **M06: reuse the bounded cache implementation** is accepted and committed as `737a09b`, following explicit approval to commit and continue. **M07: reuse syntax validators** is accepted and committed as `4eac2ec`, following explicit approval to commit and continue. **M08a: precise reviewable comment layers** is accepted with explicit approval to commit and continue to M08b. M05b's navigation QA identified the preexisting cancellation defect; M05c addresses it before cache extraction. Completed slices stay uncommitted for maintainer review.
 
 This is the work record for the bounded maintenance pass. The [initial implementation plan](initial-implementation-plan.md#remaining-roadmap) remains the optional product backlog. Its closed stage stays closed. The [documentation map](README.md), [engineering conventions](engineering-conventions.md), [QA workflow](qa-workflow.md), and [collaboration rules](../AGENTS.md) remain authoritative for current behavior and delivery.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; M04 as `0e55b07`. M05a is accepted and committed as `2d6879d`. M05b is accepted and committed as `1d28fc5`. M05c corrects the cancellation defect reproduced during M05b validation and is accepted and committed as `b20b514`. M06 cache reuse is accepted and committed as `737a09b`. M07 syntax validator reuse is accepted and approved for commit. M08–M15 are pending, with M08a reviewable comment layers next authorized. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M05, M09, and M13 contain independently reviewable substeps. M15 starts with measurement; an optimization depends on its evidence.
+M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; M04 as `0e55b07`. M05a is accepted and committed as `2d6879d`. M05b is accepted and committed as `1d28fc5`. M05c corrects the cancellation defect reproduced during M05b validation and is accepted and committed as `b20b514`. M06 cache reuse is accepted and committed as `737a09b`. M07 syntax validator reuse is accepted and committed as `4eac2ec`. M08a reviewable comment layers is accepted and approved for commit. M08b–M08d and M09–M15 are pending, with M08b diff card source and interaction types next authorized. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M05, M09, and M13 contain independently reviewable substeps. M15 starts with measurement; an optimization depends on its evidence.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -158,7 +158,7 @@ M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; 
 
 ## M07 — Reuse syntax validators
 
-**Status:** implemented and accepted 2026-10-01, explicitly approved for commit.
+**Status:** implemented and accepted 2026-10-01, committed as `4eac2ec` after explicit approval.
 
 **Finding:** [shared/api.ts](../src/shared/api.ts) has `parseSyntaxState` and `parseSyntaxTokens` for Files but repeats their logic in diff parsing, including syntax-role allowlists and exact token-text reconstruction.
 
@@ -174,12 +174,24 @@ M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; 
 
 Make these independently reviewable type changes without widening user-visible scope:
 
-- In [comments.ts](../src/client/comments.ts), define reviewable layers precisely. Stored anchors cannot contain `conflict`; keep a broad factory input only where its boundary guard is useful.
-- In [DiffCardFrame.tsx](../src/client/DiffCardFrame.tsx), couple source and interaction in one discriminated mode so historical cards cannot be paired with comment actions. Current callers are correct.
-- In [git-diff.ts](../src/server/git-diff.ts), narrow pure patch/content parser results to variants they produce. Preserve those variants through syntax/word decorators and remove resulting unreachable checks in historical callers.
-- Give [GitSidebar.tsx](../src/client/GitSidebar.tsx) an explicit list-view model/commands interface instead of the whole inferred hook return type.
+| Substep | Contract | Status |
+| --- | --- | --- |
+| M08a | [Comment anchors](../src/client/comments.ts) use precise reviewable layers; the broader factory retains its conflict guard | Accepted; approved for commit |
+| M08b | [DiffCardFrame](../src/client/DiffCardFrame.tsx) couples source and interaction in one discriminated mode so historical cards cannot be paired with comment actions; current callers are correct | Next authorized |
+| M08c | [Git diff](../src/server/git-diff.ts) pure patch/content parsers return only variants they produce; syntax/word decorators preserve those variants, enabling removal of unreachable historical checks | Pending |
+| M08d | [GitSidebar](../src/client/GitSidebar.tsx) receives an explicit list-view model/commands interface instead of the whole inferred hook return type | Pending |
 
 **Validation:** strict type checking and current comment, diff, Git/API, and historical-inspection tests. Preserve runtime boundary guards. Reduce unnecessary exports when a symbol is internal, but keep intentional test seams and compatibility APIs; absence of external callers does not by itself prove the underlying code is dead.
+
+### M08a — Reviewable comment layers
+
+**Status:** implemented and accepted 2026-10-01, explicitly approved for commit.
+
+**Finding and contract:** storage parsing already rejects anchors outside staged, unstaged, and untracked layers, and the line-anchor factory already rejects conflict input. `CommentAnchor.layer` nevertheless used the broader API `ChangeLayer`, allowing impossible internal states and a conflict entry in feedback ordering. The explicit `ReviewLayer` union now names only the three supported layers, matching validated anchors throughout drafts, checked snapshots, history, and Undo. Future API layers require a deliberate comment-domain decision rather than automatically becoming reviewable.
+
+**Implemented:** [comments.ts](../src/client/comments.ts) narrows the anchor field and removes unreachable conflict ordering. `anchorForLine` retains its broad `ChangeLayer` input and runtime conflict guard because it receives status entries before constructing a reviewable anchor. Storage/backup parsers, transaction mechanics, wire formats, comment store version 1, and backup versions 1–3 remain compatible. No other M08 contract changed.
+
+**Boundary evidence:** [comment tests](../src/client/comments.test.ts) cover Old/New anchors for all valid layers, conflict factory rejection, atomic stored draft/history rejection of conflict/unknown/null layers, valid version-one round-trips, and staged → unstaged → untracked export ordering. [Backup tests](../src/client/backup.test.ts) cover accepted/rejected draft/history anchors in versions 1–3. The new tests pass before and after the type change; existing transaction tests pass unchanged. The [handoff below](#m08a-handoff--2026-10-01) records complete verification and review status.
 
 ## M09 — Extract cohesive App owners and views
 
@@ -387,5 +399,17 @@ Use this compact entry for each handoff:
 - **Artifacts and limits:** no visible UI change was introduced. These checks produced no new screenshots; all 451 tracked screenshot-tree files remain unchanged from `737a09b`. Existing captures remain dated evidence. Browser checks use Chrome emulation; real iOS/Android gestures and installed-PWA behavior were not reverified. The tests establish response-validator equivalence and budgets, rather than broader performance measurements.
 - **Operation:** rebuilt client assets. Both maintained backends and the public HTTPS origin returned 200 for the app and `/api/roots`, and their served JS/CSS match the final build. Production server references to the shared API module are type-only; the validators run at the browser response boundary. Maintained services stay available. Stopped the isolated QA server on 39911; inventory/history fixtures remain, and the temporary pre-refactor comparison fixture was removed.
 - **Review status:** accepted by the maintainer on 2026-10-01.
-- **Commit status:** explicitly approved on 2026-10-01; M06 was committed separately as `737a09b`.
+- **Commit status:** committed as `4eac2ec` on 2026-10-01 after explicit approval; M06 was committed separately as `737a09b`.
 - **Next authorized step:** M08a, precise reviewable comment layers before the other independently reviewable domain/component contracts.
+
+### M08a handoff — 2026-10-01
+
+- **Result and files:** [comments.ts](../src/client/comments.ts) adds the explicit `ReviewLayer` union (staged/unstaged/untracked), uses it for `CommentAnchor.layer`, and removes unreachable conflict export ordering. The broad API `ChangeLayer` and line-anchor factory input remain at the status boundary, with the existing runtime conflict guard. Validated anchors carry the narrower contract through drafts, checks, copy snapshots/history, reattachment, and Undo. Storage/backup validation and transaction implementations are unchanged; store version 1 and backup versions 1–3 remain compatible. The other M08 substeps remain pending. M07's approved commit is recorded as `4eac2ec`.
+- **Boundary evidence:** five new [comment](../src/client/comments.test.ts)/[backup](../src/client/backup.test.ts) tests and the extended all-layer export test add 33 assertions. They cover valid Old/New anchors for every reviewable layer; conflict factory rejection; atomic persisted draft/history rejection of conflict, unknown, and null layers; valid store round-trips; scrambled-input export ordering; and valid/conflict draft/history anchors across backup versions 1–3. These tests pass against the original runtime before the production edit and afterward. Existing transaction tests pass unchanged. A separate read-only review found no remaining concern.
+- **Automated checks:** `bun run typecheck`, `bun run qa:check`, `bun test`, and `bun run build` passed: 120 tests, zero failures, 1,326 assertions across 20 files; all 138 CSS token references resolve. The focused comment/backup/transaction suite passes 39 tests with 214 assertions. Strict checking covers UI anchor consumers, reattachment, feedback ports, storage, and backup types without casts or new adapters.
+- **Browser evidence:** `qa:feedback` passed phone comment creation, reload, checked preview, copy/history, Undo, clipboard fallback, and outdated-line exclusion. `qa:feedback-transactions` passed all seven held status/diff, editor cancellation/retry, navigation cancellation, late clipboard, rejection/reopen, and history-write serialization scenarios. Clipboard promises were controlled in the transaction check; actual device clipboard behavior was not exercised.
+- **Artifacts and limits:** no visible UI change was introduced, and no new screenshots were generated. All 451 tracked screenshot-tree files remain unchanged from `4eac2ec`. The ordinary feedback check refreshed ignored `qa/.artifacts/feedback-storage.json` for fixture captures. Browser checks use Chrome phone emulation; tablet/desktop layouts, real iOS/Android gestures, and installed-PWA behavior were not reverified in this slice. The full unit suite covers Git/diff/API and historical inspection regressions; their browser checks were not repeated for this comment-type change.
+- **Operation:** rebuilt client assets. Both maintained backends and the public HTTPS origin returned 200 for the app and `/api/roots`, and served JS/CSS matching the final build. Maintained services stay available. Stopped the isolated QA server on 39911 after the checks; inventory/history fixtures remain. No backend implementation changed.
+- **Review status:** accepted by the maintainer on 2026-10-01.
+- **Commit status:** explicitly approved on 2026-10-01; M07 was committed separately as `4eac2ec`.
+- **Next authorized step:** M08b, couple diff card source and interaction in a discriminated mode so historical cards cannot be paired with comment actions.

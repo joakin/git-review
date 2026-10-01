@@ -1,11 +1,11 @@
 # Documentation map
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01–M06 are accepted and committed, most recently bounded cache reuse as `737a09b`. M07 syntax validator reuse is accepted with explicit approval to commit, with M08a reviewable comment layers next authorized. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway: M01–M07 are accepted and committed, most recently syntax validator reuse as `4eac2ec`. M08a reviewable comment layers is accepted with explicit approval to commit, with M08b diff card source and interaction types next authorized. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope, [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the [optional backlog](initial-implementation-plan.md#remaining-roadmap).
-- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01–M06 are committed, M07 is accepted and approved for commit, and M08a is next authorized.
+- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, module contracts, validation, and review status; M01–M07 are committed, M08a is accepted and approved for commit, and M08b is next authorized.
 - [Engineering conventions](engineering-conventions.md): validation boundaries, URL ownership, loading, caching, scroll behavior, and design tokens.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and optional further device checks.
 
@@ -13,7 +13,7 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 
 ## Latest reviewed delivery
 
-The latest reviewed maintenance slice is [M06: cache reuse](maintenance-plan.md#m06-handoff--2026-10-01), accepted and committed as `737a09b` on 2026-10-01: the diff adapter and Git browser share one bounded storage mechanism while retaining their resource identities and freshness policies. [M07: syntax validator reuse](maintenance-plan.md#m07-handoff--2026-10-01) is accepted and approved for commit. The maintenance plan owns their status and verification records.
+The latest reviewed maintenance slice is [M07: syntax validator reuse](maintenance-plan.md#m07-handoff--2026-10-01), accepted and committed as `4eac2ec` on 2026-10-01: Files and diff response parsers share syntax validators while retaining their aggregate budgets. [M08a: reviewable comment layers](maintenance-plan.md#m08a-handoff--2026-10-01) is accepted and approved for commit. The maintenance plan owns their status and verification records.
 
 The final implementation-stage feature, [Git tab: branches and commit inspection](git-history-slice-proposal.md), is implemented, reviewed, and committed as `22de40e` on 2026-09-30: a branch selector, commit list, full messages, and historical diff cards. The record includes API/data boundaries and four-size QA evidence.
 

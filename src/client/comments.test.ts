@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DiffResult } from "../shared/api.ts";
-import { anchorForLine, anchorMatches, emptyCommentStore, formatFeedback, maxDrafts, maxFeedbackLength, mergeCheckedComments, parseCommentStore, recordSuccessfulCopy, snapshotFeedback, undoSuccessfulCopy, type CheckedComments, type CommentAnchor, type DraftComment } from "./comments.ts";
+import { anchorForLine, anchorMatches, emptyCommentStore, formatFeedback, maxDrafts, maxFeedbackLength, mergeCheckedComments, parseCommentStore, recordSuccessfulCopy, snapshotFeedback, undoSuccessfulCopy, validateCommentStore, type CheckedComments, type CommentAnchor, type DraftComment } from "./comments.ts";
 
 const diff: DiffResult = { kind: "text", syntax: { kind: "plain", reason: "selected" }, hunks: [{ oldStart: 1, oldCount: 2, newStart: 1, newCount: 2, lines: [
   { kind: "context", oldLine: 1, newLine: 1, text: "before", tokens: [{ text: "before", role: "plain" }], detail: { kind: "none" }, noNewlineAtEnd: false },
@@ -16,6 +16,19 @@ function draft(id: string, side: "old" | "new", index: number): DraftComment {
 }
 
 describe("review feedback", () => {
+  test("reviewable layers preserve both sides while conflicts cannot create anchors", () => {
+    const hunk = diff.hunks[0];
+    if (hunk === undefined) throw new Error("Missing anchor fixture hunk");
+    for (const side of ["old", "new"] as const) {
+      for (const layer of ["staged", "unstaged", "untracked"] as const) {
+        expect(anchorForLine(layer, "x", hunk, 0, side)).toEqual({
+          layer, path: "x", side, line: 1, sourceText: "before", before: null, after: side === "old" ? "old" : null,
+        });
+      }
+      expect(anchorForLine("conflict", "x", hunk, 0, side)).toBeNull();
+    }
+  });
+
   test("anchors stay on their side and require exact text and context", () => {
     const old = draft("old", "old", 1);
     const next = draft("new", "new", 2);
@@ -33,14 +46,45 @@ describe("review feedback", () => {
     expect(formatFeedback("/repo", [next, old])).toBe('Review feedback for "/repo"\n\n[unstaged] "src/name\\tfile.ts"\n  old line 2  "old"\n    Change this\n    then check it');
   });
 
-  test("the same path in staged and unstaged changes has separate export sections", () => {
+  test("the same path has separate staged, unstaged and untracked export sections in order", () => {
     const stagedDraft = draft("staged", "new", 2);
     const staged = { ...stagedDraft, anchor: { ...stagedDraft.anchor, layer: "staged" as const } };
     const unstaged = draft("unstaged", "old", 1);
-    const text = formatFeedback("/repo", [staged, unstaged]);
+    const untrackedDraft = draft("untracked", "new", 2);
+    const untracked = { ...untrackedDraft, anchor: { ...untrackedDraft.anchor, layer: "untracked" as const } };
+    const text = formatFeedback("/repo", [untracked, unstaged, staged]);
     expect(text.match(/\[staged\]/g)).toHaveLength(1);
     expect(text.match(/\[unstaged\]/g)).toHaveLength(1);
+    expect(text.match(/\[untracked\]/g)).toHaveLength(1);
     expect(text.indexOf("[staged]")).toBeLessThan(text.indexOf("[unstaged]"));
+    expect(text.indexOf("[unstaged]")).toBeLessThan(text.indexOf("[untracked]"));
+  });
+
+  test("all reviewable layers round-trip through version-one drafts and history", () => {
+    const drafts = (["staged", "unstaged", "untracked"] as const).map((layer) => {
+      const original = draft(layer, "new", 2);
+      return { ...original, anchor: { ...original.anchor, layer } };
+    });
+    const store = { ...emptyCommentStore("project"), drafts, history: [{ id: "copy", copiedAt: 2, text: formatFeedback("/repo", drafts), comments: drafts }] };
+    const persisted: unknown = JSON.parse(JSON.stringify(store));
+    expect(validateCommentStore(persisted, "project")).toEqual(store);
+    expect(parseCommentStore(persisted, "project")).toEqual(store);
+  });
+
+  test("invalid layers in drafts or history reject the whole persisted store", () => {
+    const valid = draft("valid", "new", 2);
+    const original = draft("invalid", "old", 1);
+    for (const layer of ["conflict", "unknown", null]) {
+      const invalid = { ...original, anchor: { ...original.anchor, layer } };
+      const stores = [
+        { ...emptyCommentStore("project"), drafts: [valid, invalid] },
+        { ...emptyCommentStore("project"), drafts: [valid], history: [{ id: "copy", copiedAt: 2, text: "Previous feedback", comments: [valid, invalid] }] },
+      ];
+      for (const store of stores) {
+        expect(validateCommentStore(store, "project")).toBeNull();
+        expect(parseCommentStore(store, "project")).toEqual(emptyCommentStore("project"));
+      }
+    }
   });
 
   test("storage rejects malformed and oversized records instead of importing partial state", () => {

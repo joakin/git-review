@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { parseReviewBackup } from "./backup.ts";
+import type { CommentStore, DraftComment } from "./comments.ts";
 import { validateAppearance, validateCodeTypography } from "./storage.ts";
 
 const rootPath = "/approved/root";
@@ -12,6 +13,32 @@ const valid = {
   openCards: [{ projectId: "aaaaaaaaaaaaaaaaaaaa", keys: ["staged:src/main.ts"] }],
   languages: [{ projectId: "aaaaaaaaaaaaaaaaaaaa", path: "src/main.ts", language: "typescript" }],
 };
+
+const comment = {
+  id: "draft", anchor: { layer: "staged", path: "src/main.ts", side: "new", line: 1, sourceText: "const value = 1;", before: null, after: null },
+  body: "Review this value", createdAt: 1, updatedAt: 1, state: "current",
+} satisfies DraftComment;
+const compatibleBackups = [valid,
+  { ...valid, version: 2, codeTypography: { version: 1, fontSize: 14, fontFamily: "system" } },
+  { ...valid, version: 3, codeTypography: { version: 1, fontSize: 14, fontFamily: "system" }, appearance: { version: 1, appTheme: "system", codeTheme: "light" } },
+];
+
+test("backup versions 1–3 preserve every reviewable layer in drafts and copy history", () => {
+  const drafts = (["staged", "unstaged", "untracked"] as const).map((layer) => ({ ...comment, id: layer, anchor: { ...comment.anchor, layer } }));
+  const store = { version: 1, projectId: "aaaaaaaaaaaaaaaaaaaa", drafts, history: [{ id: "copy", copiedAt: 2, text: "Previous feedback", comments: drafts }] } satisfies CommentStore;
+  for (const backup of compatibleBackups) expect(parseReviewBackup({ ...backup, comments: [store] }, rootPath).comments).toEqual([store]);
+});
+
+test("backup versions 1–3 reject conflict anchors in drafts and copy history", () => {
+  const conflict = { ...comment, anchor: { ...comment.anchor, layer: "conflict" } };
+  const stores = [
+    { version: 1, projectId: "aaaaaaaaaaaaaaaaaaaa", drafts: [comment, { ...conflict, id: "invalid" }], history: [] },
+    { version: 1, projectId: "aaaaaaaaaaaaaaaaaaaa", drafts: [comment], history: [{ id: "copy", copiedAt: 2, text: "Previous feedback", comments: [comment, { ...conflict, id: "invalid" }] }] },
+  ];
+  for (const backup of compatibleBackups) {
+    for (const store of stores) expect(() => parseReviewBackup({ ...backup, comments: [store] }, rootPath)).toThrow("Backup contains invalid comments or copy history");
+  }
+});
 
 test("backup import accepts valid project state and rejects wrong roots or malformed records", () => {
   expect(parseReviewBackup(valid, rootPath).comments).toHaveLength(1);

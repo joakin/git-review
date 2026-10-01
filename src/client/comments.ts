@@ -2,8 +2,9 @@ import type { ChangeLayer, DiffHunk, DiffResult } from "../shared/api.ts";
 import { isRecord } from "../shared/validation.ts";
 
 export type ReviewSide = "old" | "new";
+export type ReviewLayer = "staged" | "unstaged" | "untracked";
 export type CommentAnchor = {
-  layer: ChangeLayer;
+  layer: ReviewLayer;
   path: string;
   side: ReviewSide;
   line: number;
@@ -133,7 +134,7 @@ function quote(value: string): string {
 }
 
 export function formatFeedback(projectPath: string, drafts: readonly DraftComment[]): string {
-  const layerOrder: Record<CommentAnchor["layer"], number> = { staged: 0, unstaged: 1, untracked: 2, conflict: 3 };
+  const layerOrder: Record<CommentAnchor["layer"], number> = { staged: 0, unstaged: 1, untracked: 2 };
   const sorted = drafts.filter((draft) => draft.state === "current").sort((a, b) =>
     layerOrder[a.anchor.layer] - layerOrder[b.anchor.layer] || a.anchor.path.localeCompare(b.anchor.path) || a.anchor.line - b.anchor.line || a.anchor.side.localeCompare(b.anchor.side) || a.createdAt - b.createdAt,
   );
