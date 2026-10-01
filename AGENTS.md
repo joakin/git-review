@@ -2,7 +2,7 @@
 
 ## Project status
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01–M07 are accepted and committed; the latest is syntax validator reuse, `4eac2ec`. M08a narrows reviewable comment layers and is accepted with explicit approval to commit. M08b diff card source and interaction types are next authorized. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is underway: M01–M08a are accepted and committed; the latest is reviewable comment layers, `acf06ca`. M08b couples diff card source and interaction and is accepted with explicit approval to commit. M08c parser/decorator return types are next authorized. Keep maintenance work in small reviewed steps and preserve the commit-approval rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog; start further features only when the maintainer requests them.
 
 ## Collaboration
 

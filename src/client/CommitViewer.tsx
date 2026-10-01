@@ -28,7 +28,7 @@ function CommitCard({ projectId, detail, file, expanded, onToggle, wrap, languag
     }, (error: unknown) => { if (!controller.signal.aborted) setLoaded({ key, state: { kind: "error", message: error instanceof Error ? error.message : "Commit diff could not be loaded" } }); });
     return () => controller.abort();
   }, [expanded, projectId, detail.oid, file.path, key, retry]);
-  return <DiffCardFrame source={{ kind: "commit", file }} id={`commit-diff-${detail.oid}-${encodeURIComponent(file.path)}`} expanded={expanded} onToggle={onToggle} languages={languages} override={override} onLanguage={(value) => { setOverride(value); saveLanguageOverride(projectId, file.path, value); }} current={current} requestKey={key} retry={() => setRetry((value) => value + 1)} wrap={wrap} interaction={{ kind: "inspect" }} />;
+  return <DiffCardFrame mode={{ kind: "inspect", file }} id={`commit-diff-${detail.oid}-${encodeURIComponent(file.path)}`} expanded={expanded} onToggle={onToggle} languages={languages} override={override} onLanguage={(value) => { setOverride(value); saveLanguageOverride(projectId, file.path, value); }} current={current} requestKey={key} retry={() => setRetry((value) => value + 1)} wrap={wrap} />;
 }
 
 export function CommitViewer({ project, detail, wrap, languages }: { project: Project; detail: CommitDetail; wrap: boolean; languages: readonly LanguageOption[] }) {

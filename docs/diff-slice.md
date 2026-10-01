@@ -16,6 +16,8 @@ The rows take their height from the code line height plus 2px of padding above a
 
 The response is a discriminated union: `text` with hunks, `media`, `binary`, `too_large`, `conflict`, or `stale`. Each text line has kind (`context`, `added`, or `removed`), old and new line numbers represented as numbers or null, source text, syntax tokens, word-detail spans, and a missing-final-newline flag. Card IDs combine layer and path so staged and unstaged versions of one path remain distinct. The browser validates hunk counts, line numbers, and decorations before rendering.
 
+[DiffCardFrame](../src/client/DiffCardFrame.tsx) uses one review/inspect mode for heading metadata and line interaction. Working-copy review supplies a single status entry plus its comment capabilities; historical inspection supplies a commit file. The review entry drives both the heading and anchor identity. The frame passes that mode directly to [DiffBody](../src/client/DiffBody.tsx); fetching and cache ownership stay in their separate callers. [M08b](maintenance-plan.md#m08b--diff-card-modes) records the contract and verification.
+
 For staged files, compare `HEAD` to index; for unstaged files, compare index to working tree; for untracked files, treat the old side as empty. Git uses fixed argument arrays, literal pathspecs, `--no-ext-diff`, `--no-textconv`, `--no-color`, three context lines, and `--` before paths. The parser validates hunk headers, row counts, and line prefixes. Untracked files are read only after realpath containment and with `O_NOFOLLOW`. Input is bounded to 1 MiB for untracked files, 2 MiB for patches, and 20,000 diff lines. A repository without a first commit produces staged additions against an empty old tree.
 
 ## Edge cases

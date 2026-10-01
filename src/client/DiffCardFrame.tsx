@@ -1,22 +1,22 @@
-import type { ChangeEntry, DiffResult, LanguageOption } from "../shared/api.ts";
+import type { DiffResult, LanguageOption } from "../shared/api.ts";
 import type { CommitFileChange } from "../shared/git.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { DiffBody, type DiffInteraction } from "./DiffBody.tsx";
 
 export type DiffState = { kind: "loading" } | { kind: "ready"; value: DiffResult } | { kind: "error"; message: string };
-type CardSource = { kind: "working"; entry: ChangeEntry } | { kind: "commit"; file: CommitFileChange };
+type DiffCardMode = Extract<DiffInteraction, { kind: "review" }> | { kind: "inspect"; file: CommitFileChange };
 
-export function DiffCardFrame({ source, id, expanded, onToggle, languages, override, onLanguage, current, requestKey, retry, wrap, interaction }: {
-  source: CardSource; id: string; expanded: boolean; onToggle: () => void;
+export function DiffCardFrame({ mode, id, expanded, onToggle, languages, override, onLanguage, current, requestKey, retry, wrap }: {
+  mode: DiffCardMode; id: string; expanded: boolean; onToggle: () => void;
   languages: readonly LanguageOption[]; override: string | null; onLanguage: (value: string | null) => void;
-  current: DiffState; requestKey: string; retry: () => void; wrap: boolean; interaction: DiffInteraction;
+  current: DiffState; requestKey: string; retry: () => void; wrap: boolean;
 }) {
-  const path = source.kind === "working" ? source.entry.path : source.file.path;
-  const label = source.kind === "working" ? source.entry.layer : "commit";
-  const kind = source.kind === "working" ? source.entry.kind : source.file.kind;
-  const oldPath = source.kind === "working" ? source.entry.oldPath : source.file.old.kind === "present" && source.file.old.path !== path ? source.file.old.path : null;
-  const submodule = source.kind === "working" ? source.entry.isSubmodule : [source.file.old, source.file.new].some((side) => side.kind === "present" && side.mode === "160000");
-  const modeChange = source.kind === "commit" && source.file.old.kind === "present" && source.file.new.kind === "present" && source.file.old.mode !== source.file.new.mode ? ` · mode ${source.file.old.mode} → ${source.file.new.mode}` : "";
+  const path = mode.kind === "review" ? mode.entry.path : mode.file.path;
+  const label = mode.kind === "review" ? mode.entry.layer : "commit";
+  const kind = mode.kind === "review" ? mode.entry.kind : mode.file.kind;
+  const oldPath = mode.kind === "review" ? mode.entry.oldPath : mode.file.old.kind === "present" && mode.file.old.path !== path ? mode.file.old.path : null;
+  const submodule = mode.kind === "review" ? mode.entry.isSubmodule : [mode.file.old, mode.file.new].some((side) => side.kind === "present" && side.mode === "160000");
+  const modeChange = mode.kind === "inspect" && mode.file.old.kind === "present" && mode.file.new.kind === "present" && mode.file.old.mode !== mode.file.new.mode ? ` · mode ${mode.file.old.mode} → ${mode.file.new.mode}` : "";
   return <article class={`diff-card diff-card-${label}`} id={id} data-layer={label} data-path={path}>
     <button class="diff-card-toggle" type="button" aria-expanded={expanded} onClick={onToggle}>
       <span class="diff-card-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</span>
@@ -29,7 +29,7 @@ export function DiffCardFrame({ source, id, expanded, onToggle, languages, overr
       </div>}
       {current.kind === "loading" && <DelayedLoading key={requestKey} className="diff-message" message="Loading diff…" />}
       {current.kind === "error" && <div class="diff-message" role="alert">{current.message} <button type="button" onClick={retry}>Retry</button></div>}
-      {current.kind === "ready" && <DiffBody result={current.value} wrap={wrap} interaction={interaction} />}
+      {current.kind === "ready" && <DiffBody result={current.value} wrap={wrap} interaction={mode} />}
     </div>}
   </article>;
 }

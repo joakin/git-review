@@ -57,8 +57,8 @@ export function DiffCard({ entry, projectId, revision, changeToken, refreshKey, 
     return () => controller.abort();
   }, [expanded, projectId, entry.layer, entry.path, requestKey, retry]);
 
-  return <DiffCardFrame source={{ kind: "working", entry }} id={diffCardId(entry)} expanded={expanded} onToggle={onToggle} languages={languages} override={override} onLanguage={(value) => {
+  return <DiffCardFrame mode={{ kind: "review", entry, onComment, drafts, reattachSide }} id={diffCardId(entry)} expanded={expanded} onToggle={onToggle} languages={languages} override={override} onLanguage={(value) => {
     setOverride(value);
     saveLanguageOverride(projectId, entry.path, value);
-  }} current={current} requestKey={requestKey} retry={() => setRetry((value) => value + 1)} wrap={wrap} interaction={{ kind: "review", entry, onComment, drafts, reattachSide }} />;
+  }} current={current} requestKey={requestKey} retry={() => setRetry((value) => value + 1)} wrap={wrap} />;
 }
