@@ -14,7 +14,7 @@ Focus a URL-selected diff once for that navigation, after its inventory and card
 
 ## Loading, data lifetime, and scroll
 
-Start requests immediately. Use [DelayedLoading](../src/client/DelayedLoading.tsx) for a status message only after 300 ms; avoid changing control labels or clearing loaded content during short waits. Errors remain visible when known. Keep same-resource content while refreshing, but key loaded state by its project/path/query so a new destination never paints the previous destination's data. Abort superseded requests and ignore aborted results.
+Start requests immediately. Use [DelayedLoading](../src/client/DelayedLoading.tsx) for a status message only after 300 ms; avoid changing control labels or clearing loaded content during short waits. Errors remain visible when known. Keep same-resource content while refreshing, but key loaded state by its project/path/query so a new destination never paints the previous destination's data. Abort superseded requests and ignore aborted results. Project-opening completion also checks the latest synchronous route reference: route ownership can change before effect cleanup aborts its controller. Clear the opening flag when a route no longer needs the request, and never let an abandoned callback clear a replacement operation or save its selection.
 
 The open project handle, Git inventory, latest directory/tree, and latest Search results live in app state. The [diff cache](../src/client/diff-cache.ts) retains validated diff payloads in tab memory, bounded to 128 entries and roughly 32 MiB. Its identity includes project, layer, path, revision, change token, refresh generation, and language. Do not cache errors or stale responses. A manual Refresh or accepted change token must fetch fresh diffs.
 

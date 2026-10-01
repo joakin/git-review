@@ -295,7 +295,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (root.kind !== "ready" || routeProject === null || openedProjectRef.current?.path === routeProject) return;
+    if (root.kind !== "ready" || routeProject === null || openedProjectRef.current?.path === routeProject) {
+      setOpening(false);
+      return;
+    }
     const controller = new AbortController();
     setOpening(true);
     setProjectOpenError(null);
@@ -308,9 +311,11 @@ export function App() {
     setEditor(null);
     setFeedbackOpen(false);
     setReattachId(null);
+    // Route references change before effect cleanup aborts the old request.
+    const isCurrentOpen = (): boolean => !controller.signal.aborted && routeRef.current !== null && routeProjectPath(routeRef.current) === routeProject;
     openProject(routeProject, controller.signal).then(
       (selected) => {
-        if (controller.signal.aborted) return;
+        if (!isCurrentOpen()) return;
         openedProjectRef.current = selected;
         setOpenedProject(selected);
         const storedComments = readCommentStore(selected.id);
@@ -329,7 +334,7 @@ export function App() {
         setOpening(false);
       },
       (error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (!isCurrentOpen()) return;
         setProjectOpenError({ path: routeProject, message: messageFor(error) });
         setOpening(false);
       },
