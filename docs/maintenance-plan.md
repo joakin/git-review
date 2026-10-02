@@ -1,6 +1,6 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M08c committed; M08d Git sidebar contracts accepted for commit; M09a appearance/preferences authorized
+Status: in progress; M01–M08 committed; M09a appearance/preferences accepted for commit; M09b shared modal authorized
 
 Created: 2026-09-30
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01–M08c are accepted and committed. M08d is accepted for commit. M09–M15 remain pending, with M09a appearance/preferences authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
+M01–M08 are accepted and committed. M09a is accepted for commit. M09b–M15 remain pending, with the shared modal primitive authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -179,7 +179,7 @@ Make these independently reviewable type changes without widening user-visible s
 | M08a | [Comment anchors](../src/client/comments.ts) use precise reviewable layers; the broader factory retains its conflict guard | Accepted; committed as `acf06ca` |
 | M08b | [DiffCardFrame](../src/client/DiffCardFrame.tsx) couples source and interaction in one discriminated mode so historical cards cannot be paired with comment actions | Accepted; committed as `5942af5` |
 | M08c | [Git diff](../src/server/git-diff.ts) pure patch/content parsers return only text/binary/limit variants; syntax/word decorators require and return text, enabling removal of unreachable historical checks | Accepted; committed as `86cc362` |
-| M08d | [GitSidebar](../src/client/GitSidebar.tsx) receives an explicit list-view model/commands interface instead of the whole inferred hook return type | Accepted for commit |
+| M08d | [GitSidebar](../src/client/GitSidebar.tsx) receives an explicit list-view model/commands interface instead of the whole inferred hook return type | Accepted; committed as `2a32695` |
 
 **Validation:** strict type checking and current comment, diff, Git/API, and historical-inspection tests. Preserve runtime boundary guards. Reduce unnecessary exports when a symbol is internal, but keep intentional test seams and compatibility APIs; absence of external callers does not by itself prove the underlying code is dead.
 
@@ -215,7 +215,7 @@ Make these independently reviewable type changes without widening user-visible s
 
 ### M08d — Git sidebar contracts
 
-**Status:** implemented and accepted 2026-10-02; approved for commit.
+**Status:** implemented and accepted 2026-10-02, committed as `2a32695` after explicit approval.
 
 **Decision:** a view should declare the data and commands it consumes, so changes in its owner do not silently expand the view's dependencies. The sidebar's private list model and commands replace the whole inferred hook return type. It can now be supplied without commit-detail state or commit retry. The existing owner satisfies those contracts structurally; no state copies or projection layer are needed. Resource lifetime and navigation ownership stay in their existing owners.
 
@@ -223,13 +223,13 @@ The source change is limited to [GitSidebar](../src/client/GitSidebar.tsx) and i
 
 ## M09 — Extract cohesive App owners and views
 
-**Finding:** [App.tsx](../src/client/App.tsx) has 924 lines, 44 state/ref declarations, and 22 effects across unrelated resource lifetimes and the responsive shell.
+**Review baseline:** [App.tsx](../src/client/App.tsx) had 924 lines, 44 state/ref declarations, and 22 effects across unrelated resource lifetimes and the responsive shell when this maintenance pass was planned.
 
 Each row below is a separate reviewable substep. Proposed names are illustrative; choose names matching the final responsibility.
 
 | Substep | Owner and interface | Important invariants/checks |
 | --- | --- | --- |
-| M09a | Appearance/preferences controller: typed preferences and change/reset actions; owns storage events, system theme, DOM application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa:themes`, `qa:typography`, relevant PWA checks |
+| M09a | [Appearance/preferences owner](../src/client/appearance-preferences.ts): typed preferences and change/reset actions; owns storage events, system theme, theme application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa:themes`, `qa:typography`, relevant PWA checks |
 | M09b | Shared modal primitive used directly by installation and feedback dialogs | Focus/cancel/close behavior and voice/editor lifetime; feedback and PWA checks |
 | M09c | Feedback controller: store/editor/operation state and edit/check/copy/undo/reattach actions | M03 transaction rules, conservative anchors, persistence and navigation saving |
 | M09d | Project/session controller: resolved project/opening/error state and project-opening actions | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks |
@@ -239,6 +239,14 @@ Each row below is a separate reviewable substep. Proposed names are illustrative
 Keep Files/Search resource state keyed to its current project/path/query. Extract it further only where the move creates a coherent owner. Do not use one generic loading hook for working-copy status, mutable files, branch snapshots, and immutable commits. Navigation extraction comes last and only if it can retain synchronous route ownership, draft saving, and one-time focus without introducing a second source of truth.
 
 **Validation:** run focused browser checks and four-size captures after each relevant extraction. Rebuild the client for review. Update state ownership references in the documentation map and affected behavior records as files move.
+
+### M09a — Appearance and typography ownership
+
+**Status:** implemented and accepted 2026-10-02; approved for commit.
+
+**Decision:** preferences share the whole App lifetime, independent of Settings or the selected project. One owner hides storage synchronization, system-theme tracking, theme application, and font loading behind typed values and change/reset commands. Settings delegates resets so defaults have one source. App applies typography to its existing shell element; wrapping remains with the review views. The storage boundary and separate prepaint bootstrap retain their existing roles.
+
+The [handoff below](#m09a-handoff--2026-10-02) records verification and captures. The [documentation map](README.md#where-state-belongs) identifies the owner; engineering conventions remain general principles.
 
 ## M10 — Share diff loading and language controls
 
@@ -470,9 +478,18 @@ Use this compact entry for each handoff:
 
 ### M08d handoff — 2026-10-02
 
-- **Result:** the sidebar declares private list-data and command contracts, separating its dependencies from the hook's inferred return shape. Commit loading, route ownership, rendering, and scroll behavior are preserved. M08c is committed as `86cc362`.
+- **Result:** the sidebar declares private list-data and command contracts, separating its dependencies from the hook's inferred return shape. Commit loading, route ownership, rendering, and scroll behavior are preserved.
 - **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. Temporary compiler probes accept a minimal list interface and the existing owner, and reject seven unwanted/missing/malformed dependencies; the probes were removed. Independent review found no remaining concern.
 - **Browser evidence:** `qa:git` passes at 390, 820, 1180, and 1440 px plus the 320 px check. The added held Refresh check preserves loaded pages while pending and after failure, recovers successfully, and retains destination, cached diff, and collapse state. Existing navigation, pagination, media, wrapping, and three-request concurrency checks pass.
 - **Delivery and limits:** client rebuilt and served by the maintained HTTP/HTTPS apps; health and asset-byte checks pass. The isolated QA server was stopped. All 451 tracked screenshot files are unchanged; no new captures or real-device checks were performed for this interface change.
-- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-02.
+- **Review/commit:** accepted and committed as `2a32695` after explicit maintainer approval on 2026-10-02.
 - **Next authorized step:** M09a, extract the appearance/preferences owner.
+
+### M09a handoff — 2026-10-02
+
+- **Result:** [appearance-preferences.ts](../src/client/appearance-preferences.ts) owns live preferences behind an explicit values/commands interface. App and Settings no longer coordinate their lifecycle or duplicate reset defaults. Storage and backup formats, prepaint behavior, navigation, and visual structure are preserved.
+- **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. `qa:themes`, `qa:typography`, and `qa:pwa` pass, covering palettes, system changes, prepaint loading, real Google font loading, review position, persistence, cross-tab updates, and backup export/import. New browser cases cover independent resets and persistence, malformed/cleared cross-tab storage, in-memory updates and reload with storage denied, and visible/contained code plus reset after blocking both Google font hosts. Independent source/QA/documentation review found no remaining concern; local links and whitespace checks pass.
+- **Captures:** inspected full-page Settings with a dark app, light code, and 20 px Courier at [phone](../qa/screenshots/maintenance-m09a-settings/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09a-settings/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09a-settings/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09a-settings/desktop.png) sizes. Controls and previews remain intact; the [manifest](../qa/screenshots/maintenance-m09a-settings/manifest.json) records no horizontal overflow.
+- **Delivery and limits:** rebuilt assets match the maintained HTTP/HTTPS apps and health checks pass. The isolated QA server was stopped. Browser emulation was checked; no new real-device or installed-app gesture checks were performed. The blocked-font check verifies usable rendering and the available fallback stack, not the exact font face selected by the operating system.
+- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-02.
+- **Next authorized step:** M09b, move the shared modal primitive to its own owner for installation and feedback dialogs.

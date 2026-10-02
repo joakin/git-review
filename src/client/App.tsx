@@ -14,9 +14,9 @@ import { FeedbackTransactions, type FeedbackState } from "./feedback-transaction
 import { CommentEditor, FeedbackDialog, type EditorState } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
-import { googleFontStylesheet } from "./code-fonts.ts";
+import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, parseNavigationSearch, routeProjectPath, routeSection, routeUrl, type Route, type RouteState } from "./navigation.ts";
-import { appearanceStorageKey, codeTypographyStorageKey, emptyWorkspace, readActiveProject, readAppearance, readCodeTypography, readOpenCards, readSavedWorkspace, readWrapPreference, resolveAppearance, saveActiveProject, saveAppearance, saveCodeTypography, saveOpenCards, saveWorkspace, saveWrapPreference, validateAppearance, validateCodeTypography, withSelectedPath, type Appearance, type CodeTypography, type SavedWorkspace } from "./storage.ts";
+import { emptyWorkspace, readActiveProject, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
 import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo, SearchMatch } from "../shared/api.ts";
 
 type LoadState<T> =
@@ -102,9 +102,7 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
-  const [codeTypography, setCodeTypography] = useState(readCodeTypography);
-  const [appearance, setAppearance] = useState(readAppearance);
-  const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const preferences = useAppearancePreferences();
   const settingsOpen = route?.section === "settings";
   const settingsBackRoute = useRef<Route | null>(null);
   const scrollPositions = useRef(new Map<string, number>());
@@ -214,40 +212,6 @@ export function App() {
       if (route.query !== null) setLastSubmittedQuery(route.query);
     }
   }, [route?.section, route?.section === "search" ? route.query : null]);
-
-  useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === codeTypographyStorageKey || event.key === null) setCodeTypography(readCodeTypography());
-      if (event.key === appearanceStorageKey || event.key === null) setAppearance(readAppearance());
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => setSystemDark(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-
-  const { appTheme, codeTheme } = resolveAppearance(appearance, systemDark);
-  useLayoutEffect(() => {
-    document.documentElement.dataset["appTheme"] = appTheme;
-    document.documentElement.dataset["codeTheme"] = codeTheme;
-    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-    if (themeColor !== null) themeColor.content = appTheme === "dark" ? "#08151d" : "#101823";
-  }, [appTheme, codeTheme]);
-
-  useEffect(() => {
-    const stylesheet = googleFontStylesheet(codeTypography.fontFamily);
-    if (stylesheet === null) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = stylesheet;
-    document.head.append(link);
-    return () => link.remove();
-  }, [codeTypography.fontFamily]);
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -555,20 +519,6 @@ export function App() {
     else navigate({ section: "search", projectPath: project.path, query: lastSubmittedQuery, target: { kind: "results" } });
   }
 
-  function updateCodeTypography(next: CodeTypography): void {
-    const validated = validateCodeTypography(next);
-    if (validated === null) return;
-    setCodeTypography(validated);
-    saveCodeTypography(validated);
-  }
-
-  function updateAppearance(next: Appearance): void {
-    const validated = validateAppearance(next);
-    if (validated === null) return;
-    setAppearance(validated);
-    saveAppearance(validated);
-  }
-
   function openSettings(): void {
     if (!settingsOpen) settingsBackRoute.current = route;
     navigate({ section: "settings", projectPath: project?.path ?? null });
@@ -695,7 +645,7 @@ export function App() {
   const mobilePane = route?.section === "projects" || route?.section === "changes" && route.target.kind === "list" || route?.section === "files" && route.target.kind === "list" || route?.section === "search" && route.target.kind === "results" || route?.section === "git" && route.target.kind === "list" ? "list" : "content";
 
   return (
-    <div class="app" data-code-font={codeTypography.fontFamily} style={`--code-font-size: ${codeTypography.fontSize}px`}>
+    <div class="app" data-code-font={preferences.typography.fontFamily} style={`--code-font-size: ${preferences.typography.fontSize}px`}>
       <header class="topbar">
         <div class="brand" aria-label="git-review">
           <span class="brand-mark" aria-hidden="true">{`{ }`}</span>
@@ -887,7 +837,7 @@ export function App() {
             </div>
           )}
           </div>
-          {settingsOpen && <SettingsView typography={codeTypography} onTypography={updateCodeTypography} appearance={appearance} onAppearance={updateAppearance} onBack={closeSettings} onInstallData={() => setInstallDataOpen(true)} />}
+          {settingsOpen && <SettingsView typography={preferences.typography} onTypography={preferences.changeTypography} onResetTypography={preferences.resetTypography} appearance={preferences.appearance} onAppearance={preferences.changeAppearance} onResetAppearance={preferences.resetAppearance} onBack={closeSettings} onInstallData={() => setInstallDataOpen(true)} />}
         </main>
       </div>
       {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files" || viewMode === "search" && selectedFile !== null) && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}

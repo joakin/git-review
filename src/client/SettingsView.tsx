@@ -3,11 +3,13 @@ import { googleCodeFonts, isCodeFontFamily } from "./code-fonts.ts";
 
 const fontSizes = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
-export function SettingsView({ typography, onTypography, appearance, onAppearance, onBack, onInstallData }: {
+export function SettingsView({ typography, onTypography, onResetTypography, appearance, onAppearance, onResetAppearance, onBack, onInstallData }: {
   typography: CodeTypography;
   onTypography: (next: CodeTypography) => void;
+  onResetTypography: () => void;
   appearance: Appearance;
   onAppearance: (next: Appearance) => void;
+  onResetAppearance: () => void;
   onBack: () => void;
   onInstallData: () => void;
 }) {
@@ -21,7 +23,7 @@ export function SettingsView({ typography, onTypography, appearance, onAppearanc
     <div class="settings-panel settings-appearance">
       <div class="settings-panel-head">
         <div><p class="eyebrow">PERSONAL DISPLAY</p><h2>Appearance</h2></div>
-        <button class="settings-reset" type="button" onClick={() => onAppearance({ version: 1, appTheme: "light", codeTheme: "match" })}>Reset appearance</button>
+        <button class="settings-reset" type="button" onClick={onResetAppearance}>Reset appearance</button>
       </div>
       <div class="settings-controls">
         <label class="settings-field" for="app-theme"><span>App theme</span>
@@ -43,7 +45,7 @@ export function SettingsView({ typography, onTypography, appearance, onAppearanc
     <div class="settings-panel">
       <div class="settings-panel-head">
         <div><p class="eyebrow">CODE APPEARANCE</p><h2>Typography</h2></div>
-        <button class="settings-reset" type="button" onClick={() => onTypography({ version: 1, fontSize: 12, fontFamily: "system" })}>Reset</button>
+        <button class="settings-reset" type="button" onClick={onResetTypography}>Reset</button>
       </div>
       <div class="settings-controls">
         <label class="settings-field" for="code-font-size"><span>Font size</span>

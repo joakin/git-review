@@ -29,6 +29,8 @@ type Appearance = {
 
 Save it in a versioned `localStorage` key. Reject malformed or future versions at the storage boundary and use Light + Match app as the fallback. Keep the in-memory choice working if storage is unavailable. Listen for changes from another tab and for `prefers-color-scheme` changes when System or Match app is in use. Resolve those choices to light/dark attributes on the app root; no theme name, CSS, or color travels through the server API. A version 3 local-data backup should include the validated appearance choice. Version 1 and 2 imports leave the current appearance alone; an invalid version 3 preference rejects the whole import before writing anything.
 
+The [appearance preferences owner](../src/client/appearance-preferences.ts) lives for the whole App lifetime, so Settings and project navigation do not interrupt preference updates. Settings delegates changes and independent resets to that owner; the [prepaint bootstrap](../src/client/theme-bootstrap.ts) uses the same storage parser and resolver before App mounts.
+
 Put both palettes in `design-tokens.css`. First audit token use so a dark `--color-surface` cannot accidentally become dark text on an accent button; add explicit on-accent and code-surface roles where needed. Scope the code palette to code components instead of changing every app surface. The code palette must cover source text, syntax roles, gutters, added/removed backgrounds, changed-word marks, hunk headers, selection, and search/feedback excerpts. Form controls should use the resolved app `color-scheme`. The existing fixed PWA `theme-color` metadata should follow the app palette when the UI loads or changes.
 
 ## Edge cases and verification

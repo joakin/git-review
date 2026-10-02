@@ -123,9 +123,32 @@ try {
       }, 50);
     });
   });
-  if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
   await context.close();
-  console.log("Phone Settings with 20 Google fonts, local font privacy, Google font loading, actual diff and Files code families, borderless diff rows, scroll restoration, 320px containment, reload, and tab sync passed.");
+
+  const fallbackContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await fallbackContext.route("https://fonts.googleapis.com/**", (route) => route.abort());
+  await fallbackContext.route("https://fonts.gstatic.com/**", (route) => route.abort());
+  const fallback = await fallbackContext.newPage();
+  fallback.on("pageerror", (error) => errors.push(error.message));
+  await fallback.goto(url, { waitUntil: "load" });
+  await fallback.locator(".project-switch").click();
+  await fallback.locator(".sidebar-settings").click();
+  const failedFont = fallback.waitForEvent("requestfailed", { predicate: (request) => request.url().startsWith("https://fonts.googleapis.com/") });
+  await fallback.locator("#code-font-family").selectOption("jetbrains-mono");
+  await failedFont;
+  await fallback.locator("#code-font-size").selectOption("20");
+  await fallback.setViewportSize({ width: 320, height: 700 });
+  const fallbackMetrics = await fallback.locator(".settings-preview-line code").first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return { family: style.fontFamily, size: style.fontSize, visible: rect.width > 0 && rect.height > 0 && style.visibility === "visible", fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2, loadedGoogleFont: [...document.fonts].some((font) => font.family === "JetBrains Mono" && font.status === "loaded") };
+  });
+  if (fallbackMetrics.loadedGoogleFont || !fallbackMetrics.family.includes("ui-monospace") || fallbackMetrics.size !== "20px" || !fallbackMetrics.visible || !fallbackMetrics.fits) throw new Error(`Blocked Google font left code unusable or without its local fallback: ${JSON.stringify(fallbackMetrics)}`);
+  await fallback.getByRole("button", { name: "Reset", exact: true }).click();
+  if (await fallback.locator("#code-font-family").inputValue() !== "system" || await fallback.locator("#code-font-size").inputValue() !== "12") throw new Error("Typography reset did not recover from a blocked font");
+  await fallbackContext.close();
+  if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
+  console.log("Phone Settings with 20 Google fonts, local font privacy, Google font loading and blocked-font fallback/reset, actual diff and Files code families, borderless diff rows, scroll restoration, 320px containment, reload, and tab sync passed.");
 } finally {
   await browser.close();
 }

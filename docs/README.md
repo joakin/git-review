@@ -39,6 +39,8 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 
 [ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff adapter and Git browser own resource identities, freshness, and individual budgets.
 
+[Appearance preferences](../src/client/appearance-preferences.ts) owns live appearance and typography for the App lifetime. Settings consumes values and change/reset commands; the storage module remains the format boundary shared with backups and the prepaint theme bootstrap.
+
 ## Current scope and limits
 
 - Files reads the working tree. Comments anchor to working-copy Git diff lines; general file comments are not implemented. Git opens historical commit comparisons with line information and media; historical comments, file-specific history, and a full old-tree browser remain optional later work.

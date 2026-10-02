@@ -108,8 +108,60 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset["appTheme"] === "dark" && document.documentElement.dataset["codeTheme"] === "dark");
   await page.emulateMedia({ colorScheme: "light" });
   await page.waitForFunction(() => document.documentElement.dataset["appTheme"] === "light" && document.documentElement.dataset["codeTheme"] === "light");
+  await page.locator("#code-font-size").selectOption("17");
+  await page.locator("#code-font-family").selectOption("courier");
   await page.getByRole("button", { name: "Reset appearance" }).click();
   if (await page.locator("#app-theme").inputValue() !== "light" || await page.locator("#code-theme").inputValue() !== "match") throw new Error("Reset appearance did not restore defaults");
+  if (await page.locator("#code-font-size").inputValue() !== "17" || await page.locator("#code-font-family").inputValue() !== "courier") throw new Error("Reset appearance changed typography");
+  await page.locator("#app-theme").selectOption("dark");
+  await page.locator("#code-theme").selectOption("light");
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  if (await page.locator("#code-font-size").inputValue() !== "12" || await page.locator("#code-font-family").inputValue() !== "system") throw new Error("Reset typography did not restore defaults");
+  if (await page.locator("#app-theme").inputValue() !== "dark" || await page.locator("#code-theme").inputValue() !== "light") throw new Error("Reset typography changed appearance");
+  await page.reload({ waitUntil: "load" });
+  await page.locator("#app-theme").waitFor({ state: "visible" });
+  if (await page.locator("#code-font-size").inputValue() !== "12" || await page.locator("#code-font-family").inputValue() !== "system" || await page.locator("#app-theme").inputValue() !== "dark" || await page.locator("#code-theme").inputValue() !== "light") throw new Error("Independent reset choices did not persist");
+
+  await page.locator("#code-font-size").selectOption("16");
+  await page.locator("#code-font-family").selectOption("courier");
+  await other.evaluate(() => localStorage.setItem("git-review:appearance:v1", "{invalid JSON"));
+  await page.waitForFunction(() => document.querySelector<HTMLSelectElement>("#app-theme")?.value === "light" && document.querySelector<HTMLSelectElement>("#code-theme")?.value === "match" && document.documentElement.dataset["codeTheme"] === "light");
+  if (await page.locator("#code-font-size").inputValue() !== "16" || await page.locator("#code-font-family").inputValue() !== "courier") throw new Error("Invalid cross-tab appearance changed typography");
+  await page.locator("#app-theme").selectOption("dark");
+  await other.evaluate(() => localStorage.setItem("git-review:code-typography:v1", JSON.stringify({ version: 1, fontSize: 99, fontFamily: "courier" })));
+  await page.waitForFunction(() => document.querySelector<HTMLSelectElement>("#code-font-size")?.value === "12" && document.querySelector<HTMLSelectElement>("#code-font-family")?.value === "system");
+  if (await page.locator("#app-theme").inputValue() !== "dark") throw new Error("Invalid cross-tab typography changed appearance");
+  await page.locator("#code-font-size").selectOption("16");
+  await other.evaluate(() => localStorage.clear());
+  await page.waitForFunction(() => document.querySelector<HTMLSelectElement>("#app-theme")?.value === "light" && document.querySelector<HTMLSelectElement>("#code-theme")?.value === "match" && document.querySelector<HTMLSelectElement>("#code-font-size")?.value === "12" && document.querySelector<HTMLSelectElement>("#code-font-family")?.value === "system" && document.documentElement.dataset["appTheme"] === "light");
+
+  const deniedContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await deniedContext.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get: () => { throw new DOMException("Storage denied for QA", "SecurityError"); } });
+  });
+  const denied = await deniedContext.newPage();
+  denied.on("pageerror", (error) => errors.push(error.message));
+  await denied.goto(url, { waitUntil: "load" });
+  await denied.locator(".project-switch").click();
+  await denied.locator(".sidebar-settings").click();
+  await denied.locator("#app-theme").selectOption("dark");
+  await denied.locator("#code-theme").selectOption("light");
+  await denied.locator("#code-font-size").selectOption("17");
+  await denied.locator("#code-font-family").selectOption("courier");
+  await denied.waitForFunction(() => document.documentElement.dataset["appTheme"] === "dark" && document.documentElement.dataset["codeTheme"] === "light");
+  const deniedPreview = await denied.locator(".settings-preview-line code").first().evaluate((element) => ({ size: getComputedStyle(element).fontSize, family: getComputedStyle(element).fontFamily }));
+  if (deniedPreview.size !== "17px" || !deniedPreview.family.includes("Courier")) throw new Error("Unavailable storage prevented in-memory typography changes");
+  await denied.reload({ waitUntil: "load" });
+  await denied.locator("#app-theme").waitFor({ state: "visible" });
+  if (await denied.locator("#app-theme").inputValue() !== "light" || await denied.locator("#code-theme").inputValue() !== "match" || await denied.locator("#code-font-size").inputValue() !== "12" || await denied.locator("#code-font-family").inputValue() !== "system") throw new Error("Unavailable storage did not restore defaults after reload");
+  await denied.locator("#app-theme").selectOption("dark");
+  await denied.locator("#code-font-size").selectOption("17");
+  await denied.locator("#code-font-family").selectOption("courier");
+  await denied.getByRole("button", { name: "Reset appearance" }).click();
+  if (await denied.locator("#app-theme").inputValue() !== "light" || await denied.locator("#code-theme").inputValue() !== "match" || await denied.locator("#code-font-size").inputValue() !== "17") throw new Error("Appearance reset failed with unavailable storage");
+  await denied.getByRole("button", { name: "Reset", exact: true }).click();
+  if (await denied.locator("#code-font-size").inputValue() !== "12" || await denied.locator("#code-font-family").inputValue() !== "system") throw new Error("Typography reset failed with unavailable storage");
+  await deniedContext.close();
 
   const prepaintContext = await browser.newContext({ storageState: resolve("qa/.artifacts/theme-dark-app-light-code-storage.json") });
   const prepaint = await prepaintContext.newPage();
@@ -123,7 +175,7 @@ try {
   await prepaint.waitForLoadState("load");
   await prepaintContext.close();
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
-  console.log("Dark/light app and code combinations, real diff and Files palettes, 320px fit, reload, cross-tab sync, system preference, reset, and prepaint loading passed.");
+  console.log("Dark/light app and code combinations, real diff and Files palettes, 320px fit, reload, cross-tab sync including invalid values and clearing, system preference, independent resets, unavailable storage, and prepaint loading passed.");
 } finally {
   await browser.close();
 }
