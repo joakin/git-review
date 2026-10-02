@@ -1,13 +1,22 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import type { GitRoute } from "./navigation.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
-import type { useGitBrowser } from "./git-browser.ts";
+import type { GitRefs, GitHistoryPage } from "../shared/git.ts";
+import type { GitLoad } from "./git-browser.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
 
-export type GitBrowserState = ReturnType<typeof useGitBrowser>;
+type GitListModel = {
+  refs: GitLoad<GitRefs>;
+  history: GitLoad<GitHistoryPage>;
+  unborn: boolean;
+  refreshing: boolean;
+  paging: boolean;
+  pageError: string | null;
+};
+type GitListCommands = { refreshHistory: () => void; loadOlder: () => void };
 const listScrolls = new Map<string, number>();
 
-export function GitSidebar({ browser, route, onBranch, onCommit }: { browser: GitBrowserState; route: GitRoute; onBranch: (ref: string) => void; onCommit: (oid: string) => void }) {
+export function GitSidebar({ model, commands, route, onBranch, onCommit }: { model: GitListModel; commands: GitListCommands; route: GitRoute; onBranch: (ref: string) => void; onCommit: (oid: string) => void }) {
   const container = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const sidebar = container.current?.closest(".sidebar");
@@ -20,10 +29,10 @@ export function GitSidebar({ browser, route, onBranch, onCommit }: { browser: Gi
         while (listScrolls.size > 64) { const oldest = listScrolls.keys().next().value; if (oldest === undefined) break; listScrolls.delete(oldest); }
       }
     };
-  }, [route.projectPath, route.ref, browser.refs.kind, browser.history.kind]);
-  const refs = browser.refs;
+  }, [route.projectPath, route.ref, model.refs.kind, model.history.kind]);
+  const refs = model.refs;
   if (refs.kind === "loading") return <DelayedLoading className="sidebar-message" message="Reading Git history…" />;
-  if (refs.kind === "error") return <div class="sidebar-error" role="alert">{refs.message} <button type="button" onClick={browser.refreshHistory}>Retry</button></div>;
+  if (refs.kind === "error") return <div class="sidebar-error" role="alert">{refs.message} <button type="button" onClick={commands.refreshHistory}>Retry</button></div>;
   if (refs.value.kind === "not_git") return <p class="sidebar-message">This folder is not a Git worktree.</p>;
   const git = refs.value;
   const detached = git.head.kind === "detached";
@@ -39,17 +48,17 @@ export function GitSidebar({ browser, route, onBranch, onCommit }: { browser: Gi
         const branches = git.branches.filter((branch) => branch.kind === kind);
         return branches.length === 0 ? null : <optgroup label={kind === "local" ? "Local branches" : "Remote branches"} key={kind}>{branches.map((branch) => <option key={branch.ref} value={branch.ref}>{branch.name}</option>)}</optgroup>;
       })}
-    </select></label><button class="git-refresh" type="button" disabled={browser.refreshing} onClick={browser.refreshHistory}>Refresh</button></div>
+    </select></label><button class="git-refresh" type="button" disabled={model.refreshing} onClick={commands.refreshHistory}>Refresh</button></div>
     {git.scope !== "" && <p class="git-scope">History scoped to /{git.scope}</p>}
-    {browser.pageError !== null && <div class="sidebar-error" role="alert">{browser.pageError}</div>}
-    {browser.unborn ? <p class="sidebar-message">This branch has no commits yet.</p> : route.ref === null ? null : browser.history.kind === "loading" ? <DelayedLoading className="sidebar-message" message="Reading commits…" /> : browser.history.kind === "error" ? <div class="sidebar-error" role="alert">{browser.history.message} <button type="button" onClick={browser.refreshHistory}>Retry</button></div> : <>
-      {browser.history.value.commits.length === 0 && <p class="sidebar-message">No commits in this project scope.</p>}
-      <ul class="git-commit-list">{browser.history.value.commits.map((commit) => <li key={commit.oid}><button class="git-commit-row" type="button" aria-current={route.target.kind === "commit" && route.target.oid === commit.oid ? "page" : undefined} onClick={() => onCommit(commit.oid)}>
+    {model.pageError !== null && <div class="sidebar-error" role="alert">{model.pageError}</div>}
+    {model.unborn ? <p class="sidebar-message">This branch has no commits yet.</p> : route.ref === null ? null : model.history.kind === "loading" ? <DelayedLoading className="sidebar-message" message="Reading commits…" /> : model.history.kind === "error" ? <div class="sidebar-error" role="alert">{model.history.message} <button type="button" onClick={commands.refreshHistory}>Retry</button></div> : <>
+      {model.history.value.commits.length === 0 && <p class="sidebar-message">No commits in this project scope.</p>}
+      <ul class="git-commit-list">{model.history.value.commits.map((commit) => <li key={commit.oid}><button class="git-commit-row" type="button" aria-current={route.target.kind === "commit" && route.target.oid === commit.oid ? "page" : undefined} onClick={() => onCommit(commit.oid)}>
         <strong>{commit.subject || "Untitled commit"}</strong>
         <CommitMeta source={{ kind: "list", commit }} />
       </button></li>)}</ul>
-      {browser.history.value.nextOffset !== null && <button class="git-load-older" type="button" disabled={browser.paging || browser.refreshing} onClick={browser.loadOlder}>Load older</button>}
-      {browser.paging && <DelayedLoading className="sidebar-message" message="Reading older commits…" />}
+      {model.history.value.nextOffset !== null && <button class="git-load-older" type="button" disabled={model.paging || model.refreshing} onClick={commands.loadOlder}>Load older</button>}
+      {model.paging && <DelayedLoading className="sidebar-message" message="Reading older commits…" />}
     </>}
   </div>;
 }

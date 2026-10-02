@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { chromium, type Page, type Request } from "playwright-core";
+import { chromium, type Page, type Request, type Route as BrowserRoute } from "playwright-core";
 import { expectRecord } from "../src/shared/validation.ts";
 import { expectGitOid, parseCommitDetail, parseGitHistory } from "../src/shared/git.ts";
 
@@ -26,6 +26,45 @@ async function waitForCommit(page: Page, oid: string): Promise<void> {
 
 async function allDiffsReady(page: Page): Promise<void> {
   await page.waitForFunction(() => [...document.querySelectorAll('.diff-card[data-layer="commit"]')].every((card) => card.querySelector('.diff-card-toggle[aria-expanded="false"]') !== null || card.querySelector(".diff-scroll, .media-diff") !== null || [...card.querySelectorAll(".diff-message")].some((message) => !(message.textContent ?? "").startsWith("Loading diff"))));
+}
+
+async function checkHistoryRefresh(page: Page, olderCount: number): Promise<void> {
+  const destination = page.url();
+  const ref = new URL(destination).searchParams.get("ref");
+  const refresh = page.locator(".git-refresh");
+  const historyRequest = (request: Request) => new URL(request.url()).pathname.endsWith("/git/log") && new URL(request.url()).searchParams.get("ref") === ref;
+  let release = (): void => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let failNext = true;
+  const intercept = async (route: BrowserRoute): Promise<void> => {
+    if (failNext && historyRequest(route.request())) {
+      failNext = false;
+      await held;
+      await route.fulfill({ status: 503, json: { error: { code: "internal_error", message: "History refresh QA failure" } } });
+    } else await route.continue();
+  };
+  await page.route(/\/git\/log\?/, intercept);
+  try {
+    await Promise.all([
+      page.waitForRequest((request) => new URL(request.url()).pathname.endsWith("/git/refs")),
+      page.waitForRequest(historyRequest),
+      refresh.click(),
+    ]);
+    await page.waitForFunction(() => document.querySelector<HTMLButtonElement>(".git-refresh")?.disabled === true);
+    if (await page.locator(".git-commit-row").count() !== olderCount) throw new Error("Refreshing cleared the loaded history pages");
+    release();
+    const error = page.locator(".sidebar-error", { hasText: "History refresh QA failure" });
+    await error.waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.querySelector<HTMLButtonElement>(".git-refresh")?.disabled === false);
+    if (await page.locator(".git-commit-row").count() !== olderCount) throw new Error("Failed refresh lost the loaded history pages");
+    await Promise.all([page.waitForResponse((response) => historyRequest(response.request()) && response.ok()), refresh.click()]);
+    await page.waitForFunction(() => document.querySelectorAll(".git-commit-row").length === 50);
+    await error.waitFor({ state: "detached" });
+    if (page.url() !== destination) throw new Error("Refresh changed the selected branch or commit");
+  } finally {
+    release();
+    await page.unroute(/\/git\/log\?/, intercept);
+  }
 }
 
 try {
@@ -133,6 +172,11 @@ try {
     if (await review.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("Section navigation lost card state");
     if (diffRequests !== requests) throw new Error("Section navigation reloaded cached commit diffs");
     if (viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    await checkHistoryRefresh(page, count);
+    await page.locator(".git-commit-row", { hasText: "Improve reading and preserve historical context" }).click();
+    await waitForCommit(page, updated);
+    if (diffRequests !== requests || await review.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("History refresh invalidated immutable diff or card state");
+    if (viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
     await page.getByRole("combobox", { name: "Git branch" }).selectOption("refs/heads/feature/navigation");
     if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
     await page.locator(".git-commit-row", { hasText: "Add the feature branch" }).click();
@@ -180,7 +224,7 @@ try {
     }
     if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2))) throw new Error(`Git view overflowed at ${viewport.width}`);
     if (errors.length > 0) throw new Error(errors.join("; "));
-    console.log(`Git navigation, historical review, cache and layout passed at ${viewport.width}px; peak diff requests ${peak}.`);
+    console.log(`Git navigation, history refresh/recovery, historical review, cache and layout passed at ${viewport.width}px; peak diff requests ${peak}.`);
     await context.close();
   }
 } finally { await browser.close(); }

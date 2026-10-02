@@ -1,12 +1,12 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M08b committed; M08c parser/decorator contracts accepted and approved for commit; M08d Git sidebar view/commands next authorized
+Status: in progress; M01–M08c committed; M08d Git sidebar contracts accepted for commit; M09a appearance/preferences authorized
 
 Created: 2026-09-30
 
 Updated: 2026-10-02
 
-The maintainer requested a codebase review after closing the initial implementation stage, then requested this work plan and gave the implementation go-ahead on 2026-10-01. **M01: correct staged media sources in repository subfolders** is accepted and committed as `ba62d1d`, following explicit approval to commit and continue. **M02: restore transcription API error translation** is accepted and committed as `cbe97fb`, following explicit approval to commit and continue. **M03: own feedback check/copy transactions** is accepted and committed as `59cadf3`, following explicit approval to commit and continue. **M04: separate QA output from milestone captures** is accepted and committed as `0e55b07`, following explicit approval to commit and continue. **M05a: remove confirmed obsolete UI/CSS remnants** is accepted and committed as `2d6879d`, following explicit approval to commit and continue. **M05b: consolidate navigation/layout CSS** is accepted and committed as `1d28fc5`, following explicit approval to commit and continue. **M05c: reset canceled project opening** is accepted and committed as `b20b514`, following explicit approval to commit and continue. **M06: reuse the bounded cache implementation** is accepted and committed as `737a09b`, following explicit approval to commit and continue. **M07: reuse syntax validators** is accepted and committed as `4eac2ec`, following explicit approval to commit and continue. **M08a: precise reviewable comment layers** is accepted and committed as `acf06ca`, following explicit approval to commit and continue. **M08b: diff card modes** is accepted and committed as `5942af5`, following explicit approval to commit and continue. **M08c: parser/decorator contracts** is accepted with explicit approval to commit and continue to M08d on 2026-10-02. M05b's navigation QA identified the preexisting cancellation defect; M05c addresses it before cache extraction. Completed slices stay uncommitted for maintainer review.
+The maintainer requested this bounded maintenance pass after closing the initial implementation stage and gave the implementation go-ahead on 2026-10-01. Each handoff below records its decision, verification, review, and commit approval. Completed slices stay uncommitted for maintainer review.
 
 This is the work record for the bounded maintenance pass. The [initial implementation plan](initial-implementation-plan.md#remaining-roadmap) remains the optional product backlog. Its closed stage stays closed. The [documentation map](README.md), [engineering conventions](engineering-conventions.md), [QA workflow](qa-workflow.md), and [collaboration rules](../AGENTS.md) remain authoritative for current behavior and delivery.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01 is accepted and committed as `ba62d1d`; M02 as `cbe97fb`; M03 as `59cadf3`; M04 as `0e55b07`. M05a is accepted and committed as `2d6879d`. M05b is accepted and committed as `1d28fc5`. M05c corrects the cancellation defect reproduced during M05b validation and is accepted and committed as `b20b514`. M06 cache reuse is accepted and committed as `737a09b`. M07 syntax validator reuse is accepted and committed as `4eac2ec`. M08a reviewable comment layers is accepted and committed as `acf06ca`. M08b diff card modes is accepted and committed as `5942af5`. M08c parser/decorator contracts is accepted and approved for commit. M08d and M09–M15 are pending, with M08d Git sidebar view/commands next authorized. The order is the proposed sequence for the authorized maintenance pass, with a review handoff for each small change. M05, M09, and M13 contain independently reviewable substeps. M15 starts with measurement; an optimization depends on its evidence.
+M01–M08c are accepted and committed. M08d is accepted for commit. M09–M15 remain pending, with M09a appearance/preferences authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -178,8 +178,8 @@ Make these independently reviewable type changes without widening user-visible s
 | --- | --- | --- |
 | M08a | [Comment anchors](../src/client/comments.ts) use precise reviewable layers; the broader factory retains its conflict guard | Accepted; committed as `acf06ca` |
 | M08b | [DiffCardFrame](../src/client/DiffCardFrame.tsx) couples source and interaction in one discriminated mode so historical cards cannot be paired with comment actions | Accepted; committed as `5942af5` |
-| M08c | [Git diff](../src/server/git-diff.ts) pure patch/content parsers return only text/binary/limit variants; syntax/word decorators require and return text, enabling removal of unreachable historical checks | Accepted; approved for commit |
-| M08d | [GitSidebar](../src/client/GitSidebar.tsx) receives an explicit list-view model/commands interface instead of the whole inferred hook return type | Pending |
+| M08c | [Git diff](../src/server/git-diff.ts) pure patch/content parsers return only text/binary/limit variants; syntax/word decorators require and return text, enabling removal of unreachable historical checks | Accepted; committed as `86cc362` |
+| M08d | [GitSidebar](../src/client/GitSidebar.tsx) receives an explicit list-view model/commands interface instead of the whole inferred hook return type | Accepted for commit |
 
 **Validation:** strict type checking and current comment, diff, Git/API, and historical-inspection tests. Preserve runtime boundary guards. Reduce unnecessary exports when a symbol is internal, but keep intentional test seams and compatibility APIs; absence of external callers does not by itself prove the underlying code is dead.
 
@@ -205,13 +205,21 @@ Make these independently reviewable type changes without widening user-visible s
 
 ### M08c — Parser and decorator contracts
 
-**Status:** implemented 2026-10-01, accepted and explicitly approved for commit 2026-10-02.
+**Status:** implemented 2026-10-01, accepted and committed as `86cc362` on 2026-10-02 after explicit approval.
 
 **Finding and contract:** pure patch/content parsers returned the full `DiffResult`, although they produce only text, binary, or size-limit outcomes. Syntax and word decoration also returned the full union even though they only decorate text. This forced historical loading to check three times for impossible stale/conflict states. The private `ParsedDiff` now names the parser outcomes; both decorators accept and return the canonical text variant. Decoration can change syntax and word-detail fields, so it must not promise to preserve arbitrary narrower caller refinements.
 
 **Implemented:** [git-diff.ts](../src/server/git-diff.ts) narrows `parseGitPatch` and `diffFromContent` without changing their algorithms or limits. [diff-syntax.ts](../src/server/diff-syntax.ts) and [diff-words.ts](../src/server/diff-words.ts) use private text aliases and remove their unnecessary non-text guards. The working-copy source loader already narrows to text. [git-history.ts](../src/server/git-history.ts) returns non-text parser outcomes before decoration and removes three unreachable stale/conflict checks. The unknown-response guard in [parseCommitDiff](../src/shared/git.ts) remains at the HTTP boundary. Missing-parent/content guards, Git errors, containment, plain fallbacks, and mutable working-copy states remain intact. No new export, generic overload, cast, wire shape, or dependency was needed.
 
 **Evidence:** five new tests add 30 assertions: [syntax tests](../src/server/diff-syntax.test.ts) cover empty/plain-choice no-read paths and null/rejected/mismatched source fallback on either side while preserving decorated rows; [historical tests](../src/server/git-history.test.ts) cover root-content and parent-patch binary/limit outcomes; [shared Git tests](../src/shared/git.test.ts) retain unknown-response mutable-state rejection and accept current immutable variants. The focused 21-test suite passes against both committed `5942af5` producers/decorators and this refactor. A temporary compiler probe verifies narrow parser assignments and canonical text returns, rejects impossible parser states/non-text decorator inputs, and rejects false promises that decoration preserves refined syntax/detail fields. The comparison copy and probe were removed. The [handoff below](#m08c-handoff--2026-10-01) records complete verification and limits.
+
+### M08d — Git sidebar contracts
+
+**Status:** implemented and accepted 2026-10-02; approved for commit.
+
+**Decision:** a view should declare the data and commands it consumes, so changes in its owner do not silently expand the view's dependencies. The sidebar's private list model and commands replace the whole inferred hook return type. It can now be supplied without commit-detail state or commit retry. The existing owner satisfies those contracts structurally; no state copies or projection layer are needed. Resource lifetime and navigation ownership stay in their existing owners.
+
+The source change is limited to [GitSidebar](../src/client/GitSidebar.tsx) and its [App](../src/client/App.tsx) call site. The Git browser check now also covers Refresh failure/recovery; [handoff evidence](#m08d-handoff--2026-10-02) is below.
 
 ## M09 — Extract cohesive App owners and views
 
@@ -457,5 +465,14 @@ Use this compact entry for each handoff:
 - **Operation:** rebuilt client assets and restarted both maintained backends. Both backends and the public HTTPS origin returned 200 for the app and `/api/roots`, with served JS/CSS matching the final build. Maintained services stay available. Stopped the isolated QA server on 39911 after the checks; inventory/history fixtures remain. Temporary compiler/runtime comparison files were removed.
 - **Documentation correction — 2026-10-02:** at the maintainer's request, rewrote engineering conventions as reusable design principles and removed duplicated maintenance progress from entry-point docs. Behavior contracts stay in focused records; this plan owns review status and evidence.
 - **Review status:** accepted by the maintainer on 2026-10-02.
-- **Commit status:** explicitly approved on 2026-10-02; M08b is separately committed as `5942af5`.
+- **Commit status:** committed as `86cc362` on 2026-10-02 after explicit approval; M08b is separately committed as `5942af5`.
 - **Next authorized step:** M08d, replace the Git sidebar's whole inferred hook return type with an explicit list-view model and commands interface.
+
+### M08d handoff — 2026-10-02
+
+- **Result:** the sidebar declares private list-data and command contracts, separating its dependencies from the hook's inferred return shape. Commit loading, route ownership, rendering, and scroll behavior are preserved. M08c is committed as `86cc362`.
+- **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. Temporary compiler probes accept a minimal list interface and the existing owner, and reject seven unwanted/missing/malformed dependencies; the probes were removed. Independent review found no remaining concern.
+- **Browser evidence:** `qa:git` passes at 390, 820, 1180, and 1440 px plus the 320 px check. The added held Refresh check preserves loaded pages while pending and after failure, recovers successfully, and retains destination, cached diff, and collapse state. Existing navigation, pagination, media, wrapping, and three-request concurrency checks pass.
+- **Delivery and limits:** client rebuilt and served by the maintained HTTP/HTTPS apps; health and asset-byte checks pass. The isolated QA server was stopped. All 451 tracked screenshot files are unchanged; no new captures or real-device checks were performed for this interface change.
+- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-02.
+- **Next authorized step:** M09a, extract the appearance/preferences owner.
