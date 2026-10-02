@@ -35,6 +35,8 @@ For each contiguous edit chunk in a hunk, collect its removed and added rows. Al
 
 Bound the row-alignment work per chunk and the token-comparison work per line. The implementation caps each side at 256 rows, each line at 4,096 UTF-16 units and 512 comparison units, and each chunk at 65,536 candidate row pairs. It also applies per-response row-pair and token-comparison budgets. A larger or ambiguous chunk safely keeps the ordinary diff; it never delays the whole card. Pure additions, including untracked files, have no old content to compare and keep their current row styling.
 
+[withWordDetails](../src/server/diff-words.ts) accepts and returns the canonical text-diff variant. It updates detail fields on parsed rows, so its return contract allows those fields to change rather than preserving a narrower `none` refinement. [M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records this contract; the matching algorithm and budgets are unchanged.
+
 ## Visual and interaction rules
 
 - Changed spans use CSS design tokens for a stronger added/removed background and a subtle underline or edge that remains legible alongside syntax color. They add no row padding or minimum height. Selection highlight stays visible over the decoration.

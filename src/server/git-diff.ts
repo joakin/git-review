@@ -14,6 +14,7 @@ const maxDiffLines = 20_000;
 const noNewlineMarker = "\\ No newline at end of file";
 
 type OpenHunk = DiffHunk & { remainingOld: number; remainingNew: number; nextOld: number; nextNew: number };
+type ParsedDiff = Extract<DiffResult, { kind: "text" | "binary" | "too_large" }>;
 
 function hunkNumber(value: string | undefined): number {
   const number = Number(value);
@@ -23,7 +24,7 @@ function hunkNumber(value: string | undefined): number {
   return number;
 }
 
-export function parseGitPatch(output: Buffer): DiffResult {
+export function parseGitPatch(output: Buffer): ParsedDiff {
   if (output.byteLength > maxPatchBytes) return { kind: "too_large" };
   let patch: string;
   try {
@@ -100,7 +101,7 @@ export function parseGitPatch(output: Buffer): DiffResult {
   return withWordDetails({ kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks });
 }
 
-export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): DiffResult {
+export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): ParsedDiff {
   if (content.byteLength > maxTextBytes) return { kind: "too_large" };
   if (content.includes(0)) return { kind: "binary", reason: "binary" };
   let text: string;

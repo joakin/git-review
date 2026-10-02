@@ -191,26 +191,21 @@ export async function readCommitDiff(project: Project, detail: CommitDetail, fil
   let diff: CommitDiff;
   try {
     if (file.old.kind === "present" && file.new.kind === "present") {
-      const parsed = parseGitPatch(await runGit(project.absolutePath, ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--unified=3", "--no-prefix", file.old.oid, file.new.oid], 2 * 1024 * 1024 + 1024));
-      if (parsed.kind === "stale" || parsed.kind === "conflict") throw new Error("Invalid committed blob comparison");
-      diff = parsed;
+      diff = parseGitPatch(await runGit(project.absolutePath, ["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--unified=3", "--no-prefix", file.old.oid, file.new.oid], 2 * 1024 * 1024 + 1024));
     } else {
       const selected = file.new.kind === "present" ? file.new : file.old;
       if (selected.kind === "absent") throw new Error("Missing commit file content");
-      const parsed = diffFromContent(await runGit(project.absolutePath, ["cat-file", "blob", selected.oid], 1024 * 1024 + 1), file.new.kind === "present" ? "new" : "old");
-      if (parsed.kind === "stale" || parsed.kind === "conflict") throw new Error("Invalid committed file addition/deletion");
-      diff = parsed;
+      diff = diffFromContent(await runGit(project.absolutePath, ["cat-file", "blob", selected.oid], 1024 * 1024 + 1), file.new.kind === "present" ? "new" : "old");
     }
   } catch (error: unknown) {
     if (error instanceof GitCommandError && error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") return { kind: "too_large" };
     throw error;
   }
+  if (diff.kind !== "text") return diff;
   const readSide = async (side: CommitFileSide): Promise<string | null> => {
     if (side.kind === "absent") return "";
     try { return decodedText(await runGit(project.absolutePath, ["cat-file", "blob", side.oid], 1024 * 1024 + 1)); }
     catch (error: unknown) { if (error instanceof GitCommandError) return null; throw error; }
   };
-  const result = await withDiffSyntax(diff, file.path, language, () => readSide(file.old), () => readSide(file.new));
-  if (result.kind === "stale" || result.kind === "conflict") throw new Error("Invalid historical diff state");
-  return result;
+  return withDiffSyntax(diff, file.path, language, () => readSide(file.old), () => readSide(file.new));
 }

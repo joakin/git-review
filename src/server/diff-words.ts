@@ -10,6 +10,7 @@ const maxSpansPerLine = 256;
 type Unit = { text: string; start: number; end: number };
 type LineUnits = { line: DiffLine; units: Unit[]; counts: Map<string, number>; weight: number };
 type Pair = { old: LineUnits; next: LineUnits };
+type TextDiff = Extract<DiffResult, { kind: "text" }>;
 
 function unitsFor(line: DiffLine): LineUnits | null {
   if (line.text.length > maxLineLength) return null;
@@ -143,8 +144,7 @@ function wordSpans(old: Unit[], next: Unit[]): { old: TextSpan[]; next: TextSpan
   return { old: oldSpans, next: nextSpans };
 }
 
-export function withWordDetails(diff: DiffResult): DiffResult {
-  if (diff.kind !== "text") return diff;
+export function withWordDetails(diff: TextDiff): TextDiff {
   let linePairBudget = 100_000;
   let tokenCellBudget = 2_000_000;
   for (const hunk of diff.hunks) {

@@ -20,6 +20,8 @@ The response is a discriminated union: `text` with hunks, `media`, `binary`, `to
 
 For staged files, compare `HEAD` to index; for unstaged files, compare index to working tree; for untracked files, treat the old side as empty. Git uses fixed argument arrays, literal pathspecs, `--no-ext-diff`, `--no-textconv`, `--no-color`, three context lines, and `--` before paths. The parser validates hunk headers, row counts, and line prefixes. Untracked files are read only after realpath containment and with `O_NOFOLLOW`. Input is bounded to 1 MiB for untracked files, 2 MiB for patches, and 20,000 diff lines. A repository without a first commit produces staged additions against an empty old tree.
 
+The pure `parseGitPatch` and `diffFromContent` functions return a private text/binary/size-limit union. Conflict and stale states belong to working-copy status/filesystem/version boundaries; media belongs to its preview boundary. Syntax and word decoration accept and return text only. [M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records the narrower internal contracts, unchanged limits/fallbacks, and regression evidence.
+
 ## Edge cases
 
 - A path can have one staged and one unstaged card with different content.

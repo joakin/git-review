@@ -20,6 +20,8 @@ The server maps Shiki scope stacks to those stable roles in `src/server/syntax.t
 
 The server tokenizes bounded old and new file snapshots separately, then maps old-side tokens to removed rows and new-side tokens to added and context rows by line number. This preserves multiline grammar state across distant hunks. It reads only the sides needed for a selected card: `HEAD`/index for staged, index/working tree for unstaged, and working tree for untracked. It uses the existing root containment, no-shell Git calls, size limits, and stale checks. It never follows a working-tree path outside the approved root. If a snapshot cannot be read safely, decoded, or aligned exactly, it returns the valid plain diff. Token result caching can be added if profiling shows a need; the server currently reuses the highlighter and loaded grammars.
 
+[withDiffSyntax](../src/server/diff-syntax.ts) accepts and returns the canonical text-diff variant. Callers handle non-text outcomes before decoration. This contract permits syntax fields to change while keeping the result text; it does not promise to preserve a caller's narrower syntax state. [M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records the contract and no-read/fallback tests.
+
 ## Edge cases and checks
 
 - Renames and deletions need the correct old path and side; two layers of one path may have different tokenization and content.

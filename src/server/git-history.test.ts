@@ -58,6 +58,26 @@ test("commit inspection reads immutable full messages, root/parent diffs and fil
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
+test("historical binary and oversized content keep their variants for root and parent comparisons", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "git-review-history-content-"));
+  try {
+    git(directory, "init", "-q", "-b", "main");
+    await writeFile(join(directory, "binary.dat"), Buffer.from([0, 1, 2]));
+    await writeFile(join(directory, "large.txt"), "a".repeat(1024 * 1024 + 1));
+    const first = commit(directory, "Add non-text content");
+    await writeFile(join(directory, "binary.dat"), Buffer.from([0, 2, 3]));
+    await writeFile(join(directory, "large.txt"), "b".repeat(1024 * 1024 + 1));
+    const second = commit(directory, "Replace non-text content");
+    const root = await approveRoot(directory);
+    const project = await openProject(root, "");
+    for (const oid of [first, second]) {
+      const detail = await readCommit(project, oid);
+      expect(await readCommitDiff(project, detail, file(detail, "binary.dat"), null)).toEqual({ kind: "binary", reason: "binary" });
+      expect(await readCommitDiff(project, detail, file(detail, "large.txt"), null)).toEqual({ kind: "too_large" });
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
 test("branches, detached/unborn states, pagination snapshots, merges and empty commits", async () => {
   const directory = await mkdtemp(join(tmpdir(), "git-review-history-list-"));
   try {

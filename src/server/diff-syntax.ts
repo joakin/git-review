@@ -1,9 +1,11 @@
 import type { DiffResult } from "../shared/api.ts";
 import { detectLanguage, highlightSource } from "./syntax.ts";
 
+type TextDiff = Extract<DiffResult, { kind: "text" }>;
+
 // Read complete source snapshots so multiline grammar state survives hunk boundaries.
-export async function withDiffSyntax(diff: DiffResult, path: string, override: string | null, readOld: () => Promise<string | null>, readNew: () => Promise<string | null>): Promise<DiffResult> {
-  if (diff.kind !== "text" || diff.hunks.length === 0) return diff;
+export async function withDiffSyntax(diff: TextDiff, path: string, override: string | null, readOld: () => Promise<string | null>, readNew: () => Promise<string | null>): Promise<TextDiff> {
+  if (diff.hunks.length === 0) return diff;
   if (override === "text") return { ...diff, syntax: { kind: "plain", reason: "selected" } };
   const language = override ?? detectLanguage(path);
   if (language === null) return { ...diff, syntax: { kind: "plain", reason: "unknown_language" } };
