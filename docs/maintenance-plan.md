@@ -1,6 +1,6 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M08 and M09a–M09b committed; M09c feedback owner accepted for commit; M09d project/session owner authorized
+Status: in progress; M01–M08 and M09a–M09c committed; M09d project/session owner accepted for commit; M09e working-copy owner authorized
 
 Created: 2026-09-30
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01–M08 and M09a–M09b are accepted and committed. M09c is accepted for commit. M09d–M15 remain pending, with the project/session owner authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
+M01–M08 and M09a–M09c are accepted and committed. M09d is accepted for commit. M09e–M15 remain pending, with the working-copy owner authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -232,7 +232,7 @@ Each row below is a separate reviewable substep. Proposed names are illustrative
 | M09a | [Appearance/preferences owner](../src/client/appearance-preferences.ts): typed preferences and change/reset actions; owns storage events, system theme, theme application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa:themes`, `qa:typography`, relevant PWA checks |
 | M09b | [Shared modal hook](../src/client/modal.ts) used directly by installation and feedback dialogs | Focus/cancel/close behavior and voice/editor lifetime; modal, feedback, voice, and PWA checks |
 | M09c | [Feedback owner](../src/client/review-feedback.ts): store/editor/operation state and edit/check/copy/undo/reattach actions | M03 transaction rules, conservative anchors, persistence and navigation saving |
-| M09d | Project/session controller: resolved project/opening/error state and project-opening actions | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks |
+| M09d | [Project/session owner](../src/client/project-session.ts): resolved project/opening/error state and project-opening actions | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks |
 | M09e | Working-copy review controller: displayed status, pending-update state and refresh/accept/toggle actions | Polling pauses/resumes, serialized requests, loaded snapshot, card preferences, review position; live-change/loading/navigation checks |
 | M09f | Presentational project picker, Files sidebar, and Changes content | Explicit small props; current phone/tablet/desktop hierarchy, focus, wrapping and overflow |
 
@@ -258,11 +258,19 @@ The [handoff below](#m09b-handoff--2026-10-02) records verification and captures
 
 ### M09c — Feedback session ownership
 
-**Status:** implemented, verified, and accepted 2026-10-03; approved for commit.
+**Status:** implemented, verified, accepted, and committed as `96f9f4f` on 2026-10-03 after explicit approval.
 
 **Decision:** one [feedback owner](../src/client/review-feedback.ts) hides persistence, editor saving, preview, Undo, and reattachment behind explicit scoped values and actions. App announces navigation and accepted project opening, and retains URL ownership and polling policy. The owner saves the latest editor synchronously before a destination change, retains a hidden same-project session through the picker, and keeps one transaction instance for the App lifetime so an issued clipboard write keeps its lease across project switches. Closing Feedback alone permits copy completion; editing or navigation cancels its ownership. Dialogs identify drafts by ID so actions use the current record. Storage formats, anchor checks, and the transaction engine are unchanged.
 
 The [handoff below](#m09c-handoff--2026-10-03) records verification and captures.
+
+### M09d — Project/session ownership
+
+**Status:** implemented, verified, and accepted 2026-10-03; approved for commit.
+
+**Decision:** one [project/session owner](../src/client/project-session.ts) owns connection, accepted handles, opening/error variants, recents, and per-tab persistence behind scoped values and select/restore commands. App keeps URL ownership and other domains respond to opening/acceptance events. Acceptance checks the live route, current root, request identity, and cancellation before initialization or persistence. Returning through the picker reuses the handle; explicit picker selection renews it. Root completion checks the current URL, and workspace migration precedes default restoration. Directory loading, working-copy state, and storage formats remain in their existing boundaries.
+
+The [handoff below](#m09d-handoff--2026-10-03) records verification and captures.
 
 ## M10 — Share diff loading and language controls
 
@@ -526,5 +534,14 @@ Use this compact entry for each handoff:
 - **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. Feedback, all nine transaction scenarios, modals, voice, PWA, navigation, loading, tabs, and live-change browser checks pass. New cases cover copy completion/Undo after closing Feedback, a held clipboard lease across a real project switch with both stores isolated, Cancel/Old-side reattachment and checked export, persistent Delete, exact latest-body saving across Back and project changes, and editor/Feedback polling pause and close resume. The second-project transaction case uses real project identity/navigation with controlled Git responses; clipboard and voice promises remain controlled. Independent source and QA review found no material concern; local links and whitespace checks pass.
 - **Captures:** inspected the checked preview at [phone](../qa/screenshots/maintenance-m09c-feedback/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09c-feedback/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09c-feedback/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09c-feedback/desktop.png) sizes. Source, feedback, selectable export, and controls remain intact; the [manifest](../qa/screenshots/maintenance-m09c-feedback/manifest.json) records no horizontal overflow.
 - **Delivery and limits:** rebuilt assets match the maintained HTTP/HTTPS apps and health checks pass. The isolated QA server was stopped. Chrome emulation was checked; no new real-device gestures, microphone, clipboard, keyboard, or installed-app checks were performed.
-- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-03.
+- **Review/commit:** accepted and committed as `96f9f4f` after explicit maintainer approval on 2026-10-03.
 - **Next authorized step:** M09d, extract the project/session owner while preserving accepted-open identity, canceled-opening recovery, recents, and per-tab restoration.
+
+### M09d handoff — 2026-10-03
+
+- **Result:** [project-session.ts](../src/client/project-session.ts) owns root connection, accepted handles, opening/error variants, recents, and tab selection behind explicit values and two select/restore commands. App keeps URLs and announces resource events to feedback and working-copy state. Cached return and explicit picker renewal retain their distinct lifetimes; accepted opening checks the live route, request, root, and cancellation before initializing or persisting. Storage formats are unchanged. M09c is committed as `96f9f4f`.
+- **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. Tabs, loading, navigation, PWA, feedback, all nine feedback transaction scenarios, and live-change browser checks pass. Strengthened checks prove independent restoration from bare `/`, explicit-link priority, deterministic migration, and preservation of Settings after a held root response. The ordinary failure case now starts from an accepted selection, verifies exact saved-state preservation, and validates recovery updates the active project and recents while retaining the prior recent. Existing held-open checks pass at 320, 390, 820, 1180, and 1440 px, including completion before effect cleanup, late success/error, canceled retry, cached return, and explicit renewal. Independent source and QA review found no remaining concern; local links and whitespace checks pass.
+- **Captures:** inspected the picker and recent folders at [phone](../qa/screenshots/maintenance-m09d-project-picker/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09d-project-picker/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09d-project-picker/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09d-project-picker/desktop.png) sizes. Root identity, folder controls, recents, and responsive panes remain intact; the [manifest](../qa/screenshots/maintenance-m09d-project-picker/manifest.json) records no horizontal overflow.
+- **Delivery and limits:** maintained HTTP/HTTPS health and rebuilt asset-byte checks pass. The isolated QA server was stopped. Checks used Chrome emulation and controlled request/clipboard responses; no new real-device gesture, clipboard, keyboard, or installed-app checks were performed.
+- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-03.
+- **Next authorized step:** M09e, extract working-copy review ownership while preserving polling, displayed snapshots, update acceptance, card preferences, and reading position.

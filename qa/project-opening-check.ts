@@ -1,5 +1,6 @@
+import { resolve } from "node:path";
 import type { Browser, Page } from "playwright-core";
-import { workspaceStorageKey } from "../src/client/storage.ts";
+import { parseActiveProject, validateSavedWorkspace, workspaceStorageKey } from "../src/client/storage.ts";
 
 declare global {
   interface Window {
@@ -162,25 +163,43 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
   }
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: "block" });
+  context.setDefaultTimeout(10_000);
   try {
     const page = await context.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(new URL("/?section=changes&project=other-project", base).href);
+    await page.getByRole("button", { name: "Feedback 0", exact: true }).waitFor({ state: "visible" });
+    const beforeStorage = await selectedStorage(page);
+    assert(beforeStorage.includes("other-project"), "The initial project was not accepted and persisted");
     let opens = 0;
     await page.route("**/api/projects/open", async (route) => {
       opens += 1;
       if (opens === 1) await route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: { code: "invalid_request", message: "Controlled project-open failure" } }) });
       else await route.continue();
     });
-    await page.goto(pickerUrl);
+    await page.getByRole("button", { name: "Open workspace menu", exact: true }).click();
+    await page.getByRole("button", { name: "Choose a project", exact: true }).click();
+    await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
     await pickerReady(page, pickerUrl);
     await page.locator(".open-button").click();
     await page.locator("main [role=alert]").filter({ hasText: "Controlled project-open failure" }).waitFor();
+    assert(await selectedStorage(page) === beforeStorage, "Failed opening replaced the last accepted tab selection or recents");
     await page.getByRole("button", { name: "Choose another project" }).click();
     await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
     await pickerReady(page, pickerUrl);
     await page.locator(".open-button").click();
     await page.locator("main .diff-card").first().waitFor();
     assert(opens === 2, "Failure recovery did not send exactly one retry");
-    console.log("Non-aborted project-open failure and explicit recovery/retry passed.");
+    const recovered = await page.evaluate((key) => ({
+      active: JSON.parse(sessionStorage.getItem("git-review:active-project:v1") ?? "null") as unknown,
+      workspace: JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
+    }), workspaceStorageKey);
+    const approvedRoot = resolve("qa/.artifacts");
+    const workspace = validateSavedWorkspace(recovered.workspace, approvedRoot);
+    assert(parseActiveProject(recovered.active, approvedRoot) === "inventory-fixture" && workspace?.recentPaths[0] === "inventory-fixture" && workspace.recentPaths.includes("other-project"), "Successful recovery did not select inventory-fixture and retain the prior recent project");
+    assert(errors.length === 0, errors.join("; "));
+    console.log("Non-aborted project-open failure preserves the accepted tab selection and recents; explicit recovery/retry passed.");
   } finally {
     await context.close();
   }

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectStatus, fetchProjectTree } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
 import { CommitViewer } from "./CommitViewer.tsx";
@@ -9,14 +9,15 @@ import { DelayedLoading } from "./DelayedLoading.tsx";
 import { Icon } from "./Icons.tsx";
 import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
+import { useProjectSession } from "./project-session.ts";
 import { useReviewFeedback } from "./review-feedback.ts";
 import { CommentEditor, FeedbackDialog } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, parseNavigationSearch, routeProjectPath, routeSection, routeUrl, type Route, type RouteState } from "./navigation.ts";
-import { emptyWorkspace, readActiveProject, readOpenCards, readSavedWorkspace, readWrapPreference, saveActiveProject, saveOpenCards, saveWorkspace, saveWrapPreference, withSelectedPath, type SavedWorkspace } from "./storage.ts";
-import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, Project, ProjectStatus, RootInfo, SearchMatch } from "../shared/api.ts";
+import { readOpenCards, readWrapPreference, saveOpenCards, saveWrapPreference } from "./storage.ts";
+import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, ProjectStatus, SearchMatch } from "../shared/api.ts";
 
 type LoadState<T> =
   | { kind: "loading" }
@@ -64,11 +65,7 @@ function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; 
 }
 
 export function App() {
-  const [saved, setSaved] = useState<SavedWorkspace>(() => emptyWorkspace(""));
-  const [root, setRoot] = useState<LoadState<RootInfo>>({ kind: "loading" });
   const [listingLoad, setListingLoad] = useState<{ key: string; state: LoadState<DirectoryListing> }>({ key: "", state: { kind: "loading" } });
-  const [openedProject, setOpenedProject] = useState<Project | null>(null);
-  const openedProjectRef = useRef<Project | null>(null);
   const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
   const [statusRefresh, setStatusRefresh] = useState(0);
   const [pendingUpdate, setPendingUpdate] = useState(false);
@@ -85,18 +82,13 @@ export function App() {
   const routeRef = useRef<Route | null>(route);
   const focusedChangesRoute = useRef<Route | null>(null);
   const routeProject = route === null ? null : routeProjectPath(route);
-  const project = openedProject?.path === routeProject ? openedProject : null;
   const viewMode = route === null ? null : routeSection(route);
   const gitRoute = route?.section === "git" ? route : null;
   const path = route?.section === "projects" ? route.directory : "";
   const listing = listingLoad.key === path ? listingLoad.state : { kind: "loading" } as const;
   const treePath = route?.section === "files" ? route.directory : route?.section === "search" && route.target.kind === "file" ? parentDirectory(route.target.path) : "";
-  const treeKey = project === null ? null : `${project.id}\0${treePath}`;
-  const tree = treeKey !== null && treeLoad?.key === treeKey ? treeLoad.state : { kind: "loading" } as const;
   const selectedFile = route?.section === "files" && route.target.kind === "file" || route?.section === "search" && route.target.kind === "file" ? route.target.path : null;
   const submittedQuery = route?.section === "search" ? route.query : null;
-  const searchKey = project === null ? null : `${project.id}\0${submittedQuery ?? ""}`;
-  const searchState = searchKey === null ? { kind: "idle" } as const : searchLoad?.key === searchKey ? searchLoad.state : submittedQuery === null ? { kind: "idle" } as const : { kind: "loading" } as const;
   const searchTarget = route?.section === "search" && route.target.kind === "file" && route.query !== null ? { path: route.target.path, line: route.target.line, query: route.query } : route?.section === "files" && route.target.kind === "file" && route.target.line !== null ? { path: route.target.path, line: route.target.line, query: null } : null;
   const [refreshing, setRefreshing] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
@@ -108,11 +100,32 @@ export function App() {
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [opening, setOpening] = useState(false);
-  const [projectOpenError, setProjectOpenError] = useState<{ path: string; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [installDataOpen, setInstallDataOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const session = useProjectSession({
+    projectPath: routeProject,
+    readCurrentProjectPath: () => routeRef.current === null ? null : routeProjectPath(routeRef.current),
+    onRestoreProject: (path) => navigate(path === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: path, target: { kind: "all" } }, "replace"),
+    onSelectProject: (path) => navigate({ section: "changes", projectPath: path, target: { kind: "all" } }),
+    onNotice: setNotice,
+    onOpening: () => {
+      setStatus({ kind: "loading" });
+      setPendingUpdate(false);
+      setChangeCheckError(false);
+      reviewPosition.current = null;
+      feedback.actions.beginProjectOpen();
+    },
+    onOpened: (project) => {
+      feedback.actions.loadProject(project);
+      setExpandedKeys(readOpenCards(project.id));
+    },
+  });
+  const { root, project, opening, openError: projectOpenError, recentPaths } = session.model;
+  const treeKey = project === null ? null : `${project.id}\0${treePath}`;
+  const tree = treeKey !== null && treeLoad?.key === treeKey ? treeLoad.state : { kind: "loading" } as const;
+  const searchKey = project === null ? null : `${project.id}\0${submittedQuery ?? ""}`;
+  const searchState = searchKey === null ? { kind: "idle" } as const : searchLoad?.key === searchKey ? searchLoad.state : submittedQuery === null ? { kind: "idle" } as const : { kind: "loading" } as const;
   const git = useGitBrowser(project, gitRoute);
   const lastGitRefs = useRef(new Map<string, string>());
   const feedback = useReviewFeedback({
@@ -161,8 +174,7 @@ export function App() {
       if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
       const parsed = parseNavigationSearch(window.location.search);
       if (parsed.kind === "empty" && root.kind === "ready") {
-        const active = readActiveProject(root.value.path);
-        navigate(active === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: active, target: { kind: "all" } }, "replace");
+        session.actions.restoreDefaultRoute();
       } else {
         routeRef.current = parsed.kind === "ready" ? parsed.route : null;
         setDrawerOpen(false);
@@ -210,69 +222,6 @@ export function App() {
     );
     return () => controller.abort();
   }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    async function connect(): Promise<void> {
-      try {
-        const value = await fetchRoot(controller.signal);
-        if (controller.signal.aborted) return;
-        const restored = readSavedWorkspace(value.path);
-        setSaved(restored);
-        setRoot({ kind: "ready", value });
-        if (parseNavigationSearch(window.location.search).kind === "empty") {
-          const activePath = readActiveProject(value.path);
-          navigate(activePath === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: activePath, target: { kind: "all" } }, "replace");
-        }
-      } catch (error: unknown) {
-        if (!controller.signal.aborted) setRoot({ kind: "error", message: messageFor(error) });
-      }
-    }
-    void connect();
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (root.kind !== "ready" || routeProject === null || openedProjectRef.current?.path === routeProject) {
-      setOpening(false);
-      return;
-    }
-    const controller = new AbortController();
-    setOpening(true);
-    setProjectOpenError(null);
-    setStatus({ kind: "loading" });
-    setPendingUpdate(false);
-    setChangeCheckError(false);
-    reviewPosition.current = null;
-    openedProjectRef.current = null;
-    setOpenedProject(null);
-    feedback.actions.beginProjectOpen();
-    // Route references change before effect cleanup aborts the old request.
-    const isCurrentOpen = (): boolean => !controller.signal.aborted && routeRef.current !== null && routeProjectPath(routeRef.current) === routeProject;
-    openProject(routeProject, controller.signal).then(
-      (selected) => {
-        if (!isCurrentOpen()) return;
-        openedProjectRef.current = selected;
-        setOpenedProject(selected);
-        feedback.actions.loadProject(selected);
-        setExpandedKeys(readOpenCards(selected.id));
-        saveActiveProject(root.value.path, selected.path);
-        setSaved((current) => {
-          const scoped = current.rootPath === root.value.path ? current : emptyWorkspace(root.value.path);
-          const next = withSelectedPath(scoped, selected.path);
-          saveWorkspace(next);
-          return next;
-        });
-        setOpening(false);
-      },
-      (error: unknown) => {
-        if (!isCurrentOpen()) return;
-        setProjectOpenError({ path: routeProject, message: messageFor(error) });
-        setOpening(false);
-      },
-    );
-    return () => controller.abort();
-  }, [root, routeProject]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -432,20 +381,6 @@ export function App() {
     if (project !== null) saveOpenCards(project.id, expandedKeys);
   }, [project, expandedKeys]);
 
-  function selectFolder(selectedPath: string): void {
-    if (opening) return;
-    if (root.kind !== "ready") {
-      setNotice("The host folder root is not available yet.");
-      return;
-    }
-    setNotice(null);
-    if (routeProject !== selectedPath && openedProjectRef.current?.path === selectedPath) {
-      openedProjectRef.current = null;
-      setOpenedProject(null);
-    }
-    navigate({ section: "changes", projectPath: selectedPath, target: { kind: "all" } });
-  }
-
   function toggleEntry(entry: ChangeEntry): void {
     const key = diffCardKey(entry);
     setExpandedKeys((current) => {
@@ -568,7 +503,7 @@ export function App() {
         <aside class={`workspace-menu${menuOpen ? " workspace-menu-open" : ""}`} aria-label="Workspace menu">
           <div class="workspace-menu-head"><button class="icon-button close-menu" type="button" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)}>×</button></div>
           <button class="menu-project" type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Choose a project <span aria-hidden="true">→</span></button>
-          {saved.recentPaths.length > 0 && <div class="menu-recents"><span class="section-label">RECENT PROJECTS</span>{saved.recentPaths.map((recentPath) => <button type="button" key={recentPath} onClick={() => selectFolder(recentPath)}><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></button>)}</div>}
+          {recentPaths.length > 0 && <div class="menu-recents"><span class="section-label">RECENT PROJECTS</span>{recentPaths.map((recentPath) => <button type="button" key={recentPath} onClick={() => session.actions.selectFolder(recentPath)}><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></button>)}</div>}
           <button class="sidebar-settings" type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings <span aria-hidden="true">⚙</span></button>
         </aside>
         {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
@@ -623,7 +558,7 @@ export function App() {
               <strong title={path}>{folderLabel}</strong>
             </div>
             <span class="folder-path">{path === "" ? "/" : `/${path}`}</span>
-            <button class="open-button" type="button" disabled={root.kind !== "ready" || listing.kind !== "ready" || opening} onClick={() => selectFolder(path)}>
+            <button class="open-button" type="button" disabled={root.kind !== "ready" || listing.kind !== "ready" || opening} onClick={() => session.actions.selectFolder(path)}>
               {opening ? "Opening…" : "Open this folder"} <span aria-hidden="true">↗</span>
             </button>
           </div>
@@ -647,11 +582,11 @@ export function App() {
             ))}
           </div>
 
-          {saved.recentPaths.length > 0 && (
+          {recentPaths.length > 0 && (
             <div class="recent-section">
               <span class="section-label">RECENT FOLDERS</span>
-              {saved.recentPaths.map((recentPath) => (
-                <button class="recent-row" type="button" key={recentPath} onClick={() => selectFolder(recentPath)}>
+              {recentPaths.map((recentPath) => (
+                <button class="recent-row" type="button" key={recentPath} onClick={() => session.actions.selectFolder(recentPath)}>
                   <span aria-hidden="true">↺</span>
                   <span><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></span>
                 </button>

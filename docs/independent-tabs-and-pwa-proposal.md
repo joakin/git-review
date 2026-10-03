@@ -19,6 +19,8 @@ The original phone address used HTTP on port 39878. The installed app now uses p
 
 ### State and API shape
 
+The [project/session owner](../src/client/project-session.ts) owns connection, restoration, and accepted-selection persistence. URL changes stay with App, and the storage module owns formats and migration.
+
 - `localStorage`: versioned `{ rootPath, recentPaths }` record, plus existing project-keyed comments/history, wrap, open cards, and language overrides.
 - `sessionStorage`: versioned `{ rootPath, activePath }` record for the current tab. Validate types, size, and approved-root identity before use; still call `POST /api/projects/open` so the server revalidates the path.
 - Keep the existing `POST /api/projects/open`, status, and diff APIs. The server's project map is keyed by project ID and has no global active-project pointer.
