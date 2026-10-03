@@ -41,6 +41,8 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 
 [Appearance preferences](../src/client/appearance-preferences.ts) owns live appearance and typography for the App lifetime. Settings consumes values and change/reset commands; the storage module remains the format boundary shared with backups and the prepaint theme bootstrap.
 
+[The shared modal hook](../src/client/modal.ts) owns browser presentation for mounted dialogs. Each dialog's owner keeps its close action, saved data, and pending work; native dialog behavior supplies focus handling.
+
 ## Current scope and limits
 
 - Files reads the working tree. Comments anchor to working-copy Git diff lines; general file comments are not implemented. Git opens historical commit comparisons with line information and media; historical comments, file-specific history, and a full old-tree browser remain optional later work.

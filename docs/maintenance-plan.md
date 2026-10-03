@@ -1,10 +1,10 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M08 committed; M09a appearance/preferences accepted for commit; M09b shared modal authorized
+Status: in progress; M01–M08 and M09a committed; M09b shared modal accepted for commit; M09c feedback owner authorized
 
 Created: 2026-09-30
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 
 The maintainer requested this bounded maintenance pass after closing the initial implementation stage and gave the implementation go-ahead on 2026-10-01. Each handoff below records its decision, verification, review, and commit approval. Completed slices stay uncommitted for maintainer review.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01–M08 are accepted and committed. M09a is accepted for commit. M09b–M15 remain pending, with the shared modal primitive authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
+M01–M08 and M09a are accepted and committed. M09b is accepted for commit. M09c–M15 remain pending, with the feedback owner authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -230,7 +230,7 @@ Each row below is a separate reviewable substep. Proposed names are illustrative
 | Substep | Owner and interface | Important invariants/checks |
 | --- | --- | --- |
 | M09a | [Appearance/preferences owner](../src/client/appearance-preferences.ts): typed preferences and change/reset actions; owns storage events, system theme, theme application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa:themes`, `qa:typography`, relevant PWA checks |
-| M09b | Shared modal primitive used directly by installation and feedback dialogs | Focus/cancel/close behavior and voice/editor lifetime; feedback and PWA checks |
+| M09b | [Shared modal hook](../src/client/modal.ts) used directly by installation and feedback dialogs | Focus/cancel/close behavior and voice/editor lifetime; modal, feedback, voice, and PWA checks |
 | M09c | Feedback controller: store/editor/operation state and edit/check/copy/undo/reattach actions | M03 transaction rules, conservative anchors, persistence and navigation saving |
 | M09d | Project/session controller: resolved project/opening/error state and project-opening actions | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks |
 | M09e | Working-copy review controller: displayed status, pending-update state and refresh/accept/toggle actions | Polling pauses/resumes, serialized requests, loaded snapshot, card preferences, review position; live-change/loading/navigation checks |
@@ -242,11 +242,19 @@ Keep Files/Search resource state keyed to its current project/path/query. Extrac
 
 ### M09a — Appearance and typography ownership
 
-**Status:** implemented and accepted 2026-10-02; approved for commit.
+**Status:** implemented and accepted 2026-10-02, committed as `8eab286` after explicit approval.
 
 **Decision:** preferences share the whole App lifetime, independent of Settings or the selected project. One owner hides storage synchronization, system-theme tracking, theme application, and font loading behind typed values and change/reset commands. Settings delegates resets so defaults have one source. App applies typography to its existing shell element; wrapping remains with the review views. The storage boundary and separate prepaint bootstrap retain their existing roles.
 
 The [handoff below](#m09a-handoff--2026-10-02) records verification and captures. The [documentation map](README.md#where-state-belongs) identifies the owner; engineering conventions remain general principles.
+
+### M09b — Shared modal ownership
+
+**Status:** implemented 2026-10-02, accepted 2026-10-03 and approved for commit.
+
+**Decision:** installation depended on a feedback view module solely to reuse modal behavior. A shared hook now owns browser presentation behind an explicit ref/cancel contract. Dialog owners retain their close actions, saved data, and pending work; the native dialog retains its focus policy. This keeps presentation reusable without tying unrelated workflows together. The hook body is unchanged.
+
+The [handoff below](#m09b-handoff--2026-10-02) records verification and captures.
 
 ## M10 — Share diff loading and language controls
 
@@ -491,5 +499,15 @@ Use this compact entry for each handoff:
 - **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. `qa:themes`, `qa:typography`, and `qa:pwa` pass, covering palettes, system changes, prepaint loading, real Google font loading, review position, persistence, cross-tab updates, and backup export/import. New browser cases cover independent resets and persistence, malformed/cleared cross-tab storage, in-memory updates and reload with storage denied, and visible/contained code plus reset after blocking both Google font hosts. Independent source/QA/documentation review found no remaining concern; local links and whitespace checks pass.
 - **Captures:** inspected full-page Settings with a dark app, light code, and 20 px Courier at [phone](../qa/screenshots/maintenance-m09a-settings/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09a-settings/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09a-settings/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09a-settings/desktop.png) sizes. Controls and previews remain intact; the [manifest](../qa/screenshots/maintenance-m09a-settings/manifest.json) records no horizontal overflow.
 - **Delivery and limits:** rebuilt assets match the maintained HTTP/HTTPS apps and health checks pass. The isolated QA server was stopped. Browser emulation was checked; no new real-device or installed-app gesture checks were performed. The blocked-font check verifies usable rendering and the available fallback stack, not the exact font face selected by the operating system.
-- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-02.
+- **Review/commit:** accepted and committed as `8eab286` after explicit maintainer approval on 2026-10-02.
 - **Next authorized step:** M09b, move the shared modal primitive to its own owner for installation and feedback dialogs.
+
+### M09b handoff — 2026-10-02
+
+- **Result:** [modal.ts](../src/client/modal.ts) owns the shared presentation hook. Installation and both review dialogs import it directly. The implementation body matches committed `8eab286` exactly; the new private return contract exposes only its ref and cancel handler. M09a is committed as `8eab286`.
+- **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. `qa:feedback`, `qa:feedback-transactions`, `qa:pwa`, and the extended `qa:voice` pass. Voice dismissal checks stop the mocked microphone without uploading, preserve typed feedback, and protect a reopened editor from a held transcription's late result; held-request waits have bounded cleanup.
+- **Modal checks:** `qa:modals` passes at 390, 820, 1180, and 1440 px plus 320 px installation containment. It covers native presentation/focus, keyboard navigation without focusing background controls, inside interactions, Escape/header/backdrop dismissal, exact scroll-lock cleanup, Feedback-to-editor handoff, and latest-body saving. Header/Escape restore stable opener focus; backdrop dismissal leaves the background usable with the existing native focus behavior. Independent production and voice-QA review found no remaining concern.
+- **Captures:** inspected the editor and idle voice footer at [phone](../qa/screenshots/maintenance-m09b-editor/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09b-editor/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09b-editor/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09b-editor/desktop.png) sizes. Controls, text, and source context remain intact; the [manifest](../qa/screenshots/maintenance-m09b-editor/manifest.json) records no horizontal overflow.
+- **Delivery and limits:** maintained HTTP/HTTPS health and rebuilt asset-byte checks pass. The isolated QA server was stopped. Checks used Chrome emulation and a mocked recorder/transcription endpoint; no new real-device gestures, microphone, clipboard, keyboard, or installed-app checks were performed.
+- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-03.
+- **Next authorized step:** M09c, extract the feedback owner from App while preserving the existing transaction and editor lifetimes.

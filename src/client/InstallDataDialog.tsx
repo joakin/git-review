@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { applyReviewBackup, createReviewBackup, maxBackupBytes, parseReviewBackup, type ReviewBackup } from "./backup.ts";
 import { readCommentStore } from "./comments.ts";
-import { useModal } from "./ReviewDialogs.tsx";
+import { useModal } from "./modal.ts";
 
 export type InstallPromptEvent = Event & { prompt: () => Promise<void> };
 

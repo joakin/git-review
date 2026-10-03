@@ -1,39 +1,10 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import { maxBodyLength, snapshotFeedback, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
 import { useVoiceComment, VoiceCommentFooter } from "./VoiceComment.tsx";
 import type { FeedbackState } from "./feedback-transactions.ts";
+import { useModal } from "./modal.ts";
 
 export type EditorState = { anchor: CommentAnchor; draftId: string | null; body: string };
-
-export function useModal(onClose: () => void) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-  useEffect(() => {
-    const dialog = ref.current;
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    dialog?.showModal();
-    const onPointerDown = (event: PointerEvent) => {
-      if (dialog === null || !dialog.open) return;
-      const rect = dialog.getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeRef.current();
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      dialog?.close();
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
-    };
-  }, []);
-  return {
-    ref,
-    onCancel: (event: Event) => { event.preventDefault(); onClose(); },
-  };
-}
 
 function anchorLabel(anchor: CommentAnchor): string {
   return `${anchor.layer} · ${anchor.side} line ${anchor.line}`;
