@@ -1,11 +1,14 @@
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { chromium, type Page, type Route } from "playwright-core";
 import { responseBody } from "../src/client/api.ts";
 import { anchorForLine, validateCommentStore, type CommentStore, type DraftComment } from "../src/client/comments.ts";
-import { parseDiffResponse, parseProjectResponse, parseRootResponse, parseStatusResponse } from "../src/shared/api.ts";
+import { parseDiffResponse, parseProjectResponse, parseRootResponse, parseStatusResponse, type Project } from "../src/shared/api.ts";
 
 const appUrl = process.argv[2];
 const baselineBundle = process.argv[3];
 if (appUrl === undefined) throw new Error("Usage: bun qa/check-feedback-transactions.ts <local app URL> [baseline main.js]");
+await mkdir(resolve("qa/.artifacts/other-project"), { recursive: true });
 const origin = new URL(appUrl).origin;
 const root = parseRootResponse(await responseBody(await fetch(`${origin}/api/roots`)));
 const project = parseProjectResponse(await responseBody(await fetch(`${origin}/api/projects/open`, {
@@ -39,9 +42,9 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function readStore(page: Page): Promise<CommentStore> {
-  const raw: unknown = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown, storageKey);
-  const store = validateCommentStore(raw, project.id);
+async function readStore(page: Page, target: Project = project): Promise<CommentStore> {
+  const raw: unknown = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown, `git-review:comments:v1:${target.id}`);
+  const store = validateCommentStore(raw, target.id);
   if (store === null) throw new Error("Persisted comments became invalid");
   return store;
 }
@@ -198,6 +201,27 @@ try {
     await edit(page, "Edit after returning to project");
     await release();
     assert((await readStore(page)).drafts[0]?.body === "Edit after returning to project", "A check from an old destination overwrote the current store");
+    await openFeedback(page); await ready(page);
+    assert((await page.locator("#review-export-text").inputValue()).includes("Edit after returning to project"), "Navigation recovery exported an older saved body");
+  });
+
+  await scenario("closing Feedback alone lets an issued copy finish and keeps Undo available", async (page) => {
+    await openFeedback(page); await ready(page);
+    await page.getByRole("button", { name: "Copy feedback", exact: true }).click();
+    await pendingClipboard(page, 1);
+    await page.getByRole("button", { name: "Close feedback", exact: true }).click();
+    await page.locator(".feedback-dialog").waitFor({ state: "detached" });
+    await settleClipboard(page);
+    await page.getByRole("button", { name: /^Feedback 0$/ }).waitFor();
+    const copied = await readStore(page);
+    assert(copied.drafts.length === 0 && copied.history.length === 2 && copied.history[0]?.comments[0]?.body === draft.body, "Closing the preview canceled or changed the issued copy");
+    await page.getByRole("button", { name: /^Feedback 0$/ }).click();
+    await page.locator(".feedback-dialog[open]").waitFor();
+    assert(await page.getByRole("button", { name: "Undo last copy", exact: true }).isEnabled(), "Reopening lost Undo for the completed copy");
+    await page.getByRole("button", { name: "Undo last copy", exact: true }).click();
+    await page.getByRole("button", { name: /^Feedback 1$/ }).waitFor();
+    const restored = await readStore(page);
+    assert(restored.drafts[0]?.id === draft.id && restored.drafts[0]?.body === draft.body && restored.history.length === 1 && restored.history[0]?.id === "previous-copy", "Undo did not restore the closed-preview copy without replacing older history");
   });
 
   await scenario("navigation away and back ignores a late clipboard success", async (page) => {
@@ -208,6 +232,41 @@ try {
     await settleClipboard(page);
     const store = await readStore(page);
     assert(store.drafts.length === 1 && store.history.length === 1, "An old destination's clipboard success archived current drafts");
+  });
+
+  await scenario("project switching preserves the clipboard lease and isolates both review stores", async (page) => {
+    const other = parseProjectResponse(await responseBody(await fetch(`${origin}/api/projects/open`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "other-project" }),
+    })));
+    const otherSeed: CommentStore = { version: 1, projectId: other.id, drafts: [{ ...draft, id: "other-draft", body: "Other project draft" }], history: [] };
+    assert(validateCommentStore(otherSeed, other.id) !== null, "Invalid second-project seed");
+    await page.evaluate((store) => localStorage.setItem(`git-review:comments:v1:${store.projectId}`, JSON.stringify(store)), otherSeed);
+    // This empty picker fixture uses controlled Git responses; its project identity and SPA transition stay real.
+    await page.route(`**/api/projects/${other.id}/status`, (route) => route.fulfill({ json: status }));
+    await page.route(`**/api/projects/${other.id}/diff?*`, (route) => route.fulfill({ json: diff }));
+    await openFeedback(page); await ready(page);
+    await page.getByRole("button", { name: "Copy feedback", exact: true }).click();
+    await pendingClipboard(page, 1);
+    const before = await readStore(page);
+    await page.getByRole("button", { name: "Close feedback", exact: true }).click();
+    await page.getByRole("button", { name: "Open workspace menu", exact: true }).click();
+    await page.getByRole("button", { name: "Choose a project", exact: true }).click();
+    await page.locator(".folder-row", { hasText: "other-project" }).click();
+    await page.getByRole("button", { name: /Open this folder/ }).click();
+    await page.locator(".project-switch .switch-label").getByText("other-project", { exact: true }).waitFor();
+    await openFeedback(page); await ready(page);
+    const preview = await page.locator("#review-export-text").inputValue();
+    assert(preview.includes(other.absolutePath) && preview.includes("Other project draft") && !preview.includes(draft.body), "The second project's checked preview used the old session");
+    assert(await page.getByRole("button", { name: "Copy feedback", exact: true }).isDisabled(), "Switching projects allowed an overlapping clipboard write");
+    await pendingClipboard(page, 1); await settleClipboard(page);
+    assert(JSON.stringify(await readStore(page)) === JSON.stringify(before), "The old clipboard result archived or changed the first project's review");
+    assert(JSON.stringify(await readStore(page, other)) === JSON.stringify(otherSeed), "The old clipboard result changed the second project's review");
+    await page.getByRole("button", { name: "Copy feedback", exact: true }).click();
+    await pendingClipboard(page, 2); await settleClipboard(page);
+    await page.getByRole("button", { name: /^Feedback 0$/ }).waitFor();
+    const copied = await readStore(page, other);
+    assert(copied.drafts.length === 0 && copied.history.length === 1 && copied.history[0]?.comments[0]?.body === "Other project draft", "Retry did not archive the second project's own draft");
+    assert(JSON.stringify(await readStore(page)) === JSON.stringify(before), "Copying the second project changed the first project's review");
   });
 
   await scenario("clipboard rejection retains selectable text and drafts; reopening permits retry", async (page) => {

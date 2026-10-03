@@ -1,6 +1,6 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M08 and M09a committed; M09b shared modal accepted for commit; M09c feedback owner authorized
+Status: in progress; M01–M08 and M09a–M09b committed; M09c feedback owner accepted for commit; M09d project/session owner authorized
 
 Created: 2026-09-30
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01–M08 and M09a are accepted and committed. M09b is accepted for commit. M09c–M15 remain pending, with the feedback owner authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
+M01–M08 and M09a–M09b are accepted and committed. M09c is accepted for commit. M09d–M15 remain pending, with the project/session owner authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -231,7 +231,7 @@ Each row below is a separate reviewable substep. Proposed names are illustrative
 | --- | --- | --- |
 | M09a | [Appearance/preferences owner](../src/client/appearance-preferences.ts): typed preferences and change/reset actions; owns storage events, system theme, theme application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa:themes`, `qa:typography`, relevant PWA checks |
 | M09b | [Shared modal hook](../src/client/modal.ts) used directly by installation and feedback dialogs | Focus/cancel/close behavior and voice/editor lifetime; modal, feedback, voice, and PWA checks |
-| M09c | Feedback controller: store/editor/operation state and edit/check/copy/undo/reattach actions | M03 transaction rules, conservative anchors, persistence and navigation saving |
+| M09c | [Feedback owner](../src/client/review-feedback.ts): store/editor/operation state and edit/check/copy/undo/reattach actions | M03 transaction rules, conservative anchors, persistence and navigation saving |
 | M09d | Project/session controller: resolved project/opening/error state and project-opening actions | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks |
 | M09e | Working-copy review controller: displayed status, pending-update state and refresh/accept/toggle actions | Polling pauses/resumes, serialized requests, loaded snapshot, card preferences, review position; live-change/loading/navigation checks |
 | M09f | Presentational project picker, Files sidebar, and Changes content | Explicit small props; current phone/tablet/desktop hierarchy, focus, wrapping and overflow |
@@ -250,11 +250,19 @@ The [handoff below](#m09a-handoff--2026-10-02) records verification and captures
 
 ### M09b — Shared modal ownership
 
-**Status:** implemented 2026-10-02, accepted 2026-10-03 and approved for commit.
+**Status:** implemented 2026-10-02, accepted and committed as `5a951ad` on 2026-10-03 after explicit approval.
 
 **Decision:** installation depended on a feedback view module solely to reuse modal behavior. A shared hook now owns browser presentation behind an explicit ref/cancel contract. Dialog owners retain their close actions, saved data, and pending work; the native dialog retains its focus policy. This keeps presentation reusable without tying unrelated workflows together. The hook body is unchanged.
 
 The [handoff below](#m09b-handoff--2026-10-02) records verification and captures.
+
+### M09c — Feedback session ownership
+
+**Status:** implemented, verified, and accepted 2026-10-03; approved for commit.
+
+**Decision:** one [feedback owner](../src/client/review-feedback.ts) hides persistence, editor saving, preview, Undo, and reattachment behind explicit scoped values and actions. App announces navigation and accepted project opening, and retains URL ownership and polling policy. The owner saves the latest editor synchronously before a destination change, retains a hidden same-project session through the picker, and keeps one transaction instance for the App lifetime so an issued clipboard write keeps its lease across project switches. Closing Feedback alone permits copy completion; editing or navigation cancels its ownership. Dialogs identify drafts by ID so actions use the current record. Storage formats, anchor checks, and the transaction engine are unchanged.
+
+The [handoff below](#m09c-handoff--2026-10-03) records verification and captures.
 
 ## M10 — Share diff loading and language controls
 
@@ -509,5 +517,14 @@ Use this compact entry for each handoff:
 - **Modal checks:** `qa:modals` passes at 390, 820, 1180, and 1440 px plus 320 px installation containment. It covers native presentation/focus, keyboard navigation without focusing background controls, inside interactions, Escape/header/backdrop dismissal, exact scroll-lock cleanup, Feedback-to-editor handoff, and latest-body saving. Header/Escape restore stable opener focus; backdrop dismissal leaves the background usable with the existing native focus behavior. Independent production and voice-QA review found no remaining concern.
 - **Captures:** inspected the editor and idle voice footer at [phone](../qa/screenshots/maintenance-m09b-editor/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09b-editor/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09b-editor/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09b-editor/desktop.png) sizes. Controls, text, and source context remain intact; the [manifest](../qa/screenshots/maintenance-m09b-editor/manifest.json) records no horizontal overflow.
 - **Delivery and limits:** maintained HTTP/HTTPS health and rebuilt asset-byte checks pass. The isolated QA server was stopped. Checks used Chrome emulation and a mocked recorder/transcription endpoint; no new real-device gestures, microphone, clipboard, keyboard, or installed-app checks were performed.
-- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-03.
+- **Review/commit:** accepted and committed as `5a951ad` after explicit maintainer approval on 2026-10-03.
 - **Next authorized step:** M09c, extract the feedback owner from App while preserving the existing transaction and editor lifetimes.
+
+### M09c handoff — 2026-10-03
+
+- **Result:** [review-feedback.ts](../src/client/review-feedback.ts) owns the loaded feedback session behind explicit values and actions. App no longer coordinates store persistence, editor saving, preview operations, Undo, or reattachment; it retains project acceptance, URLs, and polling policy. Dialog actions use current draft IDs. The transaction engine, anchor rules, and storage formats are unchanged. M09b is committed as `5a951ad`.
+- **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. Feedback, all nine transaction scenarios, modals, voice, PWA, navigation, loading, tabs, and live-change browser checks pass. New cases cover copy completion/Undo after closing Feedback, a held clipboard lease across a real project switch with both stores isolated, Cancel/Old-side reattachment and checked export, persistent Delete, exact latest-body saving across Back and project changes, and editor/Feedback polling pause and close resume. The second-project transaction case uses real project identity/navigation with controlled Git responses; clipboard and voice promises remain controlled. Independent source and QA review found no material concern; local links and whitespace checks pass.
+- **Captures:** inspected the checked preview at [phone](../qa/screenshots/maintenance-m09c-feedback/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09c-feedback/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09c-feedback/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09c-feedback/desktop.png) sizes. Source, feedback, selectable export, and controls remain intact; the [manifest](../qa/screenshots/maintenance-m09c-feedback/manifest.json) records no horizontal overflow.
+- **Delivery and limits:** rebuilt assets match the maintained HTTP/HTTPS apps and health checks pass. The isolated QA server was stopped. Chrome emulation was checked; no new real-device gestures, microphone, clipboard, keyboard, or installed-app checks were performed.
+- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-03.
+- **Next authorized step:** M09d, extract the project/session owner while preserving accepted-open identity, canceled-opening recovery, recents, and per-tab restoration.

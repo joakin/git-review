@@ -37,6 +37,7 @@ try {
   for (const view of views) {
     const context = await browser.newContext({ viewport: { width: view.width, height: view.height }, isMobile: view.isMobile, hasTouch: view.hasTouch });
     const page = await context.newPage();
+    if (view.name === "mobile") await page.clock.install();
     page.on("pageerror", (error) => errors.push(`${view.name}: ${error.message}`));
     await page.goto(url, { waitUntil: "load" });
     await page.getByRole("button", { name: new RegExp(folder) }).click();
@@ -49,10 +50,30 @@ try {
 
   const phone = openPages[0];
   if (phone === undefined) throw new Error("Phone page was not created");
+  let statusRequests = 0;
+  phone.page.on("request", (request) => { if (new URL(request.url()).pathname.endsWith("/status")) statusRequests += 1; });
   await phone.card.locator(".diff-row-added").filter({ hasText: "message" }).tap();
   await phone.card.locator(".diff-line-action").click();
+  await phone.page.locator(".comment-editor[open]").waitFor({ state: "visible" });
   await phone.page.getByPlaceholder("What should change?").fill("Keep this draft through updates.");
+  const editingRequests = statusRequests;
+  await phone.page.clock.fastForward(11_000);
+  await phone.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  if (statusRequests !== editingRequests) throw new Error("Background status polling continued while the comment editor was open");
+  const afterEditor = phone.page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/status"));
   await phone.page.getByRole("button", { name: "Save comment" }).click();
+  await (await afterEditor).finished();
+  const beforeFeedback = statusRequests;
+  await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).click();
+  await phone.page.locator("#review-export-text").waitFor({ state: "visible" });
+  if (statusRequests !== beforeFeedback + 1) throw new Error("Opening Feedback should perform one explicit line check without background polling");
+  const feedbackRequests = statusRequests;
+  await phone.page.clock.fastForward(11_000);
+  await phone.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  if (statusRequests !== feedbackRequests) throw new Error("Background status polling continued while Feedback was open");
+  const afterFeedback = phone.page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/status"));
+  await phone.page.getByRole("button", { name: "Close feedback" }).click();
+  await (await afterFeedback).finished();
   await phone.page.waitForTimeout(300);
   const before = await phone.page.evaluate(() => {
     const card = document.querySelector<HTMLElement>('main .diff-card[data-path="src/live.ts"]');
@@ -96,7 +117,7 @@ try {
 
   await phone.page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
   await writeFile(source, content("third"));
-  await phone.page.waitForTimeout(11_000);
+  await phone.page.clock.fastForward(11_000);
   if (await phone.page.locator(".changes-update").isVisible()) throw new Error("Hidden tab still showed an update");
   await phone.page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
   await phone.page.locator(".changes-update").waitFor({ state: "visible", timeout: 3_000 });
@@ -119,7 +140,7 @@ try {
   await phone.page.getByRole("button", { name: "Refresh", exact: true }).click();
   await phone.page.getByRole("status").filter({ hasText: "Could not check for new edits" }).waitFor({ state: "detached" });
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
-  console.log("Live edits appeared on four viewports without replacing code; Update kept the card and draft; 320px fit, hidden-tab pause/resume, serialized checks, error recovery, and manual Refresh passed.");
+  console.log("Live edits appeared on four viewports without replacing code; Update kept the card and draft; editor/Feedback pause and close resume, 320px fit, hidden-tab pause/resume, serialized checks, error recovery, and manual Refresh passed.");
 } finally {
   await browser?.close();
   await rm(project, { recursive: true, force: true });

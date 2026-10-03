@@ -17,7 +17,9 @@ This slice established the review loop: select a diff line, write a comment, pre
 
 No comment-writing server API is needed. Drafts and bounded history live in versioned browser `localStorage` under the opened project ID; state is local to each browser/device. Parse stored data as unknown at the boundary and discard invalid records. Keep the domain parser with the comment model and reuse generic helpers from `src/shared/validation.ts`.
 
-The [shared modal hook](../src/client/modal.ts) owns dialog presentation and dismissal, while the feedback owner saves non-empty editor text on close. Closing unmounts the editor so its voice owner can stop recording and discard pending audio. Installation uses the same modal hook independently of feedback.
+The [shared modal hook](../src/client/modal.ts) owns dialog presentation and dismissal, while the [feedback owner](../src/client/review-feedback.ts) saves non-empty editor text on close. Closing unmounts the editor so its voice owner can stop recording and discard pending audio. Installation uses the same modal hook independently of feedback.
+
+The feedback owner keeps the loaded project session in memory even when the picker hides it. Navigation cancels pending ownership and saves the latest editor into its current store before the destination changes; an accepted project open explicitly loads that project’s store. App owns URL changes and polling policy, while dialogs consume feedback values and actions.
 
 A project store owns drafts and copy history. Each draft has a generated ID, an anchor, body text, creation/update times, and a current/outdated state. Its anchor carries the reviewable Git layer, folder-relative path, old/new side, positive line number, exact source text, and neighboring-line fingerprint. [ReviewLayer](../src/client/comments.ts) names only staged, unstaged, and untracked: storage parsing already rejects conflicts, and the broader line-anchor factory rejects conflict status entries before creating an anchor. Bound draft count, body length, path length, and history size. Empty text is not a saved comment.
 

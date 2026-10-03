@@ -153,10 +153,19 @@ try {
   await selectedCard.locator(".diff-row").first().waitFor({ state: "visible" });
   await selectedCard.locator(".diff-row-added").first().tap();
   await selectedCard.locator(".diff-line-action").click();
-  await page.getByPlaceholder("What should change?").fill("Browser Back keeps this draft.");
+  const previousBody = "Earlier body before the last edit.";
+  const latestBody = "Browser Back keeps this latest draft.";
+  await page.getByPlaceholder("What should change?").fill(previousBody);
+  await page.getByPlaceholder("What should change?").fill(latestBody);
   await page.goBack();
   await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).waitFor({ state: "visible" });
   await page.getByRole("button", { name: "Feedback 1" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Feedback 1", exact: true }).click();
+  await page.locator(".review-item").getByText(latestBody, { exact: true }).waitFor({ state: "visible" });
+  await page.locator("#review-export-text").waitFor({ state: "visible" });
+  const savedExport = await page.locator("#review-export-text").inputValue();
+  if (!savedExport.includes(latestBody) || savedExport.includes(previousBody) || !savedExport.includes('[staged] "src/view.ts"')) throw new Error(`Browser Back did not export the latest saved draft: ${savedExport}`);
+  await page.getByRole("button", { name: "Close feedback" }).click();
 
   await page.locator(".project-switch").click();
   await page.getByRole("button", { name: "Choose a project" }).click();
@@ -172,6 +181,11 @@ try {
   await page.goBack();
   await waitForRoute(page, "changes");
   await page.getByRole("button", { name: "Feedback 1" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Feedback 1", exact: true }).click();
+  await page.locator(".review-item").getByText(latestBody, { exact: true }).waitFor({ state: "visible" });
+  await page.locator("#review-export-text").waitFor({ state: "visible" });
+  if (await page.locator("#review-export-text").inputValue() !== savedExport) throw new Error("Returning from another project lost or changed the browser-Back draft export");
+  await page.getByRole("button", { name: "Close feedback" }).click();
   const mobileFit = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2);
   if (!mobileFit) throw new Error("Phone navigation caused page-wide horizontal overflow");
   await page.goto(new URL("/?section=settings&project=inventory-fixture", base).href);

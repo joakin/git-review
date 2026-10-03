@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { fetchDirectory, fetchLanguages, fetchProjectDiff, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectStatus, fetchProjectTree, fetchRoot, openProject } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
 import { CommitViewer } from "./CommitViewer.tsx";
@@ -9,9 +9,8 @@ import { DelayedLoading } from "./DelayedLoading.tsx";
 import { Icon } from "./Icons.tsx";
 import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
-import { maxDrafts, newLocalId, readCommentStore, saveCommentStore, undoSuccessfulCopy, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
-import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
-import { CommentEditor, FeedbackDialog, type EditorState } from "./ReviewDialogs.tsx";
+import { useReviewFeedback } from "./review-feedback.ts";
+import { CommentEditor, FeedbackDialog } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
@@ -112,39 +111,18 @@ export function App() {
   const [opening, setOpening] = useState(false);
   const [projectOpenError, setProjectOpenError] = useState<{ path: string; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [comments, setComments] = useState<CommentStore | null>(null);
-  const commentsRef = useRef<CommentStore | null>(null);
-  const [editor, setEditor] = useState<EditorState | null>(null);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [feedbackState, setFeedbackState] = useState<FeedbackState>({ check: { kind: "idle" }, copy: { kind: "idle" } });
-  const [undoCopyId, setUndoCopyId] = useState<string | null>(null);
-  const [undoError, setUndoError] = useState<string | null>(null);
-  const [reattachId, setReattachId] = useState<string | null>(null);
   const [installDataOpen, setInstallDataOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const git = useGitBrowser(project, gitRoute);
   const lastGitRefs = useRef(new Map<string, string>());
-  const feedbackRef = useRef<FeedbackTransactions | null>(null);
-  if (feedbackRef.current === null) feedbackRef.current = new FeedbackTransactions({
-    readStore: () => commentsRef.current,
-    updateStore: updateComments,
-    onState: setFeedbackState,
-    onCopied: (result) => {
-      if (result.kind === "feedback") {
-        setUndoCopyId(result.id);
-        setUndoError(null);
-        setNotice("Feedback copied. The copied comments are in history; Undo restores them.");
-      } else setNotice("History feedback copied.");
-    },
-    fetchStatus: fetchProjectStatus,
-    fetchDiff: fetchProjectDiff,
-    writeText: async (text) => {
-      if (navigator.clipboard?.writeText === undefined) throw new Error("Clipboard access is unavailable here. Select the feedback or history text to copy it manually.");
-      await navigator.clipboard.writeText(text);
+  const feedback = useReviewFeedback({
+    project,
+    onNotice: setNotice,
+    onRevealAnchor: (anchor) => {
+      if (project !== null) navigate({ section: "changes", projectPath: project.path, target: { kind: "file", layer: anchor.layer, path: anchor.path } });
     },
   });
-  const feedback = feedbackRef.current;
-  useEffect(() => () => feedback.cancel(), [feedback]);
+  const { editor, preview, reattachment, drafts } = feedback.model;
 
   useEffect(() => {
     if (project === null || gitRoute === null) return;
@@ -162,12 +140,10 @@ export function App() {
   }, [project, gitRoute, git.refs]);
 
   function navigate(next: Route, mode: "push" | "replace" = "push"): void {
-    feedback.cancel();
+    feedback.actions.prepareNavigation();
     const previous = routeRef.current;
     if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
     routeRef.current = next;
-    closeEditor();
-    setFeedbackOpen(false);
     setDrawerOpen(false);
     setMenuOpen(false);
     const url = routeUrl(next);
@@ -180,7 +156,7 @@ export function App() {
   useEffect(() => {
     window.history.scrollRestoration = "manual";
     const onPopState = (): void => {
-      feedback.cancel();
+      feedback.actions.prepareNavigation();
       const previous = routeRef.current;
       if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
       const parsed = parseNavigationSearch(window.location.search);
@@ -189,8 +165,6 @@ export function App() {
         navigate(active === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: active, target: { kind: "all" } }, "replace");
       } else {
         routeRef.current = parsed.kind === "ready" ? parsed.route : null;
-        closeEditor();
-        setFeedbackOpen(false);
         setDrawerOpen(false);
         setMenuOpen(false);
         setRouteState(parsed);
@@ -272,9 +246,7 @@ export function App() {
     reviewPosition.current = null;
     openedProjectRef.current = null;
     setOpenedProject(null);
-    setEditor(null);
-    setFeedbackOpen(false);
-    setReattachId(null);
+    feedback.actions.beginProjectOpen();
     // Route references change before effect cleanup aborts the old request.
     const isCurrentOpen = (): boolean => !controller.signal.aborted && routeRef.current !== null && routeProjectPath(routeRef.current) === routeProject;
     openProject(routeProject, controller.signal).then(
@@ -282,11 +254,7 @@ export function App() {
         if (!isCurrentOpen()) return;
         openedProjectRef.current = selected;
         setOpenedProject(selected);
-        const storedComments = readCommentStore(selected.id);
-        commentsRef.current = storedComments;
-        setComments(storedComments);
-        setUndoCopyId(null);
-        setUndoError(null);
+        feedback.actions.loadProject(selected);
         setExpandedKeys(readOpenCards(selected.id));
         saveActiveProject(root.value.path, selected.path);
         setSaved((current) => {
@@ -343,7 +311,7 @@ export function App() {
   }, [project, statusRefresh]);
 
   useEffect(() => {
-    if (project === null || status.kind !== "ready" || status.value.kind !== "git" || viewMode !== "changes" || settingsOpen || editor !== null || feedbackOpen || installDataOpen || refreshing) return;
+    if (project === null || status.kind !== "ready" || status.value.kind !== "git" || viewMode !== "changes" || settingsOpen || editor !== null || preview !== null || installDataOpen || refreshing) return;
     const projectId = project.id;
     const displayedToken = status.value.changeToken;
     let timer: number | null = null;
@@ -383,7 +351,7 @@ export function App() {
     document.addEventListener("visibilitychange", onVisibility);
     void check();
     return () => { disposed = true; clearTimer(); request?.abort(); document.removeEventListener("visibilitychange", onVisibility); };
-  }, [project, status, viewMode, settingsOpen, editor, feedbackOpen, installDataOpen, refreshing]);
+  }, [project, status, viewMode, settingsOpen, editor, preview !== null, installDataOpen, refreshing]);
 
   useEffect(() => {
     const position = reviewPosition.current;
@@ -558,72 +526,6 @@ export function App() {
   function openSearchMatch(match: SearchMatch, query: string): void {
     if (project === null) return;
     navigate({ section: "search", projectPath: project.path, query, target: { kind: "file", path: match.path, line: match.line } });
-  }
-
-  function updateComments(change: (current: CommentStore) => CommentStore): CommentStore | null {
-    const current = commentsRef.current;
-    if (current === null) return null;
-    const next = change(current);
-    if (next !== current) {
-      commentsRef.current = next;
-      setComments(next);
-      saveCommentStore(next);
-    }
-    return next;
-  }
-
-  function chooseCommentLine(anchor: CommentAnchor): void {
-    if (reattachId !== null) {
-      updateComments((current) => ({ ...current, drafts: current.drafts.map((draft) => draft.id === reattachId ? { ...draft, anchor, state: "current", updatedAt: Date.now() } : draft) }));
-      setReattachId(null);
-      setNotice("Comment reattached. Open Feedback to check the new line before copying.");
-      return;
-    }
-    setEditor({ anchor, draftId: null, body: "" });
-  }
-
-  function closeEditor(): void {
-    setEditor((savedEditor) => {
-      if (savedEditor === null || savedEditor.body.trim().length === 0) return null;
-      updateComments((current) => {
-        const now = Date.now();
-        if (savedEditor.draftId !== null) return { ...current, drafts: current.drafts.map((draft) => draft.id === savedEditor.draftId ? { ...draft, body: savedEditor.body.trim(), updatedAt: now } : draft) };
-        if (current.drafts.length >= maxDrafts) {
-          setNotice(`This project has reached the ${maxDrafts} comment limit.`);
-          return current;
-        }
-        const draft: DraftComment = { id: newLocalId(), anchor: savedEditor.anchor, body: savedEditor.body.trim(), createdAt: now, updatedAt: now, state: "current" };
-        return { ...current, drafts: [...current.drafts, draft] };
-      });
-      return null;
-    });
-  }
-
-  function deleteEditor(): void {
-    if (editor?.draftId !== null && editor !== null) {
-      const id = editor.draftId;
-      updateComments((current) => ({ ...current, drafts: current.drafts.filter((draft) => draft.id !== id) }));
-    }
-    setEditor(null);
-  }
-
-  function openFeedback(): void {
-    if (project === null) return;
-    setFeedbackOpen(true);
-    void feedback.check(project);
-  }
-
-  function undoLastCopy(): void {
-    if (undoCopyId === null) return;
-    const before = commentsRef.current;
-    const restored = updateComments((current) => undoSuccessfulCopy(current, undoCopyId));
-    if (restored === before) {
-      if (before?.history[0]?.id === undoCopyId) setUndoError(`Undo would exceed the ${maxDrafts} comment limit. Remove a draft and try again.`);
-      return;
-    }
-    setUndoCopyId(null);
-    setUndoError(null);
-    setNotice("Copied comments restored to your draft.");
   }
 
   function showList(): void {
@@ -825,9 +727,9 @@ export function App() {
                         languages={languages}
                         onToggle={() => toggleEntry(entry)}
                         onStale={refreshChanges}
-                        onComment={chooseCommentLine}
-                        reattachSide={reattachId === null ? null : comments?.drafts.find((draft) => draft.id === reattachId)?.anchor.side ?? null}
-                        drafts={comments?.projectId === project.id ? comments.drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path) : []}
+                        onComment={feedback.actions.chooseLine}
+                        reattachSide={reattachment?.side ?? null}
+                        drafts={drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path)}
                       />)}
                     </section>;
                   })}
@@ -841,10 +743,10 @@ export function App() {
         </main>
       </div>
       {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files" || viewMode === "search" && selectedFile !== null) && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
-      {!settingsOpen && project !== null && viewMode !== null && <button class="feedback-launch" type="button" onClick={openFeedback}>Feedback <span>{comments?.projectId === project.id ? comments.drafts.length : 0}</span></button>}
-      {reattachId !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={() => setReattachId(null)}>Cancel</button></div>}
-      {editor !== null && <CommentEditor editor={editor} onBody={(body) => setEditor((current) => current === null ? current : { ...current, body })} onClose={closeEditor} onDelete={deleteEditor} />}
-      {feedbackOpen && project !== null && comments?.projectId === project.id && <FeedbackDialog store={comments} projectPath={project.absolutePath} state={feedbackState} undoError={undoError} onClose={() => setFeedbackOpen(false)} onCheck={() => void feedback.check(project)} onCopy={() => void feedback.copy(project)} onEdit={(draft) => { feedback.cancel(); setFeedbackOpen(false); setEditor({ anchor: draft.anchor, draftId: draft.id, body: draft.body }); }} onReattach={(draft) => { setFeedbackOpen(false); setReattachId(draft.id); selectEntry({ layer: draft.anchor.layer, path: draft.anchor.path, kind: "modified", oldPath: null, isSubmodule: false }); }} onUndo={undoLastCopy} canUndo={undoCopyId !== null && comments.history[0]?.id === undoCopyId} onCopyHistory={(text) => void feedback.copyHistory(project, text)} />}
+      {!settingsOpen && project !== null && viewMode !== null && <button class="feedback-launch" type="button" onClick={feedback.actions.openPreview}>Feedback <span>{drafts.length}</span></button>}
+      {reattachment !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={feedback.actions.cancelReattachment}>Cancel</button></div>}
+      {editor !== null && <CommentEditor editor={editor} onBody={feedback.actions.changeBody} onClose={feedback.actions.closeEditor} onDelete={feedback.actions.deleteEditor} />}
+      {preview !== null && <FeedbackDialog store={preview.store} projectPath={preview.projectPath} state={preview.state} undoError={preview.undoError} onClose={feedback.actions.closePreview} onCheck={feedback.actions.check} onCopy={feedback.actions.copy} onEdit={feedback.actions.editDraft} onReattach={feedback.actions.reattachDraft} onUndo={feedback.actions.undo} canUndo={preview.canUndo} onCopyHistory={feedback.actions.copyHistory} />}
       {installDataOpen && <InstallDataDialog rootPath={root.kind === "ready" ? root.value.path : null} installPrompt={installPrompt} onInstallHandled={() => setInstallPrompt(null)} onClose={() => setInstallDataOpen(false)} />}
     </div>
   );

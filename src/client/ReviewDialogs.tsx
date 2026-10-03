@@ -1,10 +1,9 @@
 import { useRef } from "preact/hooks";
-import { maxBodyLength, snapshotFeedback, type CommentAnchor, type CommentStore, type DraftComment } from "./comments.ts";
+import { maxBodyLength, snapshotFeedback, type CommentAnchor, type CommentStore } from "./comments.ts";
 import { useVoiceComment, VoiceCommentFooter } from "./VoiceComment.tsx";
 import type { FeedbackState } from "./feedback-transactions.ts";
 import { useModal } from "./modal.ts";
-
-export type EditorState = { anchor: CommentAnchor; draftId: string | null; body: string };
+import type { EditorState } from "./review-feedback.ts";
 
 function anchorLabel(anchor: CommentAnchor): string {
   return `${anchor.layer} · ${anchor.side} line ${anchor.line}`;
@@ -33,8 +32,8 @@ export function FeedbackDialog({ store, projectPath, state, undoError, onClose, 
   onClose: () => void;
   onCheck: () => void;
   onCopy: () => void;
-  onEdit: (draft: DraftComment) => void;
-  onReattach: (draft: DraftComment) => void;
+  onEdit: (id: string) => void;
+  onReattach: (id: string) => void;
   onUndo: () => void;
   canUndo: boolean;
   onCopyHistory: (text: string) => void;
@@ -54,7 +53,7 @@ export function FeedbackDialog({ store, projectPath, state, undoError, onClose, 
         <div class="review-item-top"><strong>{draft.anchor.path}</strong><span>{anchorLabel(draft.anchor)}</span></div>
         <pre>{draft.anchor.sourceText}</pre><p>{draft.body}</p>
         {draft.state === "outdated" && <p class="review-outdated">Line changed or disappeared. Reattach before copying.</p>}
-        <div class="review-item-actions"><button type="button" onClick={() => onEdit(draft)}>Edit</button>{draft.state === "outdated" && <button type="button" onClick={() => onReattach(draft)}>Reattach to line</button>}</div>
+        <div class="review-item-actions"><button type="button" onClick={() => onEdit(draft.id)}>Edit</button>{draft.state === "outdated" && <button type="button" onClick={() => onReattach(draft.id)}>Reattach to line</button>}</div>
       </article>)}
       {outdated.length > 0 && <p class="review-hint">{outdated.length} outdated comment{outdated.length === 1 ? " is" : "s are"} excluded from export.</p>}
       {state.check.kind === "ready" && exportText.length > 0 && <div class="review-export"><label for="review-export-text">Copyable feedback text</label><textarea id="review-export-text" ref={textRef} readOnly value={exportText} rows={8} onFocus={(event) => event.currentTarget.select()} /><button type="button" onClick={() => textRef.current?.select()}>Select text</button></div>}

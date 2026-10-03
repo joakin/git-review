@@ -96,7 +96,7 @@ The command uses desktop Chrome with emulated touch, viewport, and mobile settin
 
 ## Feedback transaction races
 
-For feedback transaction changes, also run `bun run qa:feedback-transactions http://127.0.0.1:39909/` against an isolated server approving `qa/.artifacts` with `inventory-fixture` present. It holds status/diff/clipboard results to check edits, same-project navigation, late-result cancellation, feedback/history write serialization, failure/retry, and persisted reloads. Clipboard promises are controlled; this does not establish real-device clipboard permission or gesture behavior. Its optional second command argument is a compiled baseline client bundle for a before/after regression comparison, served only inside the isolated browser contexts. The [feedback record](feedback-slice-proposal.md) links maintenance evidence.
+For feedback transaction changes, also run `bun run qa:feedback-transactions http://127.0.0.1:39909/` against an isolated server approving `qa/.artifacts` with `inventory-fixture` present. It holds status/diff/clipboard results to check edits, same-project navigation, project-switch isolation, late-result cancellation, preview-close completion and Undo, feedback/history write serialization, failure/retry, and persisted reloads. It creates the empty second-project picker fixture as needed and uses controlled Git responses for that case. Clipboard promises are controlled; this does not establish real-device clipboard permission or gesture behavior. Its optional second command argument is a compiled baseline client bundle for a before/after regression comparison, served only inside the isolated browser contexts. The [feedback record](feedback-slice-proposal.md) links maintenance evidence.
 
 ## Native media previews
 
