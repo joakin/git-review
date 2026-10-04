@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { FileReadResult, LanguageOption } from "../shared/api.ts";
 import { fetchProjectFile } from "./api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
+import {
+  anchorForFileLine,
+  type CommentAnchor,
+  type DraftComment,
+  type FileCommentAnchor,
+} from "./comments.ts";
+import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts";
 import { MediaPreview } from "./MediaPreview.tsx";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 
@@ -17,9 +24,13 @@ export function FileViewer({
   languages,
   refreshKey,
   searchTarget,
+  drafts,
+  onComment,
 }: {
   projectId: string;
   path: string;
+  drafts: readonly DraftComment[];
+  onComment: (anchor: CommentAnchor) => void;
   wrap: boolean;
   languages: readonly LanguageOption[];
   refreshKey: number;
@@ -156,32 +167,120 @@ export function FileViewer({
         (result.lines.length === 0 ? (
           <p class="diff-message">This file is empty.</p>
         ) : (
-          <div
-            class={`file-code-scroll${wrap ? " file-code-wrap" : ""}`}
-            aria-label="File contents"
-          >
-            <div class="file-code-content">
-              {result.lines.map((line) => (
-                <div
-                  class={`file-code-row${targetMatches && line.number === searchTarget?.line ? " file-code-row-target" : ""}`}
-                  data-line={line.number}
-                  key={line.number}
-                >
-                  <span class="file-line-number" aria-label={`Line ${line.number}`}>
-                    {line.number}
-                  </span>
-                  <code class="file-code-line">
-                    {line.tokens.map((token, index) => (
-                      <span class={`syntax-token syntax-token-${token.role}`} key={index}>
-                        {token.text}
-                      </span>
-                    ))}
-                  </code>
-                </div>
-              ))}
-            </div>
-          </div>
+          <FileLines
+            result={result}
+            wrap={wrap}
+            drafts={drafts}
+            onComment={onComment}
+            targetLine={targetMatches ? (searchTarget?.line ?? null) : null}
+          />
         ))}
     </article>
+  );
+}
+
+type FileLineAction = {
+  row: HTMLElement;
+  clientX: number;
+  left: number;
+  top: number;
+  width: number;
+  anchor: FileCommentAnchor;
+};
+
+function FileLines({
+  result,
+  wrap,
+  drafts,
+  onComment,
+  targetLine,
+}: {
+  result: Extract<FileReadResult, { kind: "text" }>;
+  wrap: boolean;
+  drafts: readonly DraftComment[];
+  onComment: (anchor: CommentAnchor) => void;
+  targetLine: number | null;
+}) {
+  const [action, setAction] = useLineAction<FileLineAction>(result, wrap);
+  const counts = new Map<number, number>();
+  for (const draft of drafts)
+    if (draft.anchor.kind === "file" && draft.anchor.path === result.path)
+      counts.set(draft.anchor.line, (counts.get(draft.anchor.line) ?? 0) + 1);
+  const reveal = (index: number, row: HTMLElement, clientX: number) => {
+    const anchor = anchorForFileLine(result.path, result.lines, index);
+    const position = lineActionPosition(row, clientX);
+    if (anchor !== null && position !== null) setAction({ row, clientX, anchor, ...position });
+  };
+  const lineTap = useLineTap(reveal);
+  return (
+    <>
+      <div class={`file-code-scroll${wrap ? " file-code-wrap" : ""}`} aria-label="File contents">
+        <div class="file-code-content">
+          {result.lines.map((line, index) => {
+            const count = counts.get(line.number) ?? 0;
+            const anchor = anchorForFileLine(result.path, result.lines, index);
+            return (
+              <div
+                class={`file-code-row${line.number === targetLine ? " file-code-row-target" : ""}`}
+                data-line={line.number}
+                key={line.number}
+                {...lineTap(index)}
+              >
+                <button
+                  class={`file-line-number${count > 0 ? " file-line-commented" : ""}`}
+                  type="button"
+                  disabled={anchor === null}
+                  aria-label={`Line ${line.number}${count > 0 ? `, ${count} comments` : ""}. Add comment`}
+                  title={
+                    anchor === null
+                      ? "This line or its context is too long to save as feedback"
+                      : `Comment on working-tree line ${line.number}`
+                  }
+                  onClick={() => {
+                    setAction(null);
+                    if (anchor !== null) onComment(anchor);
+                  }}
+                >
+                  {line.number}
+                  {count > 0 && <span class="diff-comment-dot" aria-hidden="true" />}
+                </button>
+                <code class="file-code-line">
+                  {line.tokens.map((token, tokenIndex) => (
+                    <span class={`syntax-token syntax-token-${token.role}`} key={tokenIndex}>
+                      {token.text}
+                    </span>
+                  ))}
+                </code>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {action !== null && (
+        <button
+          class="diff-line-action file-line-action"
+          type="button"
+          style={{ left: `${action.left}px`, top: `${action.top}px`, width: `${action.width}px` }}
+          aria-label={`Working tree line ${action.anchor.line}. Comment`}
+          onClick={() => {
+            setAction(null);
+            onComment(action.anchor);
+          }}
+        >
+          <span class="diff-line-action-numbers" aria-hidden="true">
+            <span>
+              <small>LINE</small> {action.anchor.line}
+            </span>
+          </span>
+          <span class="diff-line-action-divider" aria-hidden="true" />
+          <strong>
+            Comment
+            {(counts.get(action.anchor.line) ?? 0) > 0
+              ? ` (${counts.get(action.anchor.line)})`
+              : ""}
+          </strong>
+        </button>
+      )}
+    </>
   );
 }

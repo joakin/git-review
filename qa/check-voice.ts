@@ -80,7 +80,7 @@ try {
   await card.locator(".diff-card-toggle").click();
   await card.locator(".diff-row-added").first().tap();
   await card.getByRole("button", { name: /staged added line.*Comment on new line 1/ }).click();
-  const textarea = page.getByPlaceholder("What should change?");
+  const textarea = page.getByPlaceholder("Add a question, note, or suggestion…");
   await textarea.fill("Before after");
   await textarea.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(7, 7));
 

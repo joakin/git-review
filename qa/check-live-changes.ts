@@ -83,7 +83,9 @@ try {
   await phone.card.locator(".diff-row-added").filter({ hasText: "message" }).tap();
   await phone.card.locator(".diff-line-action").click();
   await phone.page.locator(".comment-editor[open]").waitFor({ state: "visible" });
-  await phone.page.getByPlaceholder("What should change?").fill("Keep this draft through updates.");
+  await phone.page
+    .getByPlaceholder("Add a question, note, or suggestion…")
+    .fill("Keep this draft through updates.");
   const editingRequests = statusRequests;
   await phone.page.clock.fastForward(11_000);
   await phone.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));

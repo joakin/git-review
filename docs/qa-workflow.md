@@ -453,3 +453,22 @@ real phones when reviewing the slice.
 
 Run checks for the feature being built; do not create an exhaustive suite before the corresponding
 behavior exists.
+
+## Working-tree file feedback
+
+`bun run qa:file-feedback http://127.0.0.1:39911/ http://127.0.0.1:39912/` checks the U03 follow-up.
+The first isolated server approves `qa/.artifacts`, with the existing inventory fixture. The check
+creates/restores only `inventory-fixture/src/feedback notes β.txt` there for CRLF, blank/last-line,
+changed-file and deletion cases. The second isolated server must approve a fixture root outside any
+enclosing Git repository containing `plain-folder/readme.txt` and a clean Git
+`clean-git/readme.txt`; the U02 setup is recorded in ignored
+`qa/.artifacts/usability-u02-plain-root.txt` on this checkout. The maintainer's running project is
+not a mutation fixture.
+
+The check covers 320 px and all four standard widths, legacy migration, file-line actions and
+keyboard access, reload, mixed preview/clipboard/history/Undo, Files/Search identity, selection
+priority, stale exclusion/reattachment, read-failure retry, and actual non-Git/unchanged Git
+file-only checks without status requests. Clipboard uses Chrome's granted Clipboard API on loopback.
+Browser emulation does not establish physical-device clipboard, gesture, keyboard or microphone
+behavior. Saved browser states stay under ignored `qa/.artifacts/` and support the U03
+action/editor/preview captures via `qa:capture`.

@@ -138,6 +138,9 @@ test("file API requires an opened project and serves non-Git working-tree files"
       ).json()) as unknown,
     );
     expect(file.kind).toBe("text");
+    const missing = await handle(new Request(`${base}/file?path=missing.txt&source=worktree`));
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({ error: { code: "file_not_found" } });
     expect((await handle(new Request(`${base}/tree?path=..`))).status).toBe(400);
   } finally {
     await rm(rootPath, { recursive: true, force: true });

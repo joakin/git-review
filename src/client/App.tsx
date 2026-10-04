@@ -154,7 +154,16 @@ export function App() {
     project,
     onNotice: setNotice,
     onRevealAnchor: (anchor) => {
-      if (project !== null)
+      if (project === null) return;
+      if (anchor.kind === "file") {
+        setFileRefresh((value) => value + 1);
+        navigate({
+          section: "files",
+          projectPath: project.path,
+          directory: parentDirectory(anchor.path),
+          target: { kind: "file", path: anchor.path, line: anchor.line },
+        });
+      } else
         navigate({
           section: "changes",
           projectPath: project.path,
@@ -966,6 +975,8 @@ export function App() {
                           wrap={wrapCode}
                           languages={languages}
                           refreshKey={fileRefresh}
+                          drafts={drafts}
+                          onComment={feedback.actions.chooseLine}
                           searchTarget={searchTarget}
                         />
                       </>
@@ -1002,8 +1013,8 @@ export function App() {
                     </div>
                     {selectedFile === null ? (
                       <p class="status-message">
-                        Open a folder or file from the Files list. Changes and feedback remain
-                        available when you return to review.
+                        Open a folder or file from the Files list. Tap a text line, then choose
+                        Comment to add feedback.
                       </p>
                     ) : (
                       <FileViewer
@@ -1013,6 +1024,8 @@ export function App() {
                         wrap={wrapCode}
                         languages={languages}
                         refreshKey={fileRefresh}
+                        drafts={drafts}
+                        onComment={feedback.actions.chooseLine}
                         searchTarget={searchTarget?.path === selectedFile ? searchTarget : null}
                       />
                     )}
@@ -1025,7 +1038,7 @@ export function App() {
                       wrap: wrapCode,
                       languages,
                       drafts,
-                      reattachSide: reattachment?.side ?? null,
+                      reattachSide: reattachment?.kind === "diff" ? reattachment.side : null,
                     }}
                     commands={{
                       back: showList,
@@ -1096,7 +1109,7 @@ export function App() {
       )}
       {reattachment !== null && (
         <div class="reattach-banner" role="status">
-          Tap a new line number to reattach this comment.{" "}
+          Choose a line from this feedback source, then Comment to reattach.{" "}
           <button type="button" onClick={feedback.actions.cancelReattachment}>
             Cancel
           </button>

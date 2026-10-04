@@ -322,7 +322,7 @@ export async function openWorkingAudioVideo(
   }
 }
 
-export async function readProjectFile(
+async function readFile(
   root: ApprovedRoot,
   project: Project,
   rawPath: unknown,
@@ -436,4 +436,20 @@ export async function readProjectFile(
       (text === "" ? [] : [{ text, role: "plain" as const }]),
   }));
   return { kind: "text", path: location.path, byteLength: size, syntax, lines };
+}
+
+/** Only file-level absence is a stale anchor; project/API failures retain drafts for retry. */
+export async function readProjectFile(
+  root: ApprovedRoot,
+  project: Project,
+  rawPath: unknown,
+  requestedLanguage: string | null,
+): Promise<FileReadResult> {
+  try {
+    return await readFile(root, project, rawPath, requestedLanguage);
+  } catch (error: unknown) {
+    if (error instanceof AppError && error.code === "not_found" && error.status === 404)
+      throw new AppError("file_not_found", 404, "File was not found. Refresh its folder.");
+    throw error;
+  }
 }

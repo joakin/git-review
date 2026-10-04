@@ -111,7 +111,8 @@ export type DiffResult =
   | { kind: "conflict" }
   | { kind: "stale" };
 
-export type ApiErrorCode = "invalid_request" | "forbidden" | "not_found" | "internal_error";
+export type ApiErrorCode =
+  "invalid_request" | "forbidden" | "not_found" | "file_not_found" | "internal_error";
 
 export type ApiError = {
   code: ApiErrorCode;
@@ -585,6 +586,7 @@ export function parseApiError(value: unknown): ApiError | null {
       (code === "invalid_request" ||
         code === "forbidden" ||
         code === "not_found" ||
+        code === "file_not_found" ||
         code === "internal_error") &&
       typeof message === "string"
     ) {

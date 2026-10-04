@@ -1,7 +1,7 @@
 # PWA navigation, phone project entry, and file feedback
 
 Status: U01 accepted and committed as `df92a53`; U02 accepted and committed as `b9aeee3`; formatting
-accepted; continuing the agreed U03 slice
+accepted and committed as `fa927ac`; U03 accepted; commit approved
 
 Created: 2026-10-04
 
@@ -22,7 +22,7 @@ for review separately and stays uncommitted until explicit approval to commit th
 | ----- | ------------------------------------------------------ | -------------------------------- |
 | U01   | Visible Back/Forward controls for known app history    | Accepted; committed as `df92a53` |
 | U02   | Phone project entry opens the contextual list          | Accepted; committed as `b9aeee3` |
-| U03   | Line feedback in working-tree Files and Search results | Agreed; implementation next      |
+| U03   | Line feedback in working-tree Files and Search results | Accepted; commit approved        |
 
 U01 and U02 are small, separately reviewable navigation changes. U03 changes the persisted feedback
 model and receives its own focused implementation and review after navigation. Alignment on this
@@ -216,10 +216,8 @@ for every visible change. Record useful milestones and exact verification limits
 installed-app Back/Forward and real-device selection, line taps, clipboard, and keyboard behavior
 require maintainer device review; browser emulation alone cannot confirm them.
 
-Next step: implement U03 after acceptance of the
-[repository formatting and staged-file hook](formatting-workflow.md). The maintainer explicitly
-approved committing the formatting work and continuing on 2026-10-04. Commit approval remains
-separate from implementation approval; maintenance remains paused.
+Next step: commit the accepted U03 work, then implement the approved
+[selected-code feedback extension](selected-code-feedback-proposal.md). Maintenance remains paused.
 
 ## U01 handoff — 2026-10-04
 
@@ -335,3 +333,89 @@ separate from implementation approval; maintenance remains paused.
   2026-10-04. U02 is committed as `b9aeee3` (`feat: open phone projects on the contextual list`).
   The maintainer requested repository formatting and a staged-file hook as the next separate review
   before U03; maintenance remains on hold.
+
+## U03 handoff — 2026-10-04
+
+- **Alignment:** the maintainer accepted and explicitly approved the formatting commit `fa927ac`,
+  then requested continuation with the agreed file-feedback slice. U03 is implemented and remains
+  uncommitted for its separate maintainer review. Maintenance remains on hold.
+- **Result:** tap/click a text row in Files or a Search result, then **Comment**. A line-number
+  button also opens the shared editor from the keyboard. File comments show **Working tree · line
+  N**, preserve the exact quote and neighboring lines, and have their own gutter marker and
+  line-action count. The editor guidance accepts a question, note, or suggestion, with the existing
+  voice controls. Feedback opens the project's mixed drafts and copy history from every project
+  view, and its empty state explains the supported creation locations. Native text selection keeps
+  the selected-code Search action; wrapping and horizontal scrolling remain contained.
+- **Ownership and source checks:** [FileViewer](../src/client/FileViewer.tsx) creates file anchors;
+  [shared line actions](../src/client/line-action.ts) own stationary tap detection, placement,
+  selection priority and dismissal for Files and diffs. The
+  [feedback owner](../src/client/review-feedback.ts) and
+  [transaction engine](../src/client/feedback-transactions.ts) retain editor saving, current-store
+  merges, cancellation, clipboard serialization, exact copied history and Undo. Diff anchors retain
+  their layer/side; file anchors have `kind: "file", source: "worktree"`. Each commented file is
+  reread once per batch as plain text; file-only feedback has no Git-status dependency. Mutable file
+  and diff API reads bypass browser caching. Same line, source and context must match; edits
+  elsewhere leave an unchanged anchor valid. Missing or non-text sources become outdated and are
+  excluded. Permission, network, server and lost-project errors retain drafts and block export with
+  Retry. The file API now reports file-level absence as HTTP 404 `file_not_found`, keeping
+  project-level `not_found` distinct. No repository-writing endpoint was added.
+- **Reattachment and persistence:** file reattachment refreshes and opens its working-tree file at
+  the anchored line. It retains the draft ID, body, timestamps and source kind; choosing a diff line
+  while reattaching a file comment leaves the draft intact and explains the required source. Comment
+  store version 2 uses the existing `git-review:comments:v1:` key and migrates valid v1
+  drafts/history in place. Old copied text remains exact. Backups export v4 for the expanded model,
+  import legacy versions 1–3 with validated diff anchors, and preserve root/project, typography,
+  appearance, preview and replacement rules. An older app rejects v4 as unsupported. File anchors
+  retain the existing 20,000-character per-source/context bound; the direct line control explains
+  when a line or its neighbor exceeds it. Empty, media, binary, symlink, unsupported and oversized
+  views retain access to feedback but have no anchorable text lines. Whole-file/project notes and
+  historical Git comments remain outside this slice.
+- **Automated evidence:** strict TypeScript, CSS token validation, formatting and build pass. The
+  full suite passes **149 tests, 1,672 assertions, 24 files**. Eleven focused file-feedback tests
+  cover source/context identity and bounds; first/blank/last lines; legacy migration and exact
+  history; invalid/ambiguous anchors; mixed export ordering, copy and Undo; v4/legacy backup
+  validation; deduplicated file reads without Git; missing/non-text versus retryable errors; delayed
+  merges, cancellation and changes after preview. The server API check also verifies the precise
+  missing-file code alongside existing path containment and non-Git reads.
+- **Browser evidence:** `qa:file-feedback` passes at 320, 390, 820, 1180 and 1440 px. It covers
+  CRLF, blank/last-line and keyboard creation, migration/reload, mixed preview/copy/history/Undo,
+  Files/Search marker identity, selection priority, containment, changed-line exclusion with
+  unrelated lines retained, missing files, read failure/retry, explicit reattachment and refusal to
+  convert a file anchor into a diff anchor. It exports a mixed v4 backup through Settings and
+  imports it into an empty browser, then verifies its comments and old history. Actual non-Git and
+  clean Git folders outside an enclosing repository pass file-only preview without a status request.
+  Existing feedback, all nine feedback-transaction cases, line action, Files wrapping/scrolling,
+  selected-code Search, navigation, loading/ownership, PWA/backup, voice and four-size Git
+  inspection checks pass.
+- **Captures:** captured with `qa:capture` and inspected the line action at
+  [phone](../qa/screenshots/usability-u03-file-action/mobile.png),
+  [tablet portrait](../qa/screenshots/usability-u03-file-action/tablet-portrait.png),
+  [tablet landscape](../qa/screenshots/usability-u03-file-action/tablet-landscape.png), and
+  [desktop](../qa/screenshots/usability-u03-file-action/desktop.png); the editor at
+  [phone](../qa/screenshots/usability-u03-file-editor/mobile.png),
+  [tablet portrait](../qa/screenshots/usability-u03-file-editor/tablet-portrait.png),
+  [tablet landscape](../qa/screenshots/usability-u03-file-editor/tablet-landscape.png), and
+  [desktop](../qa/screenshots/usability-u03-file-editor/desktop.png); and the mixed preview at
+  [phone](../qa/screenshots/usability-u03-mixed-feedback/mobile.png),
+  [tablet portrait](../qa/screenshots/usability-u03-mixed-feedback/tablet-portrait.png),
+  [tablet landscape](../qa/screenshots/usability-u03-mixed-feedback/tablet-landscape.png), and
+  [desktop](../qa/screenshots/usability-u03-mixed-feedback/desktop.png). All three manifests report
+  no page-wide horizontal overflow. Captures preserve the established sheet/dialog layout and show
+  both source labels clearly.
+- **Delivery and limits:** the maintained app has rebuilt client assets and both maintained backends
+  have been restarted for the file-error boundary. Both backends and the private HTTPS origin return
+  200 for the app and root API; all four served assets match the final build byte for byte, and the
+  precise `file_not_found` response is verified on each. Isolated QA servers on ports 39911/39912
+  were stopped after verification. Browser QA uses Chrome emulation; file-flow copy uses Chrome's
+  granted Clipboard API on loopback, while transaction race cases control clipboard promises and
+  voice checks mock recording/transcription. Real installed-PWA selection, gestures, keyboard, safe
+  areas, clipboard and microphone behavior were not newly checked. The maintainer accepted U03 and
+  explicitly approved its commit on 2026-10-04. Maintenance remains paused.
+
+## Selection action follow-up — 2026-10-04
+
+The maintainer requested Comment beside Search in the selected-code tooltip. The
+[selection-feedback proposal](selected-code-feedback-proposal.md) records the user flow,
+fragment/source model, migration and checks. The maintainer approved the single-line fragment flow
+and U03 commit on 2026-10-04. Multi-line ranges remain a separate extension. The selection
+implementation will remain uncommitted for review; maintenance remains on hold.

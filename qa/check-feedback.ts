@@ -31,7 +31,9 @@ try {
   await card.locator(".diff-row-added").first().tap();
   await card.getByRole("button", { name: /staged added line.*Comment on new line 1/ }).click();
   await page.waitForFunction(() => document.documentElement.style.overflow === "hidden");
-  await page.getByPlaceholder("What should change?").fill("Please explain the staged value.");
+  await page
+    .getByPlaceholder("Add a question, note, or suggestion…")
+    .fill("Please explain the staged value.");
   await page.getByRole("button", { name: "Save comment" }).click();
   await page.locator(".comment-editor").waitFor({ state: "detached" });
   await page.waitForFunction(() => document.documentElement.style.overflow !== "hidden");
@@ -165,7 +167,7 @@ try {
   await fallbackPage.getByRole("button", { name: "Reattach to line", exact: true }).click();
   const reattach = fallbackPage
     .getByRole("status")
-    .filter({ hasText: "Tap a new line number to reattach this comment." });
+    .filter({ hasText: "Choose a line from this feedback source, then Comment to reattach." });
   await reattach.waitFor({ state: "visible" });
   await reattach.getByRole("button", { name: "Cancel", exact: true }).click();
   await reattach.waitFor({ state: "detached" });
@@ -185,6 +187,7 @@ try {
     moved?.id !== original.id ||
     moved.body !== original.body ||
     moved.createdAt !== original.createdAt ||
+    moved.anchor.kind !== "diff" ||
     moved.anchor.side !== "old" ||
     moved.anchor.line !== 2 ||
     moved.state !== "current"
@@ -221,7 +224,7 @@ try {
     throw new Error("Context reattachment did not preserve the draft's Old side");
   await fallbackPage.getByRole("button", { name: "Edit", exact: true }).click();
   await fallbackPage
-    .getByPlaceholder("What should change?")
+    .getByPlaceholder("Add a question, note, or suggestion…")
     .fill("This unsaved edit must disappear with Delete.");
   await fallbackPage.getByRole("button", { name: "Delete", exact: true }).click();
   await fallbackPage.locator(".comment-editor").waitFor({ state: "detached" });

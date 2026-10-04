@@ -16,6 +16,7 @@ import {
   type CheckedComments,
   type CommentAnchor,
   type DraftComment,
+  type DiffCommentAnchor,
 } from "./comments.ts";
 
 const diff: DiffResult = {
@@ -60,7 +61,11 @@ const diff: DiffResult = {
   ],
 };
 
-function draft(id: string, side: "old" | "new", index: number): DraftComment {
+function draft(
+  id: string,
+  side: "old" | "new",
+  index: number,
+): DraftComment & { anchor: DiffCommentAnchor } {
   if (diff.kind !== "text") throw new Error("Expected text fixture");
   const anchor = anchorForLine("unstaged", "src/name\tfile.ts", diff.hunks[0]!, index, side);
   if (anchor === null) throw new Error("Expected anchor");
@@ -81,6 +86,7 @@ describe("review feedback", () => {
     for (const side of ["old", "new"] as const) {
       for (const layer of ["staged", "unstaged", "untracked"] as const) {
         expect(anchorForLine(layer, "x", hunk, 0, side)).toEqual({
+          kind: "diff",
           layer,
           path: "x",
           side,
@@ -130,7 +136,7 @@ describe("review feedback", () => {
     expect(text.indexOf("[unstaged]")).toBeLessThan(text.indexOf("[untracked]"));
   });
 
-  test("all reviewable layers round-trip through version-one drafts and history", () => {
+  test("all reviewable layers round-trip through version-two drafts and history", () => {
     const drafts = (["staged", "unstaged", "untracked"] as const).map((layer) => {
       const original = draft(layer, "new", 2);
       return { ...original, anchor: { ...original.anchor, layer } };
@@ -271,7 +277,7 @@ describe("review feedback", () => {
     expect(recordSuccessfulCopy(other, snapshot, 4, "copy")).toBe(other);
   });
 
-  test("copy appends to current history with its bound and preserves version-one reload", () => {
+  test("copy appends to current history with its bound and preserves version-two reload", () => {
     const original = draft("one", "old", 1);
     const store = {
       ...emptyCommentStore("project"),

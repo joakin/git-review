@@ -189,7 +189,7 @@ export function InstallDataDialog({
                 {preview.version === 1
                   ? "Your current code typography stays as it is."
                   : "Code typography will use the backup's choice."}{" "}
-                {preview.version === 3
+                {preview.version === 3 || preview.version === 4
                   ? "Appearance will use the backup's choice."
                   : "Your current appearance stays as it is."}{" "}
                 Other projects remain here. Your active tab stays on its current folder.

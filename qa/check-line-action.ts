@@ -94,7 +94,9 @@ try {
   await page.locator(".history-navigation").waitFor({ state: "hidden" });
   if (!(await page.locator(".review-anchor").textContent())?.includes("staged · new line 3"))
     throw new Error("Unchanged staged row did not use its new/index line number");
-  await page.getByPlaceholder("What should change?").fill("Check the stable line.");
+  await page
+    .getByPlaceholder("Add a question, note, or suggestion…")
+    .fill("Check the stable line.");
   await page.getByRole("button", { name: "Save comment" }).click();
   await page.locator(".history-navigation").waitFor({ state: "visible" });
 
@@ -109,7 +111,9 @@ try {
   await action.click();
   if (!(await page.locator(".review-anchor").textContent())?.includes("staged · old line 3"))
     throw new Error("Removed line did not use the old/HEAD anchor");
-  await page.getByPlaceholder("What should change?").fill("This old branch needs attention.");
+  await page
+    .getByPlaceholder("Add a question, note, or suggestion…")
+    .fill("This old branch needs attention.");
   await page.getByRole("button", { name: "Save comment" }).click();
 
   await page.getByRole("button", { name: "Feedback 2" }).click();

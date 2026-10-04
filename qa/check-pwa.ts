@@ -60,7 +60,9 @@ try {
   await card.locator(".diff-card-toggle").click();
   await card.locator(".diff-row-added").tap();
   await card.locator(".diff-line-action").click();
-  await page.getByPlaceholder("What should change?").fill("PWA backup keeps this draft.");
+  await page
+    .getByPlaceholder("Add a question, note, or suggestion…")
+    .fill("PWA backup keeps this draft.");
   await page.getByRole("button", { name: "Save comment" }).click();
   await page.getByRole("button", { name: "Feedback 1" }).waitFor({ state: "visible" });
   await page.locator(".project-switch").click();
@@ -89,7 +91,7 @@ try {
     throw new Error("Export omitted the review record");
   if (
     !("version" in backup) ||
-    backup.version !== 3 ||
+    backup.version !== 4 ||
     !("codeTypography" in backup) ||
     typeof backup.codeTypography !== "object" ||
     backup.codeTypography === null ||

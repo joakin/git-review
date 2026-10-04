@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project } from "../shared/api.ts";
-import { fetchProjectDiff, fetchProjectStatus } from "./api.ts";
+import { fetchProjectDiff, fetchProjectFile, fetchProjectStatus } from "./api.ts";
 import {
+  canReattachAnchor,
   maxDrafts,
   newLocalId,
   readCommentStore,
@@ -10,7 +11,6 @@ import {
   type CommentAnchor,
   type CommentStore,
   type DraftComment,
-  type ReviewSide,
 } from "./comments.ts";
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
 
@@ -37,7 +37,7 @@ type FeedbackModel = {
   drafts: readonly DraftComment[];
   editor: EditorState | null;
   preview: FeedbackPreview | null;
-  reattachment: { side: ReviewSide | null } | null;
+  reattachment: CommentAnchor | null;
 };
 
 type FeedbackActions = {
@@ -119,6 +119,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       },
       fetchStatus: fetchProjectStatus,
       fetchDiff: fetchProjectDiff,
+      fetchFile: fetchProjectFile,
       writeText: async (text) => {
         if (navigator.clipboard?.writeText === undefined)
           throw new Error(
@@ -185,6 +186,14 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   function chooseLine(anchor: CommentAnchor): void {
     const id = sessionRef.current.reattachId;
     if (id !== null) {
+      const draft = currentDraft(id);
+      if (draft === null) return;
+      if (!canReattachAnchor(draft.anchor, anchor)) {
+        inputsRef.current.onNotice(
+          "Choose a line from the same feedback source, or cancel reattachment to add a new comment.",
+        );
+        return;
+      }
       updateStore((current) => ({
         ...current,
         drafts: current.drafts.map((draft) =>
@@ -302,13 +311,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
               canUndo: session.undoCopyId !== null && store.history[0]?.id === session.undoCopyId,
             }
           : null,
-      reattachment:
-        session.reattachId === null
-          ? null
-          : {
-              side:
-                store?.drafts.find((draft) => draft.id === session.reattachId)?.anchor.side ?? null,
-            },
+      reattachment: store?.drafts.find((draft) => draft.id === session.reattachId)?.anchor ?? null,
     },
     actions: {
       prepareNavigation,

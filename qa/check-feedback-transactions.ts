@@ -65,7 +65,7 @@ const draft: DraftComment = {
   state: "current",
 };
 const seed: CommentStore = {
-  version: 1,
+  version: 2,
   projectId: project.id,
   drafts: [draft],
   history: [{ id: "previous-copy", copiedAt: 1, text: "Previous feedback", comments: [draft] }],
@@ -124,7 +124,7 @@ async function networkSettled(page: Page): Promise<void> {
 }
 async function edit(page: Page, body: string): Promise<void> {
   await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await page.getByPlaceholder("What should change?").fill(body);
+  await page.getByPlaceholder("Add a question, note, or suggestion…").fill(body);
   await page.getByRole("button", { name: "Save comment", exact: true }).click();
   await page.locator(".comment-editor").waitFor({ state: "detached" });
 }
@@ -448,7 +448,7 @@ try {
         ),
       );
       const otherSeed: CommentStore = {
-        version: 1,
+        version: 2,
         projectId: other.id,
         drafts: [{ ...draft, id: "other-draft", body: "Other project draft" }],
         history: [],
@@ -500,7 +500,8 @@ try {
         "The old clipboard result archived or changed the first project's review",
       );
       assert(
-        JSON.stringify(await readStore(page, other)) === JSON.stringify(otherSeed),
+        JSON.stringify(await readStore(page, other)) ===
+          JSON.stringify(validateCommentStore(otherSeed, other.id)),
         "The old clipboard result changed the second project's review",
       );
       await page.getByRole("button", { name: "Copy feedback", exact: true }).click();

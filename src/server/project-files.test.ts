@@ -80,7 +80,7 @@ test("file reader classifies binary, oversized, empty, and disappeared files", a
     expect(empty.kind === "text" ? empty.lines : null).toEqual([]);
     await rm(join(project.absolutePath, "empty.txt"));
     await expect(readProjectFile(root, project, "empty.txt", null)).rejects.toMatchObject({
-      code: "not_found",
+      code: "file_not_found",
     });
   } finally {
     await rm(base, { recursive: true, force: true });

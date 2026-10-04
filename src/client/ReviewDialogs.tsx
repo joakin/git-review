@@ -11,7 +11,9 @@ import { useModal } from "./modal.ts";
 import type { EditorState } from "./review-feedback.ts";
 
 function anchorLabel(anchor: CommentAnchor): string {
-  return `${anchor.layer} · ${anchor.side} line ${anchor.line}`;
+  return anchor.kind === "file"
+    ? `Working tree · line ${anchor.line}`
+    : `${anchor.layer} · ${anchor.side} line ${anchor.line}`;
 }
 
 export function CommentEditor({
@@ -65,7 +67,7 @@ export function CommentEditor({
           readOnly={voice.locked}
           maxLength={maxBodyLength}
           rows={6}
-          placeholder="What should change?"
+          placeholder="Add a question, note, or suggestion…"
           onInput={(event) => onBody(event.currentTarget.value)}
         />
       </label>
@@ -145,7 +147,7 @@ export function FeedbackDialog({
       <div class="review-dialog-content">
         {state.check.kind === "checking" && (
           <p class="review-status" role="status">
-            Checking current diff lines…
+            Checking source lines…
           </p>
         )}
         {state.copy.kind === "copying" && state.check.kind !== "checking" && (
@@ -162,7 +164,9 @@ export function FeedbackDialog({
           </div>
         )}
         {store.drafts.length === 0 && (
-          <p class="review-empty">Tap a code line in a diff, then choose Comment.</p>
+          <p class="review-empty">
+            Tap a code line in Files, a Search result, or a working-copy diff, then choose Comment.
+          </p>
         )}
         {store.drafts.map((draft) => (
           <article

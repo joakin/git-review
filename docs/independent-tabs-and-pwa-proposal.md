@@ -173,3 +173,14 @@ approved for commit on 2026-09-28.
   phone, tablet portrait, tablet landscape, and desktop widths without page-wide overflow.
 - The maintainer confirmed that the HTTPS app installed on their phone without issues. The phone
   OS/browser and installed-app storage transfer were not separately checked in this handoff.
+
+## U03 backup compatibility — 2026-10-04
+
+The
+[file-feedback follow-up](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
+implemented and awaiting review, exports backup version 4 for mixed diff/file anchors. Comment
+stores use version 2, retaining the original project-keyed storage location so valid version-1 data
+migrates in place. Import still accepts backup versions 1–3 and their legacy diff comments; v4
+validates the expanded model. Root/project validation, import preview and explicit replacement,
+typography/appearance choices, and rollback behavior retain their existing roles. Older apps reject
+v4 as unsupported. Previously copied history text is never regenerated during migration or import.

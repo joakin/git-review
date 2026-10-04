@@ -9,6 +9,7 @@ import {
   parseRootResponse,
   parseStatusResponse,
   parseSearchResponse,
+  type ApiErrorCode,
   type DirectoryListing,
   type DiffResult,
   type FileReadResult,
@@ -22,6 +23,16 @@ import {
 } from "../shared/api.ts";
 import { expectRecord, expectString } from "../shared/validation.ts";
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code: ApiErrorCode | null,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 export async function responseBody(response: Response): Promise<unknown> {
   let body: unknown;
   try {
@@ -30,7 +41,12 @@ export async function responseBody(response: Response): Promise<unknown> {
     throw new Error("The server returned an unreadable response");
   }
   if (!response.ok) {
-    throw new Error(parseApiError(body)?.message ?? `Request failed (${response.status})`);
+    const error = parseApiError(body);
+    throw new ApiRequestError(
+      error?.message ?? `Request failed (${response.status})`,
+      error?.code ?? null,
+      response.status,
+    );
   }
   return body;
 }
@@ -64,7 +80,10 @@ export async function fetchProjectFile(
 ): Promise<FileReadResult> {
   const query = new URLSearchParams({ path, source: "worktree" });
   if (language !== null) query.set("language", language);
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/file?${query}`, { signal });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/file?${query}`, {
+    signal,
+    cache: "no-store",
+  });
   return parseFileReadResponse(await responseBody(response));
 }
 
@@ -101,7 +120,10 @@ export async function fetchProjectDiff(
 ): Promise<DiffResult> {
   const query = new URLSearchParams({ layer, path, revision });
   if (language !== null) query.set("language", language);
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, { signal });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, {
+    signal,
+    cache: "no-store",
+  });
   return parseDiffResponse(await responseBody(response));
 }
 

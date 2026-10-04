@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts";
 import type { ChangeEntry, DiffHunk, DiffResult } from "../shared/api.ts";
 import {
   anchorForLine,
-  type CommentAnchor,
+  type DiffCommentAnchor,
   type DraftComment,
   type ReviewSide,
 } from "./comments.ts";
@@ -13,7 +13,7 @@ export type DiffInteraction =
   | {
       kind: "review";
       entry: ChangeEntry;
-      onComment: (anchor: CommentAnchor) => void;
+      onComment: (anchor: DiffCommentAnchor) => void;
       drafts: readonly DraftComment[];
       reattachSide: ReviewSide | null;
     }
@@ -22,7 +22,7 @@ export type DiffInteraction =
 type LineAction = {
   row: HTMLElement;
   clientX: number;
-  action: { kind: "comment"; anchor: CommentAnchor; count: number } | { kind: "inspect" };
+  action: { kind: "comment"; anchor: DiffCommentAnchor; count: number } | { kind: "inspect" };
   kind: "context" | "added" | "removed";
   oldLine: number | null;
   newLine: number | null;
@@ -33,53 +33,6 @@ type LineAction = {
 
 type LineReveal = (hunk: DiffHunk, index: number, row: HTMLElement, clientX: number) => void;
 
-function lineActionPosition(
-  row: HTMLElement,
-  clientX: number,
-): { left: number; top: number; width: number } | null {
-  const viewport = window.visualViewport;
-  const viewportLeft = viewport?.offsetLeft ?? 0;
-  const viewportTop = viewport?.offsetTop ?? 0;
-  const viewportWidth = viewport?.width ?? window.innerWidth;
-  const viewportHeight = viewport?.height ?? window.innerHeight;
-  const width = Math.min(280, viewportWidth - 16);
-  if (width < 160) return null;
-  const rect = row.getBoundingClientRect();
-  const topbarBottom =
-    document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? viewportTop;
-  const cardHeadingBottom =
-    row.closest(".diff-card")?.querySelector(".diff-card-toggle")?.getBoundingClientRect().bottom ??
-    topbarBottom;
-  const topLimit = Math.max(viewportTop + 8, topbarBottom + 8, cardHeadingBottom + 8);
-  if (
-    !row.isConnected ||
-    rect.bottom <= topLimit ||
-    rect.top >= viewportTop + viewportHeight - 8 ||
-    topLimit + 48 > viewportTop + viewportHeight - 8
-  )
-    return null;
-  const left = Math.max(
-    viewportLeft + 8,
-    Math.min(clientX - width / 2, viewportLeft + viewportWidth - width - 8),
-  );
-  const above = rect.top - 56;
-  const below = rect.bottom + 8;
-  let top =
-    above >= topLimit ? above : below + 48 <= viewportTop + viewportHeight - 8 ? below : topLimit;
-  const feedback = document.querySelector(".feedback-launch")?.getBoundingClientRect();
-  if (
-    feedback !== undefined &&
-    left < feedback.right &&
-    left + width > feedback.left &&
-    top < feedback.bottom &&
-    top + 48 > feedback.top
-  ) {
-    if (feedback.top - 56 >= topLimit) top = feedback.top - 56;
-    else if (feedback.bottom + 56 <= viewportTop + viewportHeight - 8) top = feedback.bottom + 8;
-  }
-  return { left, top, width };
-}
-
 function HunkRows({
   hunk,
   interaction,
@@ -89,14 +42,7 @@ function HunkRows({
   interaction: DiffInteraction;
   onReveal: LineReveal;
 }) {
-  const press = useRef<{
-    pointerId: number;
-    index: number;
-    x: number;
-    y: number;
-    startedAt: number;
-  } | null>(null);
-  const completedTap = useRef<{ index: number; x: number } | null>(null);
+  const lineTap = useLineTap((index, row, x) => onReveal(hunk, index, row, x));
   const gutter = (index: number, side: "old" | "new") => {
     if (interaction.kind === "inspect") {
       const line = hunk.lines[index];
@@ -127,7 +73,10 @@ function HunkRows({
     );
     if (anchor === null) return <span class="diff-number diff-number-empty" aria-hidden="true" />;
     const count = interaction.drafts.filter(
-      (draft) => draft.anchor.side === side && draft.anchor.line === anchor.line,
+      (draft) =>
+        draft.anchor.kind === "diff" &&
+        draft.anchor.side === side &&
+        draft.anchor.line === anchor.line,
     ).length;
     return (
       <button
@@ -151,61 +100,7 @@ function HunkRows({
         <div
           class={`diff-row diff-row-${line.kind}`}
           key={`${index}:${line.oldLine ?? ""}:${line.newLine ?? ""}`}
-          onPointerDown={(event) => {
-            completedTap.current = null;
-            if (
-              !event.isPrimary ||
-              event.button !== 0 ||
-              document.getSelection()?.isCollapsed === false ||
-              (event.target instanceof Element && event.target.closest("button, a"))
-            ) {
-              press.current = null;
-              return;
-            }
-            press.current = {
-              pointerId: event.pointerId,
-              index,
-              x: event.clientX,
-              y: event.clientY,
-              startedAt: performance.now(),
-            };
-          }}
-          onPointerMove={(event) => {
-            const start = press.current;
-            if (
-              start !== null &&
-              start.pointerId === event.pointerId &&
-              Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10
-            )
-              press.current = null;
-          }}
-          onPointerCancel={() => {
-            press.current = null;
-          }}
-          onPointerUp={(event) => {
-            const start = press.current;
-            press.current = null;
-            if (
-              start === null ||
-              start.pointerId !== event.pointerId ||
-              start.index !== index ||
-              performance.now() - start.startedAt > 500 ||
-              Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10 ||
-              document.getSelection()?.isCollapsed === false
-            )
-              return;
-            completedTap.current = { index, x: event.clientX };
-          }}
-          onClick={(event) => {
-            const tap = completedTap.current;
-            completedTap.current = null;
-            if (
-              tap !== null &&
-              tap.index === index &&
-              document.getSelection()?.isCollapsed !== false
-            )
-              onReveal(hunk, index, event.currentTarget, tap.x);
-          }}
+          {...lineTap(index)}
         >
           <span class="diff-sign" aria-hidden="true">
             {line.kind === "added" ? "+" : line.kind === "removed" ? "−" : " "}
@@ -250,54 +145,7 @@ export function DiffBody({
   wrap: boolean;
   interaction: DiffInteraction;
 }) {
-  const [action, setAction] = useState<LineAction | null>(null);
-  useEffect(() => {
-    setAction(null);
-  }, [result, wrap]);
-  useLayoutEffect(() => {
-    if (action === null) return;
-    const dismissOutside = (event: PointerEvent) => {
-      if (!(event.target instanceof Element) || !event.target.closest(".diff-line-action"))
-        setAction(null);
-    };
-    const dismissSelection = () => {
-      if (document.getSelection()?.isCollapsed === false) setAction(null);
-    };
-    const dismissEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAction(null);
-    };
-    const trackRow = () => {
-      const position = lineActionPosition(action.row, action.clientX);
-      if (position === null) {
-        setAction(null);
-        return;
-      }
-      setAction((current) =>
-        current === null ||
-        (current.left === position.left &&
-          current.top === position.top &&
-          current.width === position.width)
-          ? current
-          : { ...current, ...position },
-      );
-    };
-    document.addEventListener("pointerdown", dismissOutside, true);
-    document.addEventListener("selectionchange", dismissSelection);
-    document.addEventListener("scroll", trackRow, true);
-    window.addEventListener("keydown", dismissEscape);
-    window.addEventListener("resize", trackRow);
-    window.visualViewport?.addEventListener("scroll", trackRow);
-    window.visualViewport?.addEventListener("resize", trackRow);
-    return () => {
-      document.removeEventListener("pointerdown", dismissOutside, true);
-      document.removeEventListener("selectionchange", dismissSelection);
-      document.removeEventListener("scroll", trackRow, true);
-      window.removeEventListener("keydown", dismissEscape);
-      window.removeEventListener("resize", trackRow);
-      window.visualViewport?.removeEventListener("scroll", trackRow);
-      window.visualViewport?.removeEventListener("resize", trackRow);
-    };
-  }, [action]);
+  const [action, setAction] = useLineAction<LineAction>(result, wrap);
 
   const reveal: LineReveal = (hunk, index, row, clientX) => {
     const line = hunk.lines[index];
@@ -321,8 +169,9 @@ export function DiffBody({
       if (anchor === null) return;
       const count = interaction.drafts.filter(
         (draft) =>
-          (draft.anchor.side === "old" && draft.anchor.line === line.oldLine) ||
-          (draft.anchor.side === "new" && draft.anchor.line === line.newLine),
+          draft.anchor.kind === "diff" &&
+          ((draft.anchor.side === "old" && draft.anchor.line === line.oldLine) ||
+            (draft.anchor.side === "new" && draft.anchor.line === line.newLine)),
       ).length;
       action = { kind: "comment", anchor, count };
     }

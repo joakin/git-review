@@ -1,6 +1,6 @@
 # Repository formatting
 
-Status: reviewed and accepted on 2026-10-04; commit explicitly approved
+Status: reviewed and accepted on 2026-10-04; committed as `fa927ac`
 
 The maintainer requested consistent whitespace throughout the codebase and automatic formatting
 before commits, with a separate review before continuing file feedback in U03. U02 is accepted and
@@ -64,7 +64,7 @@ hook does not authorize committing a feature or unrelated edits.
 - **Commands and installation:** `bun run format:check`, strict TypeScript, CSS validation, and
   build pass. A frozen `bun install --frozen-lockfile` executes `prepare` and installs `.husky/_`
   successfully. Before review, the hook was exercised in its own fixture with the repository index
-  empty; the approved commit also runs the installed hook.
+  empty; the approved `fa927ac` commit also ran the installed hook successfully.
 - **Hook evidence:** `qa:format-hook` passes with the actual Git hook and copied repository
   configuration. It formats TypeScript/TSX, CSS, Markdown, JSON, SVG, and web manifests; handles
   spaces and Unicode filenames; preserves partial staged/unstaged edits, generated capture metadata,

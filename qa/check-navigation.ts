@@ -261,8 +261,8 @@ try {
   await selectedCard.locator(".diff-line-action").click();
   const previousBody = "Earlier body before the last edit.";
   const latestBody = "Browser Back keeps this latest draft.";
-  await page.getByPlaceholder("What should change?").fill(previousBody);
-  await page.getByPlaceholder("What should change?").fill(latestBody);
+  await page.getByPlaceholder("Add a question, note, or suggestion…").fill(previousBody);
+  await page.getByPlaceholder("Add a question, note, or suggestion…").fill(latestBody);
   await page.goBack();
   await page
     .getByRole("button", { name: "Open staged diff for src/view.ts" })

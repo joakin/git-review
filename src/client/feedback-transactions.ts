@@ -1,7 +1,13 @@
 import type { Project } from "../shared/api.ts";
-import type { fetchProjectDiff, fetchProjectStatus } from "./api.ts";
+import {
+  ApiRequestError,
+  type fetchProjectDiff,
+  type fetchProjectFile,
+  type fetchProjectStatus,
+} from "./api.ts";
 import {
   anchorMatches,
+  fileAnchorMatches,
   maxFeedbackLength,
   mergeCheckedComments,
   newLocalId,
@@ -27,6 +33,7 @@ type FeedbackPorts = {
   onCopied: (result: CopyResult) => void;
   fetchStatus: typeof fetchProjectStatus;
   fetchDiff: typeof fetchProjectDiff;
+  fetchFile: typeof fetchProjectFile;
   writeText: (text: string) => Promise<void>;
 };
 
@@ -75,43 +82,76 @@ export class FeedbackTransactions {
     snapshot: CommentStore,
     signal: AbortSignal,
   ): Promise<CheckedComments> {
-    const latest = await this.ports.fetchStatus(snapshot.projectId, signal);
-    signal.throwIfAborted();
+    const diffDrafts = snapshot.drafts.filter((draft) => draft.anchor.kind === "diff");
     const results = new Map<string, Awaited<ReturnType<typeof fetchProjectDiff>>>();
-    if (latest.kind === "git") {
-      for (const draft of snapshot.drafts) {
-        const key = `${draft.anchor.layer}:${draft.anchor.path}`;
-        if (
-          results.has(key) ||
-          !latest.entries.some(
-            (entry) => entry.layer === draft.anchor.layer && entry.path === draft.anchor.path,
+    if (diffDrafts.length > 0) {
+      const latest = await this.ports.fetchStatus(snapshot.projectId, signal);
+      signal.throwIfAborted();
+      if (latest.kind === "git")
+        for (const draft of diffDrafts) {
+          const anchor = draft.anchor;
+          if (anchor.kind !== "diff") continue;
+          const key = `${anchor.layer}:${anchor.path}`;
+          if (
+            results.has(key) ||
+            !latest.entries.some(
+              (entry) => entry.layer === anchor.layer && entry.path === anchor.path,
+            )
           )
-        )
-          continue;
-        const result = await this.ports.fetchDiff(
+            continue;
+          const result = await this.ports.fetchDiff(
+            snapshot.projectId,
+            anchor.layer,
+            anchor.path,
+            latest.revision,
+            "text",
+            signal,
+          );
+          signal.throwIfAborted();
+          if (result.kind === "stale")
+            throw new Error("The files changed during checking. Try again.");
+          results.set(key, result);
+        }
+    }
+    const files = new Map<string, Awaited<ReturnType<typeof fetchProjectFile>> | null>();
+    for (const draft of snapshot.drafts) {
+      if (draft.anchor.kind !== "file" || files.has(draft.anchor.path)) continue;
+      try {
+        const result = await this.ports.fetchFile(
           snapshot.projectId,
-          draft.anchor.layer,
           draft.anchor.path,
-          latest.revision,
-          null,
+          "text",
           signal,
         );
         signal.throwIfAborted();
-        if (result.kind === "stale")
-          throw new Error("The files changed during checking. Try again.");
-        results.set(key, result);
+        files.set(draft.anchor.path, result);
+      } catch (error: unknown) {
+        signal.throwIfAborted();
+        if (
+          error instanceof ApiRequestError &&
+          error.code === "file_not_found" &&
+          error.status === 404
+        )
+          files.set(draft.anchor.path, null);
+        else
+          throw new Error(
+            `Could not check ${JSON.stringify(draft.anchor.path)}. ${message(error)} Retry before copying.`,
+          );
       }
     }
     return {
       projectId: snapshot.projectId,
       drafts: snapshot.drafts.map((draft) => {
-        const result = results.get(`${draft.anchor.layer}:${draft.anchor.path}`);
-        return {
-          id: draft.id,
-          anchor: draft.anchor,
-          state:
-            result !== undefined && anchorMatches(result, draft.anchor) ? "current" : "outdated",
-        };
+        const anchor = draft.anchor;
+        let current = false;
+        if (anchor.kind === "diff") {
+          const result = results.get(`${anchor.layer}:${anchor.path}`);
+          current = result !== undefined && anchorMatches(result, anchor);
+        } else {
+          const result = files.get(anchor.path);
+          current = result !== undefined && result !== null && fileAnchorMatches(result, anchor);
+        }
+        return { id: draft.id, anchor, state: current ? "current" : "outdated" };
       }),
     };
   }

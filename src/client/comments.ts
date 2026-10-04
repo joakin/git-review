@@ -1,17 +1,22 @@
-import type { ChangeLayer, DiffHunk, DiffResult } from "../shared/api.ts";
+import type { ChangeLayer, DiffHunk, DiffResult, FileLine, FileReadResult } from "../shared/api.ts";
 import { isRecord } from "../shared/validation.ts";
 
 export type ReviewSide = "old" | "new";
 export type ReviewLayer = "staged" | "unstaged" | "untracked";
-export type CommentAnchor = {
-  layer: ReviewLayer;
+type LineContext = {
   path: string;
-  side: ReviewSide;
   line: number;
   sourceText: string;
   before: string | null;
   after: string | null;
 };
+export type DiffCommentAnchor = LineContext & {
+  kind: "diff";
+  layer: ReviewLayer;
+  side: ReviewSide;
+};
+export type FileCommentAnchor = LineContext & { kind: "file"; source: "worktree" };
+export type CommentAnchor = DiffCommentAnchor | FileCommentAnchor;
 export type DraftComment = {
   id: string;
   anchor: CommentAnchor;
@@ -27,7 +32,7 @@ export type FeedbackHistory = {
   comments: DraftComment[];
 };
 export type CommentStore = {
-  version: 1;
+  version: 2;
   projectId: string;
   drafts: DraftComment[];
   history: FeedbackHistory[];
@@ -50,32 +55,58 @@ export function newLocalId(): string {
 }
 
 export function emptyCommentStore(projectId: string): CommentStore {
-  return { version: 1, projectId, drafts: [], history: [] };
+  return { version: 2, projectId, drafts: [], history: [] };
 }
 
 function validText(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length <= max && !value.includes("\0");
 }
 
-function parseAnchor(value: unknown): CommentAnchor | null {
+function parseAnchor(value: unknown, version: 1 | 2): CommentAnchor | null {
   if (!isRecord(value)) return null;
-  const { layer, path, side, line, sourceText, before, after } = value;
-  if (layer !== "staged" && layer !== "unstaged" && layer !== "untracked") return null;
+  const { path, line, sourceText, before, after } = value;
   if (!validText(path, 4096) || path.length === 0 || !validText(sourceText, 20_000)) return null;
-  if (side !== "old" && side !== "new") return null;
   if (!Number.isSafeInteger(line) || typeof line !== "number" || line <= 0) return null;
   if (
     !(before === null || validText(before, 20_000)) ||
     !(after === null || validText(after, 20_000))
   )
     return null;
-  return { layer, path, side, line, sourceText, before, after };
+  const context = { path, line, sourceText, before, after };
+  if (version === 2 && value["kind"] === "file") {
+    if (
+      value["source"] !== "worktree" ||
+      "layer" in value ||
+      "side" in value ||
+      path.startsWith("/") ||
+      path
+        .split("/")
+        .some((part) => part === "" || part === "." || part === ".." || part === ".git")
+    )
+      return null;
+    try {
+      encodeURIComponent(path);
+    } catch {
+      return null;
+    }
+    return { kind: "file", source: "worktree", ...context };
+  }
+  if (
+    (version === 1 && "kind" in value) ||
+    (version === 2 && value["kind"] !== "diff") ||
+    "source" in value
+  )
+    return null;
+  const { layer, side } = value;
+  if (layer !== "staged" && layer !== "unstaged" && layer !== "untracked") return null;
+  if (side !== "old" && side !== "new") return null;
+  return { kind: "diff", layer, side, ...context };
 }
 
-function parseDraft(value: unknown): DraftComment | null {
+function parseDraft(value: unknown, version: 1 | 2): DraftComment | null {
   if (!isRecord(value)) return null;
   const { id, body, createdAt, updatedAt, state } = value;
-  const anchor = parseAnchor(value["anchor"]);
+  const anchor = parseAnchor(value["anchor"], version);
   if (
     anchor === null ||
     !validText(id, 100) ||
@@ -98,7 +129,13 @@ function parseDraft(value: unknown): DraftComment | null {
 }
 
 export function validateCommentStore(value: unknown, projectId: string): CommentStore | null {
-  if (!isRecord(value) || value["version"] !== 1 || value["projectId"] !== projectId) return null;
+  if (
+    !isRecord(value) ||
+    (value["version"] !== 1 && value["version"] !== 2) ||
+    value["projectId"] !== projectId
+  )
+    return null;
+  const version = value["version"];
   if (
     !Array.isArray(value["drafts"]) ||
     value["drafts"].length > maxDrafts ||
@@ -109,7 +146,7 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
   const drafts: DraftComment[] = [];
   const ids = new Set<string>();
   for (const item of value["drafts"]) {
-    const draft = parseDraft(item);
+    const draft = parseDraft(item, version);
     if (draft === null || ids.has(draft.id)) return null;
     ids.add(draft.id);
     drafts.push(draft);
@@ -130,13 +167,13 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
       return null;
     const comments: DraftComment[] = [];
     for (const raw of item["comments"]) {
-      const comment = parseDraft(raw);
+      const comment = parseDraft(raw, version);
       if (comment === null || comment.state !== "current") return null;
       comments.push(comment);
     }
     history.push({ id: item["id"], copiedAt: item["copiedAt"], text: item["text"], comments });
   }
-  return { version: 1, projectId, drafts, history };
+  return { version: 2, projectId, drafts, history };
 }
 
 export function parseCommentStore(value: unknown, projectId: string): CommentStore {
@@ -146,9 +183,12 @@ export function parseCommentStore(value: unknown, projectId: string): CommentSto
 export function readCommentStore(projectId: string): CommentStore {
   try {
     const raw = localStorage.getItem(`${commentStoragePrefix}${projectId}`);
-    return raw === null
-      ? emptyCommentStore(projectId)
-      : parseCommentStore(JSON.parse(raw) as unknown, projectId);
+    if (raw === null) return emptyCommentStore(projectId);
+    const value: unknown = JSON.parse(raw);
+    const store = validateCommentStore(value, projectId);
+    if (store === null) return emptyCommentStore(projectId);
+    if (isRecord(value) && value["version"] === 1) saveCommentStore(store);
+    return store;
   } catch {
     return emptyCommentStore(projectId);
   }
@@ -168,7 +208,7 @@ export function anchorForLine(
   hunk: DiffHunk,
   index: number,
   side: ReviewSide,
-): CommentAnchor | null {
+): DiffCommentAnchor | null {
   const line = hunk.lines[index];
   if (line === undefined || layer === "conflict") return null;
   const number = side === "old" ? line.oldLine : line.newLine;
@@ -180,6 +220,7 @@ export function anchorForLine(
       : null;
   };
   return {
+    kind: "diff",
     layer,
     path,
     side,
@@ -191,7 +232,7 @@ export function anchorForLine(
 }
 
 export function anchorMatches(result: DiffResult, anchor: CommentAnchor): boolean {
-  if (result.kind !== "text") return false;
+  if (anchor.kind !== "diff" || result.kind !== "text") return false;
   for (const hunk of result.hunks) {
     for (let index = 0; index < hunk.lines.length; index += 1) {
       const current = anchorForLine(anchor.layer, anchor.path, hunk, index, anchor.side);
@@ -208,37 +249,70 @@ export function anchorMatches(result: DiffResult, anchor: CommentAnchor): boolea
   return false;
 }
 
+export function anchorForFileLine(
+  path: string,
+  lines: readonly FileLine[],
+  index: number,
+): FileCommentAnchor | null {
+  const line = lines[index];
+  if (line === undefined) return null;
+  const before = lines[index - 1]?.text ?? null;
+  const after = lines[index + 1]?.text ?? null;
+  if (![line.text, before, after].every((text) => text === null || validText(text, 20_000)))
+    return null;
+  return {
+    kind: "file",
+    source: "worktree",
+    path,
+    line: line.number,
+    sourceText: line.text,
+    before,
+    after,
+  };
+}
+
+export function fileAnchorMatches(result: FileReadResult, anchor: CommentAnchor): boolean {
+  if (anchor.kind !== "file" || result.kind !== "text" || result.path !== anchor.path) return false;
+  const current = anchorForFileLine(result.path, result.lines, anchor.line - 1);
+  return current !== null && sameAnchor(current, anchor);
+}
+
+export function canReattachAnchor(previous: CommentAnchor, next: CommentAnchor): boolean {
+  return previous.kind === next.kind;
+}
+
 function quote(value: string): string {
   return JSON.stringify(value);
 }
 
 export function formatFeedback(projectPath: string, drafts: readonly DraftComment[]): string {
-  const layerOrder: Record<CommentAnchor["layer"], number> = {
-    staged: 0,
-    unstaged: 1,
-    untracked: 2,
-  };
+  const sourceOrder = (anchor: CommentAnchor): number =>
+    anchor.kind === "file" ? 3 : { staged: 0, unstaged: 1, untracked: 2 }[anchor.layer];
   const sorted = drafts
     .filter((draft) => draft.state === "current")
     .sort(
       (a, b) =>
-        layerOrder[a.anchor.layer] - layerOrder[b.anchor.layer] ||
+        sourceOrder(a.anchor) - sourceOrder(b.anchor) ||
         a.anchor.path.localeCompare(b.anchor.path) ||
         a.anchor.line - b.anchor.line ||
-        a.anchor.side.localeCompare(b.anchor.side) ||
-        a.createdAt - b.createdAt,
+        (a.anchor.kind === "diff" && b.anchor.kind === "diff"
+          ? a.anchor.side.localeCompare(b.anchor.side)
+          : 0) ||
+        a.createdAt - b.createdAt ||
+        a.id.localeCompare(b.id),
     );
   if (sorted.length === 0) return "";
   const lines = [`Review feedback for ${quote(projectPath)}`];
   let group = "";
   for (const draft of sorted) {
-    const nextGroup = `${draft.anchor.layer}:${draft.anchor.path}`;
+    const source = draft.anchor.kind === "file" ? "worktree" : draft.anchor.layer;
+    const nextGroup = `${source}:${draft.anchor.path}`;
     if (nextGroup !== group) {
-      lines.push("", `[${draft.anchor.layer}] ${quote(draft.anchor.path)}`);
+      lines.push("", `[${source}] ${quote(draft.anchor.path)}`);
       group = nextGroup;
     }
     lines.push(
-      `  ${draft.anchor.side} line ${draft.anchor.line}  ${quote(draft.anchor.sourceText)}`,
+      `  ${draft.anchor.kind === "diff" ? `${draft.anchor.side} ` : ""}line ${draft.anchor.line}  ${quote(draft.anchor.sourceText)}`,
     );
     for (const bodyLine of draft.body.trim().split(/\r?\n/)) lines.push(`    ${bodyLine}`);
   }
@@ -247,9 +321,10 @@ export function formatFeedback(projectPath: string, drafts: readonly DraftCommen
 
 function sameAnchor(first: CommentAnchor, second: CommentAnchor): boolean {
   return (
-    first.layer === second.layer &&
+    first.kind === second.kind &&
+    (first.kind === "file" ||
+      (second.kind === "diff" && first.layer === second.layer && first.side === second.side)) &&
     first.path === second.path &&
-    first.side === second.side &&
     first.line === second.line &&
     first.sourceText === second.sourceText &&
     first.before === second.before &&

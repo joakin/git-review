@@ -234,7 +234,9 @@ export function ChangesView({
                         reattachSide={reattachSide}
                         drafts={drafts.filter(
                           (draft) =>
-                            draft.anchor.layer === entry.layer && draft.anchor.path === entry.path,
+                            draft.anchor.kind === "diff" &&
+                            draft.anchor.layer === entry.layer &&
+                            draft.anchor.path === entry.path,
                         )}
                       />
                     ))

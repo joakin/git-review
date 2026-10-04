@@ -1,6 +1,7 @@
 # Files browser: first readable file slice
 
-Status: implemented and committed after maintainer review.
+Status: original Files slice implemented and committed after maintainer review; U03 line-feedback
+extension accepted; commit approved.
 
 ## Why this slice
 
@@ -18,8 +19,11 @@ desktop. Search results reuse the same file viewer, and
    sticky location bar. The content-heading back arrow returns to or reveals the list.
 3. Tap a text file to show its complete working-tree content with line numbers and the existing
    semantic syntax colors. Reuse the Wrap toggle; with wrapping off, only the code pane scrolls
-   horizontally. Empty files show a clear empty state. Files mode does not add comment anchors yet:
-   line feedback still belongs to Git diff rows.
+   horizontally. Empty files show a clear empty state. Tap/click a text row, then Comment to add a
+   working-tree line comment; keyboard users can activate its line-number button. Draft markers and
+   counts belong to file anchors, independently of diff comments. The
+   [U03 record](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files)
+   owns this extension and its review.
 4. Supported images, SVG, audio, and video show native previews and raw links. Other binary,
    symbolic-link, unsupported special-file, oversized, and unreadable content show a named state.
    Refresh rereads the current directory or file while retaining loaded same-file content during the
@@ -34,6 +38,9 @@ desktop. Search results reuse the same file viewer, and
   result: `text` with `path`, byte length, `syntax`, and numbered `{ text, tokens }` lines; `media`
   with a version-checked raw resource; or `binary`, `too_large`, `symlink`, or `unsupported` with
   byte length. A language override uses the bundled-language list and project/path local preference.
+  A missing file returns HTTP 404 with `file_not_found`; project-handle failures retain `not_found`,
+  and denied or transient reads remain errors. Feedback can mark a deleted file outdated without
+  treating an offline host as deleted content.
 - Both routes require an opened project ID, revalidate that project under the approved root, parse
   each path once, and confine reads to the selected project's real directory as well as the approved
   root. Do not follow symlinks in this first slice. Read only regular files. Use no shell for
@@ -114,8 +121,10 @@ tree remain later work.
   and the matching tablet and desktop captures are in the same folder. Chrome reports a secure
   context, active service worker, and standalone manifest.
 - Browser emulation does not verify physical-device touch or the installed Android/iOS app. File
-  selection and directory position now survive reload through the URL; recent-file history and
-  general file-line comment anchors are not implemented.
+  selection and directory position survive reload through the URL. Recent-file history remains
+  optional; file-line feedback was added later in the
+  [U03 follow-up](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
+  whose own review and device limits apply.
 
 After maintainer review, the redundant **Browse files** button was hidden at widths where the
 sidebar was already visible, and separators between code rows were removed to make continuous code

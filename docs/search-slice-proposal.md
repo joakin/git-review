@@ -86,7 +86,10 @@ list. It does not add Git history or index browsing.
 
 From this repository on a phone, search for a symbol, open its current file at the matched line, and
 return to the same results. The same path works in a non-Git folder. Search is bounded and
-read-only; existing Changes and feedback are unaffected.
+read-only. Its full-file viewer also supports
+[U03 working-tree line feedback](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
+accepted; commit approved. Files and Search share file-anchor identity and markers; the Search query
+is not part of that identity.
 
 Search is an explicit project tab. Its URL records the submitted query and optional result
 file/line; the latest matching response stays in tab memory during section switches. Back/Forward

@@ -9,6 +9,7 @@ import {
   undoSuccessfulCopy,
   type CommentStore,
   type DraftComment,
+  type DiffCommentAnchor,
 } from "./comments.ts";
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
 
@@ -56,10 +57,11 @@ const diff: DiffResult = {
   ],
 };
 
-function draft(id: string): DraftComment {
+function draft(id: string): DraftComment & { anchor: DiffCommentAnchor } {
   return {
     id,
     anchor: {
+      kind: "diff",
       layer: "unstaged",
       path: "file.ts",
       side: "new",
@@ -94,7 +96,7 @@ function deferred<T>() {
 type Ports = ConstructorParameters<typeof FeedbackTransactions>[0];
 function harness(
   drafts: DraftComment[] = [draft("one")],
-  overrides: Partial<Pick<Ports, "fetchStatus" | "fetchDiff" | "writeText">> = {},
+  overrides: Partial<Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchFile" | "writeText">> = {},
 ) {
   let current: CommentStore | null = { ...emptyCommentStore(project.id), drafts };
   const states: FeedbackState[] = [];
@@ -110,6 +112,11 @@ function harness(
     onCopied: (value) => copied.push(value),
     fetchStatus: overrides.fetchStatus ?? (async () => status),
     fetchDiff: overrides.fetchDiff ?? (async () => diff),
+    fetchFile:
+      overrides.fetchFile ??
+      (async () => {
+        throw new Error("Unexpected file read");
+      }),
     writeText: async (text) => {
       written.push(text);
       await overrides.writeText?.(text);

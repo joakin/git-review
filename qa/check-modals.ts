@@ -176,7 +176,7 @@ try {
       }, previousOverflow);
 
       const editor = page.getByRole("dialog", { name: /^(Add a comment|Edit comment)$/ });
-      const textarea = editor.getByPlaceholder("What should change?");
+      const textarea = editor.getByPlaceholder("Add a question, note, or suggestion…");
       await row.locator(".diff-code").click();
       await page.getByRole("button", { name: /Comment on new line 1/ }).click();
       await checkOpen(page, editor, textarea);

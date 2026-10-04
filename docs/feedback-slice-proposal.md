@@ -8,21 +8,26 @@ tap/click access at every size.
 
 This slice established the review loop: select a diff line, write a comment, preview comments, and
 copy a line-numbered summary into an editing session. Later slices add row actions, voice input, and
-URL navigation while keeping the same anchor and export model.
+URL navigation.
+[U03](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
+accepted; commit approved, extends the anchor and export model to working-tree text lines in Files
+and Search.
 
 ## User flow
 
-1. Open a changed file card. Tap or click a code row, then its floating Comment action. Added and
-   unchanged lines use New; removed lines use Old. Phones hide the gutters, while wider screens also
-   offer direct old/new line-number buttons. Native text selection takes precedence and opens
-   Search; double tap is not a comment shortcut.
+1. Open a text file in Files or a Search result, or a changed file card. Tap or click a code row,
+   then its floating Comment action. Files use Working tree lines and provide a keyboard-accessible
+   line-number button. In diffs, added and unchanged lines use New; removed lines use Old. Phones
+   hide diff gutters, while wider screens also offer direct old/new line-number buttons. Native text
+   selection takes precedence and opens Search; double tap is not a comment shortcut.
 2. A comment editor opens as a bottom sheet on a phone and a dialog on wider screens. It shows path,
-   Git layer, side, line number, and a short source quote. Type a comment, save it, edit it, or
-   delete it. Closing an edited sheet saves the draft. The line and file show a comment count or
-   marker.
-3. A sticky Feedback button shows the draft count. It opens a preview grouped by Git layer and file.
-   Each item shows side, line, source quote, and comment text. The preview offers Copy feedback and
-   a selectable text fallback.
+   Git layer and side for a diff anchor, or Working tree for a file anchor, plus line number and a
+   short source quote. Type a comment, save it, edit it, or delete it. Closing an edited sheet saves
+   the draft. The line and file show a comment count or marker.
+3. A sticky Feedback button shows the project draft count in every project view. It opens a preview
+   grouped by source and file. Each item shows its source, line, source quote, and comment text;
+   diff items also identify Old/New. The preview offers Copy feedback and a selectable text
+   fallback.
 4. After a confirmed clipboard write, save an immutable history entry and clear the copied drafts,
    with immediate Undo. If writing fails or the clipboard API is unavailable, leave drafts intact
    and reveal selectable text. History can be reopened and recopied.
@@ -47,30 +52,39 @@ changes and polling policy, while dialogs consume feedback values and actions.
 A project store owns drafts and copy history. Each draft has a generated ID, an anchor, body text,
 creation/update times, and a current/outdated state. Its anchor carries the reviewable Git layer,
 folder-relative path, old/new side, positive line number, exact source text, and neighboring-line
-fingerprint. [ReviewLayer](../src/client/comments.ts) names only staged, unstaged, and untracked:
-storage parsing already rejects conflicts, and the broader line-anchor factory rejects conflict
-status entries before creating an anchor. Bound draft count, body length, path length, and history
-size. Empty text is not a saved comment.
+fingerprint. A discriminated `kind: "diff" | "file"` keeps these anchors distinct: file anchors
+carry `source: "worktree"`, path, line, exact text and neighboring context, without a Git layer or
+side. [ReviewLayer](../src/client/comments.ts) names only staged, unstaged, and untracked: storage
+parsing already rejects conflicts, and the broader line-anchor factory rejects conflict status
+entries before creating an anchor. Bound draft count, body length, path length, and history size.
+Empty text is not a saved comment.
 
-Opening Feedback fetches current status and the diff for each commented file/layer before making
-copy available. A draft is current only if its side, line number, exact source text, and stored
-neighboring context still match. Mark mismatches outdated and require reattachment before including
-them in copied feedback; never silently export a comment under a new line. Unique relocation by
-context is not implemented. This avoids relying on the status revision alone, which can remain
-unchanged when a modified file's content changes.
+Opening Feedback checks each source before making copy available. Diff drafts fetch current status
+and a plain-text diff per file/layer. File drafts reread each commented path once using the bounded
+working-tree file API with plain text. File-only batches need no Git status. Missing/non-text files
+are outdated; read or project errors retain drafts and disable export until a successful retry. A
+draft is current only if its source, line number, exact source text, and stored neighboring context
+still match; diff anchors also retain their side. Mark mismatches outdated and require reattachment
+before including them in copied feedback; never silently export a comment under a new line. Unique
+relocation by context is not implemented. This avoids relying on the status revision alone, which
+can remain unchanged when a modified file's content changes.
 
-Export plain text deterministically, grouped by layer and path, with old/new side, line number,
-quoted source, and comment. Only a resolved clipboard write counts as a successful copy for history.
-The export formatter is a pure function so behavior tests can cover ordering, escaping, and stale
-exclusion.
+Export plain text deterministically, grouped by source and path, with line number, quoted source,
+and comment. Diff sections retain their layer and old/new side; file sections use `[worktree]` and
+`line N`. Equal anchors sort by creation time and ID, keeping duplicate-comment ordering stable.
+Only a resolved clipboard write counts as a successful copy for history. The export formatter is a
+pure function so behavior tests can cover ordering, escaping, and stale exclusion.
 
 The [feedback transaction owner](../src/client/feedback-transactions.ts) keeps checks and clipboard
-operations in tab memory; stored comments remain version 1. A check merges validity only into
-still-existing drafts with matching full anchors, preserving newer bodies, additions, deletions,
-reattachments, and history. The successful check carries its checked ID/anchor set into both the
-selectable preview and the automatic copy snapshot. Drafts added or restored during a check need
-another check before entering that export. Copy always checks again and snapshots the latest saved
-bodies belonging to the checked anchors.
+operations in tab memory. Stored comments use version 2 at the existing `git-review:comments:v1:`
+key. Valid legacy version-1 stores migrate in place after validation, including history anchors;
+copied history text remains exact. Backup export uses version 4, while versions 1–3 remain
+importable with validated legacy diff stores. A check merges validity only into still-existing
+drafts with matching full anchors, preserving newer bodies, additions, deletions, reattachments, and
+history. The successful check carries its checked ID/anchor set into both the selectable preview and
+the automatic copy snapshot. Drafts added or restored during a check need another check before
+entering that export. Copy always checks again and snapshots the latest saved bodies belonging to
+the checked anchors.
 
 While a clipboard write is pending, show **Copying feedback…** and disable further feedback/history
 writes. Check/copy cancellation happens synchronously on navigation and before opening an existing

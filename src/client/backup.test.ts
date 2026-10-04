@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { parseReviewBackup } from "./backup.ts";
-import type { CommentStore, DraftComment } from "./comments.ts";
+
 import { validateAppearance, validateCodeTypography } from "./storage.ts";
 
 const rootPath = "/approved/root";
@@ -29,7 +29,7 @@ const comment = {
   createdAt: 1,
   updatedAt: 1,
   state: "current",
-} satisfies DraftComment;
+} as const;
 const compatibleBackups = [
   valid,
   { ...valid, version: 2, codeTypography: { version: 1, fontSize: 14, fontFamily: "system" } },
@@ -52,9 +52,26 @@ test("backup versions 1–3 preserve every reviewable layer in drafts and copy h
     projectId: "aaaaaaaaaaaaaaaaaaaa",
     drafts,
     history: [{ id: "copy", copiedAt: 2, text: "Previous feedback", comments: drafts }],
-  } satisfies CommentStore;
+  };
+  const migrated = {
+    ...store,
+    version: 2 as const,
+    drafts: drafts.map((draft) => ({
+      ...draft,
+      anchor: { ...draft.anchor, kind: "diff" as const },
+    })),
+    history: store.history.map((entry) => ({
+      ...entry,
+      comments: entry.comments.map((draft) => ({
+        ...draft,
+        anchor: { ...draft.anchor, kind: "diff" as const },
+      })),
+    })),
+  };
   for (const backup of compatibleBackups)
-    expect(parseReviewBackup({ ...backup, comments: [store] }, rootPath).comments).toEqual([store]);
+    expect(parseReviewBackup({ ...backup, comments: [store] }, rootPath).comments).toEqual([
+      migrated,
+    ]);
 });
 
 test("backup versions 1–3 reject conflict anchors in drafts and copy history", () => {

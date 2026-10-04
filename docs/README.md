@@ -21,6 +21,8 @@ installation.
   types, state ownership, navigation, transactions, and documentation.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and
   optional further device checks.
+- [Selected-code feedback proposal](selected-code-feedback-proposal.md): proposed Comment action
+  alongside Search, exact selected fragments and compatibility checks; approved for implementation.
 - [Formatting workflow](formatting-workflow.md): pinned formatter, repository-wide commands,
   staged-file hook, and verification record.
 
@@ -89,10 +91,12 @@ focus handling.
 
 ## Current scope and limits
 
-- Files reads the working tree. Comments anchor to working-copy Git diff lines; general file
-  comments are not implemented. Git opens historical commit comparisons with line information and
-  media; historical comments, file-specific history, and a full old-tree browser remain optional
-  later work.
+- Files reads the working tree. The
+  [U03 follow-up](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
+  accepted; commit approved, adds text-line feedback in Files and Search alongside working-copy Git
+  diff comments. Whole-file/project notes remain outside this slice. Git opens historical commit
+  comparisons with line information and media; historical comments, file-specific history, and a
+  full old-tree browser remain optional later work.
 - Draft checking requires the same side, line, source text, and neighboring context. Outdated drafts
   need explicit reattachment; automatic relocation is not implemented.
 - Recent projects exist; recent-file history is optional future work. Diff payloads are cached only
