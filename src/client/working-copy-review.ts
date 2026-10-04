@@ -5,7 +5,10 @@ import { diffCardKey } from "./DiffCard.tsx";
 import { routeProjectPath, type Route } from "./navigation.ts";
 import { readOpenCards, saveOpenCards } from "./storage.ts";
 
-type Status = { kind: "loading" } | { kind: "ready"; value: ProjectStatus } | { kind: "error"; message: string };
+type Status =
+  | { kind: "loading" }
+  | { kind: "ready"; value: ProjectStatus }
+  | { kind: "error"; message: string };
 type ReviewState = {
   project: Project | null;
   status: Status;
@@ -15,7 +18,15 @@ type ReviewState = {
   refreshKey: number;
   expandedKeys: ReadonlySet<string>;
 };
-type ReviewPosition = { project: Project; route: Extract<Route, { section: "changes" }>; refreshKey: number; cardId: string | null; cardIndex: number; top: number; scrollY: number };
+type ReviewPosition = {
+  project: Project;
+  route: Extract<Route, { section: "changes" }>;
+  refreshKey: number;
+  cardId: string | null;
+  cardIndex: number;
+  top: number;
+  scrollY: number;
+};
 type ReviewInputs = {
   project: Project | null;
   route: Route | null;
@@ -25,8 +36,21 @@ type ReviewInputs = {
   onNonGit: (project: Project) => void;
 };
 type WorkingCopyReview = {
-  model: { status: Status; refreshing: boolean; pendingUpdate: boolean; checkError: boolean; refreshKey: number; expandedKeys: ReadonlySet<string> };
-  actions: { beginProjectOpen: () => void; loadProject: (project: Project) => void; refresh: () => void; toggleEntry: (entry: ChangeEntry) => void; expandEntry: (entry: ChangeEntry) => void };
+  model: {
+    status: Status;
+    refreshing: boolean;
+    pendingUpdate: boolean;
+    checkError: boolean;
+    refreshKey: number;
+    expandedKeys: ReadonlySet<string>;
+  };
+  actions: {
+    beginProjectOpen: () => void;
+    loadProject: (project: Project) => void;
+    refresh: () => void;
+    toggleEntry: (entry: ChangeEntry) => void;
+    expandEntry: (entry: ChangeEntry) => void;
+  };
 };
 
 const loading: Status = { kind: "loading" };
@@ -37,7 +61,15 @@ const pollIntervalMs = 10_000;
 export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
-  const [state, setState] = useState<ReviewState>(() => ({ project: null, status: loading, refreshing: false, pendingUpdate: false, checkError: false, refreshKey: 0, expandedKeys: emptyCards }));
+  const [state, setState] = useState<ReviewState>(() => ({
+    project: null,
+    status: loading,
+    refreshing: false,
+    pendingUpdate: false,
+    checkError: false,
+    refreshKey: 0,
+    expandedKeys: emptyCards,
+  }));
   const stateRef = useRef(state);
   const statusRequest = useRef<AbortController | null>(null);
   const reviewPosition = useRef<ReviewPosition | null>(null);
@@ -51,16 +83,37 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
   function beginProjectOpen(): void {
     statusRequest.current?.abort();
     reviewPosition.current = null;
-    update((current) => ({ ...current, project: null, status: loading, refreshing: false, pendingUpdate: false, checkError: false, expandedKeys: emptyCards }));
+    update((current) => ({
+      ...current,
+      project: null,
+      status: loading,
+      refreshing: false,
+      pendingUpdate: false,
+      checkError: false,
+      expandedKeys: emptyCards,
+    }));
   }
 
   function loadProject(project: Project): void {
-    update((current) => ({ ...current, project, status: loading, refreshing: false, pendingUpdate: false, checkError: false, expandedKeys: readOpenCards(project.id) }));
+    update((current) => ({
+      ...current,
+      project,
+      status: loading,
+      refreshing: false,
+      pendingUpdate: false,
+      checkError: false,
+      expandedKeys: readOpenCards(project.id),
+    }));
   }
 
   function hasCurrentProject(project: Project): boolean {
     const route = inputsRef.current.readCurrentRoute();
-    return stateRef.current.project === project && inputsRef.current.project === project && route !== null && routeProjectPath(route) === project.path;
+    return (
+      stateRef.current.project === project &&
+      inputsRef.current.project === project &&
+      route !== null &&
+      routeProjectPath(route) === project.path
+    );
   }
 
   function changeExpansion(entry: ChangeEntry, toggle: boolean): void {
@@ -79,12 +132,28 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
   function refresh(): void {
     const project = inputsRef.current.project;
     const route = inputsRef.current.readCurrentRoute();
-    if (project === null || !hasCurrentProject(project) || stateRef.current.refreshing || route?.section !== "changes") return;
+    if (
+      project === null ||
+      !hasCurrentProject(project) ||
+      stateRef.current.refreshing ||
+      route?.section !== "changes"
+    )
+      return;
     const cards = [...document.querySelectorAll<HTMLElement>("main .diff-card")];
     const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
-    const cardIndex = cards.findIndex((card) => card.getBoundingClientRect().bottom > topbarBottom + 8);
-    const card = cardIndex < 0 ? null : cards[cardIndex] ?? null;
-    reviewPosition.current = { project, route, refreshKey: stateRef.current.refreshKey + 1, cardId: card?.id ?? null, cardIndex: Math.max(0, cardIndex), top: card?.getBoundingClientRect().top ?? topbarBottom, scrollY: window.scrollY };
+    const cardIndex = cards.findIndex(
+      (card) => card.getBoundingClientRect().bottom > topbarBottom + 8,
+    );
+    const card = cardIndex < 0 ? null : (cards[cardIndex] ?? null);
+    reviewPosition.current = {
+      project,
+      route,
+      refreshKey: stateRef.current.refreshKey + 1,
+      cardId: card?.id ?? null,
+      cardIndex: Math.max(0, cardIndex),
+      top: card?.getBoundingClientRect().top ?? topbarBottom,
+      scrollY: window.scrollY,
+    };
     // This generation also renews expanded diff requests, including failed status reads.
     update((current) => ({ ...current, refreshing: true, refreshKey: current.refreshKey + 1 }));
   }
@@ -96,34 +165,69 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
     const generation = state.refreshKey;
     statusRequest.current = controller;
     update((current) => ({ ...current, refreshing: true }));
-    const isCurrent = (): boolean => !controller.signal.aborted && statusRequest.current === controller && stateRef.current.refreshKey === generation && hasCurrentProject(project);
+    const isCurrent = (): boolean =>
+      !controller.signal.aborted &&
+      statusRequest.current === controller &&
+      stateRef.current.refreshKey === generation &&
+      hasCurrentProject(project);
     fetchProjectStatus(project.id, controller.signal).then(
       (value) => {
         if (!isCurrent()) return;
-        update((current) => ({ ...current, status: { kind: "ready", value }, refreshing: false, pendingUpdate: false, checkError: false }));
+        update((current) => ({
+          ...current,
+          status: { kind: "ready", value },
+          refreshing: false,
+          pendingUpdate: false,
+          checkError: false,
+        }));
         if (value.kind === "not_git") inputsRef.current.onNonGit(project);
       },
       (error: unknown) => {
         if (!isCurrent()) return;
         const message = error instanceof Error ? error.message : "Something went wrong";
-        update((current) => ({ ...current, status: current.status.kind === "ready" ? current.status : { kind: "error", message }, refreshing: false }));
+        update((current) => ({
+          ...current,
+          status: current.status.kind === "ready" ? current.status : { kind: "error", message },
+          refreshing: false,
+        }));
         inputsRef.current.onNotice(message);
       },
     );
-    return () => { controller.abort(); if (statusRequest.current === controller) statusRequest.current = null; };
+    return () => {
+      controller.abort();
+      if (statusRequest.current === controller) statusRequest.current = null;
+    };
   }, [project, state.refreshKey]);
 
   useEffect(() => {
     const displayed = state.status;
-    if (project === null || state.project !== project || displayed.kind !== "ready" || displayed.value.kind !== "git" || !inputs.pollingAllowed || state.refreshing) return;
+    if (
+      project === null ||
+      state.project !== project ||
+      displayed.kind !== "ready" ||
+      displayed.value.kind !== "git" ||
+      !inputs.pollingAllowed ||
+      state.refreshing
+    )
+      return;
     const displayedToken = displayed.value.changeToken;
     let timer: number | null = null;
     let request: AbortController | null = null;
     let disposed = false;
     let checkOnResume = false;
     let failures = 0;
-    const clearTimer = (): void => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
-    const isCurrent = (): boolean => !disposed && hasCurrentProject(project) && inputsRef.current.pollingAllowed && stateRef.current.status === displayed && !stateRef.current.refreshing;
+    const clearTimer = (): void => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const isCurrent = (): boolean =>
+      !disposed &&
+      hasCurrentProject(project) &&
+      inputsRef.current.pollingAllowed &&
+      stateRef.current.status === displayed &&
+      !stateRef.current.refreshing;
     const check = async (): Promise<void> => {
       if (!isCurrent() || document.visibilityState !== "visible" || request !== null) return;
       clearTimer();
@@ -132,7 +236,11 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       try {
         const latest = await fetchProjectStatus(project.id, controller.signal);
         if (!isCurrent() || controller.signal.aborted) return;
-        update((current) => ({ ...current, pendingUpdate: latest.kind !== "git" || latest.changeToken !== displayedToken, checkError: false }));
+        update((current) => ({
+          ...current,
+          pendingUpdate: latest.kind !== "git" || latest.changeToken !== displayedToken,
+          checkError: false,
+        }));
         failures = 0;
       } catch {
         if (!isCurrent() || controller.signal.aborted) return;
@@ -141,58 +249,113 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       } finally {
         if (request === controller) request = null;
         if (isCurrent() && document.visibilityState === "visible") {
-          if (checkOnResume) { checkOnResume = false; void check(); }
-          else timer = window.setTimeout(() => void check(), pollIntervalMs);
+          if (checkOnResume) {
+            checkOnResume = false;
+            void check();
+          } else timer = window.setTimeout(() => void check(), pollIntervalMs);
         }
       }
     };
     const onVisibility = (): void => {
-      if (document.visibilityState !== "visible") { clearTimer(); request?.abort(); return; }
+      if (document.visibilityState !== "visible") {
+        clearTimer();
+        request?.abort();
+        return;
+      }
       if (request !== null) checkOnResume = true;
       else void check();
     };
     document.addEventListener("visibilitychange", onVisibility);
     void check();
-    return () => { disposed = true; clearTimer(); request?.abort(); document.removeEventListener("visibilitychange", onVisibility); };
+    return () => {
+      disposed = true;
+      clearTimer();
+      request?.abort();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [project, state.project, state.status, state.refreshing, inputs.pollingAllowed]);
 
   useEffect(() => {
     const position = reviewPosition.current;
     if (position === null) return;
-    if (project !== position.project || inputs.route !== position.route) { reviewPosition.current = null; return; }
+    if (project !== position.project || inputs.route !== position.route) {
+      reviewPosition.current = null;
+      return;
+    }
     if (state.status.kind !== "ready" || state.refreshing) return;
     const main = document.querySelector("main");
     if (main === null) return;
     let frame: number | null = null;
-    const isCurrent = (): boolean => hasCurrentProject(position.project) && inputsRef.current.readCurrentRoute() === position.route && stateRef.current.refreshKey === position.refreshKey && !stateRef.current.refreshing;
+    const isCurrent = (): boolean =>
+      hasCurrentProject(position.project) &&
+      inputsRef.current.readCurrentRoute() === position.route &&
+      stateRef.current.refreshKey === position.refreshKey &&
+      !stateRef.current.refreshing;
     const restore = (): void => {
       frame = null;
-      if (!isCurrent() || main.querySelector('.diff-card[data-diff-state="loading"]') !== null) return;
+      if (!isCurrent() || main.querySelector('.diff-card[data-diff-state="loading"]') !== null)
+        return;
       observer.disconnect();
       reviewPosition.current = null;
       const cards = [...document.querySelectorAll<HTMLElement>("main .diff-card")];
-      const target = (position.cardId === null ? null : document.getElementById(position.cardId)) ?? cards[Math.min(position.cardIndex, cards.length - 1)] ?? document.querySelector<HTMLElement>(".changes-heading");
-      if (target === null) { window.scrollTo({ top: position.scrollY, behavior: "instant" }); return; }
-      window.scrollBy({ top: target.getBoundingClientRect().top - position.top, behavior: "instant" });
+      const target =
+        (position.cardId === null ? null : document.getElementById(position.cardId)) ??
+        cards[Math.min(position.cardIndex, cards.length - 1)] ??
+        document.querySelector<HTMLElement>(".changes-heading");
+      if (target === null) {
+        window.scrollTo({ top: position.scrollY, behavior: "instant" });
+        return;
+      }
+      window.scrollBy({
+        top: target.getBoundingClientRect().top - position.top,
+        behavior: "instant",
+      });
     };
     const schedule = (): void => {
-      if (frame === null && isCurrent() && main.querySelector('.diff-card[data-diff-state="loading"]') === null) frame = requestAnimationFrame(restore);
+      if (
+        frame === null &&
+        isCurrent() &&
+        main.querySelector('.diff-card[data-diff-state="loading"]') === null
+      )
+        frame = requestAnimationFrame(restore);
     };
     // Status acceptance precedes fresh diff bodies. Their temporary loading
     // heights can clamp scroll; restore only once the rendered review settles.
     const observer = new MutationObserver(schedule);
-    observer.observe(main, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-diff-state"] });
+    observer.observe(main, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-diff-state"],
+    });
     schedule();
-    return () => { observer.disconnect(); if (frame !== null) cancelAnimationFrame(frame); };
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, [project, inputs.route, state.status, state.refreshing, state.refreshKey]);
 
   useEffect(() => {
-    if (project !== null && state.project === project) saveOpenCards(project.id, state.expandedKeys);
+    if (project !== null && state.project === project)
+      saveOpenCards(project.id, state.expandedKeys);
   }, [project, state.project, state.expandedKeys]);
 
   const current = project !== null && state.project === project;
   return {
-    model: { status: current ? state.status : loading, refreshing: current && state.refreshing, pendingUpdate: current && state.pendingUpdate, checkError: current && state.checkError, refreshKey: state.refreshKey, expandedKeys: current ? state.expandedKeys : emptyCards },
-    actions: { beginProjectOpen, loadProject, refresh, toggleEntry: (entry) => changeExpansion(entry, true), expandEntry: (entry) => changeExpansion(entry, false) },
+    model: {
+      status: current ? state.status : loading,
+      refreshing: current && state.refreshing,
+      pendingUpdate: current && state.pendingUpdate,
+      checkError: current && state.checkError,
+      refreshKey: state.refreshKey,
+      expandedKeys: current ? state.expandedKeys : emptyCards,
+    },
+    actions: {
+      beginProjectOpen,
+      loadProject,
+      refresh,
+      toggleEntry: (entry) => changeExpansion(entry, true),
+      expandEntry: (entry) => changeExpansion(entry, false),
+    },
   };
 }

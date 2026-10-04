@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/prettierrc",
+  "printWidth": 100,
+  "proseWrap": "always",
+  "endOfLine": "lf",
+  "overrides": [
+    { "files": "*.webmanifest", "options": { "parser": "json" } },
+    { "files": "*.svg", "options": { "parser": "html" } }
+  ]
+}

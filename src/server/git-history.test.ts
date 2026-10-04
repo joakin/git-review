@@ -4,11 +4,21 @@ import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseCommitDetail, parseCommitSummary, type CommitDetail } from "../shared/git.ts";
-import { commitFile, readCommit, readCommitDiff, readGitHistory, readGitRefs } from "./git-history.ts";
+import {
+  commitFile,
+  readCommit,
+  readCommitDiff,
+  readGitHistory,
+  readGitRefs,
+} from "./git-history.ts";
 import { approveRoot, openProject } from "./paths.ts";
 
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync("git", ["-c", "user.name=History QA", "-c", "user.email=history@example.invalid", ...args], { cwd, encoding: "utf8" }).trim();
+  return execFileSync(
+    "git",
+    ["-c", "user.name=History QA", "-c", "user.email=history@example.invalid", ...args],
+    { cwd, encoding: "utf8" },
+  ).trim();
 }
 
 function commit(cwd: string, message: string): string {
@@ -17,7 +27,9 @@ function commit(cwd: string, message: string): string {
   return git(cwd, "rev-parse", "HEAD");
 }
 
-function file(detail: CommitDetail, path: string) { return commitFile(detail, path); }
+function file(detail: CommitDetail, path: string) {
+  return commitFile(detail, path);
+}
 
 test("commit inspection reads immutable full messages, root/parent diffs and file kinds", async () => {
   const directory = await mkdtemp(join(tmpdir(), "git-review-history-"));
@@ -36,26 +48,47 @@ test("commit inspection reads immutable full messages, root/parent diffs and fil
     const root = await approveRoot(directory);
     const project = await openProject(root, "");
     const refs = await readGitRefs(project);
-    expect(refs.kind === "git" && refs.head).toEqual({ kind: "branch", ref: "refs/heads/main", oid: second });
+    expect(refs.kind === "git" && refs.head).toEqual({
+      kind: "branch",
+      ref: "refs/heads/main",
+      oid: second,
+    });
     const original = await readCommit(project, first);
     expect(original.message).toBe("First subject\n\nA complete paragraph.\n\nAnother paragraph.\n");
     expect(original.comparison).toEqual({ kind: "empty" });
     const rootDiff = await readCommitDiff(project, original, file(original, "value.ts"), null);
-    expect(rootDiff.kind === "text" && rootDiff.hunks[0]?.lines.map((line) => [line.kind, line.newLine, line.text])).toEqual([["added", 1, "export const value = 'before';"]]);
+    expect(
+      rootDiff.kind === "text" &&
+        rootDiff.hunks[0]?.lines.map((line) => [line.kind, line.newLine, line.text]),
+    ).toEqual([["added", 1, "export const value = 'before';"]]);
     const detail = await readCommit(project, second);
     expect(parseCommitDetail(detail)).toEqual(detail);
     expect(detail.comparison).toEqual({ kind: "parent", oid: first });
     const diff = await readCommitDiff(project, detail, file(detail, "value.ts"), null);
-    expect(diff.kind === "text" && diff.hunks[0]?.lines.map((line) => line.text)).toEqual(["export const value = 'before';", "export const value = 'after';"]);
-    expect(diff.kind === "text" && diff.syntax).toEqual({ kind: "highlighted", language: "typescript" });
-    expect(diff.kind === "text" && diff.hunks[0]?.lines.every((line) => line.detail.kind === "word_change")).toBe(true);
+    expect(diff.kind === "text" && diff.hunks[0]?.lines.map((line) => line.text)).toEqual([
+      "export const value = 'before';",
+      "export const value = 'after';",
+    ]);
+    expect(diff.kind === "text" && diff.syntax).toEqual({
+      kind: "highlighted",
+      language: "typescript",
+    });
+    expect(
+      diff.kind === "text" &&
+        diff.hunks[0]?.lines.every((line) => line.detail.kind === "word_change"),
+    ).toBe(true);
     expect(file(detail, "new name.txt").kind).toBe("renamed");
-    expect(await readCommitDiff(project, detail, file(detail, "link.ts"), null)).toEqual({ kind: "binary", reason: "symlink" });
+    expect(await readCommitDiff(project, detail, file(detail, "link.ts"), null)).toEqual({
+      kind: "binary",
+      reason: "symlink",
+    });
     await expect(readCommit(project, "HEAD~1")).rejects.toThrow("object ID");
     await expect(readCommit(project, "a".repeat(64))).rejects.toThrow("object ID");
     expect(() => commitFile(detail, "../secret")).toThrow("Invalid commit file path");
     expect(() => commitFile(detail, "absent.ts")).toThrow("not changed");
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("historical binary and oversized content keep their variants for root and parent comparisons", async () => {
@@ -72,10 +105,17 @@ test("historical binary and oversized content keep their variants for root and p
     const project = await openProject(root, "");
     for (const oid of [first, second]) {
       const detail = await readCommit(project, oid);
-      expect(await readCommitDiff(project, detail, file(detail, "binary.dat"), null)).toEqual({ kind: "binary", reason: "binary" });
-      expect(await readCommitDiff(project, detail, file(detail, "large.txt"), null)).toEqual({ kind: "too_large" });
+      expect(await readCommitDiff(project, detail, file(detail, "binary.dat"), null)).toEqual({
+        kind: "binary",
+        reason: "binary",
+      });
+      expect(await readCommitDiff(project, detail, file(detail, "large.txt"), null)).toEqual({
+        kind: "too_large",
+      });
     }
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("branches, detached/unborn states, pagination snapshots, merges and empty commits", async () => {
@@ -84,7 +124,12 @@ test("branches, detached/unborn states, pagination snapshots, merges and empty c
     git(directory, "init", "-q", "-b", "main");
     const root = await approveRoot(directory);
     const project = await openProject(root, "");
-    expect(await readGitRefs(project)).toEqual({ kind: "git", head: { kind: "unborn", ref: "refs/heads/main" }, branches: [], scope: "" });
+    expect(await readGitRefs(project)).toEqual({
+      kind: "git",
+      head: { kind: "unborn", ref: "refs/heads/main" },
+      branches: [],
+      scope: "",
+    });
     await writeFile(join(directory, "base.txt"), "base\n");
     const base = commit(directory, "Base");
     git(directory, "checkout", "-qb", "feature");
@@ -98,7 +143,11 @@ test("branches, detached/unborn states, pagination snapshots, merges and empty c
     git(directory, "update-ref", "refs/remotes/origin/main", merged);
     git(directory, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main");
     const refs = await readGitRefs(project);
-    expect(refs.kind === "git" && refs.branches.map((branch) => branch.ref)).toEqual(["refs/heads/feature", "refs/heads/main", "refs/remotes/origin/main"]);
+    expect(refs.kind === "git" && refs.branches.map((branch) => branch.ref)).toEqual([
+      "refs/heads/feature",
+      "refs/heads/main",
+      "refs/remotes/origin/main",
+    ]);
     const detail = await readCommit(project, merged);
     expect(detail.parents).toEqual([parent, feature]);
     expect(detail.comparison).toEqual({ kind: "parent", oid: parent });
@@ -109,21 +158,37 @@ test("branches, detached/unborn states, pagination snapshots, merges and empty c
     expect(page.commits.length).toBe(50);
     expect(page.nextOffset).toBe(50);
     expect((await readCommit(project, page.tip)).files).toEqual([]);
-    expect(page.commits.every((commit) => commit.stats.kind === "ready" && commit.stats.added === 0 && commit.stats.deleted === 0 && commit.stats.binaryFiles === 0)).toBe(true);
+    expect(
+      page.commits.every(
+        (commit) =>
+          commit.stats.kind === "ready" &&
+          commit.stats.added === 0 &&
+          commit.stats.deleted === 0 &&
+          commit.stats.binaryFiles === 0,
+      ),
+    ).toBe(true);
     git(directory, "commit", "--allow-empty", "-qm", "After snapshot");
     const older = await readGitHistory(project, { kind: "page", tip: page.tip, offset: 50 });
     expect(older.commits.map((commit) => commit.oid)).toContain(merged);
     expect(older.commits.map((commit) => commit.oid)).toContain(base);
     expect(older.commits.find((commit) => commit.oid === merged)?.stats).toEqual(detail.stats);
-    expect(older.commits.some((commit) => page.commits.some((shown) => shown.oid === commit.oid))).toBe(false);
-    expect((await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" })).tip).not.toBe(page.tip);
+    expect(
+      older.commits.some((commit) => page.commits.some((shown) => shown.oid === commit.oid)),
+    ).toBe(false);
+    expect((await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" })).tip).not.toBe(
+      page.tip,
+    );
     expect(git(directory, "symbolic-ref", "HEAD")).toBe("refs/heads/main");
-    await expect(readGitHistory(project, { kind: "ref", ref: "main~2" })).rejects.toThrow("branch is unavailable");
+    await expect(readGitHistory(project, { kind: "ref", ref: "main~2" })).rejects.toThrow(
+      "branch is unavailable",
+    );
     git(directory, "checkout", "--detach", "-q", feature);
     expect((await readGitRefs(project)).kind === "git").toBe(true);
     const detached = await readGitRefs(project);
     expect(detached.kind === "git" && detached.head).toEqual({ kind: "detached", oid: feature });
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("project-subfolder history confines both sides, including renames across its boundary", async () => {
@@ -141,16 +206,23 @@ test("project-subfolder history confines both sides, including renames across it
     const project = await openProject(root, "");
     const detail = await readCommit(project, oid);
     expect(detail.scope).toBe("inside");
-    expect(detail.files.map((file) => [file.path, file.kind])).toEqual([["inbound.txt", "added"], ["outbound.txt", "deleted"]]);
+    expect(detail.files.map((file) => [file.path, file.kind])).toEqual([
+      ["inbound.txt", "added"],
+      ["outbound.txt", "deleted"],
+    ]);
     expect(file(detail, "inbound.txt").old).toEqual({ kind: "absent" });
     const diff = await readCommitDiff(project, detail, file(detail, "inbound.txt"), "text");
-    expect(diff.kind === "text" && diff.hunks[0]?.lines.map((line) => line.kind)).toEqual(["added"]);
+    expect(diff.kind === "text" && diff.hunks[0]?.lines.map((line) => line.kind)).toEqual([
+      "added",
+    ]);
     expect(() => commitFile(detail, "../outbound.txt")).toThrow();
     const history = await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" });
     expect(history.commits[0]?.oid).toBe(oid);
     expect(detail.stats).toEqual({ kind: "ready", added: 1, deleted: 1, binaryFiles: 0 });
     expect(history.commits[0]?.stats).toEqual(detail.stats);
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("shallow missing parents stay unavailable and messages respect the explicit limit", async () => {
@@ -170,14 +242,20 @@ test("shallow missing parents stay unavailable and messages respect the explicit
     expect(detail.comparison).toEqual({ kind: "missing_parent", oid: base });
     expect(detail.files).toEqual([]);
     expect(detail.stats).toEqual({ kind: "unavailable", reason: "missing_parent" });
-    expect((await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" })).commits[0]?.stats).toEqual(detail.stats);
+    expect(
+      (await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" })).commits[0]?.stats,
+    ).toEqual(detail.stats);
     git(directory, "commit", "--allow-empty", "-qm", "x".repeat(65_537));
     const original = await openProject(await approveRoot(directory), "");
-    await expect(readCommit(original, git(directory, "rev-parse", "HEAD"))).rejects.toThrow("64 KiB");
+    await expect(readCommit(original, git(directory, "rev-parse", "HEAD"))).rejects.toThrow(
+      "64 KiB",
+    );
     await expect(readCommit(original, "a".repeat(40))).rejects.toThrow("no longer available");
     const folder = await openProject(await approveRoot(tmpdir()), "");
     expect(await readGitRefs(folder)).toEqual({ kind: "not_git" });
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("commit line totals agree across history and detail for text, binary, rename and mode changes", async () => {
@@ -209,8 +287,18 @@ test("commit line totals agree across history and detail for text, binary, renam
     }
     const summary = history.commits[0];
     if (summary === undefined) throw new Error("Missing fixture history");
-    for (const stats of [null, {}, { kind: "ready", added: -1, deleted: 0, binaryFiles: 0 }, { kind: "ready", added: 0.5, deleted: 0, binaryFiles: 0 }, { kind: "ready", added: 0, deleted: 0, binaryFiles: Number.MAX_SAFE_INTEGER + 1 }, { kind: "unavailable", reason: "unknown" }]) expect(() => parseCommitSummary({ ...summary, stats })).toThrow();
-  } finally { await rm(directory, { recursive: true, force: true }); }
+    for (const stats of [
+      null,
+      {},
+      { kind: "ready", added: -1, deleted: 0, binaryFiles: 0 },
+      { kind: "ready", added: 0.5, deleted: 0, binaryFiles: 0 },
+      { kind: "ready", added: 0, deleted: 0, binaryFiles: Number.MAX_SAFE_INTEGER + 1 },
+      { kind: "unavailable", reason: "unknown" },
+    ])
+      expect(() => parseCommitSummary({ ...summary, stats })).toThrow();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("statistics limits preserve readable history instead of fabricating zero totals", async () => {
@@ -228,5 +316,7 @@ test("statistics limits preserve readable history instead of fabricating zero to
     expect(history.commits[0]?.subject).toBe("Large body");
     expect(history.commits[0]?.stats).toEqual({ kind: "unavailable", reason: "limit" });
     expect(history.commits[1]?.oid).toBe(base);
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

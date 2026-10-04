@@ -19,7 +19,16 @@ test("Git inventory keeps layers separate and preserves unusual paths", async ()
     await writeFile(join(directory, "old name.txt"), "rename this unchanged content\n");
     await writeFile(join(directory, "sub", "nested.txt"), "nested base\n");
     git(directory, "add", ".");
-    git(directory, "-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "base");
+    git(
+      directory,
+      "-c",
+      "user.name=QA",
+      "-c",
+      "user.email=qa@example.invalid",
+      "commit",
+      "-qm",
+      "base",
+    );
 
     await writeFile(join(directory, "both.txt"), "staged\n");
     git(directory, "add", "both.txt");
@@ -33,16 +42,49 @@ test("Git inventory keeps layers separate and preserves unusual paths", async ()
     const status = await readProjectStatus(directory);
     expect(status.kind).toBe("git");
     if (status.kind !== "git") return;
-    expect(status.entries).toContainEqual({ layer: "staged", kind: "modified", path: "both.txt", oldPath: null, isSubmodule: false });
-    expect(status.entries).toContainEqual({ layer: "unstaged", kind: "modified", path: "both.txt", oldPath: null, isSubmodule: false });
-    expect(status.entries).toContainEqual({ layer: "staged", kind: "deleted", path: "delete.txt", oldPath: null, isSubmodule: false });
-    expect(status.entries).toContainEqual({ layer: "staged", kind: "renamed", path: "renamed name.txt", oldPath: "old name.txt", isSubmodule: false });
-    expect(status.entries).toContainEqual({ layer: "untracked", kind: "added", path: "sub/odd\nname.txt", oldPath: null, isSubmodule: false });
+    expect(status.entries).toContainEqual({
+      layer: "staged",
+      kind: "modified",
+      path: "both.txt",
+      oldPath: null,
+      isSubmodule: false,
+    });
+    expect(status.entries).toContainEqual({
+      layer: "unstaged",
+      kind: "modified",
+      path: "both.txt",
+      oldPath: null,
+      isSubmodule: false,
+    });
+    expect(status.entries).toContainEqual({
+      layer: "staged",
+      kind: "deleted",
+      path: "delete.txt",
+      oldPath: null,
+      isSubmodule: false,
+    });
+    expect(status.entries).toContainEqual({
+      layer: "staged",
+      kind: "renamed",
+      path: "renamed name.txt",
+      oldPath: "old name.txt",
+      isSubmodule: false,
+    });
+    expect(status.entries).toContainEqual({
+      layer: "untracked",
+      kind: "added",
+      path: "sub/odd\nname.txt",
+      oldPath: null,
+      isSubmodule: false,
+    });
 
     const scoped = await readProjectStatus(join(directory, "sub"));
     expect(scoped.kind).toBe("git");
     if (scoped.kind !== "git") return;
-    expect(scoped.entries.map((entry) => entry.path).sort()).toEqual(["nested.txt", "odd\nname.txt"]);
+    expect(scoped.entries.map((entry) => entry.path).sort()).toEqual([
+      "nested.txt",
+      "odd\nname.txt",
+    ]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -57,7 +99,13 @@ test("non-Git folders and repositories without commits have clear inventory stat
     const status = await readProjectStatus(directory);
     expect(status.kind).toBe("git");
     if (status.kind === "git") {
-      expect(status.entries).toContainEqual({ layer: "untracked", kind: "added", path: "first.txt", oldPath: null, isSubmodule: false });
+      expect(status.entries).toContainEqual({
+        layer: "untracked",
+        kind: "added",
+        path: "first.txt",
+        oldPath: null,
+        isSubmodule: false,
+      });
     }
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -70,13 +118,23 @@ test("change token notices edits behind unchanged Git status entries", async () 
     git(directory, "init", "-q");
     await writeFile(join(directory, "tracked.txt"), "base\n");
     git(directory, "add", "tracked.txt");
-    git(directory, "-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "base");
+    git(
+      directory,
+      "-c",
+      "user.name=QA",
+      "-c",
+      "user.email=qa@example.invalid",
+      "commit",
+      "-qm",
+      "base",
+    );
 
     await writeFile(join(directory, "tracked.txt"), "first\n");
     const trackedBefore = await readProjectStatus(directory);
     await writeFile(join(directory, "tracked.txt"), "other\n");
     const trackedAfter = await readProjectStatus(directory);
-    if (trackedBefore.kind !== "git" || trackedAfter.kind !== "git") throw new Error("Expected Git statuses");
+    if (trackedBefore.kind !== "git" || trackedAfter.kind !== "git")
+      throw new Error("Expected Git statuses");
     expect(trackedAfter.entries).toEqual(trackedBefore.entries);
     expect(trackedAfter.revision).toBe(trackedBefore.revision);
     expect(trackedAfter.changeToken).not.toBe(trackedBefore.changeToken);
@@ -85,7 +143,8 @@ test("change token notices edits behind unchanged Git status entries", async () 
     const untrackedBefore = await readProjectStatus(directory);
     await writeFile(join(directory, "new.txt"), "other\n");
     const untrackedAfter = await readProjectStatus(directory);
-    if (untrackedBefore.kind !== "git" || untrackedAfter.kind !== "git") throw new Error("Expected Git statuses");
+    if (untrackedBefore.kind !== "git" || untrackedAfter.kind !== "git")
+      throw new Error("Expected Git statuses");
     expect(untrackedAfter.entries).toEqual(untrackedBefore.entries);
     expect(untrackedAfter.revision).toBe(untrackedBefore.revision);
     expect(untrackedAfter.changeToken).not.toBe(untrackedBefore.changeToken);

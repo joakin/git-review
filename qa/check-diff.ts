@@ -2,7 +2,9 @@ import { chromium } from "playwright-core";
 
 function options(args: readonly string[]): { url: URL; folder: string } {
   if (args.length !== 4 || args[0] !== "--url" || args[2] !== "--folder") {
-    throw new Error("Usage: bun run qa:diff --url <local app URL> --folder <direct child Git fixture>");
+    throw new Error(
+      "Usage: bun run qa:diff --url <local app URL> --folder <direct child Git fixture>",
+    );
   }
   const rawUrl = args[1];
   const folder = args[3];
@@ -10,7 +12,8 @@ function options(args: readonly string[]): { url: URL; folder: string } {
     throw new Error("Provide an app URL and one direct child fixture folder");
   }
   const url = new URL(rawUrl);
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("The app URL must use HTTP or HTTPS");
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    throw new Error("The app URL must use HTTP or HTTPS");
   return { url, folder };
 }
 
@@ -46,11 +49,15 @@ async function main(): Promise<void> {
         throw new Error("The staged card did not show the staged comparison");
       }
 
-      const longCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/long-line.ts"]');
+      const longCard = page.locator(
+        'main .diff-card[data-layer="untracked"][data-path="src/long-line.ts"]',
+      );
       await longCard.locator(".diff-card-toggle").click();
       await longCard.locator(".diff-row").waitFor({ state: "visible" });
       const wrapped = await page.evaluate(() => {
-        const pane = document.querySelector('main .diff-card[data-path="src/long-line.ts"] .diff-scroll');
+        const pane = document.querySelector(
+          'main .diff-card[data-path="src/long-line.ts"] .diff-scroll',
+        );
         if (!(pane instanceof HTMLElement)) throw new Error("Long-line code pane is missing");
         return { paneWidth: pane.clientWidth, contentWidth: pane.scrollWidth };
       });
@@ -59,7 +66,9 @@ async function main(): Promise<void> {
       }
       await page.getByRole("button", { name: "Wrap: on" }).click();
       const widths = await page.evaluate(() => {
-        const pane = document.querySelector('main .diff-card[data-path="src/long-line.ts"] .diff-scroll');
+        const pane = document.querySelector(
+          'main .diff-card[data-path="src/long-line.ts"] .diff-scroll',
+        );
         if (!(pane instanceof HTMLElement)) throw new Error("Long-line code pane is missing");
         return {
           paneWidth: pane.clientWidth,
@@ -72,14 +81,23 @@ async function main(): Promise<void> {
         throw new Error(`Code did not scroll inside its pane: ${JSON.stringify(widths)}`);
       }
 
-      const mixedCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/wide-mixed.ts"]');
+      const mixedCard = page.locator(
+        'main .diff-card[data-layer="untracked"][data-path="src/wide-mixed.ts"]',
+      );
       await mixedCard.locator(".diff-card-toggle").click();
       await mixedCard.locator(".diff-row").first().waitFor({ state: "visible" });
       const scrolled = await page.evaluate(() => {
-        const pane = document.querySelector('main .diff-card[data-path="src/wide-mixed.ts"] .diff-scroll');
+        const pane = document.querySelector(
+          'main .diff-card[data-path="src/wide-mixed.ts"] .diff-scroll',
+        );
         const content = pane?.querySelector(".diff-scroll-content");
         const rows = pane?.querySelectorAll(".diff-row");
-        if (!(pane instanceof HTMLElement) || !(content instanceof HTMLElement) || rows?.length !== 2) throw new Error("Mixed-width diff is missing");
+        if (
+          !(pane instanceof HTMLElement) ||
+          !(content instanceof HTMLElement) ||
+          rows?.length !== 2
+        )
+          throw new Error("Mixed-width diff is missing");
         const shortRow = rows[1];
         if (!(shortRow instanceof HTMLElement)) throw new Error("Short diff row is missing");
         pane.scrollLeft = pane.scrollWidth;
@@ -89,7 +107,14 @@ async function main(): Promise<void> {
         const first = numbers[0];
         const second = numbers[1];
         const code = shortRow.querySelector(".diff-code");
-        if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement) || !(sign instanceof HTMLElement) || !(hunkLabel instanceof HTMLElement) || !(code instanceof HTMLElement)) throw new Error("Diff row parts are missing");
+        if (
+          !(first instanceof HTMLElement) ||
+          !(second instanceof HTMLElement) ||
+          !(sign instanceof HTMLElement) ||
+          !(hunkLabel instanceof HTMLElement) ||
+          !(code instanceof HTMLElement)
+        )
+          throw new Error("Diff row parts are missing");
         return {
           scrollLeft: pane.scrollLeft,
           paneLeft: pane.getBoundingClientRect().left,
@@ -106,17 +131,30 @@ async function main(): Promise<void> {
           background: getComputedStyle(shortRow).backgroundColor,
         };
       });
-      if (scrolled.scrollLeft <= 0 || Math.abs(scrolled.shortRight - scrolled.contentRight) > 2 ||
-          scrolled.signDisplay !== "none" || scrolled.firstDisplay !== "none" || scrolled.secondDisplay !== "none" ||
-          Math.abs(scrolled.codeLeft - scrolled.rowLeft) > 2 || Math.abs(scrolled.codePadding - 8) > 2 ||
-          Math.abs(scrolled.hunkLabelLeft - scrolled.paneLeft - 12) > 2 ||
-          scrolled.rowHeight <= 0 || scrolled.rowHeight > 26 || scrolled.background === "rgba(0, 0, 0, 0)") {
-        throw new Error(`Horizontal diff alignment or compact row height failed: ${JSON.stringify(scrolled)}`);
+      if (
+        scrolled.scrollLeft <= 0 ||
+        Math.abs(scrolled.shortRight - scrolled.contentRight) > 2 ||
+        scrolled.signDisplay !== "none" ||
+        scrolled.firstDisplay !== "none" ||
+        scrolled.secondDisplay !== "none" ||
+        Math.abs(scrolled.codeLeft - scrolled.rowLeft) > 2 ||
+        Math.abs(scrolled.codePadding - 8) > 2 ||
+        Math.abs(scrolled.hunkLabelLeft - scrolled.paneLeft - 12) > 2 ||
+        scrolled.rowHeight <= 0 ||
+        scrolled.rowHeight > 26 ||
+        scrolled.background === "rgba(0, 0, 0, 0)"
+      ) {
+        throw new Error(
+          `Horizontal diff alignment or compact row height failed: ${JSON.stringify(scrolled)}`,
+        );
       }
       await page.getByRole("button", { name: "Wrap: off" }).click();
       const rewrapped = await page.evaluate(() => {
-        const pane = document.querySelector('main .diff-card[data-path="src/wide-mixed.ts"] .diff-scroll');
-        if (!(pane instanceof HTMLElement)) throw new Error("Mixed-width diff is missing after wrapping");
+        const pane = document.querySelector(
+          'main .diff-card[data-path="src/wide-mixed.ts"] .diff-scroll',
+        );
+        if (!(pane instanceof HTMLElement))
+          throw new Error("Mixed-width diff is missing after wrapping");
         const rows = pane.querySelectorAll(".diff-row");
         return {
           width: pane.clientWidth,
@@ -125,24 +163,47 @@ async function main(): Promise<void> {
           shortHeight: rows[1]?.getBoundingClientRect().height ?? 0,
         };
       });
-      if (rewrapped.scrollWidth > rewrapped.width + 2 || rewrapped.shortHeight <= 0 || rewrapped.shortHeight > 26 ||
-          rewrapped.longHeight <= rewrapped.shortHeight) throw new Error(`Wrapped diff alignment failed: ${JSON.stringify(rewrapped)}`);
-      console.log(`Short diff row: ${scrolled.rowHeight.toFixed(1)}px without wrap, ${rewrapped.shortHeight.toFixed(1)}px with wrap; long wrapped row: ${rewrapped.longHeight.toFixed(1)}px.`);
+      if (
+        rewrapped.scrollWidth > rewrapped.width + 2 ||
+        rewrapped.shortHeight <= 0 ||
+        rewrapped.shortHeight > 26 ||
+        rewrapped.longHeight <= rewrapped.shortHeight
+      )
+        throw new Error(`Wrapped diff alignment failed: ${JSON.stringify(rewrapped)}`);
+      console.log(
+        `Short diff row: ${scrolled.rowHeight.toFixed(1)}px without wrap, ${rewrapped.shortHeight.toFixed(1)}px with wrap; long wrapped row: ${rewrapped.longHeight.toFixed(1)}px.`,
+      );
       await page.getByRole("button", { name: "Wrap: on" }).click();
 
-      const tallCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/tall-review.ts"]');
+      const tallCard = page.locator(
+        'main .diff-card[data-layer="untracked"][data-path="src/tall-review.ts"]',
+      );
       await tallCard.locator(".diff-card-toggle").click();
       await tallCard.locator(".diff-row").first().waitFor({ state: "visible" });
       const sticky = await page.evaluate(() => {
         const card = document.querySelector('main .diff-card[data-path="src/tall-review.ts"]');
         const topbar = document.querySelector(".topbar");
         const header = card?.querySelector(".diff-card-toggle");
-        if (!(card instanceof HTMLElement) || !(topbar instanceof HTMLElement) || !(header instanceof HTMLElement)) throw new Error("Tall review card is missing");
+        if (
+          !(card instanceof HTMLElement) ||
+          !(topbar instanceof HTMLElement) ||
+          !(header instanceof HTMLElement)
+        )
+          throw new Error("Tall review card is missing");
         window.scrollTo(0, window.scrollY + card.getBoundingClientRect().top + 360);
-        return { topbarBottom: topbar.getBoundingClientRect().bottom, headerTop: header.getBoundingClientRect().top, cardBottom: card.getBoundingClientRect().bottom };
+        return {
+          topbarBottom: topbar.getBoundingClientRect().bottom,
+          headerTop: header.getBoundingClientRect().top,
+          cardBottom: card.getBoundingClientRect().bottom,
+        };
       });
-      if (Math.abs(sticky.headerTop - sticky.topbarBottom) > 3 || sticky.cardBottom < sticky.headerTop + 200) {
-        throw new Error(`Long-file header did not stick below the top bar: ${JSON.stringify(sticky)}`);
+      if (
+        Math.abs(sticky.headerTop - sticky.topbarBottom) > 3 ||
+        sticky.cardBottom < sticky.headerTop + 200
+      ) {
+        throw new Error(
+          `Long-file header did not stick below the top bar: ${JSON.stringify(sticky)}`,
+        );
       }
 
       const cCard = page.locator('main .diff-card[data-layer="untracked"][data-path="src/math.c"]');
@@ -150,7 +211,10 @@ async function main(): Promise<void> {
       await cCard.locator(".syntax-token-type").first().waitFor({ state: "visible" });
       const languageSelect = cCard.getByLabel("Language");
       await languageSelect.selectOption("cpp");
-      await cCard.locator(".diff-language-row > span").getByText("cpp").waitFor({ state: "visible" });
+      await cCard
+        .locator(".diff-language-row > span")
+        .getByText("cpp")
+        .waitFor({ state: "visible" });
 
       await page.reload({ waitUntil: "load" });
       await page.getByRole("button", { name: "Wrap: off" }).waitFor({ state: "visible" });
@@ -159,9 +223,12 @@ async function main(): Promise<void> {
         throw new Error("The expanded card was not restored after reload");
       }
       await cCard.locator(".diff-row").waitFor({ state: "visible" });
-      if (await cCard.getByLabel("Language").inputValue() !== "cpp") throw new Error("Language override was not restored after reload");
+      if ((await cCard.getByLabel("Language").inputValue()) !== "cpp")
+        throw new Error("Language override was not restored after reload");
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      console.log("Mobile diff navigation, staged content, C highlighting, language override, gutter-free compact rows, horizontal scrolling, wrap, sticky long-file header, and reload passed.");
+      console.log(
+        "Mobile diff navigation, staged content, C highlighting, language override, gutter-free compact rows, horizontal scrolling, wrap, sticky long-file header, and reload passed.",
+      );
     } finally {
       await context.close();
     }

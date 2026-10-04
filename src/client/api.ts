@@ -25,7 +25,7 @@ import { expectRecord, expectString } from "../shared/validation.ts";
 export async function responseBody(response: Response): Promise<unknown> {
   let body: unknown;
   try {
-    body = await response.json() as unknown;
+    body = (await response.json()) as unknown;
   } catch {
     throw new Error("The server returned an unreadable response");
   }
@@ -46,13 +46,22 @@ export async function fetchDirectory(path: string, signal: AbortSignal): Promise
   return parseDirectoryResponse(await responseBody(response));
 }
 
-export async function fetchProjectTree(id: string, path: string, signal: AbortSignal): Promise<FileTree> {
+export async function fetchProjectTree(
+  id: string,
+  path: string,
+  signal: AbortSignal,
+): Promise<FileTree> {
   const query = new URLSearchParams({ path });
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/tree?${query}`, { signal });
   return parseFileTreeResponse(await responseBody(response));
 }
 
-export async function fetchProjectFile(id: string, path: string, language: string | null, signal: AbortSignal): Promise<FileReadResult> {
+export async function fetchProjectFile(
+  id: string,
+  path: string,
+  language: string | null,
+  signal: AbortSignal,
+): Promise<FileReadResult> {
   const query = new URLSearchParams({ path, source: "worktree" });
   if (language !== null) query.set("language", language);
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/file?${query}`, { signal });
@@ -70,7 +79,10 @@ export async function openProject(path: string, signal: AbortSignal): Promise<Pr
 }
 
 export async function fetchProjectStatus(id: string, signal: AbortSignal): Promise<ProjectStatus> {
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, { signal, cache: "no-store" });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, {
+    signal,
+    cache: "no-store",
+  });
   return parseStatusResponse(await responseBody(response));
 }
 
@@ -79,16 +91,29 @@ export async function fetchLanguages(signal: AbortSignal): Promise<LanguageOptio
   return parseLanguagesResponse(await responseBody(response));
 }
 
-export async function fetchProjectDiff(id: string, layer: ChangeLayer, path: string, revision: string, language: string | null, signal: AbortSignal): Promise<DiffResult> {
+export async function fetchProjectDiff(
+  id: string,
+  layer: ChangeLayer,
+  path: string,
+  revision: string,
+  language: string | null,
+  signal: AbortSignal,
+): Promise<DiffResult> {
   const query = new URLSearchParams({ layer, path, revision });
   if (language !== null) query.set("language", language);
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, { signal });
   return parseDiffResponse(await responseBody(response));
 }
 
-export async function fetchProjectSearch(id: string, query: string, signal: AbortSignal): Promise<SearchResponse> {
+export async function fetchProjectSearch(
+  id: string,
+  query: string,
+  signal: AbortSignal,
+): Promise<SearchResponse> {
   const search = new URLSearchParams({ query });
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/search?${search}`, { signal });
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/search?${search}`, {
+    signal,
+  });
   return parseSearchResponse(await responseBody(response));
 }
 
@@ -101,6 +126,7 @@ export async function transcribeRecording(recording: Blob, signal: AbortSignal):
   });
   const body = expectRecord(await responseBody(response), "transcription response");
   const text = expectString(body["text"], "transcription text");
-  if (text.length === 0 || text.length > 5_000) throw new Error("The server returned invalid transcription text");
+  if (text.length === 0 || text.length > 5_000)
+    throw new Error("The server returned invalid transcription text");
   return text;
 }

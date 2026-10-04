@@ -13,12 +13,23 @@ const maxRecent = 8;
 const maxOpenCards = 100;
 
 export type CodeTypography = { version: 1; fontSize: number; fontFamily: CodeFontFamily };
-export const defaultCodeTypography: CodeTypography = { version: 1, fontSize: 12, fontFamily: "system" };
-export type Appearance = { version: 1; appTheme: "light" | "dark" | "system"; codeTheme: "match" | "light" | "dark" };
+export const defaultCodeTypography: CodeTypography = {
+  version: 1,
+  fontSize: 12,
+  fontFamily: "system",
+};
+export type Appearance = {
+  version: 1;
+  appTheme: "light" | "dark" | "system";
+  codeTheme: "match" | "light" | "dark";
+};
 export const defaultAppearance: Appearance = { version: 1, appTheme: "light", codeTheme: "match" };
 
-export function resolveAppearance(value: Appearance, systemDark: boolean): { appTheme: "light" | "dark"; codeTheme: "light" | "dark" } {
-  const appTheme = value.appTheme === "system" ? systemDark ? "dark" : "light" : value.appTheme;
+export function resolveAppearance(
+  value: Appearance,
+  systemDark: boolean,
+): { appTheme: "light" | "dark"; codeTheme: "light" | "dark" } {
+  const appTheme = value.appTheme === "system" ? (systemDark ? "dark" : "light") : value.appTheme;
   return { appTheme, codeTheme: value.codeTheme === "match" ? appTheme : value.codeTheme };
 }
 
@@ -34,7 +45,9 @@ export function validateAppearance(value: unknown): Appearance | null {
 export function readAppearance(): Appearance {
   try {
     const raw = localStorage.getItem(appearanceStorageKey);
-    return raw === null ? defaultAppearance : validateAppearance(JSON.parse(raw) as unknown) ?? defaultAppearance;
+    return raw === null
+      ? defaultAppearance
+      : (validateAppearance(JSON.parse(raw) as unknown) ?? defaultAppearance);
   } catch {
     return defaultAppearance;
   }
@@ -52,7 +65,8 @@ export function validateCodeTypography(value: unknown): CodeTypography | null {
   if (!isRecord(value) || value["version"] !== 1) return null;
   const fontSize = value["fontSize"];
   const fontFamily = value["fontFamily"];
-  if (typeof fontSize !== "number" || !Number.isInteger(fontSize) || fontSize < 11 || fontSize > 20) return null;
+  if (typeof fontSize !== "number" || !Number.isInteger(fontSize) || fontSize < 11 || fontSize > 20)
+    return null;
   if (!isCodeFontFamily(fontFamily)) return null;
   return { version: 1, fontSize, fontFamily };
 }
@@ -60,7 +74,9 @@ export function validateCodeTypography(value: unknown): CodeTypography | null {
 export function readCodeTypography(): CodeTypography {
   try {
     const raw = localStorage.getItem(codeTypographyStorageKey);
-    return raw === null ? defaultCodeTypography : validateCodeTypography(JSON.parse(raw) as unknown) ?? defaultCodeTypography;
+    return raw === null
+      ? defaultCodeTypography
+      : (validateCodeTypography(JSON.parse(raw) as unknown) ?? defaultCodeTypography);
   } catch {
     return defaultCodeTypography;
   }
@@ -110,7 +126,10 @@ export function parseActiveProject(value: unknown, rootPath: string): string | n
   return validPath(value["activePath"]) ? value["activePath"] : null;
 }
 
-export function parseLegacyWorkspace(value: unknown, rootPath: string): { activePath: string | null; recentPaths: string[] } | null {
+export function parseLegacyWorkspace(
+  value: unknown,
+  rootPath: string,
+): { activePath: string | null; recentPaths: string[] } | null {
   if (!isRecord(value) || value["version"] !== 2 || value["rootPath"] !== rootPath) return null;
   const activePath = value["activePath"];
   const recentPaths = value["recentPaths"];
@@ -129,7 +148,8 @@ export function readSavedWorkspace(rootPath: string): SavedWorkspace {
     if (legacy === null) return emptyWorkspace(rootPath);
     const migrated: SavedWorkspace = { version: 3, rootPath, recentPaths: legacy.recentPaths };
     localStorage.setItem(workspaceStorageKey, JSON.stringify(migrated));
-    if (legacy.activePath !== null && readActiveProject(rootPath) === null) saveActiveProject(rootPath, legacy.activePath);
+    if (legacy.activePath !== null && readActiveProject(rootPath) === null)
+      saveActiveProject(rootPath, legacy.activePath);
     localStorage.removeItem(legacyKey);
     return migrated;
   } catch {
@@ -149,7 +169,11 @@ export function readActiveProject(rootPath: string): string | null {
 export function saveActiveProject(rootPath: string, activePath: string | null): void {
   try {
     if (activePath === null) sessionStorage.removeItem(activeProjectKey);
-    else if (validPath(activePath)) sessionStorage.setItem(activeProjectKey, JSON.stringify({ version: 1, rootPath, activePath }));
+    else if (validPath(activePath))
+      sessionStorage.setItem(
+        activeProjectKey,
+        JSON.stringify({ version: 1, rootPath, activePath }),
+      );
   } catch {
     // Selection remains usable in memory when session storage is unavailable.
   }
@@ -167,7 +191,10 @@ export function withSelectedPath(current: SavedWorkspace, path: string): SavedWo
   return {
     version: 3,
     rootPath: current.rootPath,
-    recentPaths: [path, ...current.recentPaths.filter((previous) => previous !== path)].slice(0, maxRecent),
+    recentPaths: [path, ...current.recentPaths.filter((previous) => previous !== path)].slice(
+      0,
+      maxRecent,
+    ),
   };
 }
 
@@ -193,11 +220,18 @@ export function saveWrapPreference(value: boolean): void {
 }
 
 export function validateOpenCards(value: unknown): string[] | null {
-  if (!isRecord(value) || value["version"] !== 1 || !Array.isArray(value["keys"]) || value["keys"].length > maxOpenCards) return null;
+  if (
+    !isRecord(value) ||
+    value["version"] !== 1 ||
+    !Array.isArray(value["keys"]) ||
+    value["keys"].length > maxOpenCards
+  )
+    return null;
   const keys: unknown[] = value["keys"];
   const parsed: string[] = [];
   for (const item of keys) {
-    if (typeof item !== "string" || item.length === 0 || item.length > 4096 || item.includes("\0")) return null;
+    if (typeof item !== "string" || item.length === 0 || item.length > 4096 || item.includes("\0"))
+      return null;
     parsed.push(item);
   }
   return [...new Set(parsed)];
@@ -218,7 +252,10 @@ export function readOpenCards(projectId: string): Set<string> {
 
 export function saveOpenCards(projectId: string, keys: ReadonlySet<string>): void {
   try {
-    localStorage.setItem(`${openCardsStoragePrefix}${projectId}`, JSON.stringify({ version: 1, keys: [...keys].slice(0, maxOpenCards) }));
+    localStorage.setItem(
+      `${openCardsStoragePrefix}${projectId}`,
+      JSON.stringify({ version: 1, keys: [...keys].slice(0, maxOpenCards) }),
+    );
   } catch {
     // The app remains usable when storage is unavailable.
   }
@@ -226,14 +263,20 @@ export function saveOpenCards(projectId: string, keys: ReadonlySet<string>): voi
 
 export function readLanguageOverride(projectId: string, path: string): string | null {
   try {
-    const value = localStorage.getItem(`${languageStoragePrefix}${projectId}:${encodeURIComponent(path)}`);
+    const value = localStorage.getItem(
+      `${languageStoragePrefix}${projectId}:${encodeURIComponent(path)}`,
+    );
     return value !== null && isLanguageOverride(value) ? value : null;
   } catch {
     return null;
   }
 }
 
-export function saveLanguageOverride(projectId: string, path: string, language: string | null): void {
+export function saveLanguageOverride(
+  projectId: string,
+  path: string,
+  language: string | null,
+): void {
   try {
     const storageKey = `${languageStoragePrefix}${projectId}:${encodeURIComponent(path)}`;
     if (language === null) localStorage.removeItem(storageKey);

@@ -3,7 +3,10 @@ export class ResourceCache<T> {
   private readonly items = new Map<string, { value: T; bytes: number }>();
   private bytes = 0;
 
-  constructor(private readonly maxEntries: number, private readonly maxBytes: number) {}
+  constructor(
+    private readonly maxEntries: number,
+    private readonly maxBytes: number,
+  ) {}
 
   read(key: string): T | null {
     const item = this.items.get(key);

@@ -1,6 +1,9 @@
 import { readAppearance, resolveAppearance } from "./storage.ts";
 
-const { appTheme, codeTheme } = resolveAppearance(readAppearance(), window.matchMedia("(prefers-color-scheme: dark)").matches);
+const { appTheme, codeTheme } = resolveAppearance(
+  readAppearance(),
+  window.matchMedia("(prefers-color-scheme: dark)").matches,
+);
 document.documentElement.dataset["appTheme"] = appTheme;
 document.documentElement.dataset["codeTheme"] = codeTheme;
 const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');

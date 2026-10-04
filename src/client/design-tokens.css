@@ -145,7 +145,9 @@
   --color-syntax-attribute: #805325;
 
   /* Composed effects */
-  --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, var(--color-mint-deep) 0%, transparent 100%), var(--color-canvas);
+  --background-main:
+    radial-gradient(ellipse 60% 45% at 84% 83%, var(--color-mint-deep) 0%, transparent 100%),
+    var(--color-canvas);
   --background-hero: linear-gradient(135deg, var(--color-mint-gradient), var(--color-mint-faint));
   --shadow-topbar: 0 3px 14px #0c243116;
   --shadow-hero: 0 19px 34px #81b9a83d, inset 0 0 0 7px var(--color-mint-faint);
@@ -204,7 +206,8 @@
   --color-change-unstaged: #efbd80;
   --color-change-untracked: #9bc8e7;
   --color-change-conflict: #f2a297;
-  --background-main: radial-gradient(ellipse 60% 45% at 84% 83%, #17332f 0%, transparent 100%), var(--color-canvas);
+  --background-main:
+    radial-gradient(ellipse 60% 45% at 84% 83%, #17332f 0%, transparent 100%), var(--color-canvas);
   --background-hero: linear-gradient(135deg, var(--color-mint-gradient), var(--color-mint-faint));
   --shadow-topbar: 0 3px 14px #020b0d55;
   --shadow-hero: 0 19px 34px #020b0d55, inset 0 0 0 7px var(--color-mint-faint);
@@ -246,24 +249,66 @@
   --color-syntax-attribute: #ebcd8f;
 }
 
-.app[data-code-font="courier"] { --code-font-family: "Courier New", Courier, monospace; }
-.app[data-code-font="jetbrains-mono"] { --code-font-family: "JetBrains Mono", var(--font-code); }
-.app[data-code-font="fira-code"] { --code-font-family: "Fira Code", var(--font-code); }
-.app[data-code-font="roboto-mono"] { --code-font-family: "Roboto Mono", var(--font-code); }
-.app[data-code-font="source-code-pro"] { --code-font-family: "Source Code Pro", var(--font-code); }
-.app[data-code-font="ibm-plex-mono"] { --code-font-family: "IBM Plex Mono", var(--font-code); }
-.app[data-code-font="inconsolata"] { --code-font-family: "Inconsolata", var(--font-code); }
-.app[data-code-font="martian-mono"] { --code-font-family: "Martian Mono", var(--font-code); }
-.app[data-code-font="geist-mono"] { --code-font-family: "Geist Mono", var(--font-code); }
-.app[data-code-font="space-mono"] { --code-font-family: "Space Mono", var(--font-code); }
-.app[data-code-font="courier-prime"] { --code-font-family: "Courier Prime", var(--font-code); }
-.app[data-code-font="ubuntu-sans-mono"] { --code-font-family: "Ubuntu Sans Mono", var(--font-code); }
-.app[data-code-font="google-sans-code"] { --code-font-family: "Google Sans Code", var(--font-code); }
-.app[data-code-font="anonymous-pro"] { --code-font-family: "Anonymous Pro", var(--font-code); }
-.app[data-code-font="azeret-mono"] { --code-font-family: "Azeret Mono", var(--font-code); }
-.app[data-code-font="overpass-mono"] { --code-font-family: "Overpass Mono", var(--font-code); }
-.app[data-code-font="red-hat-mono"] { --code-font-family: "Red Hat Mono", var(--font-code); }
-.app[data-code-font="spline-sans-mono"] { --code-font-family: "Spline Sans Mono", var(--font-code); }
-.app[data-code-font="victor-mono"] { --code-font-family: "Victor Mono", var(--font-code); }
-.app[data-code-font="intel-one-mono"] { --code-font-family: "Intel One Mono", var(--font-code); }
-.app[data-code-font="iosevka-charon-mono"] { --code-font-family: "Iosevka Charon Mono", var(--font-code); }
+.app[data-code-font="courier"] {
+  --code-font-family: "Courier New", Courier, monospace;
+}
+.app[data-code-font="jetbrains-mono"] {
+  --code-font-family: "JetBrains Mono", var(--font-code);
+}
+.app[data-code-font="fira-code"] {
+  --code-font-family: "Fira Code", var(--font-code);
+}
+.app[data-code-font="roboto-mono"] {
+  --code-font-family: "Roboto Mono", var(--font-code);
+}
+.app[data-code-font="source-code-pro"] {
+  --code-font-family: "Source Code Pro", var(--font-code);
+}
+.app[data-code-font="ibm-plex-mono"] {
+  --code-font-family: "IBM Plex Mono", var(--font-code);
+}
+.app[data-code-font="inconsolata"] {
+  --code-font-family: "Inconsolata", var(--font-code);
+}
+.app[data-code-font="martian-mono"] {
+  --code-font-family: "Martian Mono", var(--font-code);
+}
+.app[data-code-font="geist-mono"] {
+  --code-font-family: "Geist Mono", var(--font-code);
+}
+.app[data-code-font="space-mono"] {
+  --code-font-family: "Space Mono", var(--font-code);
+}
+.app[data-code-font="courier-prime"] {
+  --code-font-family: "Courier Prime", var(--font-code);
+}
+.app[data-code-font="ubuntu-sans-mono"] {
+  --code-font-family: "Ubuntu Sans Mono", var(--font-code);
+}
+.app[data-code-font="google-sans-code"] {
+  --code-font-family: "Google Sans Code", var(--font-code);
+}
+.app[data-code-font="anonymous-pro"] {
+  --code-font-family: "Anonymous Pro", var(--font-code);
+}
+.app[data-code-font="azeret-mono"] {
+  --code-font-family: "Azeret Mono", var(--font-code);
+}
+.app[data-code-font="overpass-mono"] {
+  --code-font-family: "Overpass Mono", var(--font-code);
+}
+.app[data-code-font="red-hat-mono"] {
+  --code-font-family: "Red Hat Mono", var(--font-code);
+}
+.app[data-code-font="spline-sans-mono"] {
+  --code-font-family: "Spline Sans Mono", var(--font-code);
+}
+.app[data-code-font="victor-mono"] {
+  --code-font-family: "Victor Mono", var(--font-code);
+}
+.app[data-code-font="intel-one-mono"] {
+  --code-font-family: "Intel One Mono", var(--font-code);
+}
+.app[data-code-font="iosevka-charon-mono"] {
+  --code-font-family: "Iosevka Charon Mono", var(--font-code);
+}

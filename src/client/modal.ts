@@ -20,7 +20,13 @@ export function useModal(onClose: () => void): Modal {
     const onPointerDown = (event: PointerEvent) => {
       if (dialog === null || !dialog.open) return;
       const rect = dialog.getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeRef.current();
+      if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      )
+        closeRef.current();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
@@ -32,6 +38,9 @@ export function useModal(onClose: () => void): Modal {
   }, []);
   return {
     ref,
-    onCancel: (event: Event) => { event.preventDefault(); onClose(); },
+    onCancel: (event: Event) => {
+      event.preventDefault();
+      onClose();
+    },
   };
 }

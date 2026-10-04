@@ -2,12 +2,15 @@ import type { ChangeLayer } from "../shared/api.ts";
 import { isGitOid, validGitRef } from "../shared/git.ts";
 
 export type ChangesTarget =
-  | { kind: "all" }
-  | { kind: "list" }
-  | { kind: "file"; layer: ChangeLayer; path: string };
+  { kind: "all" } | { kind: "list" } | { kind: "file"; layer: ChangeLayer; path: string };
 export type FileTarget = { kind: "list" } | { kind: "file"; path: string; line: number | null };
 export type SearchTarget = { kind: "results" } | { kind: "file"; path: string; line: number };
-export type GitRoute = { section: "git"; projectPath: string; ref: string | null; target: { kind: "list" } | { kind: "commit"; oid: string } };
+export type GitRoute = {
+  section: "git";
+  projectPath: string;
+  ref: string | null;
+  target: { kind: "list" } | { kind: "commit"; oid: string };
+};
 export type Route =
   | { section: "projects"; directory: string }
   | { section: "changes"; projectPath: string; target: ChangesTarget }
@@ -15,9 +18,21 @@ export type Route =
   | { section: "search"; projectPath: string; query: string | null; target: SearchTarget }
   | GitRoute
   | { section: "settings"; projectPath: string | null };
-export type RouteState = { kind: "empty" } | { kind: "ready"; route: Route } | { kind: "invalid"; message: string };
+export type RouteState =
+  { kind: "empty" } | { kind: "ready"; route: Route } | { kind: "invalid"; message: string };
 
-const keys = new Set(["section", "project", "dir", "target", "layer", "file", "line", "q", "ref", "commit"]);
+const keys = new Set([
+  "section",
+  "project",
+  "dir",
+  "target",
+  "layer",
+  "file",
+  "line",
+  "q",
+  "ref",
+  "commit",
+]);
 const routeError = "This link has invalid navigation information. Choose a project to continue.";
 
 function validPath(value: string, allowRoot: boolean): boolean {
@@ -28,7 +43,9 @@ function validPath(value: string, allowRoot: boolean): boolean {
 }
 
 function isChangeLayer(value: string): value is ChangeLayer {
-  return value === "staged" || value === "unstaged" || value === "untracked" || value === "conflict";
+  return (
+    value === "staged" || value === "unstaged" || value === "untracked" || value === "conflict"
+  );
 }
 
 function validQuery(value: string): boolean {
@@ -58,42 +75,130 @@ export function parseNavigationSearch(search: string): RouteState {
   const query = params.get("q");
   const ref = params.get("ref");
   const commit = params.get("commit");
-  if (section !== "git" && (ref !== null || commit !== null)) return { kind: "invalid", message: routeError };
+  if (section !== "git" && (ref !== null || commit !== null))
+    return { kind: "invalid", message: routeError };
   if (section === "projects") {
-    if (project !== null || target !== null || layer !== null || file !== null || lineText !== null || query !== null || !validPath(directory ?? "", true)) return { kind: "invalid", message: routeError };
+    if (
+      project !== null ||
+      target !== null ||
+      layer !== null ||
+      file !== null ||
+      lineText !== null ||
+      query !== null ||
+      !validPath(directory ?? "", true)
+    )
+      return { kind: "invalid", message: routeError };
     return { kind: "ready", route: { section, directory: directory ?? "" } };
   }
   if (section === "settings") {
-    if (directory !== null || target !== null || layer !== null || file !== null || lineText !== null || query !== null || (project !== null && !validPath(project, true))) return { kind: "invalid", message: routeError };
+    if (
+      directory !== null ||
+      target !== null ||
+      layer !== null ||
+      file !== null ||
+      lineText !== null ||
+      query !== null ||
+      (project !== null && !validPath(project, true))
+    )
+      return { kind: "invalid", message: routeError };
     return { kind: "ready", route: { section, projectPath: project } };
   }
-  if (project === null || !validPath(project, true)) return { kind: "invalid", message: routeError };
+  if (project === null || !validPath(project, true))
+    return { kind: "invalid", message: routeError };
   if (section === "git") {
-    if (directory !== null || target !== null || layer !== null || file !== null || lineText !== null || query !== null || ref !== null && !validGitRef(ref) || commit !== null && !isGitOid(commit)) return { kind: "invalid", message: routeError };
-    return { kind: "ready", route: { section, projectPath: project, ref, target: commit === null ? { kind: "list" } : { kind: "commit", oid: commit } } };
+    if (
+      directory !== null ||
+      target !== null ||
+      layer !== null ||
+      file !== null ||
+      lineText !== null ||
+      query !== null ||
+      (ref !== null && !validGitRef(ref)) ||
+      (commit !== null && !isGitOid(commit))
+    )
+      return { kind: "invalid", message: routeError };
+    return {
+      kind: "ready",
+      route: {
+        section,
+        projectPath: project,
+        ref,
+        target: commit === null ? { kind: "list" } : { kind: "commit", oid: commit },
+      },
+    };
   }
   if (section === "changes") {
-    if (directory !== null || lineText !== null || query !== null) return { kind: "invalid", message: routeError };
-    if (target === "list" && layer === null && file === null) return { kind: "ready", route: { section, projectPath: project, target: { kind: "list" } } };
-    if (target === null && layer === null && file === null) return { kind: "ready", route: { section, projectPath: project, target: { kind: "all" } } };
-    if (target === null && layer !== null && isChangeLayer(layer) && file !== null && validPath(file, false)) return { kind: "ready", route: { section, projectPath: project, target: { kind: "file", layer, path: file } } };
+    if (directory !== null || lineText !== null || query !== null)
+      return { kind: "invalid", message: routeError };
+    if (target === "list" && layer === null && file === null)
+      return { kind: "ready", route: { section, projectPath: project, target: { kind: "list" } } };
+    if (target === null && layer === null && file === null)
+      return { kind: "ready", route: { section, projectPath: project, target: { kind: "all" } } };
+    if (
+      target === null &&
+      layer !== null &&
+      isChangeLayer(layer) &&
+      file !== null &&
+      validPath(file, false)
+    )
+      return {
+        kind: "ready",
+        route: { section, projectPath: project, target: { kind: "file", layer, path: file } },
+      };
     return { kind: "invalid", message: routeError };
   }
   if (section === "files") {
-    if (layer !== null || query !== null || target !== null || !validPath(directory ?? "", true)) return { kind: "invalid", message: routeError };
-    if (file === null && lineText === null) return { kind: "ready", route: { section, projectPath: project, directory: directory ?? "", target: { kind: "list" } } };
-    if (file === null || !validPath(file, false) || (directory !== null && directory !== parentDirectory(file))) return { kind: "invalid", message: routeError };
+    if (layer !== null || query !== null || target !== null || !validPath(directory ?? "", true))
+      return { kind: "invalid", message: routeError };
+    if (file === null && lineText === null)
+      return {
+        kind: "ready",
+        route: {
+          section,
+          projectPath: project,
+          directory: directory ?? "",
+          target: { kind: "list" },
+        },
+      };
+    if (
+      file === null ||
+      !validPath(file, false) ||
+      (directory !== null && directory !== parentDirectory(file))
+    )
+      return { kind: "invalid", message: routeError };
     const line = parseLine(lineText);
     if (line === false) return { kind: "invalid", message: routeError };
-    return { kind: "ready", route: { section, projectPath: project, directory: directory ?? parentDirectory(file), target: { kind: "file", path: file, line } } };
+    return {
+      kind: "ready",
+      route: {
+        section,
+        projectPath: project,
+        directory: directory ?? parentDirectory(file),
+        target: { kind: "file", path: file, line },
+      },
+    };
   }
   if (section === "search") {
-    if (directory !== null || target !== null || layer !== null || (query !== null && !validQuery(query))) return { kind: "invalid", message: routeError };
-    if (file === null && lineText === null) return { kind: "ready", route: { section, projectPath: project, query, target: { kind: "results" } } };
-    if (query === null || file === null || !validPath(file, false)) return { kind: "invalid", message: routeError };
+    if (
+      directory !== null ||
+      target !== null ||
+      layer !== null ||
+      (query !== null && !validQuery(query))
+    )
+      return { kind: "invalid", message: routeError };
+    if (file === null && lineText === null)
+      return {
+        kind: "ready",
+        route: { section, projectPath: project, query, target: { kind: "results" } },
+      };
+    if (query === null || file === null || !validPath(file, false))
+      return { kind: "invalid", message: routeError };
     const line = parseLine(lineText);
     if (line === false || line === null) return { kind: "invalid", message: routeError };
-    return { kind: "ready", route: { section, projectPath: project, query, target: { kind: "file", path: file, line } } };
+    return {
+      kind: "ready",
+      route: { section, projectPath: project, query, target: { kind: "file", path: file, line } },
+    };
   }
   return { kind: "invalid", message: routeError };
 }
@@ -116,7 +221,10 @@ export function routeUrl(route: Route): string {
     params.set("project", route.projectPath);
     if (route.section === "changes") {
       if (route.target.kind === "list") params.set("target", "list");
-      if (route.target.kind === "file") { params.set("layer", route.target.layer); params.set("file", route.target.path); }
+      if (route.target.kind === "file") {
+        params.set("layer", route.target.layer);
+        params.set("file", route.target.path);
+      }
     } else if (route.section === "files") {
       if (route.directory !== "") params.set("dir", route.directory);
       if (route.target.kind === "file") {
@@ -128,7 +236,10 @@ export function routeUrl(route: Route): string {
       if (route.target.kind === "commit") params.set("commit", route.target.oid);
     } else {
       if (route.query !== null) params.set("q", route.query);
-      if (route.target.kind === "file") { params.set("file", route.target.path); params.set("line", String(route.target.line)); }
+      if (route.target.kind === "file") {
+        params.set("file", route.target.path);
+        params.set("line", String(route.target.line));
+      }
     }
   }
   return `/?${params.toString()}`;
@@ -139,5 +250,10 @@ export function routeProjectPath(route: Route): string | null {
 }
 
 export function routeSection(route: Route): "changes" | "files" | "search" | "git" | null {
-  return route.section === "changes" || route.section === "files" || route.section === "search" || route.section === "git" ? route.section : null;
+  return route.section === "changes" ||
+    route.section === "files" ||
+    route.section === "search" ||
+    route.section === "git"
+    ? route.section
+    : null;
 }

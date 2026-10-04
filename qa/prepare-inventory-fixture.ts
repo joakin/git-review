@@ -16,7 +16,10 @@ await mkdir(resolve(fixture, "docs"));
 git("init", "-q");
 await writeFile(resolve(fixture, "src/view.ts"), "export const view = 'initial';\n");
 await writeFile(resolve(fixture, "src/deleted.ts"), "export const old = true;\n");
-await writeFile(resolve(fixture, "docs/old name.md"), "A document with enough content to identify its rename.\n");
+await writeFile(
+  resolve(fixture, "docs/old name.md"),
+  "A document with enough content to identify its rename.\n",
+);
 git("add", ".");
 git("-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "baseline");
 
@@ -26,9 +29,20 @@ await writeFile(resolve(fixture, "src/view.ts"), "export const view = 'working t
 git("mv", "docs/old name.md", "docs/new name.md");
 git("rm", "-q", "src/deleted.ts");
 await writeFile(resolve(fixture, "src/new feature.ts"), "export const newFeature = true;\n");
-await writeFile(resolve(fixture, "src/long-line.ts"), `export const longLine = "${"0123456789abcdef".repeat(24)}";\n`);
-await writeFile(resolve(fixture, "src/wide-mixed.ts"), `export const wide = "${"0123456789abcdef".repeat(24)}";\nexport const short = true;\n`);
+await writeFile(
+  resolve(fixture, "src/long-line.ts"),
+  `export const longLine = "${"0123456789abcdef".repeat(24)}";\n`,
+);
+await writeFile(
+  resolve(fixture, "src/wide-mixed.ts"),
+  `export const wide = "${"0123456789abcdef".repeat(24)}";\nexport const short = true;\n`,
+);
 await writeFile(resolve(fixture, "src/math.c"), "int main(void) { return 0; }\n");
-await writeFile(resolve(fixture, "src/tall-review.ts"), Array.from({ length: 180 }, (_, index) => `export const item${index + 1} = ${index + 1};\n`).join(""));
+await writeFile(
+  resolve(fixture, "src/tall-review.ts"),
+  Array.from({ length: 180 }, (_, index) => `export const item${index + 1} = ${index + 1};\n`).join(
+    "",
+  ),
+);
 
 console.log(`Inventory fixture ready: ${fixture}`);

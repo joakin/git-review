@@ -7,15 +7,42 @@ describe("browser navigation", () => {
       { section: "projects", directory: "client work/hi #1" },
       { section: "changes", projectPath: "", target: { kind: "all" } },
       { section: "changes", projectPath: "project ü", target: { kind: "list" } },
-      { section: "changes", projectPath: "project ü", target: { kind: "file", layer: "staged", path: "src/a ?#%\n.ts" } },
-      { section: "files", projectPath: "project ü", directory: "src", target: { kind: "file", path: "src/a ?#%.ts", line: 170 } },
-      { section: "search", projectPath: "project ü", query: "a+b ?#%", target: { kind: "file", path: "src/a ?#%.ts", line: 170 } },
+      {
+        section: "changes",
+        projectPath: "project ü",
+        target: { kind: "file", layer: "staged", path: "src/a ?#%\n.ts" },
+      },
+      {
+        section: "files",
+        projectPath: "project ü",
+        directory: "src",
+        target: { kind: "file", path: "src/a ?#%.ts", line: 170 },
+      },
+      {
+        section: "search",
+        projectPath: "project ü",
+        query: "a+b ?#%",
+        target: { kind: "file", path: "src/a ?#%.ts", line: 170 },
+      },
       { section: "settings", projectPath: "project ü" },
       { section: "git", projectPath: "project ü", ref: null, target: { kind: "list" } },
-      { section: "git", projectPath: "project ü", ref: "refs/heads/feature/ü+#", target: { kind: "commit", oid: "a".repeat(40) } },
-      { section: "git", projectPath: "", ref: "HEAD", target: { kind: "commit", oid: "b".repeat(64) } },
+      {
+        section: "git",
+        projectPath: "project ü",
+        ref: "refs/heads/feature/ü+#",
+        target: { kind: "commit", oid: "a".repeat(40) },
+      },
+      {
+        section: "git",
+        projectPath: "",
+        ref: "HEAD",
+        target: { kind: "commit", oid: "b".repeat(64) },
+      },
     ];
-    for (const route of routes) expect(parseNavigationSearch(new URL(routeUrl(route), "https://example.test").search)).toEqual({ kind: "ready", route });
+    for (const route of routes)
+      expect(
+        parseNavigationSearch(new URL(routeUrl(route), "https://example.test").search),
+      ).toEqual({ kind: "ready", route });
   });
 
   test("rejects duplicates, malformed values, traversal, and impossible destinations", () => {
@@ -38,12 +65,24 @@ describe("browser navigation", () => {
       "?section=git&project=x&file=a.ts",
       "?section=files&project=x&ref=HEAD",
       "?section=git&project=x&ref=HEAD&ref=HEAD",
-    ]) expect(parseNavigationSearch(search).kind).toBe("invalid");
+    ])
+      expect(parseNavigationSearch(search).kind).toBe("invalid");
   });
 
   test("an empty URL can restore tab state and harmless omissions are canonical", () => {
     expect(parseNavigationSearch("")).toEqual({ kind: "empty" });
-    expect(parseNavigationSearch("?section=projects")).toEqual({ kind: "ready", route: { section: "projects", directory: "" } });
-    expect(parseNavigationSearch("?section=files&project=x&file=src/a.ts")).toEqual({ kind: "ready", route: { section: "files", projectPath: "x", directory: "src", target: { kind: "file", path: "src/a.ts", line: null } } });
+    expect(parseNavigationSearch("?section=projects")).toEqual({
+      kind: "ready",
+      route: { section: "projects", directory: "" },
+    });
+    expect(parseNavigationSearch("?section=files&project=x&file=src/a.ts")).toEqual({
+      kind: "ready",
+      route: {
+        section: "files",
+        projectPath: "x",
+        directory: "src",
+        target: { kind: "file", path: "src/a.ts", line: null },
+      },
+    });
   });
 });

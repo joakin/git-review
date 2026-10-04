@@ -22,25 +22,35 @@ test("search uses literal text and respects project, ignore, and link boundaries
     await writeFile(join(outsidePath, "outside.txt"), "-word outside\n");
     await symlink(join(outsidePath, "outside.txt"), join(projectPath, "linked.txt"));
     const handle = createApiHandler(await approveRoot(rootPath));
-    const opened = await handle(new Request("http://localhost/api/projects/open", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "project" }),
-    }));
-    const project = parseProjectResponse(await opened.json() as unknown);
+    const opened = await handle(
+      new Request("http://localhost/api/projects/open", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "project" }),
+      }),
+    );
+    const project = parseProjectResponse((await opened.json()) as unknown);
     const endpoint = `http://localhost/api/projects/${project.id}/search`;
     expect((await handle(new Request(endpoint))).status).toBe(400);
     expect((await handle(new Request(`${endpoint}?query=x&query=y`))).status).toBe(400);
     expect((await handle(new Request(`${endpoint}?query=%0A`))).status).toBe(400);
     const response = await handle(new Request(`${endpoint}?query=-word`));
     expect(response.status).toBe(200);
-    const results = parseSearchResponse(await response.json() as unknown);
+    const results = parseSearchResponse((await response.json()) as unknown);
     expect(results.query).toBe("-word");
     expect(results.truncated).toBe(false);
-    expect(results.matches.map(({ path, line }) => ({ path, line })).sort((a, b) => a.path.localeCompare(b.path))).toEqual([
+    expect(
+      results.matches
+        .map(({ path, line }) => ({ path, line }))
+        .sort((a, b) => a.path.localeCompare(b.path)),
+    ).toEqual([
       { path: ".hidden.ts", line: 1 },
       { path: "odd:name.ts", line: 1 },
       { path: "source.ts", line: 2 },
     ]);
-    const none = parseSearchResponse(await (await handle(new Request(`${endpoint}?query=absent-symbol`))).json() as unknown);
+    const none = parseSearchResponse(
+      (await (await handle(new Request(`${endpoint}?query=absent-symbol`))).json()) as unknown,
+    );
     expect(none.matches).toEqual([]);
     await rm(projectPath, { recursive: true, force: true });
     await symlink(outsidePath, projectPath);
@@ -54,15 +64,24 @@ test("search uses literal text and respects project, ignore, and link boundaries
 test("search reports incomplete results when the match limit is reached", async () => {
   const rootPath = await mkdtemp(join(tmpdir(), "git-review-search-limit-"));
   try {
-    await writeFile(join(rootPath, "many.txt"), Array.from({ length: 120 }, (_, index) => `needle ${index}`).join("\n"));
+    await writeFile(
+      join(rootPath, "many.txt"),
+      Array.from({ length: 120 }, (_, index) => `needle ${index}`).join("\n"),
+    );
     const handle = createApiHandler(await approveRoot(rootPath));
-    const opened = await handle(new Request("http://localhost/api/projects/open", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: "" }),
-    }));
-    const project = parseProjectResponse(await opened.json() as unknown);
-    const response = await handle(new Request(`http://localhost/api/projects/${project.id}/search?query=needle`));
+    const opened = await handle(
+      new Request("http://localhost/api/projects/open", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "" }),
+      }),
+    );
+    const project = parseProjectResponse((await opened.json()) as unknown);
+    const response = await handle(
+      new Request(`http://localhost/api/projects/${project.id}/search?query=needle`),
+    );
     expect(response.status).toBe(200);
-    const results = parseSearchResponse(await response.json() as unknown);
+    const results = parseSearchResponse((await response.json()) as unknown);
     expect(results.matches).toHaveLength(100);
     expect(results.truncated).toBe(true);
   } finally {

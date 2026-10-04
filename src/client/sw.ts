@@ -7,18 +7,40 @@ const cachePrefix = "git-review-shell-";
 const offlinePath = "/offline.html";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(cacheName).then((cache) => cache.add(offlinePath)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches
+      .open(cacheName)
+      .then((cache) => cache.add(offlinePath))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(Promise.all([
-    caches.keys().then((names) => Promise.all(names.filter((name) => name.startsWith(cachePrefix) && name !== cacheName).map((name) => caches.delete(name)))),
-    self.clients.claim(),
-  ]).then(() => undefined));
+  event.waitUntil(
+    Promise.all([
+      caches
+        .keys()
+        .then((names) =>
+          Promise.all(
+            names
+              .filter((name) => name.startsWith(cachePrefix) && name !== cacheName)
+              .map((name) => caches.delete(name)),
+          ),
+        ),
+      self.clients.claim(),
+    ]).then(() => undefined),
+  );
 });
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (event.request.mode !== "navigate" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
-  event.respondWith(fetch(event.request).catch(async () => await caches.match(offlinePath) ?? Response.error()));
+  if (
+    event.request.mode !== "navigate" ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/")
+  )
+    return;
+  event.respondWith(
+    fetch(event.request).catch(async () => (await caches.match(offlinePath)) ?? Response.error()),
+  );
 });

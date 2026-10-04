@@ -1,6 +1,20 @@
 import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { googleFontStylesheet } from "./code-fonts.ts";
-import { appearanceStorageKey, codeTypographyStorageKey, defaultAppearance, defaultCodeTypography, readAppearance, readCodeTypography, resolveAppearance, saveAppearance, saveCodeTypography, validateAppearance, validateCodeTypography, type Appearance, type CodeTypography } from "./storage.ts";
+import {
+  appearanceStorageKey,
+  codeTypographyStorageKey,
+  defaultAppearance,
+  defaultCodeTypography,
+  readAppearance,
+  readCodeTypography,
+  resolveAppearance,
+  saveAppearance,
+  saveCodeTypography,
+  validateAppearance,
+  validateCodeTypography,
+  type Appearance,
+  type CodeTypography,
+} from "./storage.ts";
 
 type AppearancePreferences = {
   appearance: Appearance;
@@ -14,11 +28,14 @@ type AppearancePreferences = {
 export function useAppearancePreferences(): AppearancePreferences {
   const [appearance, setAppearance] = useState(readAppearance);
   const [typography, setTypography] = useState(readCodeTypography);
-  const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
-      if (event.key === codeTypographyStorageKey || event.key === null) setTypography(readCodeTypography());
+      if (event.key === codeTypographyStorageKey || event.key === null)
+        setTypography(readCodeTypography());
       if (event.key === appearanceStorageKey || event.key === null) setAppearance(readAppearance());
     };
     window.addEventListener("storage", onStorage);

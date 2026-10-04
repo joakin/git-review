@@ -7,7 +7,9 @@ type CaptureOptions = {
   url: URL;
   label: string;
   ready: string | null;
-  actions: Array<{ kind: "click"; selector: string } | { kind: "fill"; selector: string; value: string }>;
+  actions: Array<
+    { kind: "click"; selector: string } | { kind: "fill"; selector: string; value: string }
+  >;
   afterClickReady: string | null;
   fullPage: boolean;
   storageState: string | null;
@@ -107,7 +109,11 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         index += 1;
         break;
       case "--fill":
-        actions.push({ kind: "fill", selector: readValue(args, index, flag), value: readValue(args, index + 1, flag) });
+        actions.push({
+          kind: "fill",
+          selector: readValue(args, index, flag),
+          value: readValue(args, index + 1, flag),
+        });
         index += 2;
         break;
       case "--after-click-ready":
@@ -128,7 +134,8 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         break;
       case "--scroll-offset": {
         const parsed = Number(readValue(args, index, flag));
-        if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 5000) throw new Error("--scroll-offset must be an integer from 0 to 5000");
+        if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 5000)
+          throw new Error("--scroll-offset must be an integer from 0 to 5000");
         scrollOffset = parsed;
         index += 1;
         break;
@@ -138,7 +145,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         index += 1;
         break;
       case "--select-text":
-        selectText = { selector: readValue(args, index, flag), text: readValue(args, index + 1, flag) };
+        selectText = {
+          selector: readValue(args, index, flag),
+          text: readValue(args, index + 1, flag),
+        };
         index += 2;
         break;
       case "--full-page":
@@ -175,9 +185,30 @@ function parseArgs(args: readonly string[]): ParsedArgs {
     throw new Error("--url must use HTTP or HTTPS");
   }
 
-  if (afterClickReady !== null && !actions.some((action) => action.kind === "click")) throw new Error("--after-click-ready requires --click");
-  if (scrollTo === null && scrollOffset !== 320) throw new Error("--scroll-offset requires --scroll-to");
-  return { kind: "capture", options: { url, label, ready, actions, afterClickReady, fullPage, storageState, activePath, scrollTo, scrollOffset, scrollXToEnd, selectText, fakeMicrophone, mediaReady, revealList } };
+  if (afterClickReady !== null && !actions.some((action) => action.kind === "click"))
+    throw new Error("--after-click-ready requires --click");
+  if (scrollTo === null && scrollOffset !== 320)
+    throw new Error("--scroll-offset requires --scroll-to");
+  return {
+    kind: "capture",
+    options: {
+      url,
+      label,
+      ready,
+      actions,
+      afterClickReady,
+      fullPage,
+      storageState,
+      activePath,
+      scrollTo,
+      scrollOffset,
+      scrollXToEnd,
+      selectText,
+      fakeMicrophone,
+      mediaReady,
+      revealList,
+    },
+  };
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
@@ -191,7 +222,13 @@ async function capture(options: CaptureOptions): Promise<void> {
     captureUrl.searchParams.set("project", options.activePath);
   }
 
-  const browser = await chromium.launch({ channel: "chrome", headless: true, args: options.fakeMicrophone ? ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] : [] });
+  const browser = await chromium.launch({
+    channel: "chrome",
+    headless: true,
+    args: options.fakeMicrophone
+      ? ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
+      : [],
+  });
   const results: Array<{
     name: string;
     file: string;
@@ -217,7 +254,9 @@ async function capture(options: CaptureOptions): Promise<void> {
           timeout: 15_000,
         });
         if (response === null || !response.ok()) {
-          throw new Error(`${view.name}: page load returned ${response?.status() ?? "no response"}`);
+          throw new Error(
+            `${view.name}: page load returned ${response?.status() ?? "no response"}`,
+          );
         }
         if (options.revealList && view.width > 600 && view.width < 900) {
           const back = page.getByRole("button", { name: "Open list" });
@@ -232,28 +271,48 @@ async function capture(options: CaptureOptions): Promise<void> {
           else await page.locator(action.selector).fill(action.value);
         }
         if (options.afterClickReady !== null) {
-          await page.locator(options.afterClickReady).first().waitFor({ state: "visible", timeout: 15_000 });
+          await page
+            .locator(options.afterClickReady)
+            .first()
+            .waitFor({ state: "visible", timeout: 15_000 });
         }
         if (options.mediaReady) {
-          await page.waitForFunction(() => [...document.querySelectorAll<HTMLMediaElement>("audio, video")].every((element) => element.readyState >= 1 || element.error !== null), null, { timeout: 15_000 });
+          await page.waitForFunction(
+            () =>
+              [...document.querySelectorAll<HTMLMediaElement>("audio, video")].every(
+                (element) => element.readyState >= 1 || element.error !== null,
+              ),
+            null,
+            { timeout: 15_000 },
+          );
         }
         if (options.scrollTo !== null) {
           await page.locator(options.scrollTo).evaluate((element, offset) => {
             element.scrollIntoView({ block: "start", behavior: "instant" });
             window.scrollBy(0, offset);
           }, options.scrollOffset);
-          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+          await page.evaluate(
+            () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+          );
         }
         if (options.scrollXToEnd !== null) {
           await page.locator(options.scrollXToEnd).evaluate((element) => {
-            if (!(element instanceof HTMLElement)) throw new Error("Horizontal scroll target must be an element");
+            if (!(element instanceof HTMLElement))
+              throw new Error("Horizontal scroll target must be an element");
             element.scrollLeft = element.scrollWidth;
           });
-          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+          await page.evaluate(
+            () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+          );
         }
         if (options.selectText !== null) {
-          await selectCodeText(page.locator(options.selectText.selector).first(), options.selectText.text);
-          await page.locator(".code-selection-action").waitFor({ state: "visible", timeout: 5_000 });
+          await selectCodeText(
+            page.locator(options.selectText.selector).first(),
+            options.selectText.text,
+          );
+          await page
+            .locator(".code-selection-action")
+            .waitFor({ state: "visible", timeout: 5_000 });
         }
         await page.evaluate(async () => document.fonts.ready);
 
@@ -262,7 +321,11 @@ async function capture(options: CaptureOptions): Promise<void> {
           clientWidth: document.documentElement.clientWidth,
         }));
         const file = `${view.name}.png`;
-        await page.screenshot({ path: resolve(directory, file), fullPage: options.fullPage, animations: "disabled" });
+        await page.screenshot({
+          path: resolve(directory, file),
+          fullPage: options.fullPage,
+          animations: "disabled",
+        });
 
         const horizontalOverflow = widths.documentWidth > widths.clientWidth + 2;
         results.push({
@@ -273,7 +336,9 @@ async function capture(options: CaptureOptions): Promise<void> {
           clientWidth: widths.clientWidth,
           horizontalOverflow,
         });
-        console.log(`${view.name}: ${resolve(directory, file)}${horizontalOverflow ? " (page overflow)" : ""}`);
+        console.log(
+          `${view.name}: ${resolve(directory, file)}${horizontalOverflow ? " (page overflow)" : ""}`,
+        );
       } finally {
         await context.close();
       }
@@ -284,12 +349,16 @@ async function capture(options: CaptureOptions): Promise<void> {
 
   await writeFile(
     resolve(directory, "manifest.json"),
-    `${JSON.stringify({
-      url: captureUrl.href,
-      capturedAt: new Date().toISOString(),
-      fullPage: options.fullPage,
-      views: results,
-    }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        url: captureUrl.href,
+        capturedAt: new Date().toISOString(),
+        fullPage: options.fullPage,
+        views: results,
+      },
+      null,
+      2,
+    )}\n`,
   );
 
   if (results.some((result) => result.horizontalOverflow)) {

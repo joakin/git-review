@@ -8,7 +8,13 @@ const maxUrlLength = 32_768;
 export const maxHistoryJournalLength = maxEntries * (maxUrlLength + 100) + 200;
 
 type Marker = { version: 1; trail: string; position: number; entry: string };
-type Journal = { version: 1; trail: string; start: number; historyLength: number; entries: { id: string; url: string | null }[] };
+type Journal = {
+  version: 1;
+  trail: string;
+  start: number;
+  historyLength: number;
+  entries: { id: string; url: string | null }[];
+};
 export type HistoryAvailability = { canGoBack: boolean; canGoForward: boolean; pending: boolean };
 type HistoryPorts = {
   readEntry: () => { state: unknown; url: string; length: number };
@@ -37,26 +43,65 @@ function validUrl(value: unknown): value is string {
 function parseMarker(state: unknown): Marker | null {
   if (!isRecord(state)) return null;
   const value = state[markerKey];
-  if (!isRecord(value) || value["version"] !== 1 || !isId(value["trail"]) || !isId(value["entry"]) || !isPosition(value["position"])) return null;
+  if (
+    !isRecord(value) ||
+    value["version"] !== 1 ||
+    !isId(value["trail"]) ||
+    !isId(value["entry"]) ||
+    !isPosition(value["position"])
+  )
+    return null;
   return { version: 1, trail: value["trail"], position: value["position"], entry: value["entry"] };
 }
 
 function parseJournal(value: unknown): Journal | null {
-  if (!isRecord(value) || value["version"] !== 1 || !isId(value["trail"]) || !isPosition(value["start"]) || !isPosition(value["historyLength"]) || value["historyLength"] < 1) return null;
+  if (
+    !isRecord(value) ||
+    value["version"] !== 1 ||
+    !isId(value["trail"]) ||
+    !isPosition(value["start"]) ||
+    !isPosition(value["historyLength"]) ||
+    value["historyLength"] < 1
+  )
+    return null;
   const rawEntries = value["entries"];
-  if (!Array.isArray(rawEntries) || rawEntries.length === 0 || rawEntries.length > maxEntries || !Number.isSafeInteger(value["start"] + rawEntries.length) || rawEntries.length > value["historyLength"]) return null;
+  if (
+    !Array.isArray(rawEntries) ||
+    rawEntries.length === 0 ||
+    rawEntries.length > maxEntries ||
+    !Number.isSafeInteger(value["start"] + rawEntries.length) ||
+    rawEntries.length > value["historyLength"]
+  )
+    return null;
   const entries: Journal["entries"] = [];
   const ids = new Set<string>();
   for (const item of rawEntries) {
-    if (!isRecord(item) || !isId(item["id"]) || item["url"] !== null && !validUrl(item["url"]) || ids.has(item["id"])) return null;
+    if (
+      !isRecord(item) ||
+      !isId(item["id"]) ||
+      (item["url"] !== null && !validUrl(item["url"])) ||
+      ids.has(item["id"])
+    )
+      return null;
     ids.add(item["id"]);
     entries.push({ id: item["id"], url: item["url"] });
   }
-  return { version: 1, trail: value["trail"], start: value["start"], historyLength: value["historyLength"], entries };
+  return {
+    version: 1,
+    trail: value["trail"],
+    start: value["start"],
+    historyLength: value["historyLength"],
+    entries,
+  };
 }
 
-function recognizes(journal: Journal, marker: Marker | null, current: ReturnType<HistoryPorts["readEntry"]>): marker is Marker {
-  if (marker === null || marker.trail !== journal.trail || journal.historyLength !== current.length) return false;
+function recognizes(
+  journal: Journal,
+  marker: Marker | null,
+  current: ReturnType<HistoryPorts["readEntry"]>,
+): marker is Marker {
+  if (marker === null || marker.trail !== journal.trail || journal.historyLength !== current.length)
+    return false;
   const entry = journal.entries[marker.position - journal.start];
   return entry?.id === marker.entry && entry.url === current.url;
 }
@@ -67,7 +112,10 @@ export class NavigationHistory {
   private marker: Marker;
   private pending = false;
 
-  constructor(private readonly ports: HistoryPorts, restoreReload: boolean) {
+  constructor(
+    private readonly ports: HistoryPorts,
+    restoreReload: boolean,
+  ) {
     const current = ports.readEntry();
     const journal = restoreReload ? parseJournal(ports.readJournal()) : null;
     const marker = parseMarker(current.state);
@@ -83,11 +131,20 @@ export class NavigationHistory {
     }
   }
 
-  private fresh(current: ReturnType<HistoryPorts["readEntry"]>): { journal: Journal; marker: Marker } {
+  private fresh(current: ReturnType<HistoryPorts["readEntry"]>): {
+    journal: Journal;
+    marker: Marker;
+  } {
     const trail = this.ports.newId();
     const entry = this.ports.newId();
     return {
-      journal: { version: 1, trail, start: 0, historyLength: current.length, entries: [{ id: entry, url: validUrl(current.url) ? current.url : null }] },
+      journal: {
+        version: 1,
+        trail,
+        start: 0,
+        historyLength: current.length,
+        entries: [{ id: entry, url: validUrl(current.url) ? current.url : null }],
+      },
       marker: { version: 1, trail, position: 0, entry },
     };
   }
@@ -96,14 +153,21 @@ export class NavigationHistory {
     this.ports.replace({ ...(isRecord(state) ? state : {}), [markerKey]: this.marker }, url);
   }
 
-  private persist(): void { this.ports.saveJournal(this.journal); }
+  private persist(): void {
+    this.ports.saveJournal(this.journal);
+  }
 
   availability(): HistoryAvailability {
     const offset = this.marker.position - this.journal.start;
-    if (this.journal.entries[offset]?.url === null) return { canGoBack: false, canGoForward: false, pending: this.pending };
+    if (this.journal.entries[offset]?.url === null)
+      return { canGoBack: false, canGoForward: false, pending: this.pending };
     const previous = this.journal.entries[offset - 1];
     const next = this.journal.entries[offset + 1];
-    return { canGoBack: previous !== undefined && previous.url !== null, canGoForward: next !== undefined && next.url !== null, pending: this.pending };
+    return {
+      canGoBack: previous !== undefined && previous.url !== null,
+      canGoForward: next !== undefined && next.url !== null,
+      pending: this.pending,
+    };
   }
 
   resetCurrent(): void {
@@ -119,7 +183,10 @@ export class NavigationHistory {
   acceptCurrent(): void {
     const current = this.ports.readEntry();
     const marker = parseMarker(current.state);
-    if (!recognizes(this.journal, marker, current)) { this.resetCurrent(); return; }
+    if (!recognizes(this.journal, marker, current)) {
+      this.resetCurrent();
+      return;
+    }
     this.marker = marker;
     this.pending = false;
   }
@@ -133,7 +200,10 @@ export class NavigationHistory {
       const marker: Marker = { ...this.marker, position: this.marker.position + 1, entry };
       this.ports.push({ [markerKey]: marker }, url);
       this.marker = marker;
-      this.journal.entries = [...this.journal.entries.slice(0, offset + 1), { id: entry, url: validUrl(url) ? url : null }];
+      this.journal.entries = [
+        ...this.journal.entries.slice(0, offset + 1),
+        { id: entry, url: validUrl(url) ? url : null },
+      ];
       // Some browsers evict the oldest entries when their own limit is reached.
       const limit = Math.min(maxEntries, this.ports.readEntry().length);
       const removed = this.journal.entries.length - limit;
@@ -156,8 +226,12 @@ export class NavigationHistory {
     if (!(direction === -1 ? availability.canGoBack : availability.canGoForward)) return false;
     prepare();
     this.pending = true;
-    try { this.ports.go(direction); }
-    catch { this.pending = false; return false; }
+    try {
+      this.ports.go(direction);
+    } catch {
+      this.pending = false;
+      return false;
+    }
     return true;
   }
 }

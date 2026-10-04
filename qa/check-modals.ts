@@ -2,7 +2,10 @@ import { chromium, type Locator, type Page } from "playwright-core";
 
 const appUrl = process.argv[2];
 if (appUrl === undefined) throw new Error("Usage: bun run qa:modals <local app URL>");
-const reviewUrl = new URL("/?section=changes&project=inventory-fixture&layer=staged&file=src/view.ts", appUrl).href;
+const reviewUrl = new URL(
+  "/?section=changes&project=inventory-fixture&layer=staged&file=src/view.ts",
+  appUrl,
+).href;
 const previousOverflow = { body: "auto", document: "scroll" };
 type Dismissal = "escape" | "header" | "backdrop";
 
@@ -13,16 +16,35 @@ function assert(condition: boolean, message: string): asserts condition {
 async function checkFit(page: Page, dialog: Locator): Promise<void> {
   const fits = await dialog.evaluate((element) => {
     const rect = element.getBoundingClientRect();
-    return rect.left >= -1 && rect.right <= innerWidth + 1 && rect.top >= -1 && rect.bottom <= innerHeight + 1 && document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2;
+    return (
+      rect.left >= -1 &&
+      rect.right <= innerWidth + 1 &&
+      rect.top >= -1 &&
+      rect.bottom <= innerHeight + 1 &&
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2
+    );
   });
   assert(fits, `Modal overflowed the ${page.viewportSize()?.width}px viewport`);
 }
 
 async function checkOpen(page: Page, dialog: Locator, initialFocus: Locator): Promise<void> {
   await dialog.waitFor({ state: "visible" });
-  assert(await dialog.evaluate((element) => element instanceof HTMLDialogElement && element.open && element.matches(":modal")), "Dialog did not enter the native modal layer");
-  await page.waitForFunction(() => document.body.style.overflow === "hidden" && document.documentElement.style.overflow === "hidden");
-  assert(await initialFocus.evaluate((element) => document.activeElement === element), "Modal initial focus did not reach its intended control");
+  assert(
+    await dialog.evaluate(
+      (element) =>
+        element instanceof HTMLDialogElement && element.open && element.matches(":modal"),
+    ),
+    "Dialog did not enter the native modal layer",
+  );
+  await page.waitForFunction(
+    () =>
+      document.body.style.overflow === "hidden" &&
+      document.documentElement.style.overflow === "hidden",
+  );
+  assert(
+    await initialFocus.evaluate((element) => document.activeElement === element),
+    "Modal initial focus did not reach its intended control",
+  );
   await checkFit(page, dialog);
 }
 
@@ -31,33 +53,56 @@ async function readModalFocus(dialog: Locator) {
     const active = document.activeElement;
     return {
       dialog: document.getElementById(element.getAttribute("aria-labelledby") ?? "")?.textContent,
-      activeControl: { tag: active?.tagName, label: active?.getAttribute("aria-label"), text: active instanceof HTMLButtonElement ? active.textContent : null },
+      activeControl: {
+        tag: active?.tagName,
+        label: active?.getAttribute("aria-label"),
+        text: active instanceof HTMLButtonElement ? active.textContent : null,
+      },
       modal: element instanceof HTMLDialogElement && element.open && element.matches(":modal"),
       inside: element.contains(active) && active instanceof HTMLElement && active.tabIndex >= 0,
-      viewport: !document.hasFocus() && (active === document.body || active === document.documentElement),
+      viewport:
+        !document.hasFocus() && (active === document.body || active === document.documentElement),
     };
   });
 }
 
 async function checkKeyboardFocus(page: Page, dialog: Locator): Promise<void> {
-  const controls = dialog.locator("button:enabled, textarea, input:enabled, select:enabled, a[href]");
-  for (const { control, key, returnKey } of [{ control: controls.first(), key: "Shift+Tab", returnKey: "Tab" }, { control: controls.last(), key: "Tab", returnKey: "Shift+Tab" }]) {
+  const controls = dialog.locator(
+    "button:enabled, textarea, input:enabled, select:enabled, a[href]",
+  );
+  for (const { control, key, returnKey } of [
+    { control: controls.first(), key: "Shift+Tab", returnKey: "Tab" },
+    { control: controls.last(), key: "Tab", returnKey: "Shift+Tab" },
+  ]) {
     await control.focus();
     await page.keyboard.press(key);
     const focus = await readModalFocus(dialog);
-    assert(focus.modal && (focus.inside || focus.viewport), `${key} focused background content or closed the modal: ${JSON.stringify(focus)}`);
+    assert(
+      focus.modal && (focus.inside || focus.viewport),
+      `${key} focused background content or closed the modal: ${JSON.stringify(focus)}`,
+    );
     // Native focus may wrap inside the dialog or visit browser chrome; only the latter needs a return step.
     if (focus.viewport) {
       await page.keyboard.press(returnKey);
       const returned = await readModalFocus(dialog);
-      assert(returned.modal && returned.inside, `${returnKey} did not return to a modal control: ${JSON.stringify(returned)}`);
+      assert(
+        returned.modal && returned.inside,
+        `${returnKey} did not return to a modal control: ${JSON.stringify(returned)}`,
+      );
     }
   }
 }
 
-async function dismiss(page: Page, dialog: Locator, method: Dismissal, closeName: string, opener?: Locator): Promise<void> {
+async function dismiss(
+  page: Page,
+  dialog: Locator,
+  method: Dismissal,
+  closeName: string,
+  opener?: Locator,
+): Promise<void> {
   if (method === "escape") await page.keyboard.press("Escape");
-  else if (method === "header") await dialog.getByRole("button", { name: closeName, exact: true }).click();
+  else if (method === "header")
+    await dialog.getByRole("button", { name: closeName, exact: true }).click();
   else {
     const point = await dialog.evaluate((element) => {
       const rect = element.getBoundingClientRect();
@@ -68,7 +113,12 @@ async function dismiss(page: Page, dialog: Locator, method: Dismissal, closeName
     await page.mouse.click(point.x, point.y);
   }
   await dialog.waitFor({ state: "detached" });
-  await page.waitForFunction((previous) => document.body.style.overflow === previous.body && document.documentElement.style.overflow === previous.document, previousOverflow);
+  await page.waitForFunction(
+    (previous) =>
+      document.body.style.overflow === previous.body &&
+      document.documentElement.style.overflow === previous.document,
+    previousOverflow,
+  );
   if (opener !== undefined) {
     // Backdrop pointer defaults can blur restored focus after unmount; probe background usability instead.
     if (method === "backdrop") {
@@ -79,23 +129,46 @@ async function dismiss(page: Page, dialog: Locator, method: Dismissal, closeName
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const active = document.activeElement;
-      return { focused: active === element, opener: element.textContent, activeTag: active?.tagName, activeLabel: active?.getAttribute("aria-label"), activeText: active instanceof HTMLButtonElement ? active.textContent : null, documentFocus: document.hasFocus(), remainingModals: document.querySelectorAll(":modal").length };
+      return {
+        focused: active === element,
+        opener: element.textContent,
+        activeTag: active?.tagName,
+        activeLabel: active?.getAttribute("aria-label"),
+        activeText: active instanceof HTMLButtonElement ? active.textContent : null,
+        documentFocus: document.hasFocus(),
+        remainingModals: document.querySelectorAll(":modal").length,
+      };
     });
-    assert(restored.focused && restored.remainingModals === 0, `${method} close ${method === "backdrop" ? "left its background opener unusable" : "did not return focus to its stable opener"}: ${JSON.stringify(restored)}`);
+    assert(
+      restored.focused && restored.remainingModals === 0,
+      `${method} close ${method === "backdrop" ? "left its background opener unusable" : "did not return focus to its stable opener"}: ${JSON.stringify(restored)}`,
+    );
   }
 }
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
-  for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1180, height: 820 }, { width: 1440, height: 900 }]) {
-    const context = await browser.newContext({ viewport, isMobile: viewport.width < 600, hasTouch: viewport.width < 1200, serviceWorkers: "block" });
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 820, height: 1180 },
+    { width: 1180, height: 820 },
+    { width: 1440, height: 900 },
+  ]) {
+    const context = await browser.newContext({
+      viewport,
+      isMobile: viewport.width < 600,
+      hasTouch: viewport.width < 1200,
+      serviceWorkers: "block",
+    });
     try {
       const page = await context.newPage();
       page.setDefaultTimeout(10_000);
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(reviewUrl, { waitUntil: "load" });
-      const row = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"] .diff-row-added').first();
+      const row = page
+        .locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"] .diff-row-added')
+        .first();
       await row.locator(".diff-code").waitFor({ state: "visible" });
       await page.evaluate((previous) => {
         document.body.style.overflow = previous.body;
@@ -119,10 +192,17 @@ try {
       async function openFeedback(): Promise<void> {
         await feedbackOpener.focus();
         await feedbackOpener.click();
-        await checkOpen(page, feedback, feedback.getByRole("button", { name: "Close feedback", exact: true }));
+        await checkOpen(
+          page,
+          feedback,
+          feedback.getByRole("button", { name: "Close feedback", exact: true }),
+        );
         const exportText = feedback.getByLabel("Copyable feedback text");
         await exportText.waitFor({ state: "visible" });
-        assert((await exportText.inputValue()).includes(body), "Dismissal did not save the latest edited body");
+        assert(
+          (await exportText.inputValue()).includes(body),
+          "Dismissal did not save the latest edited body",
+        );
         await exportText.click();
         assert(await feedback.isVisible(), "Inside Feedback interaction dismissed the modal");
       }
@@ -139,7 +219,13 @@ try {
         await textarea.fill(body);
         await dismiss(page, editor, method, "Close comment editor");
         await openFeedback();
-        await dismiss(page, feedback, method === "header" ? "backdrop" : "escape", "Close feedback", feedbackOpener);
+        await dismiss(
+          page,
+          feedback,
+          method === "header" ? "backdrop" : "escape",
+          "Close feedback",
+          feedbackOpener,
+        );
       }
 
       const settings = page.getByRole("button", { name: /^Settings/ });
@@ -147,14 +233,19 @@ try {
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.right > 0 && rect.left < innerWidth;
       });
-      if (!settingsOnScreen) await page.getByRole("button", { name: "Open workspace menu", exact: true }).click();
+      if (!settingsOnScreen)
+        await page.getByRole("button", { name: "Open workspace menu", exact: true }).click();
       await settings.click();
       const installOpener = page.getByRole("button", { name: /^Install & local data/ });
       const install = page.getByRole("dialog", { name: "Install & local data", exact: true });
       for (const method of ["escape", "header", "backdrop"] as const) {
         await installOpener.focus();
         await installOpener.click();
-        await checkOpen(page, install, install.getByRole("button", { name: "Close install and local data", exact: true }));
+        await checkOpen(
+          page,
+          install,
+          install.getByRole("button", { name: "Close install and local data", exact: true }),
+        );
         await install.getByRole("heading", { name: "Move local review data", exact: true }).click();
         assert(await install.isVisible(), "Inside installation interaction dismissed the modal");
         await checkKeyboardFocus(page, install);
@@ -163,16 +254,24 @@ try {
       if (viewport.width === 390) {
         await page.setViewportSize({ width: 320, height: 700 });
         await installOpener.click();
-        await checkOpen(page, install, install.getByRole("button", { name: "Close install and local data", exact: true }));
+        await checkOpen(
+          page,
+          install,
+          install.getByRole("button", { name: "Close install and local data", exact: true }),
+        );
         await dismiss(page, install, "escape", "Close install and local data", installOpener);
       }
       assert(errors.length === 0, `Browser errors at ${viewport.width}px: ${errors.join("; ")}`);
-      console.log(`Modal focus, keyboard containment, inside interactions, Escape/header/backdrop dismissal, exact scroll-lock cleanup, handoff, and latest-body saving passed at ${viewport.width}px.`);
+      console.log(
+        `Modal focus, keyboard containment, inside interactions, Escape/header/backdrop dismissal, exact scroll-lock cleanup, handoff, and latest-body saving passed at ${viewport.width}px.`,
+      );
     } finally {
       await context.close();
     }
   }
-  console.log("Comment, Feedback, and installation modal checks passed at all four sizes, plus 320px installation containment. Real-device gestures were not exercised.");
+  console.log(
+    "Comment, Feedback, and installation modal checks passed at all four sizes, plus 320px installation containment. Real-device gestures were not exercised.",
+  );
 } finally {
   await browser.close();
 }

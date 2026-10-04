@@ -3,6 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "husky",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "format:staged": "lint-staged",
+    "qa:format-hook": "bun qa/check-format-hook.ts",
     "dev": "bun scripts/dev.ts",
     "build": "bun scripts/build.ts",
     "assets:icons": "bun scripts/render-icons.ts",
@@ -34,11 +39,17 @@
     "qa:fixture": "bun qa/prepare-inventory-fixture.ts",
     "qa:git-fixture": "bun qa/prepare-git-fixture.ts",
     "qa:git": "bun qa/check-git.ts",
-    "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts"
+    "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts && bun run format:check"
+  },
+  "lint-staged": {
+    "**/*": "prettier --write --ignore-unknown"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
     "playwright-core": "^1.63.0",
+    "prettier": "3.9.9",
     "typescript": "^7.0.2"
   },
   "dependencies": {

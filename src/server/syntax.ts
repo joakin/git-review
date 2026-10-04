@@ -9,11 +9,20 @@ for (const info of bundledLanguagesInfo) {
 }
 
 const filenameLanguages = new Map<string, string>([
-  ["dockerfile", "docker"], ["makefile", "make"], ["cmakelists.txt", "cmake"],
+  ["dockerfile", "docker"],
+  ["makefile", "make"],
+  ["cmakelists.txt", "cmake"],
 ]);
 const extensionLanguages = new Map<string, string>([
-  ["h", "c"], ["hh", "cpp"], ["hpp", "cpp"], ["hxx", "cpp"], ["cc", "cpp"], ["cxx", "cpp"],
-  ["yml", "yaml"], ["vue", "vue"], ["svelte", "svelte"],
+  ["h", "c"],
+  ["hh", "cpp"],
+  ["hpp", "cpp"],
+  ["hxx", "cpp"],
+  ["cc", "cpp"],
+  ["cxx", "cpp"],
+  ["yml", "yaml"],
+  ["vue", "vue"],
+  ["svelte", "svelte"],
 ]);
 
 export const languages: LanguageOption[] = bundledLanguagesInfo
@@ -44,12 +53,19 @@ function roleForScopes(scopes: readonly string[]): SyntaxRole {
     if (/constant\.numeric/.test(scope)) return "number";
     if (/entity\.name\.tag/.test(scope)) return "tag";
     if (/entity\.other\.attribute-name|entity\.name\.attribute/.test(scope)) return "attribute";
-    if (/entity\.name\.(?:type|class|struct|enum)|support\.(?:type|class)|storage\.type\.built-in\.primitive/.test(scope)) return "type";
+    if (
+      /entity\.name\.(?:type|class|struct|enum)|support\.(?:type|class)|storage\.type\.built-in\.primitive/.test(
+        scope,
+      )
+    )
+      return "type";
     if (/entity\.name\.(?:function|method)|support\.function/.test(scope)) return "function";
-    if (/variable\.(?:other\.)?(?:property|member)|support\.variable\.property/.test(scope)) return "property";
+    if (/variable\.(?:other\.)?(?:property|member)|support\.variable\.property/.test(scope))
+      return "property";
     if (/^variable\b|\.variable\./.test(scope)) return "variable";
     if (/keyword\.operator|\.operator\b/.test(scope)) return "operator";
-    if (/^keyword\b|\.keyword\.|storage\.modifier|^storage\.type\b|constant\.language/.test(scope)) return "keyword";
+    if (/^keyword\b|\.keyword\.|storage\.modifier|^storage\.type\b|constant\.language/.test(scope))
+      return "keyword";
     if (/^punctuation\b|\.punctuation\./.test(scope)) return "punctuation";
   }
   return "plain";
@@ -62,20 +78,29 @@ function append(tokens: SyntaxToken[], text: string, role: SyntaxRole): void {
   else tokens.push({ text, role });
 }
 
-export async function highlightSource(source: string, language: string): Promise<SyntaxToken[][] | null> {
+export async function highlightSource(
+  source: string,
+  language: string,
+): Promise<SyntaxToken[][] | null> {
   if (languageOverride(language) !== language || language === "text") return null;
   const checkedLanguage = language as BundledLanguage;
   const highlighter = await (highlighterPromise ??= createHighlighter({ langs: [], themes: [] }));
   let loading = loadPromises.get(language);
   if (loading === undefined) {
-    loading = highlighter.loadLanguage(checkedLanguage).then(() => undefined).catch((error: unknown) => {
-      loadPromises.delete(language);
-      throw error;
-    });
+    loading = highlighter
+      .loadLanguage(checkedLanguage)
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        loadPromises.delete(language);
+        throw error;
+      });
     loadPromises.set(language, loading);
   }
   await loading;
-  const result = highlighter.codeToTokensBase(source, { lang: checkedLanguage, includeExplanation: true });
+  const result = highlighter.codeToTokensBase(source, {
+    lang: checkedLanguage,
+    includeExplanation: true,
+  });
   let tokenCount = 0;
   const lines = result.map((shikiLine) => {
     const tokens: SyntaxToken[] = [];

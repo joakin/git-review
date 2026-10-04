@@ -1,8 +1,21 @@
 import type { Project } from "../shared/api.ts";
 import type { fetchProjectDiff, fetchProjectStatus } from "./api.ts";
-import { anchorMatches, maxFeedbackLength, mergeCheckedComments, newLocalId, recordSuccessfulCopy, snapshotFeedback, type CheckedComments, type CommentStore } from "./comments.ts";
+import {
+  anchorMatches,
+  maxFeedbackLength,
+  mergeCheckedComments,
+  newLocalId,
+  recordSuccessfulCopy,
+  snapshotFeedback,
+  type CheckedComments,
+  type CommentStore,
+} from "./comments.ts";
 
-type CheckState = { kind: "idle" } | { kind: "checking" } | { kind: "ready"; checked: CheckedComments } | { kind: "error"; message: string };
+type CheckState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "ready"; checked: CheckedComments }
+  | { kind: "error"; message: string };
 type CopyState = { kind: "idle" } | { kind: "copying" } | { kind: "error"; message: string };
 export type FeedbackState = { check: CheckState; copy: CopyState };
 type CopyResult = { kind: "feedback"; id: string } | { kind: "history" };
@@ -17,7 +30,9 @@ type FeedbackPorts = {
   writeText: (text: string) => Promise<void>;
 };
 
-function message(error: unknown): string { return error instanceof Error ? error.message : "Something went wrong"; }
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : "Something went wrong";
+}
 
 /** Owns request cancellation, current-store merges, and the uncancellable clipboard lease. */
 export class FeedbackTransactions {
@@ -29,7 +44,9 @@ export class FeedbackTransactions {
 
   constructor(private readonly ports: FeedbackPorts) {}
 
-  private publish(): void { this.ports.onState({ check: this.checkState, copy: this.copyState }); }
+  private publish(): void {
+    this.ports.onState({ check: this.checkState, copy: this.copyState });
+  }
 
   cancel(): void {
     this.generation += 1;
@@ -54,24 +71,49 @@ export class FeedbackTransactions {
     return generation === this.generation && this.ports.readStore()?.projectId === projectId;
   }
 
-  private async checkSnapshot(snapshot: CommentStore, signal: AbortSignal): Promise<CheckedComments> {
+  private async checkSnapshot(
+    snapshot: CommentStore,
+    signal: AbortSignal,
+  ): Promise<CheckedComments> {
     const latest = await this.ports.fetchStatus(snapshot.projectId, signal);
     signal.throwIfAborted();
     const results = new Map<string, Awaited<ReturnType<typeof fetchProjectDiff>>>();
     if (latest.kind === "git") {
       for (const draft of snapshot.drafts) {
         const key = `${draft.anchor.layer}:${draft.anchor.path}`;
-        if (results.has(key) || !latest.entries.some((entry) => entry.layer === draft.anchor.layer && entry.path === draft.anchor.path)) continue;
-        const result = await this.ports.fetchDiff(snapshot.projectId, draft.anchor.layer, draft.anchor.path, latest.revision, null, signal);
+        if (
+          results.has(key) ||
+          !latest.entries.some(
+            (entry) => entry.layer === draft.anchor.layer && entry.path === draft.anchor.path,
+          )
+        )
+          continue;
+        const result = await this.ports.fetchDiff(
+          snapshot.projectId,
+          draft.anchor.layer,
+          draft.anchor.path,
+          latest.revision,
+          null,
+          signal,
+        );
         signal.throwIfAborted();
-        if (result.kind === "stale") throw new Error("The files changed during checking. Try again.");
+        if (result.kind === "stale")
+          throw new Error("The files changed during checking. Try again.");
         results.set(key, result);
       }
     }
-    return { projectId: snapshot.projectId, drafts: snapshot.drafts.map((draft) => {
-      const result = results.get(`${draft.anchor.layer}:${draft.anchor.path}`);
-      return { id: draft.id, anchor: draft.anchor, state: result !== undefined && anchorMatches(result, draft.anchor) ? "current" : "outdated" };
-    }) };
+    return {
+      projectId: snapshot.projectId,
+      drafts: snapshot.drafts.map((draft) => {
+        const result = results.get(`${draft.anchor.layer}:${draft.anchor.path}`);
+        return {
+          id: draft.id,
+          anchor: draft.anchor,
+          state:
+            result !== undefined && anchorMatches(result, draft.anchor) ? "current" : "outdated",
+        };
+      }),
+    };
   }
 
   async check(project: Project): Promise<void> {
@@ -112,8 +154,12 @@ export class FeedbackTransactions {
       this.checkState = { kind: "ready", checked };
       phase = "copy";
       const snapshot = snapshotFeedback(project.absolutePath, current, checked);
-      if (snapshot.text.length === 0) throw new Error("No current comments to copy. Reattach outdated comments first.");
-      if (snapshot.text.length > maxFeedbackLength) throw new Error("Feedback is too large for copy history. Select the text below to copy it manually.");
+      if (snapshot.text.length === 0)
+        throw new Error("No current comments to copy. Reattach outdated comments first.");
+      if (snapshot.text.length > maxFeedbackLength)
+        throw new Error(
+          "Feedback is too large for copy history. Select the text below to copy it manually.",
+        );
       this.publish();
       await this.ports.writeText(snapshot.text);
       if (!this.owns(token.generation, project.id)) return;
@@ -141,7 +187,8 @@ export class FeedbackTransactions {
       await this.ports.writeText(text);
       if (this.owns(generation, project.id)) this.ports.onCopied({ kind: "history" });
     } catch (error: unknown) {
-      if (this.owns(generation, project.id)) this.copyState = { kind: "error", message: message(error) };
+      if (this.owns(generation, project.id))
+        this.copyState = { kind: "error", message: message(error) };
     } finally {
       this.clipboardLease = null;
       if (this.copyState.kind === "copying") this.copyState = { kind: "idle" };

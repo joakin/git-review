@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { maxHistoryJournalLength, navigationHistoryKey, NavigationHistory, type HistoryAvailability } from "./navigation-history.ts";
+import {
+  maxHistoryJournalLength,
+  navigationHistoryKey,
+  NavigationHistory,
+  type HistoryAvailability,
+} from "./navigation-history.ts";
 
 type NavigationHistoryControls = HistoryAvailability & {
   write: (url: string, mode: "push" | "replace") => void;
@@ -9,28 +14,44 @@ type NavigationHistoryControls = HistoryAvailability & {
 };
 
 function newHistoryId(): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 function browserHistory(): NavigationHistory {
   const navigation = performance.getEntriesByType("navigation")[0];
-  return new NavigationHistory({
-    readEntry: () => ({ state: window.history.state as unknown, url: location.pathname + location.search + location.hash, length: window.history.length }),
-    push: (state, url) => window.history.pushState(state, "", url),
-    replace: (state, url) => window.history.replaceState(state, "", url),
-    go: (direction) => window.history.go(direction),
-    readJournal: () => {
-      try {
-        const raw = sessionStorage.getItem(navigationHistoryKey);
-        return raw === null || raw.length > maxHistoryJournalLength ? null : JSON.parse(raw) as unknown;
-      } catch { return null; }
+  return new NavigationHistory(
+    {
+      readEntry: () => ({
+        state: window.history.state as unknown,
+        url: location.pathname + location.search + location.hash,
+        length: window.history.length,
+      }),
+      push: (state, url) => window.history.pushState(state, "", url),
+      replace: (state, url) => window.history.replaceState(state, "", url),
+      go: (direction) => window.history.go(direction),
+      readJournal: () => {
+        try {
+          const raw = sessionStorage.getItem(navigationHistoryKey);
+          return raw === null || raw.length > maxHistoryJournalLength
+            ? null
+            : (JSON.parse(raw) as unknown);
+        } catch {
+          return null;
+        }
+      },
+      saveJournal: (journal) => {
+        try {
+          sessionStorage.setItem(navigationHistoryKey, JSON.stringify(journal));
+        } catch {
+          /* Known history still works for this page lifetime. */
+        }
+      },
+      newId: newHistoryId,
     },
-    saveJournal: (journal) => {
-      try { sessionStorage.setItem(navigationHistoryKey, JSON.stringify(journal)); }
-      catch { /* Known history still works for this page lifetime. */ }
-    },
-    newId: newHistoryId,
-  }, navigation instanceof PerformanceNavigationTiming && navigation.type === "reload");
+    navigation instanceof PerformanceNavigationTiming && navigation.type === "reload",
+  );
 }
 
 export function useNavigationHistory(prepareTraversal: () => void): NavigationHistoryControls {
@@ -73,8 +94,17 @@ export function useNavigationHistory(prepareTraversal: () => void): NavigationHi
       setAvailability(owner.availability());
     };
     window.addEventListener("pageshow", onPageShow);
-    return () => { clearPendingTimeout(); window.removeEventListener("pageshow", onPageShow); };
+    return () => {
+      clearPendingTimeout();
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, [owner]);
 
-  return { ...availability, write, acceptCurrent, back: () => traverse(-1), forward: () => traverse(1) };
+  return {
+    ...availability,
+    write,
+    acceptCurrent,
+    back: () => traverse(-1),
+    forward: () => traverse(1),
+  };
 }

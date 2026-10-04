@@ -38,7 +38,7 @@ function similarity(old: LineUnits, next: LineUnits): number {
   for (const [unit, count] of old.counts) {
     shared += Math.min(count, next.counts.get(unit) ?? 0) * unit.length;
   }
-  return Math.round(shared * 1000 / Math.max(old.weight, next.weight));
+  return Math.round((shared * 1000) / Math.max(old.weight, next.weight));
 }
 
 function orderedPairs(old: LineUnits[], next: LineUnits[]): Pair[] {
@@ -86,7 +86,8 @@ function orderedPairs(old: LineUnits[], next: LineUnits[]): Pair[] {
     if (paired > skipOld && paired > skipNew) {
       const before = old[i];
       const after = next[j];
-      if (before !== undefined && after !== undefined && unambiguous(i, j)) pairs.push({ old: before, next: after });
+      if (before !== undefined && after !== undefined && unambiguous(i, j))
+        pairs.push({ old: before, next: after });
       i += 1;
       j += 1;
     } else if (skipOld > skipNew) {
@@ -117,7 +118,10 @@ function wordSpans(old: Unit[], next: Unit[]): { old: TextSpan[]; next: TextSpan
   const bestAt = (i: number, j: number): number => best[i * width + j] ?? 0;
   for (let i = old.length - 1; i >= 0; i -= 1) {
     for (let j = next.length - 1; j >= 0; j -= 1) {
-      best[i * width + j] = old[i]?.text === next[j]?.text ? bestAt(i + 1, j + 1) + 1 : Math.max(bestAt(i + 1, j), bestAt(i, j + 1));
+      best[i * width + j] =
+        old[i]?.text === next[j]?.text
+          ? bestAt(i + 1, j + 1) + 1
+          : Math.max(bestAt(i + 1, j), bestAt(i, j + 1));
     }
   }
   const oldMatched = new Uint8Array(old.length);
@@ -150,20 +154,32 @@ export function withWordDetails(diff: TextDiff): TextDiff {
   for (const hunk of diff.hunks) {
     let cursor = 0;
     while (cursor < hunk.lines.length) {
-      if (hunk.lines[cursor]?.kind === "context") { cursor += 1; continue; }
+      if (hunk.lines[cursor]?.kind === "context") {
+        cursor += 1;
+        continue;
+      }
       const start = cursor;
       while (cursor < hunk.lines.length && hunk.lines[cursor]?.kind !== "context") cursor += 1;
       const changed = hunk.lines.slice(start, cursor);
       const oldRows = changed.filter((line) => line.kind === "removed");
       const newRows = changed.filter((line) => line.kind === "added");
-      if (oldRows.length === 0 || newRows.length === 0 || oldRows.length > 256 || newRows.length > 256) continue;
+      if (
+        oldRows.length === 0 ||
+        newRows.length === 0 ||
+        oldRows.length > 256 ||
+        newRows.length > 256
+      )
+        continue;
       const candidatePairs = oldRows.length * newRows.length;
       if (candidatePairs > maxLinePairsPerChunk || candidatePairs > linePairBudget) continue;
       linePairBudget -= candidatePairs;
       const old = oldRows.map(unitsFor);
       const next = newRows.map(unitsFor);
       if (old.some((row) => row === null) || next.some((row) => row === null)) continue;
-      const pairs = orderedPairs(old.filter((row): row is LineUnits => row !== null), next.filter((row): row is LineUnits => row !== null));
+      const pairs = orderedPairs(
+        old.filter((row): row is LineUnits => row !== null),
+        next.filter((row): row is LineUnits => row !== null),
+      );
       for (const pair of pairs) {
         const cells = pair.old.units.length * pair.next.units.length;
         if (cells > maxTokenCellsPerPair || cells > tokenCellBudget) continue;
@@ -171,7 +187,8 @@ export function withWordDetails(diff: TextDiff): TextDiff {
         const spans = wordSpans(pair.old.units, pair.next.units);
         if (spans === null) continue;
         if (spans.old.length > 0) pair.old.line.detail = { kind: "word_change", spans: spans.old };
-        if (spans.next.length > 0) pair.next.line.detail = { kind: "word_change", spans: spans.next };
+        if (spans.next.length > 0)
+          pair.next.line.detail = { kind: "word_change", spans: spans.next };
       }
     }
   }

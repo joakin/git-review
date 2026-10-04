@@ -5,7 +5,8 @@ export async function selectCodeText(locator: Locator, text: string): Promise<vo
   await locator.evaluate((element, selectedText) => {
     const content = element.textContent ?? "";
     const start = content.indexOf(selectedText);
-    if (selectedText.length === 0 || start < 0) throw new Error(`Code does not contain selection: ${selectedText}`);
+    if (selectedText.length === 0 || start < 0)
+      throw new Error(`Code does not contain selection: ${selectedText}`);
     const end = start + selectedText.length;
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let offset = 0;
@@ -27,7 +28,8 @@ export async function selectCodeText(locator: Locator, text: string): Promise<vo
       }
       offset = next;
     }
-    if (startNode === null || endNode === null) throw new Error("Could not locate selected text nodes");
+    if (startNode === null || endNode === null)
+      throw new Error("Could not locate selected text nodes");
     const range = document.createRange();
     range.setStart(startNode, startOffset);
     range.setEnd(endNode, endOffset);

@@ -16,7 +16,15 @@ const maxCacheBytes = 32 * 1024 * 1024;
 const results = new ResourceCache<DiffResult>(maxCacheEntries, maxCacheBytes);
 
 export function diffCacheKey(identity: DiffCacheIdentity): string {
-  return JSON.stringify([identity.projectId, identity.layer, identity.path, identity.revision, identity.changeToken, identity.refreshKey, identity.language]);
+  return JSON.stringify([
+    identity.projectId,
+    identity.layer,
+    identity.path,
+    identity.revision,
+    identity.changeToken,
+    identity.refreshKey,
+    identity.language,
+  ]);
 }
 
 export function readCachedDiff(key: string): DiffResult | null {

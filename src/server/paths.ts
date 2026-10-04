@@ -46,10 +46,16 @@ export function validateRelativePath(value: unknown): string {
 
 export function isWithinRoot(root: string, candidate: string): boolean {
   const pathFromRoot = relative(root, candidate);
-  return pathFromRoot === "" || (pathFromRoot !== ".." && !pathFromRoot.startsWith(`..${sep}`) && !isAbsolute(pathFromRoot));
+  return (
+    pathFromRoot === "" ||
+    (pathFromRoot !== ".." && !pathFromRoot.startsWith(`..${sep}`) && !isAbsolute(pathFromRoot))
+  );
 }
 
-export async function resolveDirectory(root: ApprovedRoot, rawPath: unknown): Promise<{ realPath: string; path: string }> {
+export async function resolveDirectory(
+  root: ApprovedRoot,
+  rawPath: unknown,
+): Promise<{ realPath: string; path: string }> {
   const path = validateRelativePath(rawPath);
   let realPath: string;
   try {
@@ -70,7 +76,10 @@ export async function resolveDirectory(root: ApprovedRoot, rawPath: unknown): Pr
   return { realPath, path: canonicalPath };
 }
 
-export async function listDirectory(root: ApprovedRoot, rawPath: unknown): Promise<DirectoryListing> {
+export async function listDirectory(
+  root: ApprovedRoot,
+  rawPath: unknown,
+): Promise<DirectoryListing> {
   const directory = await resolveDirectory(root, rawPath);
   const entries = (await readdir(directory.realPath, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
@@ -78,9 +87,12 @@ export async function listDirectory(root: ApprovedRoot, rawPath: unknown): Promi
       name: entry.name,
       path: directory.path === "" ? entry.name : `${directory.path}/${entry.name}`,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }),
+    );
   const lastSlash = directory.path.lastIndexOf("/");
-  const parentPath = directory.path === "" ? null : lastSlash === -1 ? "" : directory.path.slice(0, lastSlash);
+  const parentPath =
+    directory.path === "" ? null : lastSlash === -1 ? "" : directory.path.slice(0, lastSlash);
   return { path: directory.path, parentPath, entries };
 }
 

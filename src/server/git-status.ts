@@ -10,12 +10,20 @@ const maxOutputBytes = 8 * 1024 * 1024;
 const gitTimeoutMs = 10_000;
 
 export class GitCommandError extends Error {
-  constructor(readonly stderr: string, readonly code: number | string | null) {
+  constructor(
+    readonly stderr: string,
+    readonly code: number | string | null,
+  ) {
     super(stderr || "Git could not read this folder");
   }
 }
 
-export function runGit(cwd: string, args: readonly string[], maxBytes = maxOutputBytes, input: string | null = null): Promise<Buffer> {
+export function runGit(
+  cwd: string,
+  args: readonly string[],
+  maxBytes = maxOutputBytes,
+  input: string | null = null,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = execFile(
       "git",
@@ -30,15 +38,27 @@ export function runGit(cwd: string, args: readonly string[], maxBytes = maxOutpu
       (error, stdout, stderr) => {
         if (error !== null) {
           const code = error.code ?? (error.killed ? "ETIMEDOUT" : null);
-          reject(new GitCommandError(stderr.toString("utf8").trim() || (code === "ETIMEDOUT" ? "Git read timed out" : ""), code));
+          reject(
+            new GitCommandError(
+              stderr.toString("utf8").trim() || (code === "ETIMEDOUT" ? "Git read timed out" : ""),
+              code,
+            ),
+          );
           return;
         }
         resolve(stdout);
       },
     );
     if (input !== null) {
-      if (child.stdin === null) { child.kill(); reject(new Error("Git input pipe is unavailable")); return; }
-      child.stdin.on("error", (error: Error) => { child.kill(); reject(error); });
+      if (child.stdin === null) {
+        child.kill();
+        reject(new Error("Git input pipe is unavailable"));
+        return;
+      }
+      child.stdin.on("error", (error: Error) => {
+        child.kill();
+        reject(error);
+      });
       child.stdin.end(input);
     }
   });
@@ -54,25 +74,38 @@ function fields(record: string, count: number): string[] {
     start = next + 1;
   }
   result.push(record.slice(start));
-  if (result.some((field) => field.length === 0)) throw new Error("Git returned an empty status field");
+  if (result.some((field) => field.length === 0))
+    throw new Error("Git returned an empty status field");
   return result;
 }
 
 function kindFor(code: string): ChangeKind | null {
   switch (code) {
-    case ".": return null;
-    case "A": return "added";
-    case "M": return "modified";
-    case "D": return "deleted";
-    case "R": return "renamed";
-    case "C": return "copied";
-    case "T": return "type_changed";
-    default: throw new Error(`Git returned an unknown status code: ${code}`);
+    case ".":
+      return null;
+    case "A":
+      return "added";
+    case "M":
+      return "modified";
+    case "D":
+      return "deleted";
+    case "R":
+      return "renamed";
+    case "C":
+      return "copied";
+    case "T":
+      return "type_changed";
+    default:
+      throw new Error(`Git returned an unknown status code: ${code}`);
   }
 }
 
 function validatePath(path: string): void {
-  if (path.length === 0 || path.startsWith("/") || path.split("/").some((part) => part === "" || part === "." || part === "..")) {
+  if (
+    path.length === 0 ||
+    path.startsWith("/") ||
+    path.split("/").some((part) => part === "" || part === "." || part === "..")
+  ) {
     throw new Error("Git returned an invalid path");
   }
 }
@@ -84,18 +117,25 @@ function validateSubmodule(value: string | undefined): boolean {
   return value.startsWith("S");
 }
 
-function validateModesAndHashes(parts: readonly string[], modeIndexes: readonly number[], hashIndexes: readonly number[]): void {
+function validateModesAndHashes(
+  parts: readonly string[],
+  modeIndexes: readonly number[],
+  hashIndexes: readonly number[],
+): void {
   for (const index of modeIndexes) {
-    if (!/^[0-7]{6}$/.test(parts[index] ?? "")) throw new Error("Git returned an invalid file mode");
+    if (!/^[0-7]{6}$/.test(parts[index] ?? ""))
+      throw new Error("Git returned an invalid file mode");
   }
   for (const index of hashIndexes) {
-    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(parts[index] ?? "")) throw new Error("Git returned an invalid object ID");
+    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(parts[index] ?? ""))
+      throw new Error("Git returned an invalid object ID");
   }
 }
 
 function parseNulRecords(output: Buffer): string[] {
   if (output.length === 0) return [];
-  if (output[output.length - 1] !== 0) throw new Error("Git returned an incomplete status response");
+  if (output[output.length - 1] !== 0)
+    throw new Error("Git returned an incomplete status response");
   const decoder = new TextDecoder("utf-8", { fatal: true });
   const records: string[] = [];
   let start = 0;
@@ -112,7 +152,8 @@ export function parsePorcelainStatus(output: Buffer): ChangeEntry[] {
   const entries: ChangeEntry[] = [];
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
-    if (record === undefined || record.length === 0) throw new Error("Git returned an empty status record");
+    if (record === undefined || record.length === 0)
+      throw new Error("Git returned an empty status record");
     if (record.startsWith("# ") || record.startsWith("! ")) continue;
     if (record.startsWith("? ")) {
       const path = record.slice(2);
@@ -126,7 +167,8 @@ export function parsePorcelainStatus(output: Buffer): ChangeEntry[] {
       const path = parts[10];
       if (path === undefined) throw new Error("Git returned an incomplete conflict record");
       validatePath(path);
-      if (!/^(?:DD|AU|UD|UA|DU|AA|UU)$/.test(parts[1] ?? "")) throw new Error("Git returned an invalid conflict state");
+      if (!/^(?:DD|AU|UD|UA|DU|AA|UU)$/.test(parts[1] ?? ""))
+        throw new Error("Git returned an invalid conflict state");
       const isSubmodule = validateSubmodule(parts[2]);
       validateModesAndHashes(parts, [3, 4, 5, 6], [7, 8, 9]);
       entries.push({ layer: "conflict", kind: "conflicted", path, oldPath: null, isSubmodule });
@@ -136,14 +178,16 @@ export function parsePorcelainStatus(output: Buffer): ChangeEntry[] {
     const parts = fields(record, tag === "1" ? 9 : 10);
     const xy = parts[1];
     const path = parts[tag === "1" ? 8 : 9];
-    if (xy === undefined || xy.length !== 2 || path === undefined) throw new Error("Git returned an invalid change record");
+    if (xy === undefined || xy.length !== 2 || path === undefined)
+      throw new Error("Git returned an invalid change record");
     validatePath(path);
     const isSubmodule = validateSubmodule(parts[2]);
     validateModesAndHashes(parts, [3, 4, 5], [6, 7]);
     let oldPath: string | null = null;
     if (tag === "2") {
       const score = parts[8] ?? "";
-      if (!/^[RC][0-9]{1,3}$/.test(score) || Number(score.slice(1)) > 100) throw new Error("Git returned an invalid rename score");
+      if (!/^[RC][0-9]{1,3}$/.test(score) || Number(score.slice(1)) > 100)
+        throw new Error("Git returned an invalid rename score");
       oldPath = records[index + 1] ?? null;
       if (oldPath === null) throw new Error("Git returned a rename without its old path");
       validatePath(oldPath);
@@ -151,23 +195,46 @@ export function parsePorcelainStatus(output: Buffer): ChangeEntry[] {
     }
     const stagedKind = kindFor(xy[0] ?? "");
     const unstagedKind = kindFor(xy[1] ?? "");
-    if (stagedKind !== null) entries.push({ layer: "staged", kind: stagedKind, path, oldPath, isSubmodule });
-    if (unstagedKind !== null) entries.push({ layer: "unstaged", kind: unstagedKind, path, oldPath: unstagedKind === "renamed" || unstagedKind === "copied" ? oldPath : null, isSubmodule });
+    if (stagedKind !== null)
+      entries.push({ layer: "staged", kind: stagedKind, path, oldPath, isSubmodule });
+    if (unstagedKind !== null)
+      entries.push({
+        layer: "unstaged",
+        kind: unstagedKind,
+        path,
+        oldPath: unstagedKind === "renamed" || unstagedKind === "copied" ? oldPath : null,
+        isSubmodule,
+      });
   }
   return entries;
 }
 
 async function workingPathFingerprint(projectPath: string, path: string): Promise<string> {
   const candidate = resolve(projectPath, path);
-  if (!isWithinRoot(projectPath, candidate)) throw new AppError("forbidden", 403, "Changed file is outside the selected folder");
+  if (!isWithinRoot(projectPath, candidate))
+    throw new AppError("forbidden", 403, "Changed file is outside the selected folder");
   try {
     const parent = await realpath(dirname(candidate));
-    if (!isWithinRoot(projectPath, parent)) throw new AppError("forbidden", 403, "Changed file is outside the selected folder");
+    if (!isWithinRoot(projectPath, parent))
+      throw new AppError("forbidden", 403, "Changed file is outside the selected folder");
     const metadata = await lstat(candidate, { bigint: true });
-    return [metadata.mode, metadata.dev, metadata.ino, metadata.size, metadata.mtimeNs, metadata.ctimeNs].join(":");
+    return [
+      metadata.mode,
+      metadata.dev,
+      metadata.ino,
+      metadata.size,
+      metadata.mtimeNs,
+      metadata.ctimeNs,
+    ].join(":");
   } catch (error: unknown) {
-    if (hasErrorCode(error, "ENOENT") || hasErrorCode(error, "ENOTDIR") || hasErrorCode(error, "ELOOP")) return "missing";
-    if (hasErrorCode(error, "EACCES") || hasErrorCode(error, "EPERM")) throw new AppError("forbidden", 403, "Cannot read changed file metadata");
+    if (
+      hasErrorCode(error, "ENOENT") ||
+      hasErrorCode(error, "ENOTDIR") ||
+      hasErrorCode(error, "ELOOP")
+    )
+      return "missing";
+    if (hasErrorCode(error, "EACCES") || hasErrorCode(error, "EPERM"))
+      throw new AppError("forbidden", 403, "Cannot read changed file metadata");
     throw error;
   }
 }
@@ -177,7 +244,11 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectSta
   try {
     insideWorkTree = await runGit(projectPath, ["rev-parse", "--is-inside-work-tree"]);
   } catch (error: unknown) {
-    if (error instanceof GitCommandError && error.code === 128 && error.stderr.includes("not a git repository")) {
+    if (
+      error instanceof GitCommandError &&
+      error.code === 128 &&
+      error.stderr.includes("not a git repository")
+    ) {
       return { kind: "not_git" };
     }
     throw error;
@@ -185,25 +256,45 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectSta
   if (insideWorkTree.toString("utf8").trim() !== "true") return { kind: "not_git" };
   const [prefixOutput, output] = await Promise.all([
     runGit(projectPath, ["rev-parse", "--show-prefix"]),
-    runGit(projectPath, ["status", "--porcelain=v2", "-z", "--untracked-files=all", "--branch", "--", "."]),
+    runGit(projectPath, [
+      "status",
+      "--porcelain=v2",
+      "-z",
+      "--untracked-files=all",
+      "--branch",
+      "--",
+      ".",
+    ]),
   ]);
   const rawPrefix = new TextDecoder("utf-8", { fatal: true }).decode(prefixOutput);
   if (!rawPrefix.endsWith("\n")) throw new Error("Git returned an invalid worktree prefix");
   const prefix = rawPrefix.slice(0, -1);
   const entries = parsePorcelainStatus(output).map((entry): ChangeEntry => {
-    if (!entry.path.startsWith(prefix)) throw new Error("Git returned a path outside the selected folder");
+    if (!entry.path.startsWith(prefix))
+      throw new Error("Git returned a path outside the selected folder");
     return {
       ...entry,
       path: entry.path.slice(prefix.length),
-      oldPath: entry.oldPath === null ? null : posix.relative(prefix === "" ? "." : prefix.slice(0, -1), entry.oldPath),
+      oldPath:
+        entry.oldPath === null
+          ? null
+          : posix.relative(prefix === "" ? "." : prefix.slice(0, -1), entry.oldPath),
     };
   });
   const tokenHash = createHash("sha256").update(output);
-  const workingPaths = [...new Set(entries.filter((entry) => entry.layer !== "staged").map((entry) => entry.path))].sort();
+  const workingPaths = [
+    ...new Set(entries.filter((entry) => entry.layer !== "staged").map((entry) => entry.path)),
+  ].sort();
   const realProjectPath = await realpath(projectPath);
   for (let offset = 0; offset < workingPaths.length; offset += 16) {
-    const fingerprints = await Promise.all(workingPaths.slice(offset, offset + 16).map(async (path) => ({ path, value: await workingPathFingerprint(realProjectPath, path) })));
-    for (const fingerprint of fingerprints) tokenHash.update("\0").update(fingerprint.path).update("\0").update(fingerprint.value);
+    const fingerprints = await Promise.all(
+      workingPaths.slice(offset, offset + 16).map(async (path) => ({
+        path,
+        value: await workingPathFingerprint(realProjectPath, path),
+      })),
+    );
+    for (const fingerprint of fingerprints)
+      tokenHash.update("\0").update(fingerprint.path).update("\0").update(fingerprint.value);
   }
   return {
     kind: "git",

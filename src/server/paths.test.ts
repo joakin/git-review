@@ -19,8 +19,12 @@ test("folder selection stays inside the approved real path", async () => {
     expect((await openProject(root, "nested")).path).toBe("nested");
     expect((await openProject(root, "nested")).id).toBe((await openProject(root, "nested")).id);
 
-    await expect(resolveDirectory(root, "../outside")).rejects.toMatchObject({ code: "invalid_request" });
-    await expect(resolveDirectory(root, "/outside")).rejects.toMatchObject({ code: "invalid_request" });
+    await expect(resolveDirectory(root, "../outside")).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    await expect(resolveDirectory(root, "/outside")).rejects.toMatchObject({
+      code: "invalid_request",
+    });
     await expect(resolveDirectory(root, "escape")).rejects.toMatchObject({ code: "forbidden" });
     await expect(resolveDirectory(root, "missing")).rejects.toMatchObject({ code: "not_found" });
   } finally {

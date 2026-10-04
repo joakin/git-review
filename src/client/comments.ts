@@ -20,9 +20,22 @@ export type DraftComment = {
   updatedAt: number;
   state: "current" | "outdated";
 };
-export type FeedbackHistory = { id: string; copiedAt: number; text: string; comments: DraftComment[] };
-export type CommentStore = { version: 1; projectId: string; drafts: DraftComment[]; history: FeedbackHistory[] };
-export type CheckedComments = { projectId: string; drafts: Pick<DraftComment, "id" | "anchor" | "state">[] };
+export type FeedbackHistory = {
+  id: string;
+  copiedAt: number;
+  text: string;
+  comments: DraftComment[];
+};
+export type CommentStore = {
+  version: 1;
+  projectId: string;
+  drafts: DraftComment[];
+  history: FeedbackHistory[];
+};
+export type CheckedComments = {
+  projectId: string;
+  drafts: Pick<DraftComment, "id" | "anchor" | "state">[];
+};
 export type FeedbackSnapshot = { projectId: string; text: string; drafts: DraftComment[] };
 
 export const commentStoragePrefix = "git-review:comments:v1:";
@@ -51,7 +64,11 @@ function parseAnchor(value: unknown): CommentAnchor | null {
   if (!validText(path, 4096) || path.length === 0 || !validText(sourceText, 20_000)) return null;
   if (side !== "old" && side !== "new") return null;
   if (!Number.isSafeInteger(line) || typeof line !== "number" || line <= 0) return null;
-  if (!(before === null || validText(before, 20_000)) || !(after === null || validText(after, 20_000))) return null;
+  if (
+    !(before === null || validText(before, 20_000)) ||
+    !(after === null || validText(after, 20_000))
+  )
+    return null;
   return { layer, path, side, line, sourceText, before, after };
 }
 
@@ -59,15 +76,36 @@ function parseDraft(value: unknown): DraftComment | null {
   if (!isRecord(value)) return null;
   const { id, body, createdAt, updatedAt, state } = value;
   const anchor = parseAnchor(value["anchor"]);
-  if (anchor === null || !validText(id, 100) || id.length === 0 || !validText(body, maxBodyLength) || body.trim().length === 0) return null;
-  if (typeof createdAt !== "number" || !Number.isSafeInteger(createdAt) || createdAt < 0 || typeof updatedAt !== "number" || !Number.isSafeInteger(updatedAt) || updatedAt < createdAt) return null;
+  if (
+    anchor === null ||
+    !validText(id, 100) ||
+    id.length === 0 ||
+    !validText(body, maxBodyLength) ||
+    body.trim().length === 0
+  )
+    return null;
+  if (
+    typeof createdAt !== "number" ||
+    !Number.isSafeInteger(createdAt) ||
+    createdAt < 0 ||
+    typeof updatedAt !== "number" ||
+    !Number.isSafeInteger(updatedAt) ||
+    updatedAt < createdAt
+  )
+    return null;
   if (state !== "current" && state !== "outdated") return null;
   return { id, anchor, body, createdAt, updatedAt, state };
 }
 
 export function validateCommentStore(value: unknown, projectId: string): CommentStore | null {
   if (!isRecord(value) || value["version"] !== 1 || value["projectId"] !== projectId) return null;
-  if (!Array.isArray(value["drafts"]) || value["drafts"].length > maxDrafts || !Array.isArray(value["history"]) || value["history"].length > maxHistory) return null;
+  if (
+    !Array.isArray(value["drafts"]) ||
+    value["drafts"].length > maxDrafts ||
+    !Array.isArray(value["history"]) ||
+    value["history"].length > maxHistory
+  )
+    return null;
   const drafts: DraftComment[] = [];
   const ids = new Set<string>();
   for (const item of value["drafts"]) {
@@ -78,7 +116,18 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
   }
   const history: FeedbackHistory[] = [];
   for (const item of value["history"]) {
-    if (!isRecord(item) || !validText(item["id"], 100) || item["id"].length === 0 || !validText(item["text"], maxFeedbackLength) || typeof item["copiedAt"] !== "number" || !Number.isSafeInteger(item["copiedAt"]) || item["copiedAt"] < 0 || !Array.isArray(item["comments"]) || item["comments"].length > maxDrafts) return null;
+    if (
+      !isRecord(item) ||
+      !validText(item["id"], 100) ||
+      item["id"].length === 0 ||
+      !validText(item["text"], maxFeedbackLength) ||
+      typeof item["copiedAt"] !== "number" ||
+      !Number.isSafeInteger(item["copiedAt"]) ||
+      item["copiedAt"] < 0 ||
+      !Array.isArray(item["comments"]) ||
+      item["comments"].length > maxDrafts
+    )
+      return null;
     const comments: DraftComment[] = [];
     for (const raw of item["comments"]) {
       const comment = parseDraft(raw);
@@ -97,25 +146,48 @@ export function parseCommentStore(value: unknown, projectId: string): CommentSto
 export function readCommentStore(projectId: string): CommentStore {
   try {
     const raw = localStorage.getItem(`${commentStoragePrefix}${projectId}`);
-    return raw === null ? emptyCommentStore(projectId) : parseCommentStore(JSON.parse(raw) as unknown, projectId);
-  } catch { return emptyCommentStore(projectId); }
+    return raw === null
+      ? emptyCommentStore(projectId)
+      : parseCommentStore(JSON.parse(raw) as unknown, projectId);
+  } catch {
+    return emptyCommentStore(projectId);
+  }
 }
 
 export function saveCommentStore(store: CommentStore): void {
-  try { localStorage.setItem(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store)); }
-  catch { /* Storage denial does not stop the current review session. */ }
+  try {
+    localStorage.setItem(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store));
+  } catch {
+    /* Storage denial does not stop the current review session. */
+  }
 }
 
-export function anchorForLine(layer: ChangeLayer, path: string, hunk: DiffHunk, index: number, side: ReviewSide): CommentAnchor | null {
+export function anchorForLine(
+  layer: ChangeLayer,
+  path: string,
+  hunk: DiffHunk,
+  index: number,
+  side: ReviewSide,
+): CommentAnchor | null {
   const line = hunk.lines[index];
   if (line === undefined || layer === "conflict") return null;
   const number = side === "old" ? line.oldLine : line.newLine;
   if (number === null) return null;
   const sideText = (offset: number): string | null => {
     const other = hunk.lines[index + offset];
-    return other !== undefined && (side === "old" ? other.oldLine : other.newLine) !== null ? other.text : null;
+    return other !== undefined && (side === "old" ? other.oldLine : other.newLine) !== null
+      ? other.text
+      : null;
   };
-  return { layer, path, side, line: number, sourceText: line.text, before: sideText(-1), after: sideText(1) };
+  return {
+    layer,
+    path,
+    side,
+    line: number,
+    sourceText: line.text,
+    before: sideText(-1),
+    after: sideText(1),
+  };
 }
 
 export function anchorMatches(result: DiffResult, anchor: CommentAnchor): boolean {
@@ -123,7 +195,14 @@ export function anchorMatches(result: DiffResult, anchor: CommentAnchor): boolea
   for (const hunk of result.hunks) {
     for (let index = 0; index < hunk.lines.length; index += 1) {
       const current = anchorForLine(anchor.layer, anchor.path, hunk, index, anchor.side);
-      if (current !== null && current.line === anchor.line && current.sourceText === anchor.sourceText && current.before === anchor.before && current.after === anchor.after) return true;
+      if (
+        current !== null &&
+        current.line === anchor.line &&
+        current.sourceText === anchor.sourceText &&
+        current.before === anchor.before &&
+        current.after === anchor.after
+      )
+        return true;
     }
   }
   return false;
@@ -134,10 +213,21 @@ function quote(value: string): string {
 }
 
 export function formatFeedback(projectPath: string, drafts: readonly DraftComment[]): string {
-  const layerOrder: Record<CommentAnchor["layer"], number> = { staged: 0, unstaged: 1, untracked: 2 };
-  const sorted = drafts.filter((draft) => draft.state === "current").sort((a, b) =>
-    layerOrder[a.anchor.layer] - layerOrder[b.anchor.layer] || a.anchor.path.localeCompare(b.anchor.path) || a.anchor.line - b.anchor.line || a.anchor.side.localeCompare(b.anchor.side) || a.createdAt - b.createdAt,
-  );
+  const layerOrder: Record<CommentAnchor["layer"], number> = {
+    staged: 0,
+    unstaged: 1,
+    untracked: 2,
+  };
+  const sorted = drafts
+    .filter((draft) => draft.state === "current")
+    .sort(
+      (a, b) =>
+        layerOrder[a.anchor.layer] - layerOrder[b.anchor.layer] ||
+        a.anchor.path.localeCompare(b.anchor.path) ||
+        a.anchor.line - b.anchor.line ||
+        a.anchor.side.localeCompare(b.anchor.side) ||
+        a.createdAt - b.createdAt,
+    );
   if (sorted.length === 0) return "";
   const lines = [`Review feedback for ${quote(projectPath)}`];
   let group = "";
@@ -147,44 +237,92 @@ export function formatFeedback(projectPath: string, drafts: readonly DraftCommen
       lines.push("", `[${draft.anchor.layer}] ${quote(draft.anchor.path)}`);
       group = nextGroup;
     }
-    lines.push(`  ${draft.anchor.side} line ${draft.anchor.line}  ${quote(draft.anchor.sourceText)}`);
+    lines.push(
+      `  ${draft.anchor.side} line ${draft.anchor.line}  ${quote(draft.anchor.sourceText)}`,
+    );
     for (const bodyLine of draft.body.trim().split(/\r?\n/)) lines.push(`    ${bodyLine}`);
   }
   return lines.join("\n");
 }
 
 function sameAnchor(first: CommentAnchor, second: CommentAnchor): boolean {
-  return first.layer === second.layer && first.path === second.path && first.side === second.side && first.line === second.line &&
-    first.sourceText === second.sourceText && first.before === second.before && first.after === second.after;
+  return (
+    first.layer === second.layer &&
+    first.path === second.path &&
+    first.side === second.side &&
+    first.line === second.line &&
+    first.sourceText === second.sourceText &&
+    first.before === second.before &&
+    first.after === second.after
+  );
 }
 
 export function mergeCheckedComments(store: CommentStore, checked: CheckedComments): CommentStore {
   if (store.projectId !== checked.projectId) return store;
   const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
-  return { ...store, drafts: store.drafts.map((draft) => {
-    const result = byId.get(draft.id);
-    return result !== undefined && sameAnchor(draft.anchor, result.anchor) ? { ...draft, state: result.state } : draft;
-  }) };
+  return {
+    ...store,
+    drafts: store.drafts.map((draft) => {
+      const result = byId.get(draft.id);
+      return result !== undefined && sameAnchor(draft.anchor, result.anchor)
+        ? { ...draft, state: result.state }
+        : draft;
+    }),
+  };
 }
 
-export function snapshotFeedback(projectPath: string, store: CommentStore, checked: CheckedComments): FeedbackSnapshot {
+export function snapshotFeedback(
+  projectPath: string,
+  store: CommentStore,
+  checked: CheckedComments,
+): FeedbackSnapshot {
   const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
-  const drafts = store.projectId !== checked.projectId ? [] : store.drafts.filter((draft) => {
-    const result = byId.get(draft.id);
-    return draft.state === "current" && result?.state === "current" && sameAnchor(draft.anchor, result.anchor);
-  }).map((draft) => ({ ...draft, anchor: { ...draft.anchor } }));
+  const drafts =
+    store.projectId !== checked.projectId
+      ? []
+      : store.drafts
+          .filter((draft) => {
+            const result = byId.get(draft.id);
+            return (
+              draft.state === "current" &&
+              result?.state === "current" &&
+              sameAnchor(draft.anchor, result.anchor)
+            );
+          })
+          .map((draft) => ({ ...draft, anchor: { ...draft.anchor } }));
   return { projectId: store.projectId, text: formatFeedback(projectPath, drafts), drafts };
 }
 
-export function recordSuccessfulCopy(store: CommentStore, snapshot: FeedbackSnapshot, copiedAt: number, id: string): CommentStore {
-  if (store.projectId !== snapshot.projectId || snapshot.drafts.length === 0 || snapshot.text.length === 0 || snapshot.text.length > maxFeedbackLength) return store;
+export function recordSuccessfulCopy(
+  store: CommentStore,
+  snapshot: FeedbackSnapshot,
+  copiedAt: number,
+  id: string,
+): CommentStore {
+  if (
+    store.projectId !== snapshot.projectId ||
+    snapshot.drafts.length === 0 ||
+    snapshot.text.length === 0 ||
+    snapshot.text.length > maxFeedbackLength
+  )
+    return store;
   const byId = new Map(snapshot.drafts.map((draft) => [draft.id, draft]));
   const entry: FeedbackHistory = { id, copiedAt, text: snapshot.text, comments: snapshot.drafts };
-  return { ...store, drafts: store.drafts.filter((draft) => {
-    const copied = byId.get(draft.id);
-    return copied === undefined || draft.state !== "current" || draft.body !== copied.body || draft.createdAt !== copied.createdAt ||
-      draft.updatedAt !== copied.updatedAt || !sameAnchor(draft.anchor, copied.anchor);
-  }), history: [entry, ...store.history].slice(0, maxHistory) };
+  return {
+    ...store,
+    drafts: store.drafts.filter((draft) => {
+      const copied = byId.get(draft.id);
+      return (
+        copied === undefined ||
+        draft.state !== "current" ||
+        draft.body !== copied.body ||
+        draft.createdAt !== copied.createdAt ||
+        draft.updatedAt !== copied.updatedAt ||
+        !sameAnchor(draft.anchor, copied.anchor)
+      );
+    }),
+    history: [entry, ...store.history].slice(0, maxHistory),
+  };
 }
 
 export function undoSuccessfulCopy(store: CommentStore, id: string): CommentStore {

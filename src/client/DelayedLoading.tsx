@@ -10,5 +10,9 @@ export function DelayedLoading({ message, className }: { message: string; classN
     return () => window.clearTimeout(timer);
   }, []);
 
-  return visible ? <p class={className} role="status">{message}</p> : null;
+  return visible ? (
+    <p class={className} role="status">
+      {message}
+    </p>
+  ) : null;
 }

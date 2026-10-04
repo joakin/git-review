@@ -30,20 +30,61 @@ export function diffCardId(entry: ChangeEntry): string {
   return `diff-${encodeURIComponent(diffCardKey(entry))}`;
 }
 
-export function DiffCard({ entry, projectId, revision, changeToken, refreshKey, expanded, wrap, languages, onToggle, onStale, onComment, drafts, reattachSide }: DiffCardProps) {
-  const [override, setOverride] = useState<string | null>(() => readLanguageOverride(projectId, entry.path));
-  const effectiveOverride = override === null || override === "text" || languages.some((language) => language.id === override) ? override : null;
-  const requestKey = diffCacheKey({ projectId, layer: entry.layer, path: entry.path, revision, changeToken, refreshKey, language: effectiveOverride });
+export function DiffCard({
+  entry,
+  projectId,
+  revision,
+  changeToken,
+  refreshKey,
+  expanded,
+  wrap,
+  languages,
+  onToggle,
+  onStale,
+  onComment,
+  drafts,
+  reattachSide,
+}: DiffCardProps) {
+  const [override, setOverride] = useState<string | null>(() =>
+    readLanguageOverride(projectId, entry.path),
+  );
+  const effectiveOverride =
+    override === null ||
+    override === "text" ||
+    languages.some((language) => language.id === override)
+      ? override
+      : null;
+  const requestKey = diffCacheKey({
+    projectId,
+    layer: entry.layer,
+    path: entry.path,
+    revision,
+    changeToken,
+    refreshKey,
+    language: effectiveOverride,
+  });
   const [loaded, setLoaded] = useState<{ key: string; state: DiffState } | null>(null);
   const [retry, setRetry] = useState(0);
   const cached = expanded ? readCachedDiff(requestKey) : null;
-  const current: DiffState = loaded?.key === requestKey ? loaded.state : cached === null ? { kind: "loading" } : { kind: "ready", value: cached };
+  const current: DiffState =
+    loaded?.key === requestKey
+      ? loaded.state
+      : cached === null
+        ? { kind: "loading" }
+        : { kind: "ready", value: cached };
 
   useEffect(() => {
     if (!expanded || current.kind === "ready") return;
     const controller = new AbortController();
     setLoaded({ key: requestKey, state: { kind: "loading" } });
-    fetchProjectDiff(projectId, entry.layer, entry.path, revision, effectiveOverride, controller.signal).then(
+    fetchProjectDiff(
+      projectId,
+      entry.layer,
+      entry.path,
+      revision,
+      effectiveOverride,
+      controller.signal,
+    ).then(
       (value) => {
         if (controller.signal.aborted) return;
         rememberDiff(requestKey, value);
@@ -51,14 +92,35 @@ export function DiffCard({ entry, projectId, revision, changeToken, refreshKey, 
         if (value.kind === "stale") onStale();
       },
       (error: unknown) => {
-        if (!controller.signal.aborted) setLoaded({ key: requestKey, state: { kind: "error", message: error instanceof Error ? error.message : "Diff could not be loaded" } });
+        if (!controller.signal.aborted)
+          setLoaded({
+            key: requestKey,
+            state: {
+              kind: "error",
+              message: error instanceof Error ? error.message : "Diff could not be loaded",
+            },
+          });
       },
     );
     return () => controller.abort();
   }, [expanded, projectId, entry.layer, entry.path, requestKey, retry]);
 
-  return <DiffCardFrame mode={{ kind: "review", entry, onComment, drafts, reattachSide }} id={diffCardId(entry)} expanded={expanded} onToggle={onToggle} languages={languages} override={override} onLanguage={(value) => {
-    setOverride(value);
-    saveLanguageOverride(projectId, entry.path, value);
-  }} current={current} requestKey={requestKey} retry={() => setRetry((value) => value + 1)} wrap={wrap} />;
+  return (
+    <DiffCardFrame
+      mode={{ kind: "review", entry, onComment, drafts, reattachSide }}
+      id={diffCardId(entry)}
+      expanded={expanded}
+      onToggle={onToggle}
+      languages={languages}
+      override={override}
+      onLanguage={(value) => {
+        setOverride(value);
+        saveLanguageOverride(projectId, entry.path, value);
+      }}
+      current={current}
+      requestKey={requestKey}
+      retry={() => setRetry((value) => value + 1)}
+      wrap={wrap}
+    />
+  );
 }

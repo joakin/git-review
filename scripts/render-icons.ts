@@ -17,7 +17,10 @@ const icons = [
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   for (const icon of icons) {
-    const page = await browser.newPage({ viewport: { width: icon.size, height: icon.size }, deviceScaleFactor: 1 });
+    const page = await browser.newPage({
+      viewport: { width: icon.size, height: icon.size },
+      deviceScaleFactor: 1,
+    });
     try {
       await page.goto(pathToFileURL(resolve(source, icon.svg)).href);
       await page.locator("svg").evaluate((svg) => {

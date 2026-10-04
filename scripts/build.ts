@@ -30,6 +30,7 @@ if (!result.success) {
     for (const log of worker.logs) console.error(log);
     process.exitCode = 1;
   } else {
-    for (const output of [...result.outputs, ...bootstrap.outputs, ...worker.outputs]) console.log(`Built ${output.path}`);
+    for (const output of [...result.outputs, ...bootstrap.outputs, ...worker.outputs])
+      console.log(`Built ${output.path}`);
   }
 }

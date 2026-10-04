@@ -7,7 +7,11 @@ const search = "/?section=search&project=demo&q=hello";
 const result = `${search}&file=src%2Fa.ts&line=3`;
 const settings = "/?section=settings&project=demo";
 
-function harness(initial: { state: unknown; url: string }[] = [{ state: null, url: picker }], storage = true, browserLimit = Infinity) {
+function harness(
+  initial: { state: unknown; url: string }[] = [{ state: null, url: picker }],
+  storage = true,
+  browserLimit = Infinity,
+) {
   let entries = initial;
   let index = entries.length - 1;
   let journal: unknown = null;
@@ -23,37 +27,61 @@ function harness(initial: { state: unknown; url: string }[] = [{ state: null, ur
       entries = [...entries.slice(0, index + 1), { state, url }].slice(-browserLimit);
       index = entries.length - 1;
     },
-    replace: (state: unknown, url: string) => { entries[index] = { state, url }; },
-    go: (direction: -1 | 1) => { request = direction; },
-    readJournal: () => storage ? structuredClone(journal) : null,
-    saveJournal: (value: unknown) => { if (storage) journal = structuredClone(value); },
+    replace: (state: unknown, url: string) => {
+      entries[index] = { state, url };
+    },
+    go: (direction: -1 | 1) => {
+      request = direction;
+    },
+    readJournal: () => (storage ? structuredClone(journal) : null),
+    saveJournal: (value: unknown) => {
+      if (storage) journal = structuredClone(value);
+    },
     newId: () => (++serial).toString(16).padStart(32, "0"),
   };
   return {
     ports,
     create: (reload = false) => new NavigationHistory(ports, reload),
     current: ports.readEntry,
-    native: (direction: -1 | 1) => { index += direction; },
+    native: (direction: -1 | 1) => {
+      index += direction;
+    },
     settle: (owner: NavigationHistory) => {
-      if (request !== null) { index += request; request = null; }
+      if (request !== null) {
+        index += request;
+        request = null;
+      }
       owner.acceptCurrent();
     },
-    replaceJournal: (value: unknown) => { journal = value; },
+    replaceJournal: (value: unknown) => {
+      journal = value;
+    },
     journal: () => structuredClone(journal),
   };
 }
 
-function traverse(h: ReturnType<typeof harness>, owner: NavigationHistory, direction: -1 | 1): void {
+function traverse(
+  h: ReturnType<typeof harness>,
+  owner: NavigationHistory,
+  direction: -1 | 1,
+): void {
   expect(owner.traverse(direction, () => {})).toBe(true);
   h.settle(owner);
 }
 
 describe("known app history", () => {
   test("starts without guessing from browser history or unrelated entry state", () => {
-    const h = harness([{ state: null, url: "https://elsewhere.test/" }, { state: { unrelated: 7 }, url: file }]);
+    const h = harness([
+      { state: null, url: "https://elsewhere.test/" },
+      { state: { unrelated: 7 }, url: file },
+    ]);
     const owner = h.create();
     expect(owner.availability()).toEqual({ canGoBack: false, canGoForward: false, pending: false });
-    expect(owner.traverse(-1, () => { throw new Error("Unavailable traversal prepared a draft"); })).toBe(false);
+    expect(
+      owner.traverse(-1, () => {
+        throw new Error("Unavailable traversal prepared a draft");
+      }),
+    ).toBe(false);
     expect(h.current().state).toMatchObject({ unrelated: 7 });
     owner.write(search, "push");
     traverse(h, owner, -1);
@@ -112,7 +140,10 @@ describe("known app history", () => {
   });
 
   test("native traversal uses the same trail and unknown entries start conservatively", () => {
-    const h = harness([{ state: null, url: "https://elsewhere.test/" }, { state: null, url: picker }]);
+    const h = harness([
+      { state: null, url: "https://elsewhere.test/" },
+      { state: null, url: picker },
+    ]);
     const owner = h.create();
     owner.write(file, "push");
     h.native(-1);
@@ -170,8 +201,16 @@ describe("known app history", () => {
     owner.write(file, "push");
     owner.write(search, "push");
     let prepared = 0;
-    expect(owner.traverse(-1, () => { prepared += 1; })).toBe(true);
-    expect(owner.traverse(-1, () => { prepared += 1; })).toBe(false);
+    expect(
+      owner.traverse(-1, () => {
+        prepared += 1;
+      }),
+    ).toBe(true);
+    expect(
+      owner.traverse(-1, () => {
+        prepared += 1;
+      }),
+    ).toBe(false);
     expect(owner.availability().pending).toBe(true);
     expect(prepared).toBe(1);
     h.settle(owner);
@@ -216,18 +255,31 @@ describe("known app history", () => {
 
   test("malformed or inconsistent persisted journals fail closed", () => {
     const changes = [
-      { version: 2 }, { trail: "bad" }, { start: -1 }, { start: Number.MAX_SAFE_INTEGER },
-      { historyLength: 0 }, { historyLength: 99 }, { entries: [] },
+      { version: 2 },
+      { trail: "bad" },
+      { start: -1 },
+      { start: Number.MAX_SAFE_INTEGER },
+      { historyLength: 0 },
+      { historyLength: 99 },
+      { entries: [] },
       { entries: [{ id: "a".repeat(32), url: "https://elsewhere.test/" }] },
       { entries: [{ id: "a".repeat(32), url: "/?section=files&project=x&file=../secret" }] },
       { entries: [{ id: "a".repeat(32), url: `/?${"x".repeat(40_000)}` }] },
-      { entries: [{ id: "a".repeat(32), url: picker }, { id: "a".repeat(32), url: file }] },
+      {
+        entries: [
+          { id: "a".repeat(32), url: picker },
+          { id: "a".repeat(32), url: file },
+        ],
+      },
     ];
     for (const change of changes) {
       const h = harness();
       h.create().write(file, "push");
       h.replaceJournal({ ...Object(h.journal()), ...change });
-      expect(h.create(true).availability()).toMatchObject({ canGoBack: false, canGoForward: false });
+      expect(h.create(true).availability()).toMatchObject({
+        canGoBack: false,
+        canGoForward: false,
+      });
     }
   });
 

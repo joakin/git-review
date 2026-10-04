@@ -1,0 +1,12 @@
+# Dependencies, build output, and temporary QA data
+node_modules/
+dist/
+qa/.artifacts/
+*.tsbuildinfo
+
+# Generated capture metadata and image assets
+qa/screenshots/
+src/client/public/icons/
+
+# Bun owns the lockfile's format
+bun.lock

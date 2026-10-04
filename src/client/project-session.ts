@@ -2,11 +2,28 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project, RootInfo } from "../shared/api.ts";
 import { fetchRoot, openProject } from "./api.ts";
 import { parseNavigationSearch } from "./navigation.ts";
-import { emptyWorkspace, readActiveProject, readSavedWorkspace, saveActiveProject, saveWorkspace, withSelectedPath, type SavedWorkspace } from "./storage.ts";
+import {
+  emptyWorkspace,
+  readActiveProject,
+  readSavedWorkspace,
+  saveActiveProject,
+  saveWorkspace,
+  withSelectedPath,
+  type SavedWorkspace,
+} from "./storage.ts";
 
-type HostRoot = { kind: "loading" } | { kind: "ready"; value: RootInfo } | { kind: "error"; message: string };
-type ProjectOpening = { kind: "idle" } | { kind: "opening"; path: string } | { kind: "error"; path: string; message: string };
-type SessionState = { root: HostRoot; workspace: SavedWorkspace; opened: Project | null; opening: ProjectOpening };
+type HostRoot =
+  { kind: "loading" } | { kind: "ready"; value: RootInfo } | { kind: "error"; message: string };
+type ProjectOpening =
+  | { kind: "idle" }
+  | { kind: "opening"; path: string }
+  | { kind: "error"; path: string; message: string };
+type SessionState = {
+  root: HostRoot;
+  workspace: SavedWorkspace;
+  opened: Project | null;
+  opening: ProjectOpening;
+};
 type ProjectSession = {
   model: {
     root: HostRoot;
@@ -27,13 +44,20 @@ type SessionInputs = {
   onOpened: (project: Project) => void;
 };
 
-function messageFor(error: unknown): string { return error instanceof Error ? error.message : "Something went wrong"; }
+function messageFor(error: unknown): string {
+  return error instanceof Error ? error.message : "Something went wrong";
+}
 
 /** Owns root connection, accepted project handles, and root-scoped persistence. */
 export function useProjectSession(inputs: SessionInputs): ProjectSession {
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
-  const [session, setSession] = useState<SessionState>(() => ({ root: { kind: "loading" }, workspace: emptyWorkspace(""), opened: null, opening: { kind: "idle" } }));
+  const [session, setSession] = useState<SessionState>(() => ({
+    root: { kind: "loading" },
+    workspace: emptyWorkspace(""),
+    opened: null,
+    opening: { kind: "idle" },
+  }));
   const sessionRef = useRef(session);
   const openRequest = useRef<AbortController | null>(null);
 
@@ -45,7 +69,8 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
 
   function restoreDefaultRoute(): void {
     const root = sessionRef.current.root;
-    if (root.kind === "ready") inputsRef.current.onRestoreProject(readActiveProject(root.value.path));
+    if (root.kind === "ready")
+      inputsRef.current.onRestoreProject(readActiveProject(root.value.path));
   }
 
   function selectFolder(path: string): void {
@@ -57,7 +82,8 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
     }
     inputsRef.current.onNotice(null);
     // Explicit selection renews a handle retained while the picker hid it.
-    if (inputsRef.current.readCurrentProjectPath() !== path && current.opened?.path === path) updateSession((value) => ({ ...value, opened: null }));
+    if (inputsRef.current.readCurrentProjectPath() !== path && current.opened?.path === path)
+      updateSession((value) => ({ ...value, opened: null }));
     inputsRef.current.onSelectProject(path);
   }
 
@@ -68,11 +94,19 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
         const root = await fetchRoot(controller.signal);
         if (controller.signal.aborted) return;
         const workspace = readSavedWorkspace(root.path);
-        updateSession((current) => ({ ...current, root: { kind: "ready", value: root }, workspace }));
+        updateSession((current) => ({
+          ...current,
+          root: { kind: "ready", value: root },
+          workspace,
+        }));
         // An explicit destination may have arrived while the root was loading.
         if (parseNavigationSearch(window.location.search).kind === "empty") restoreDefaultRoute();
       } catch (error: unknown) {
-        if (!controller.signal.aborted) updateSession((current) => ({ ...current, root: { kind: "error", message: messageFor(error) } }));
+        if (!controller.signal.aborted)
+          updateSession((current) => ({
+            ...current,
+            root: { kind: "error", message: messageFor(error) },
+          }));
       }
     }
     void connect();
@@ -83,7 +117,9 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
   useEffect(() => {
     const path = inputs.projectPath;
     if (root.kind !== "ready" || path === null || sessionRef.current.opened?.path === path) {
-      updateSession((current) => current.opening.kind === "opening" ? { ...current, opening: { kind: "idle" } } : current);
+      updateSession((current) =>
+        current.opening.kind === "opening" ? { ...current, opening: { kind: "idle" } } : current,
+      );
       return;
     }
     const controller = new AbortController();
@@ -91,7 +127,11 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
     updateSession((current) => ({ ...current, opened: null, opening: { kind: "opening", path } }));
     inputsRef.current.onOpening();
     // App updates its route ref synchronously, before effect cleanup can abort.
-    const isCurrentOpen = (): boolean => !controller.signal.aborted && openRequest.current === controller && sessionRef.current.root === root && inputsRef.current.readCurrentProjectPath() === path;
+    const isCurrentOpen = (): boolean =>
+      !controller.signal.aborted &&
+      openRequest.current === controller &&
+      sessionRef.current.root === root &&
+      inputsRef.current.readCurrentProjectPath() === path;
     openProject(path, controller.signal).then(
       (selected) => {
         if (!isCurrentOpen()) return;
@@ -99,14 +139,20 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
         inputsRef.current.onOpened(selected);
         saveActiveProject(root.value.path, selected.path);
         const current = sessionRef.current;
-        const scoped = current.workspace.rootPath === root.value.path ? current.workspace : emptyWorkspace(root.value.path);
+        const scoped =
+          current.workspace.rootPath === root.value.path
+            ? current.workspace
+            : emptyWorkspace(root.value.path);
         const workspace = withSelectedPath(scoped, selected.path);
         saveWorkspace(workspace);
         updateSession((value) => ({ ...value, workspace, opening: { kind: "idle" } }));
       },
       (error: unknown) => {
         if (!isCurrentOpen()) return;
-        updateSession((current) => ({ ...current, opening: { kind: "error", path, message: messageFor(error) } }));
+        updateSession((current) => ({
+          ...current,
+          opening: { kind: "error", path, message: messageFor(error) },
+        }));
       },
     );
     return () => {
@@ -120,7 +166,10 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
       root,
       project: session.opened?.path === inputs.projectPath ? session.opened : null,
       opening: session.opening.kind === "opening",
-      openError: session.opening.kind === "error" ? { path: session.opening.path, message: session.opening.message } : null,
+      openError:
+        session.opening.kind === "error"
+          ? { path: session.opening.path, message: session.opening.message }
+          : null,
       recentPaths: session.workspace.recentPaths,
     },
     actions: { selectFolder, restoreDefaultRoute },
