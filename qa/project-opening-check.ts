@@ -66,7 +66,8 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
       await canceled;
       await page.locator(".open-button").click();
       await page.locator(".sidebar-project-title").getByText("inventory-fixture").waitFor({ state: "attached" });
-      await page.locator("main .diff-card").first().waitFor();
+      if (viewport.width <= 600) await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
+      else await page.locator("main .diff-card").first().waitFor();
       assert(opens === 2, `Cancel/retry sent ${opens} requests instead of two`);
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2), "Cancel/retry widened the page");
       assert(errors.length === 0, errors.join("; "));
@@ -141,11 +142,11 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
         assert(page.url() === replacementUrl, "Abandoned completion changed the replacement route");
         assert(await selectedStorage(page) === beforeStorage, "Abandoned completion acquired persisted project ownership");
         assert(await page.locator(".sidebar-project-title").count() === 0, "Abandoned completion replaced the pending project");
-        assert(await page.locator("main [role=alert]").count() === 0, "Abandoned failure appeared on the replacement route");
+        assert(await page.locator("main [role=alert], .sidebar [role=alert]").count() === 0, "Abandoned failure appeared on the replacement route");
       }
       await settle(page, 1);
       await page.locator(".sidebar-project-title").getByText(replacement).waitFor({ state: "attached" });
-      await page.locator("main").getByRole("heading", { name: "Changed files", exact: true }).waitFor();
+      await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
       assert(page.url() === replacementUrl, "Replacement completion changed its route");
       const replacementStorage = await selectedStorage(page);
       assert(replacementStorage !== beforeStorage, "Completed replacement did not save its selection");
@@ -183,13 +184,13 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
     await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
     await pickerReady(page, pickerUrl);
     await page.locator(".open-button").click();
-    await page.locator("main [role=alert]").filter({ hasText: "Controlled project-open failure" }).waitFor();
+    await page.locator(".sidebar [role=alert]").filter({ hasText: "Controlled project-open failure" }).waitFor();
     assert(await selectedStorage(page) === beforeStorage, "Failed opening replaced the last accepted tab selection or recents");
     await page.getByRole("button", { name: "Choose another project" }).click();
     await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
     await pickerReady(page, pickerUrl);
     await page.locator(".open-button").click();
-    await page.locator("main .diff-card").first().waitFor();
+    await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
     assert(opens === 2, "Failure recovery did not send exactly one retry");
     const recovered = await page.evaluate((key) => ({
       active: JSON.parse(sessionStorage.getItem("git-review:active-project:v1") ?? "null") as unknown,

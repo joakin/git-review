@@ -90,8 +90,7 @@ try {
   await page.getByRole("button", { name: /Open this folder/ }).waitFor({ state: "visible" });
   await page.goForward();
   await waitForRoute(page, "changes");
-  await page.locator(".diff-card").first().waitFor({ state: "visible" });
-  await page.getByRole("button", { name: "Open list" }).click();
+  await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
   if (await page.locator(".main-content").isVisible()) throw new Error("Phone list left the content pane visible");
   await page.getByRole("navigation", { name: "Project views" }).waitFor({ state: "visible" });
 

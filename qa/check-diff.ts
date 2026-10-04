@@ -31,6 +31,7 @@ async function main(): Promise<void> {
       await page.goto(url.href, { waitUntil: "load" });
       await page.getByRole("button", { name: new RegExp(folder) }).click();
       await page.getByRole("button", { name: /Open this folder/ }).click();
+      await page.getByRole("button", { name: "Review all changes", exact: true }).click();
       const staged = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
       await staged.waitFor({ state: "visible" });
 

@@ -42,6 +42,7 @@ try {
   await page.getByRole("button", { name: "Back to review" }).click();
   await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
+  await page.getByRole("button", { name: "Review all changes", exact: true }).click();
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
   await card.locator(".diff-card-toggle").click();
   await card.locator(".diff-row").first().waitFor({ state: "visible" });

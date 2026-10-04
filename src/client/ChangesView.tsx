@@ -54,13 +54,13 @@ function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; 
   </div>;
 }
 
-export function ChangesSidebar({ status, onSelect }: { status: LoadState<ProjectStatus>; onSelect: (entry: ChangeEntry) => void }) {
+export function ChangesSidebar({ status, onSelect, onReviewAll }: { status: LoadState<ProjectStatus>; onSelect: (entry: ChangeEntry) => void; onReviewAll: () => void }) {
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
   return <div class="sidebar-changes">
     {status.kind === "loading" && <DelayedLoading className="sidebar-message" message="Reading Git changes…" />}
     {status.kind === "error" && <p class="sidebar-error" role="alert">{status.message}</p>}
     {status.kind === "ready" && status.value.kind === "not_git" && <p class="sidebar-message">This folder is not a Git worktree.</p>}
-    {gitStatus !== null && <ChangeGroups entries={gitStatus.entries} onSelect={onSelect} />}
+    {gitStatus !== null && <><button class="changes-review-all" type="button" onClick={onReviewAll}>Review all changes <span aria-hidden="true">→</span></button><ChangeGroups entries={gitStatus.entries} onSelect={onSelect} /></>}
   </div>;
 }
 

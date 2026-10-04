@@ -1,6 +1,6 @@
 # PWA navigation, phone project entry, and file feedback
 
-Status: aligned on 2026-10-04; U01 reviewed and approved for commit; U02 next; U03 pending
+Status: U01 accepted and committed as `df92a53`; U02 accepted and approved for commit; U03 pending formatting review
 
 Created: 2026-10-04
 
@@ -12,8 +12,8 @@ This proposal builds on the existing [URL navigation](navigation-and-url-history
 
 | Slice | Smallest useful result | Status |
 | --- | --- | --- |
-| U01 | Visible Back/Forward controls for known app history | Accepted; commit approved on 2026-10-04 |
-| U02 | Phone project entry opens the contextual list | Agreed; next implementation |
+| U01 | Visible Back/Forward controls for known app history | Accepted; committed as `df92a53` |
+| U02 | Phone project entry opens the contextual list | Accepted; commit approved on 2026-10-04 |
 | U03 | Line feedback in working-tree Files and Search results | Agreed; pending navigation review |
 
 U01 and U02 are small, separately reviewable navigation changes. U03 changes the persisted feedback model and receives its own focused implementation and review after navigation. Alignment on this direction does not authorize committing any slice or resuming maintenance.
@@ -123,7 +123,7 @@ For each aligned slice, run the strict TypeScript and CSS gates, relevant durabl
 
 Use `bun run qa:capture` and inspect phone, tablet portrait, tablet landscape, and desktop images for every visible change. Record useful milestones and exact verification limits here. Real installed-app Back/Forward and real-device selection, line taps, clipboard, and keyboard behavior require maintainer device review; browser emulation alone cannot confirm them.
 
-Next step: commit the accepted U01 slice, then implement U02 for separate review. Commit approval remains separate from implementation approval; maintenance remains paused.
+Next step: commit accepted U02, then establish repository formatting and a staged-file hook for separate review before U03. Commit approval remains separate from implementation approval; maintenance remains paused.
 
 ## U01 handoff — 2026-10-04
 
@@ -135,4 +135,16 @@ Next step: commit the accepted U01 slice, then implement U02 for separate review
 - **Captures:** inspected [phone](../qa/screenshots/usability-u01-history/mobile.png), [tablet portrait](../qa/screenshots/usability-u01-history/tablet-portrait.png), [tablet landscape](../qa/screenshots/usability-u01-history/tablet-landscape.png), and [desktop](../qa/screenshots/usability-u01-history/desktop.png) Search-result captures. The [manifest](../qa/screenshots/usability-u01-history/manifest.json) reports no horizontal overflow. The initial captures remain in ignored diagnostics; final captures include the tablet stacking fix that prevents the adjacent list from intercepting navigation taps.
 - **Delivery:** rebuilt assets match both maintained backends and the private HTTPS origin byte for byte; app and root API health checks return 200. No backend source change or maintained-service restart was needed. The isolated QA server on port 39911 was stopped after verification; maintained services remain available.
 - **Limits:** checks use Chrome emulation and controlled clipboard promises for transaction cases. Actual installed-PWA Back/Forward, native Android/iOS gestures, keyboard, clipboard, and hardware safe-area behavior were not newly verified. The other-document check verifies a native browser return; it does not establish a physical-device or specific native BFCache outcome. Prior unmarked history, cross-document returns, storage denial after reload, and entries beyond the 100-entry trail conservatively omit unknown destinations.
-- **Review/commit:** the maintainer reported that the behavior is reasonable and works, then explicitly approved committing U01 and continuing with U02 on 2026-10-04. U01 is accepted; this commit contains the reviewed slice. That report does not establish every real-device scenario listed above. U02 receives its own uncommitted handoff; maintenance remains on hold.
+- **Review/commit:** the maintainer reported that the behavior is reasonable and works, then explicitly approved committing U01 and continuing with U02 on 2026-10-04. U01 is accepted and committed as `df92a53` (`feat: add visible browser history controls`). That report does not establish every real-device scenario listed above. U02 receives its own uncommitted handoff; maintenance remains on hold.
+
+## U02 handoff — 2026-10-04
+
+- **Alignment:** after reviewing U01, the maintainer approved its commit and requested the next agreed slice. This handoff implements U02 only; file-line feedback remains U03.
+- **Result:** selecting a project from the picker, picker recents, or workspace-menu recents opens Changes `target=list` on phones up to 600 px. Bare `/` restoration uses the same entry decision. The list includes a 44 px **Review all changes** action above the file groups; choosing it opens continuous review, while choosing a file still opens and focuses its diff. A clean Git folder retains project tabs and access to Files. A non-Git folder still resolves to its Files list with Changes/Git disabled.
+- **Boundaries:** [App](../src/client/App.tsx) chooses the destination only for implicit project entry; the existing URL parser, project-session owner, and history owner keep their roles. Tablet and desktop entry still opens continuous review. Explicit URLs, reload, Back/Forward, and resizing preserve the destination. No route variant, storage format, or backend API changed. [ChangesSidebar](../src/client/ChangesView.tsx) receives the review command as a callback. Current project-open and host-root failures appear in the contextual list with a touch-sized **Choose another project** recovery action, so the new phone entry screen cannot hide those errors in the content pane.
+- **Automated checks:** strict TypeScript, CSS token validation, and build pass. The full unit/integration suite passes 138 tests with 1,540 assertions across 23 files. The dedicated `qa:project-entry` check covers 320, 390, 600, 601, 820, 1180, and 1440 px; picker/menu recents; bare restoration; Review all changes; visible/native history; explicit diff, file, Search-result, and commit reload; rotation; touch targets; and containment. It also verifies a visible host-root failure and recovery to the picker. Actual clean Git and non-Git fixtures outside any enclosing Git repository passed entry, file access, and bare restoration on a phone.
+- **Regression evidence:** foundation, navigation, loading, diff, Files, Search, selected-code Search, line actions, feedback, feedback transactions, history controls, tabs, PWA, themes, typography, voice, and live changes pass. Loading QA retains delayed/abandoned project completion guards, cancellation/retry at five widths, current-route ownership, and a normal project-open failure with preserved accepted selection and recents. Existing phone QA now explicitly enters continuous review when that is the behavior under test; Search starts directly from the entry list.
+- **Captures:** captured and inspected project entry at [phone](../qa/screenshots/usability-u02-project-entry/mobile.png), [tablet portrait](../qa/screenshots/usability-u02-project-entry/tablet-portrait.png), [tablet landscape](../qa/screenshots/usability-u02-project-entry/tablet-landscape.png), and [desktop](../qa/screenshots/usability-u02-project-entry/desktop.png), plus Review all changes at [phone](../qa/screenshots/usability-u02-review-all/mobile.png), [tablet portrait](../qa/screenshots/usability-u02-review-all/tablet-portrait.png), [tablet landscape](../qa/screenshots/usability-u02-review-all/tablet-landscape.png), and [desktop](../qa/screenshots/usability-u02-review-all/desktop.png). Both manifests report no page-wide horizontal overflow; the phone enters its list while larger layouts retain their prior content entry.
+- **Delivery:** rebuilt client assets match both maintained backends and the private HTTPS origin byte for byte; app and root API checks return 200. Fixture QA used isolated ports 39911 and 39912; both QA servers were stopped after verification. The temporary plain/clean fixture root remains recorded under ignored QA diagnostics for repeatability. Maintained services remain available; no backend change or restart was needed.
+- **Limits:** browser checks use Chrome emulation. This slice has not yet received maintainer phone/PWA review, and real-device safe areas, gestures, keyboard, clipboard, or microphone behavior were not newly verified. Voice uses the existing mocked recorder/endpoint checks; clipboard transaction cases use controlled promises.
+- **Review/commit:** the maintainer accepted U02 and explicitly approved committing it on 2026-10-04. This commit contains the accepted slice. The maintainer requested repository formatting and a staged-file hook as the next separate review before U03; maintenance remains on hold.

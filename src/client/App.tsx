@@ -30,6 +30,10 @@ function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong";
 }
 
+function projectEntryRoute(projectPath: string): Route {
+  return { section: "changes", projectPath, target: { kind: window.matchMedia("(max-width: 600px)").matches ? "list" : "all" } };
+}
+
 export function App() {
   const [listingLoad, setListingLoad] = useState<{ key: string; state: LoadState<DirectoryListing> }>({ key: "", state: { kind: "loading" } });
   const [treeLoad, setTreeLoad] = useState<{ key: string; state: LoadState<FileTree> } | null>(null);
@@ -65,8 +69,8 @@ export function App() {
   const session = useProjectSession({
     projectPath: routeProject,
     readCurrentProjectPath: () => routeRef.current === null ? null : routeProjectPath(routeRef.current),
-    onRestoreProject: (path) => navigate(path === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: path, target: { kind: "all" } }, "replace"),
-    onSelectProject: (path) => navigate({ section: "changes", projectPath: path, target: { kind: "all" } }),
+    onRestoreProject: (path) => navigate(path === null ? { section: "projects", directory: "" } : projectEntryRoute(path), "replace"),
+    onSelectProject: (path) => navigate(projectEntryRoute(path)),
     onNotice: setNotice,
     onOpening: () => {
       review.actions.beginProjectOpen();
@@ -78,6 +82,7 @@ export function App() {
     },
   });
   const { root, project, opening, openError: projectOpenError, recentPaths } = session.model;
+  const projectOpenFailure = projectOpenError?.path === routeProject ? projectOpenError.message : root.kind === "error" ? root.message : null;
   const treeKey = project === null ? null : `${project.id}\0${treePath}`;
   const tree = treeKey !== null && treeLoad?.key === treeKey ? treeLoad.state : { kind: "loading" } as const;
   const searchKey = project === null ? null : `${project.id}\0${submittedQuery ?? ""}`;
@@ -384,7 +389,7 @@ export function App() {
           {listSection === "git" && project !== null && gitRoute !== null ? <GitSidebar model={git} commands={git} route={gitRoute} onBranch={(ref) => navigate({ ...gitRoute, ref, target: { kind: "list" } })} onCommit={(oid) => navigate({ ...gitRoute, target: { kind: "commit", oid } })} /> : listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <FilesSidebar directory={treePath} selectedPath={selectedFile} state={tree} loadingKey={treeKey ?? "files"} onParent={() => navigate({ section: "files", projectPath: project.path, directory: parentDirectory(treePath), target: { kind: "list" } })} onSelect={(entry) => {
             if (entry.kind === "directory") navigate({ section: "files", projectPath: project.path, directory: entry.path, target: { kind: "list" } });
             else navigate({ section: "files", projectPath: project.path, directory: treePath, target: { kind: "file", path: entry.path, line: null } });
-          }} onRetry={() => setFileRefresh((value) => value + 1)} /> : listSection === "changes" && project !== null ? <ChangesSidebar status={status} onSelect={selectEntry} /> : listSection !== "projects" && project === null ? <DelayedLoading key={routeProject ?? "project"} className="sidebar-message" message="Opening project…" /> :
+          }} onRetry={() => setFileRefresh((value) => value + 1)} /> : listSection === "changes" && project !== null ? <ChangesSidebar status={status} onSelect={selectEntry} onReviewAll={() => navigate({ section: "changes", projectPath: project.path, target: { kind: "all" } })} /> : listSection !== "projects" && project === null ? projectOpenFailure !== null ? <div class="sidebar-error project-open-error" role="alert">This project could not be opened: {projectOpenFailure}<button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button></div> : <DelayedLoading key={routeProject ?? "project"} className="sidebar-message" message="Opening project…" /> :
           <ProjectPicker root={root} listing={listing} path={path} opening={opening} recentPaths={recentPaths} onBrowseDirectory={(directory) => navigate({ section: "projects", directory })} onSelectFolder={session.actions.selectFolder} />}
         </aside>
 

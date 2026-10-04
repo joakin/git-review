@@ -76,7 +76,7 @@ export async function checkViewStateRecovery(browser: Browser, base: URL): Promi
       return button instanceof HTMLButtonElement && !button.disabled;
     });
     await page.locator(".open-button").click();
-    await page.locator("main .diff-card").first().waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
     assert(new URL(page.url()).searchParams.get("project") === "inventory-fixture", "Recovered picker did not open the selected project");
     assert(directoryReads === 2, `Picker failure/recovery sent ${directoryReads} selected-directory reads instead of two`);
     assert(errors.length === 0, `View-state browser errors: ${errors.join("; ")}`);

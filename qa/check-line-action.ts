@@ -32,6 +32,7 @@ try {
   await page.goto(url, { waitUntil: "load" });
   await page.getByRole("button", { name: new RegExp(folder) }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
+  await page.getByRole("button", { name: "Review all changes", exact: true }).click();
   const staged = page.locator('main .diff-card[data-layer="staged"][data-path="src/sample.ts"]');
   await staged.locator(".diff-card-toggle").click();
   const context = staged.locator(".diff-row-context").filter({ hasText: "const stable" });

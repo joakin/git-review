@@ -45,6 +45,7 @@ try {
     await page.goto(url, { waitUntil: "load" });
     await page.getByRole("button", { name: new RegExp(folder) }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
+    if (view.width <= 600) await page.getByRole("button", { name: "Review all changes", exact: true }).click();
     const card = page.locator('main .diff-card[data-layer="unstaged"][data-path="src/live.ts"]');
     await card.locator(".diff-card-toggle").click();
     await card.getByText('export const message = "first";').waitFor({ state: "visible" });

@@ -28,6 +28,7 @@
     "qa:themes": "bun qa/check-themes.ts",
     "qa:navigation": "bun qa/check-navigation.ts",
     "qa:history-controls": "bun qa/check-history-controls.ts",
+    "qa:project-entry": "bun qa/check-project-entry.ts",
     "qa:loading": "bun qa/check-loading.ts",
     "qa:pwa": "bun qa/check-pwa.ts",
     "qa:fixture": "bun qa/prepare-inventory-fixture.ts",

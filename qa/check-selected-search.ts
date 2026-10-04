@@ -16,6 +16,7 @@ try {
     await page.goto(url.href, { waitUntil: "load" });
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
+    await page.getByRole("button", { name: "Review all changes", exact: true }).click();
 
     const diff = page.locator('main .diff-card[data-layer="unstaged"][data-path="src/view.ts"]');
     await diff.locator(".diff-card-toggle").click();

@@ -15,7 +15,6 @@ try {
     await page.goto(url.href, { waitUntil: "load" });
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
-    await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Search" }).click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
     await page.locator(".search-form button").click();

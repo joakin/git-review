@@ -36,15 +36,17 @@ async function main(): Promise<void> {
       if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
       await page.locator(".folder-row", { hasText: folder }).click();
       await page.getByRole("button", { name: /Open this folder/ }).click();
-      await page.locator(".project-view").waitFor();
+      await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
       if ((await page.locator(".project-switch .switch-label").textContent()) !== folder) {
         throw new Error("Opening the folder did not show it as the active workspace");
       }
       await page.reload({ waitUntil: "load" });
-      await page.locator(".project-view").waitFor();
+      await page.getByRole("button", { name: "Review all changes", exact: true }).waitFor({ state: "visible" });
       if ((await page.locator(".project-switch .switch-label").textContent()) !== folder) {
         throw new Error("The selected workspace was not restored after reload");
       }
+      await page.getByRole("button", { name: "Review all changes", exact: true }).click();
+      await page.locator(".project-view").waitFor({ state: "visible" });
       await page.locator(".project-switch").click();
       await page.locator(".menu-project").click();
       await page.locator(".folder-row", { hasText: folder }).click();

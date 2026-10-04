@@ -6,6 +6,8 @@ Expanded diffs stay cached in tab memory across section navigation, preserving t
 
 Floating Back/Forward controls provide navigation in installed windows as well as browser tabs. They appear at the bottom left when a neighboring app destination is known, preserve availability across reload, and hide during menus and line actions. The heading arrow opens the parent list. See the [usability follow-up and review record](docs/pwa-navigation-and-file-feedback-proposal.md).
 
+On phones, choosing a project or restoring it from the bare app URL opens its contextual list and project tabs. **Review all changes** opens continuous review in one tap; selecting a file opens its diff. Non-Git folders open Files. Explicit links, reloads, history traversal, and resizing preserve the destination being read.
+
 Historical cards read exact commit/parent blobs, including media. Root commits compare with an empty tree; merges compare with their first parent. The list and commit summary show date and time plus added/deleted line totals for the same project scope and comparison. Git is an inspection view: line information is available, while comments and Search retain their working-copy meaning. Historical card state and loaded history pages stay in this tab's memory. See [Git inspection behavior and limits](docs/git-history-slice-proposal.md).
 
 ## Project status

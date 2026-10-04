@@ -26,6 +26,7 @@ try {
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   await page.locator(".folder-row", { hasText: "inventory-fixture" }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
+  await page.getByRole("button", { name: "Review all changes", exact: true }).click();
   const card = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
   await card.waitFor({ state: "visible" });
   await card.locator(".diff-card-toggle").click();
