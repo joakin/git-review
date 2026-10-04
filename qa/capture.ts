@@ -220,7 +220,7 @@ async function capture(options: CaptureOptions): Promise<void> {
           throw new Error(`${view.name}: page load returned ${response?.status() ?? "no response"}`);
         }
         if (options.revealList && view.width > 600 && view.width < 900) {
-          const back = page.getByRole("button", { name: "Back to list" });
+          const back = page.getByRole("button", { name: "Open list" });
           await back.waitFor({ state: "visible", timeout: 15_000 });
           await back.click();
         }

@@ -80,7 +80,7 @@ try {
   await page.locator("#code-font-family").selectOption("jetbrains-mono");
   await page.getByRole("button", { name: "Back to review" }).click();
 
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.locator(".file-tree-row", { hasText: "src" }).click();
   await page.locator('.file-tree-row[title="src/view.ts"]').click();
@@ -98,7 +98,7 @@ try {
   await page.locator(".sidebar-settings").click();
   if (await page.locator("#code-font-size").inputValue() !== "20" || await page.locator("#code-font-family").inputValue() !== "jetbrains-mono") throw new Error("Typography did not survive reload");
   await page.getByRole("button", { name: "Back to review" }).click();
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Changes" }).click();
   await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
   await card.locator(".diff-code").first().waitFor({ state: "visible" });

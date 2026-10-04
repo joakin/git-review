@@ -37,11 +37,11 @@ try {
     return { status: response.status, contentRange: response.headers.get("content-range"), byteLength: (await response.arrayBuffer()).byteLength };
   }, raw);
   if (range.status !== 206 || range.contentRange?.startsWith("bytes 0-31/") !== true || range.byteLength !== 32) throw new Error("Raw video range failed");
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.locator(".sidebar-project-tabs").getByRole("button", { name: "Files" }).click();
   await page.locator('.file-tree-row[title="clip.mp4"]').click();
   await seek(page, ".file-panel video");
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.locator('.file-tree-row[title="sound.wav"]').click();
   await seek(page, ".file-panel audio");
   console.log("Audio and video loaded and sought in staged cards and Files; raw video range returned 206.");

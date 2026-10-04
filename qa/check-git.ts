@@ -87,7 +87,7 @@ try {
     const done = (request: Request) => { active.delete(request); };
     page.on("requestfinished", done); page.on("requestfailed", done);
     await page.goto(route(null, null));
-    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     resumeRefs();
     await page.getByRole("combobox", { name: "Git branch" }).waitFor({ state: "visible" });
     await page.waitForURL((url) => url.searchParams.get("ref") === "refs/heads/main");
@@ -150,7 +150,7 @@ try {
     const requests = diffRequests;
     await page.goBack();
     await page.waitForURL((url) => url.searchParams.get("commit") === null);
-    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     if (await page.locator(".git-commit-row").count() !== count) throw new Error("Back lost loaded history pages");
     await page.goForward();
     await page.waitForURL(commitUrl);
@@ -161,29 +161,29 @@ try {
     await review.locator(".diff-card-toggle").click();
     if (page.url() !== commitUrl) throw new Error("A card toggle changed the route");
     if (await review.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("Historical card did not collapse");
-    if (viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Files", exact: true }).click();
-    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.locator(".file-tree-row").first().waitFor({ state: "visible" });
     await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Git", exact: true }).click();
-    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.locator(".git-commit-row", { hasText: "Improve reading and preserve historical context" }).click();
     await waitForCommit(page, updated);
     if (await review.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("Section navigation lost card state");
     if (diffRequests !== requests) throw new Error("Section navigation reloaded cached commit diffs");
-    if (viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await checkHistoryRefresh(page, count);
     await page.locator(".git-commit-row", { hasText: "Improve reading and preserve historical context" }).click();
     await waitForCommit(page, updated);
     if (diffRequests !== requests || await review.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("History refresh invalidated immutable diff or card state");
-    if (viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("combobox", { name: "Git branch" }).selectOption("refs/heads/feature/navigation");
-    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.locator(".git-commit-row", { hasText: "Add the feature branch" }).click();
     await waitForCommit(page, feature);
-    if (viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("combobox", { name: "Git branch" }).selectOption("refs/remotes/origin/main");
-    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Back to list" }).click();
+    if (viewport.width > 600 && viewport.width < 900) await page.getByRole("button", { name: "Open list" }).click();
     await page.locator(".git-commit-row", { hasText: "Merge the feature branch" }).click();
     await waitForCommit(page, merge);
     if (!(await page.locator(".commit-comparison").innerText()).includes("first parent")) throw new Error("Merge comparison was not labeled");
@@ -194,7 +194,7 @@ try {
     await waitForCommit(direct, updated);
     if (!new URL(page.url()).searchParams.get("ref")?.includes("refs/remotes/origin/main")) throw new Error("Another tab changed the selected branch");
     if (viewport.width === 390) {
-      await direct.getByRole("button", { name: "Back to list" }).click();
+      await direct.getByRole("button", { name: "Open list" }).click();
       await direct.setViewportSize({ width: 320, height: 700 });
       if (await direct.locator(".sidebar-project-tabs button").count() !== 4) throw new Error("Git tab is missing");
       if (!(await direct.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2))) throw new Error("Four tabs overflowed a 320 px phone");
@@ -218,7 +218,7 @@ try {
       await direct.reload();
       await direct.locator(".commit-meta-detail .commit-author", { hasText: longAuthor }).waitFor();
       if (!(await direct.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2))) throw new Error("Long author or large counts overflowed phone commit metadata");
-      await direct.getByRole("button", { name: "Back to list" }).click();
+      await direct.getByRole("button", { name: "Open list" }).click();
       await direct.locator(".git-commit-row .commit-author", { hasText: longAuthor }).first().waitFor();
       if (!(await direct.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2))) throw new Error("Long author or large counts overflowed phone list metadata");
     }

@@ -43,7 +43,7 @@ export async function checkViewStateRecovery(browser: Browser, base: URL): Promi
     await page.route((url) => /^\/api\/projects\/[^/]+\/tree$/u.test(url.pathname) && url.searchParams.get("path") === "", async (route) => {
       await route.fulfill({ status: 200, json: emptyTree });
     });
-    await page.getByRole("button", { name: "Back to list", exact: true }).click();
+    await page.getByRole("button", { name: "Open list", exact: true }).click();
     await page.getByRole("button", { name: "Go to parent directory", exact: true }).click();
     await page.getByText("This directory is empty.", { exact: true }).waitFor({ state: "visible" });
     const emptyUrl = new URL(page.url());

@@ -85,7 +85,7 @@ try {
     });
     await longAction.waitFor({ state: "visible" });
 
-    await page.getByRole("button", { name: "Back to list" }).click();
+    await page.getByRole("button", { name: "Open list" }).click();
     await page.locator('.file-tree-row[title="src/tall-review.ts"]').click();
     await page.locator('.file-panel[data-path="src/tall-review.ts"] .file-code-line').nth(1).waitFor({ state: "visible" });
     await page.evaluate(() => {

@@ -69,7 +69,7 @@ export function ChangesView({ model, commands }: { model: ChangesModel; commands
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
   return <>
     <div class="changes-heading">
-      <div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={commands.back}><Icon name="back" /></button><h2>Changed files</h2></div>
+      <div class="content-heading-title"><button class="content-back" type="button" aria-label="Open list" onClick={commands.back}><Icon name="back" /></button><h2>Changed files</h2></div>
       <div class="changes-actions">
         <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>{wrap ? "Wrap: on" : "Wrap: off"}</button>
         <span class="visually-hidden" role="status">{pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}</span>

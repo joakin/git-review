@@ -20,7 +20,7 @@ try {
     await staged.locator(".diff-card-toggle").click();
     await staged.locator(".diff-row").first().waitFor({ state: "visible" });
 
-    await page.getByRole("button", { name: "Back to list" }).click();
+    await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("button", { name: "Files", exact: true }).click();
     await page.locator('.file-tree-row[title="src"]').click();
     await page.locator('.file-tree-row[title="src/math.c"]').click();
@@ -28,7 +28,7 @@ try {
     if (await page.locator(".sidebar").evaluate((element) => element.classList.contains("sidebar-open"))) throw new Error("Mobile drawer remained open after file selection");
     if ((await page.locator(".file-panel .syntax-token-keyword").count()) === 0) throw new Error("C file was not syntax highlighted");
 
-    await page.getByRole("button", { name: "Back to list" }).click();
+    await page.getByRole("button", { name: "Open list" }).click();
     if (new URL(page.url()).searchParams.get("file") !== null || await page.locator(".workspace").getAttribute("data-mobile-pane") !== "list") throw new Error("Back did not open the full-width file list");
     await page.locator('.file-tree-row[title="src/long-line.ts"]').click();
     await page.locator(".file-code-row").waitFor({ state: "visible" });
@@ -45,7 +45,7 @@ try {
     });
     if (wrapped.scroll > wrapped.client + 2) throw new Error(`Code did not wrap inside its pane: ${JSON.stringify(wrapped)}`);
 
-    await page.getByRole("button", { name: "Back to list" }).click();
+    await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("button", { name: "Changes", exact: true }).click();
     await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
     if ((await staged.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true") throw new Error("Open diff was lost after visiting Files");

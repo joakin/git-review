@@ -1,6 +1,6 @@
 # Documentation map
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is underway; its plan owns current progress and review status. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
+The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is on hold during the agreed [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md) slices; its plan owns maintenance progress and review status. Product additions remain in the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and engineering rules; the root [README](../README.md) explains running the app and private HTTPS installation.
 
 ## Start here
 

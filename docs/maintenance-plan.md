@@ -49,6 +49,8 @@ The feedback transaction race is established by code inspection and needs a dela
 
 M01–M09 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing work in another thread. M10–M15 remain pending; resume with M10 when the maintainer requests it. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
+The maintainer subsequently requested [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md) through proposal, alignment, implementation, and review. These usability slices have their own work record; the maintenance hold remains in effect throughout this work.
+
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
 | M01 | Correct subfolder staged media sources | None | Scope/source regression fixtures and existing API/Git tests |

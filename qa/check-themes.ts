@@ -79,7 +79,7 @@ try {
     return { card: color(".diff-card"), code: color(".diff-scroll"), added: color(".diff-row-added") };
   });
   if (secondMix.card !== "rgb(255, 255, 255)" || secondMix.code === secondMix.card || secondMix.added === secondMix.code) throw new Error(`Actual diff did not receive dark code palette: ${JSON.stringify(secondMix)}`);
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.locator(".file-tree-row", { hasText: "src" }).click();
   await page.locator('.file-tree-row[title="src/view.ts"]').click();

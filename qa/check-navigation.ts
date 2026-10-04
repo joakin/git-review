@@ -56,7 +56,7 @@ async function checkChangesCardFocus(page: Page): Promise<void> {
   await page.waitForTimeout(350);
   if (await selected.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "false") throw new Error("Refreshing reopened the collapsed URL target");
 
-  if (await page.getByRole("button", { name: "Back to list" }).isVisible()) await page.getByRole("button", { name: "Back to list" }).click();
+  if (await page.getByRole("button", { name: "Open list" }).isVisible()) await page.getByRole("button", { name: "Open list" }).click();
   await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
   await selected.locator(".diff-row").first().waitFor({ state: "visible" });
   await waitForSelectedDiffFocus(page);
@@ -91,7 +91,7 @@ try {
   await page.goForward();
   await waitForRoute(page, "changes");
   await page.locator(".diff-card").first().waitFor({ state: "visible" });
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   if (await page.locator(".main-content").isVisible()) throw new Error("Phone list left the content pane visible");
   await page.getByRole("navigation", { name: "Project views" }).waitFor({ state: "visible" });
 
@@ -118,7 +118,7 @@ try {
   const direct = await context.newPage();
   await direct.goto(resultUrl);
   await direct.locator('.file-panel[data-path="src/view.ts"] .file-code-row-target[data-line="1"]').waitFor({ state: "visible" });
-  await direct.getByRole("button", { name: "Back to list" }).click();
+  await direct.getByRole("button", { name: "Open list" }).click();
   await direct.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).waitFor({ state: "visible" });
   await direct.goto(new URL("/?section=files&project=inventory-fixture&file=src%2Ftall-review.ts&line=170", base).href);
   await direct.locator('.file-panel[data-path="src/tall-review.ts"] .file-code-row-target[data-line="170"]').waitFor({ state: "visible" });
@@ -128,7 +128,7 @@ try {
   await waitForSelectedDiffFocus(direct);
   await direct.close();
 
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Files" }).click();
   await waitForRoute(page, "files");
   await page.locator(".sidebar-project-title").getByText("inventory-fixture").waitFor({ state: "visible" });
@@ -144,7 +144,7 @@ try {
   await page.goForward();
   await page.locator('.file-panel[data-path="src/view.ts"]').waitFor({ state: "visible" });
 
-  await page.getByRole("button", { name: "Back to list" }).click();
+  await page.getByRole("button", { name: "Open list" }).click();
   await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Changes" }).click();
   await page.waitForURL((value) => value.searchParams.get("target") === "list");
   await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
@@ -198,19 +198,19 @@ try {
   const tabletPage = await tablet.newPage();
   await tabletPage.goto(new URL("/?section=changes&project=inventory-fixture", base).href);
   await tabletPage.locator(".diff-card").first().waitFor({ state: "visible" });
-  await tabletPage.getByRole("button", { name: "Back to list" }).click();
+  await tabletPage.getByRole("button", { name: "Open list" }).click();
   if (!(await tabletPage.locator(".sidebar").evaluate((element) => element.classList.contains("sidebar-open")))) throw new Error("Tablet list did not open");
   await tabletPage.locator(".sidebar-project-title").getByText("inventory-fixture").waitFor({ state: "visible" });
   await tabletPage.locator(".sidebar-project-tabs").getByRole("button", { name: "Files" }).click();
   await waitForRoute(tabletPage, "files");
   await tabletPage.goto(new URL("/?section=search&project=inventory-fixture&q=working+tree&file=src%2Fview.ts&line=1", base).href);
   await tabletPage.locator('.file-panel[data-path="src/view.ts"]').waitFor({ state: "visible" });
-  await tabletPage.getByRole("button", { name: "Back to list" }).click();
+  await tabletPage.getByRole("button", { name: "Open list" }).click();
   await tabletPage.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).waitFor({ state: "visible" });
   await tabletPage.locator(".sidebar .close-drawer").click();
   await tabletPage.goto(new URL("/?section=files&project=inventory-fixture&file=src%2Fview.ts", base).href);
   await tabletPage.locator('.file-panel[data-path="src/view.ts"]').waitFor({ state: "visible" });
-  await tabletPage.getByRole("button", { name: "Back to list" }).click();
+  await tabletPage.getByRole("button", { name: "Open list" }).click();
   await tabletPage.locator('.file-tree-row[title="src/view.ts"]').waitFor({ state: "visible" });
   await tabletPage.locator(".sidebar .close-drawer").click();
   await tabletPage.goto(new URL("/?section=files&project=x&file=..%2Fsecret", base).href);
@@ -221,7 +221,7 @@ try {
   const compactPage = await compact.newPage();
   await compactPage.goto(new URL("/?section=changes&project=inventory-fixture", base).href);
   await compactPage.locator(".diff-card").first().waitFor({ state: "visible" });
-  if (!(await compactPage.locator(".sidebar").isVisible()) || await compactPage.getByRole("button", { name: "Back to list" }).isVisible()) throw new Error("Compact desktop did not keep its sidebar beside content");
+  if (!(await compactPage.locator(".sidebar").isVisible()) || await compactPage.getByRole("button", { name: "Open list" }).isVisible()) throw new Error("Compact desktop did not keep its sidebar beside content");
   await compactPage.setViewportSize({ width: 900, height: 800 });
   const adjacent = await compactPage.evaluate(() => {
     const list = document.querySelector<HTMLElement>(".sidebar");
@@ -231,9 +231,9 @@ try {
   });
   if (adjacent.listLeft < -1 || Math.abs(adjacent.listRight - adjacent.contentLeft) > 2 || adjacent.pageWidth > 902) throw new Error(`Sidebar is not beside content at 900px: ${JSON.stringify(adjacent)}`);
   await compactPage.setViewportSize({ width: 899, height: 800 });
-  if (!(await compactPage.getByRole("button", { name: "Back to list" }).isVisible())) throw new Error("Back control did not appear below the sidebar breakpoint");
+  if (!(await compactPage.getByRole("button", { name: "Open list" }).isVisible())) throw new Error("Back control did not appear below the sidebar breakpoint");
   await compactPage.waitForFunction(() => (document.querySelector(".sidebar")?.getBoundingClientRect().right ?? Infinity) <= 0);
-  await compactPage.getByRole("button", { name: "Back to list" }).click();
+  await compactPage.getByRole("button", { name: "Open list" }).click();
   if (!(await compactPage.locator(".sidebar").evaluate((element) => element.classList.contains("sidebar-open")))) throw new Error("Back control did not reveal the sidebar below 900px");
   await compact.close();
 

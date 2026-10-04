@@ -25,6 +25,8 @@ These are logical screens, not a fixed number of visible columns. A wide desktop
 
 Feedback drafts, copy history, wrap choice, theme preferences, and recent projects remain browser-local. Opening or dismissing a menu, drawer, keyboard, or comment sheet does not by itself create a new URL. Before a route transition, close or save an edited comment sheet through the existing draft rules.
 
+The [U01 usability follow-up](pwa-navigation-and-file-feedback-proposal.md#u01-handoff--2026-10-04) adds visible history controls, accepted and approved for commit on 2026-10-04. Back and Forward float at the bottom left in installed windows and ordinary tabs, with disabled unavailable directions. They follow known adjacent app entries in the browser history; the content-heading arrow is labelled **Open list** and retains its parent-list behavior. The floating pair hides during menus/drawers, dialogs, Comment actions, and selected-code Search. It restores availability across reload with validated per-tab metadata, without putting destinations under a second route owner. Unknown or cross-document history starts conservatively; at most 100 entries are retained.
+
 ## URL and state shape
 
 Use the existing `/` page with validated query parameters and the browser History API; no router dependency is needed for this route set. This keeps direct links within the current server and installed PWA scope. `pushState` adds meaningful destinations; `replaceState` normalizes the first entry or corrects an invalid one; `popstate` restores the route on Back/Forward. The URL, rather than `history.state` or component state, is the source of truth for navigation. [MDN History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API/Working_with_the_History_API)

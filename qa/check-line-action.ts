@@ -48,6 +48,7 @@ try {
   await context.tap();
   const action = staged.locator(".diff-line-action");
   await action.waitFor({ state: "visible" });
+  await page.locator(".history-navigation").waitFor({ state: "hidden" });
   const overlapsFeedback = await page.evaluate(() => {
     const action = document.querySelector(".diff-line-action")?.getBoundingClientRect();
     const feedback = document.querySelector(".feedback-launch")?.getBoundingClientRect();
@@ -56,9 +57,11 @@ try {
   if (overlapsFeedback) throw new Error("Line action obscured the Feedback button");
   if (!/OLD 2.*NEW 3.*Comment/.test(await action.textContent() ?? "")) throw new Error(`Wrong context line details: ${await action.textContent()}`);
   await action.click();
+  await page.locator(".history-navigation").waitFor({ state: "hidden" });
   if (!(await page.locator(".review-anchor").textContent())?.includes("staged · new line 3")) throw new Error("Unchanged staged row did not use its new/index line number");
   await page.getByPlaceholder("What should change?").fill("Check the stable line.");
   await page.getByRole("button", { name: "Save comment" }).click();
+  await page.locator(".history-navigation").waitFor({ state: "visible" });
 
   const removed = staged.locator(".diff-row-removed").filter({ hasText: "const changed" });
   await removed.tap();

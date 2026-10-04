@@ -4,11 +4,13 @@ A local, browser-based code review app. Choose a host folder within an approved 
 
 Expanded diffs stay cached in tab memory across section navigation, preserving their content and height. The cache is bounded and is cleared by a page reload; preferences and drafts remain in browser storage. See [loading and screen transitions](docs/loading-and-transition-polish.md).
 
+Floating Back/Forward controls provide navigation in installed windows as well as browser tabs. They appear at the bottom left when a neighboring app destination is known, preserve availability across reload, and hide during menus and line actions. The heading arrow opens the parent list. See the [usability follow-up and review record](docs/pwa-navigation-and-file-feedback-proposal.md).
+
 Historical cards read exact commit/parent blobs, including media. Root commits compare with an empty tree; merges compare with their first parent. The list and commit summary show date and time plus added/deleted line totals for the same project scope and comparison. Git is an inspection view: line information is available, while comments and Search retain their working-copy meaning. Historical card state and loaded history pages stay in this tab's memory. See [Git inspection behavior and limits](docs/git-history-slice-proposal.md).
 
 ## Project status
 
-The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer considers the app usable and useful; the final reviewed feature delivery is `22de40e`. The subsequent [maintenance pass](docs/maintenance-plan.md) is underway; its plan owns current progress, review status, and verification evidence. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves acceptance and verification context.
+The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer considers the app usable and useful; the final reviewed feature delivery is `22de40e`. The subsequent [maintenance pass](docs/maintenance-plan.md) is on hold during the agreed [usability follow-ups](docs/pwa-navigation-and-file-feedback-proposal.md); its plan owns maintenance progress, review status, and verification evidence. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves acceptance and verification context.
 
 ## Run the app
 

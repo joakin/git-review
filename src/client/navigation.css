@@ -42,8 +42,18 @@
 .workspace .project-view { max-width: 1060px; margin: 0 auto; }
 .changes-heading .content-back { display: none; flex: 0 0 40px; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; font-size: var(--font-size-20); }
 
+/* Installed windows and ordinary tabs share actual browser-history controls. */
+.history-navigation { position: fixed; z-index: 41; left: max(var(--space-3), env(safe-area-inset-left)); bottom: max(var(--space-3), env(safe-area-inset-bottom)); display: flex; gap: var(--space-1); padding: var(--space-1); border: 1px solid var(--color-nav-border); border-radius: var(--radius-panel); background: var(--color-nav); box-shadow: var(--shadow-action); }
+.history-navigation button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-nav-text); }
+.history-navigation button:hover:enabled { background: var(--color-nav-surface-hover); }
+.history-navigation button:focus-visible { outline: 2px solid var(--color-nav-accent); outline-offset: -2px; }
+.history-navigation button:disabled { opacity: .4; cursor: default; }
+.app:has(.diff-line-action, .code-selection-action) .history-navigation { visibility: hidden; }
+.workspace-menu, .workspace .sidebar, .workspace .main-content { padding-bottom: calc(var(--space-12) + env(safe-area-inset-bottom)); }
+
 /* Below desktop width, the menu and contextual list can be revealed as drawers. */
 @media (max-width: 1199px) {
+  .app:has(.workspace-menu-open) .history-navigation { visibility: hidden; }
   .workspace, .workspace[data-section="settings"] { display: block; }
   .workspace-menu-head { display: flex; justify-content: flex-end; min-height: 36px; margin-bottom: var(--space-3); }
   .workspace-menu { position: fixed; top: 0; left: 0; z-index: 50; width: min(84vw, 310px); height: 100dvh; padding: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-drawer); transform: translateX(-110%); transition: transform .22s ease; }
@@ -63,18 +73,19 @@
   .project-switch { max-width: 43vw; padding: var(--space-2) 10px; }
   .close-drawer { display: block; }
   .drawer-scrim { display: block; position: fixed; inset: 0; z-index: 30; border: 0; background: var(--color-overlay); }
-  .workspace .main-content { padding-top: var(--space-5); padding-bottom: 55px; }
+  .workspace .main-content { padding-top: var(--space-5); padding-bottom: calc(var(--space-12) + env(safe-area-inset-bottom)); }
 }
 
 /* Tablet landscape keeps its list adjacent. Settings retains the block above. */
 @media (min-width: 900px) and (max-width: 1199px) {
   .workspace { display: grid; grid-template-columns: var(--project-list-width) minmax(0, 1fr); }
-  .workspace .sidebar { position: sticky; top: var(--topbar-height-mobile); width: auto; height: calc(100dvh - var(--topbar-height-mobile)); padding: 30px var(--space-3) 42px; border-right: 1px solid var(--color-border); box-shadow: none; transform: none; }
+  .workspace .sidebar { position: sticky; top: var(--topbar-height-mobile); width: auto; height: calc(100dvh - var(--topbar-height-mobile)); padding: 30px var(--space-3) calc(var(--space-12) + env(safe-area-inset-bottom)); border-right: 1px solid var(--color-border); box-shadow: none; transform: none; }
   .workspace .sidebar .close-drawer, .drawer-scrim { display: none; }
 }
 
 /* Narrow tablets reveal their list with Back; the picker is a static screen. */
 @media (max-width: 899px) {
+  .app:has(.sidebar-open) .history-navigation { visibility: hidden; }
   .changes-heading .content-back { display: inline-flex; }
   .workspace[data-section="projects"] .sidebar { position: static; display: block; width: min(100%, 600px); min-height: calc(100dvh - var(--topbar-height-mobile)); height: auto; margin: 0 auto; padding: var(--space-6); overflow: visible; box-shadow: none; transform: none; border: 0; }
   .workspace[data-section="projects"] .sidebar .close-drawer, .workspace[data-section="projects"] .main-content { display: none; }
@@ -86,10 +97,10 @@
   .workspace[data-mobile-pane="list"] .change-groups-compact .change-group { padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-card); box-shadow: var(--shadow-panel); }
   .workspace[data-mobile-pane="content"] .sidebar, .workspace[data-section="settings"] .sidebar { display: none; }
   .workspace[data-mobile-pane="list"] .main-content { display: none; }
-  .workspace[data-mobile-pane="list"] .sidebar { position: static; display: block; width: 100%; min-height: calc(100dvh - var(--topbar-height-mobile)); height: auto; padding: var(--space-5) var(--space-4) 110px; overflow: visible; box-shadow: none; transform: none; border: 0; background: var(--background-main); }
+  .workspace[data-mobile-pane="list"] .sidebar { position: static; display: block; width: 100%; min-height: calc(100dvh - var(--topbar-height-mobile)); height: auto; padding: var(--space-5) var(--space-4) calc(110px + env(safe-area-inset-bottom)); overflow: visible; box-shadow: none; transform: none; border: 0; background: var(--background-main); }
   .workspace[data-mobile-pane="list"] .sidebar-head { padding-bottom: var(--space-4); }
   .workspace[data-mobile-pane="list"] .sidebar .close-drawer { display: none; }
-  .workspace .main-content { padding-inline: var(--space-4); padding-bottom: 105px; }
+  .workspace .main-content { padding-inline: var(--space-4); padding-bottom: calc(105px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 390px) {

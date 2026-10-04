@@ -71,7 +71,7 @@ try {
     await page.locator('.file-panel[data-path="src/view.ts"] .file-code-row').waitFor({ state: "visible" });
     if (openCount !== 1) throw new Error(`Returning to the same project reopened it ${openCount} times`);
 
-    await page.getByRole("button", { name: "Back to list" }).click();
+    await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("navigation", { name: "Project views" }).getByRole("button", { name: "Search" }).click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
     await page.locator(".search-form button").click();

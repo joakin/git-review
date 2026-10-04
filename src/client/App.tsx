@@ -22,6 +22,7 @@ import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from
 import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, parseNavigationSearch, routeProjectPath, routeSection, routeUrl, type Route, type RouteState } from "./navigation.ts";
+import { useNavigationHistory } from "./use-navigation-history.ts";
 import { readWrapPreference, saveWrapPreference } from "./storage.ts";
 import type { ChangeEntry, DirectoryListing, FileTree, LanguageOption, SearchMatch } from "../shared/api.ts";
 
@@ -91,6 +92,7 @@ export function App() {
     },
   });
   const { editor, preview, reattachment, drafts } = feedback.model;
+  const navigationHistory = useNavigationHistory(feedback.actions.prepareNavigation);
   const review = useWorkingCopyReview({
     project,
     route,
@@ -115,7 +117,7 @@ export function App() {
     const url = routeUrl(next);
     scrollPositions.current.set(url, window.scrollY);
     routeRef.current = next;
-    window.history.replaceState(null, "", url);
+    navigationHistory.write(url, "replace");
     setRouteState({ kind: "ready", route: next });
   }, [project, gitRoute, git.refs]);
 
@@ -127,8 +129,7 @@ export function App() {
     setDrawerOpen(false);
     setMenuOpen(false);
     const url = routeUrl(next);
-    if (mode === "push" && window.location.pathname + window.location.search !== url) window.history.pushState(null, "", url);
-    else window.history.replaceState(null, "", url);
+    navigationHistory.write(url, mode);
     setRouteState({ kind: "ready", route: next });
     if (next.section !== "settings") window.scrollTo({ top: 0, behavior: "instant" });
   }
@@ -136,6 +137,7 @@ export function App() {
   useEffect(() => {
     window.history.scrollRestoration = "manual";
     const onPopState = (): void => {
+      navigationHistory.acceptCurrent();
       feedback.actions.prepareNavigation();
       const previous = routeRef.current;
       if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
@@ -156,7 +158,7 @@ export function App() {
   useEffect(() => {
     if (routeState.kind !== "ready") return;
     const canonical = routeUrl(routeState.route);
-    if (window.location.pathname + window.location.search !== canonical) window.history.replaceState(null, "", canonical);
+    if (window.location.pathname + window.location.search !== canonical) navigationHistory.write(canonical, "replace");
   }, [routeState]);
 
   useLayoutEffect(() => {
@@ -294,10 +296,7 @@ export function App() {
   function closeSettings(): void {
     const previous = settingsBackRoute.current;
     settingsBackRoute.current = null;
-    if (previous !== null) {
-      window.history.back();
-      return;
-    }
+    if (previous !== null && navigationHistory.back()) return;
     navigate(project === null ? { section: "projects", directory: "" } : { section: "changes", projectPath: project.path, target: { kind: "all" } }, "replace");
   }
 
@@ -399,14 +398,14 @@ export function App() {
           ) : project === null ? projectOpenError?.path === routeProject ? <div class="status-message" role="alert">This project could not be opened: {projectOpenError.message} <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button>.</div> : <DelayedLoading key={routeProject ?? "project"} className="status-message" message="Opening project…" /> : (
             <div class="project-view">
               {viewMode === "git" && gitRoute !== null ? <>
-                <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{gitRoute.target.kind === "commit" ? "Commit" : "Git history"}</h2></div><div class="changes-actions"><button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button><button type="button" disabled={git.refreshing} onClick={git.refreshHistory}>Refresh</button></div></div>
+                <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Open list" onClick={showList}><Icon name="back" /></button><h2>{gitRoute.target.kind === "commit" ? "Commit" : "Git history"}</h2></div><div class="changes-actions"><button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button><button type="button" disabled={git.refreshing} onClick={git.refreshHistory}>Refresh</button></div></div>
                 {gitRoute.target.kind === "list" ? <p class="status-message">{git.refs.kind === "ready" && git.refs.value.kind === "not_git" ? "This folder is not a Git worktree." : git.unborn ? "This branch has no commits yet." : "Select a commit from the Git list to inspect its message and changes."}</p> : git.detail.kind === "loading" ? <DelayedLoading key={gitRoute.target.oid} className="status-message" message="Reading commit…" /> : git.detail.kind === "error" ? <div class="status-message" role="alert">{git.detail.message} <button type="button" onClick={git.retryCommit}>Retry</button></div> : <CommitViewer key={`${project.id}:${git.detail.value.oid}`} project={project} detail={git.detail.value} wrap={wrapCode} languages={languages} />}
               </> : viewMode === "search" ? <>
-                <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>{selectedFile === null ? "Search files" : "Search result"}</h2></div></div>
+                <div class="changes-heading"><div class="content-heading-title"><button class="content-back" type="button" aria-label="Open list" onClick={showList}><Icon name="back" /></button><h2>{selectedFile === null ? "Search files" : "Search result"}</h2></div></div>
                 {selectedFile === null ? <p class="status-message">Search this project from the results list. Select a match to read its file here.</p> : <><div class="file-location-bar"><span>{selectedFile}</span></div><FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} searchTarget={searchTarget} /></>}
               </> : viewMode === "files" ? <>
                 <div class="changes-heading">
-                  <div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>Browse files</h2></div>
+                  <div class="content-heading-title"><button class="content-back" type="button" aria-label="Open list" onClick={showList}><Icon name="back" /></button><h2>Browse files</h2></div>
                   <div class="changes-actions">
                     <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
                     <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Refresh</button>
@@ -424,6 +423,10 @@ export function App() {
           {settingsOpen && <SettingsView typography={preferences.typography} onTypography={preferences.changeTypography} onResetTypography={preferences.resetTypography} appearance={preferences.appearance} onAppearance={preferences.changeAppearance} onResetAppearance={preferences.resetAppearance} onBack={closeSettings} onInstallData={() => setInstallDataOpen(true)} />}
         </main>
       </div>
+      {editor === null && preview === null && !installDataOpen && (navigationHistory.canGoBack || navigationHistory.canGoForward) && <nav class="history-navigation" aria-label="Browsing history" aria-busy={navigationHistory.pending}>
+        <button type="button" aria-label="Go back" title="Back" disabled={!navigationHistory.canGoBack || navigationHistory.pending} onClick={navigationHistory.back}><Icon name="back" /></button>
+        <button type="button" aria-label="Go forward" title="Forward" disabled={!navigationHistory.canGoForward || navigationHistory.pending} onClick={navigationHistory.forward}><Icon name="forward" /></button>
+      </nav>}
       {!settingsOpen && project !== null && (viewMode === "changes" || viewMode === "files" || viewMode === "search" && selectedFile !== null) && <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />}
       {!settingsOpen && project !== null && viewMode !== null && <button class="feedback-launch" type="button" onClick={feedback.actions.openPreview}>Feedback <span>{drafts.length}</span></button>}
       {reattachment !== null && <div class="reattach-banner" role="status">Tap a new line number to reattach this comment. <button type="button" onClick={feedback.actions.cancelReattachment}>Cancel</button></div>}

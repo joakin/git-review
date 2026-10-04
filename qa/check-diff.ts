@@ -34,7 +34,7 @@ async function main(): Promise<void> {
       const staged = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
       await staged.waitFor({ state: "visible" });
 
-      await page.getByRole("button", { name: "Back to list" }).click();
+      await page.getByRole("button", { name: "Open list" }).click();
       await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
       await staged.locator(".diff-row").first().waitFor({ state: "visible" });
       if ((await staged.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true") {
