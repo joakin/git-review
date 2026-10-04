@@ -21,6 +21,8 @@ Files provides a path from a selected project to a readable working-tree file on
 - Bound text reads to 1 MiB and 20,000 lines. Media has separate byte limits in its [behavior record](media-preview-slice-proposal.md). Detect NUL bytes and invalid UTF-8 before syntax highlighting. Return semantic token roles; the client applies its own theme. Parse every response at the client boundary.
 - The validated URL owns the project, directory, selected file, and optional line. Direct links and browser Back/Forward use the [navigation model](navigation-and-url-history-slice-proposal.md). Recent-file history is [optional future work](initial-implementation-plan.md#remaining-roadmap).
 
+The [Files sidebar](../src/client/FilesSidebar.tsx) consumes the current directory's scoped load state, selection, and parent/select/retry commands. App owns directory request identity and URL transitions; the file viewer retains its separate content lifetime.
+
 ## Edge cases and QA
 
 - Test nested paths, `..`, absolute paths, symlinks escaping the project, a file disappearing between listing and open, binary/invalid UTF-8, a file above the size limit, and a non-Git project.

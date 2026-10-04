@@ -43,6 +43,8 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 
 [Working-copy review](../src/client/working-copy-review.ts) owns the displayed Git snapshot, background update checks, refresh, card preferences, and review-position restoration. App supplies current navigation and modal pause policy, and retains one-time URL-selected card focus.
 
+[Project picker](../src/client/ProjectPicker.tsx), [Files sidebar](../src/client/FilesSidebar.tsx), and [Changes presentation](../src/client/ChangesView.tsx) render scoped values and consume explicit commands. App owns the responsive shell and URL transitions; resource owners keep loading, persistence, and review policy. These views add no wrapper or navigation state.
+
 [Appearance preferences](../src/client/appearance-preferences.ts) owns live appearance and typography for the App lifetime. Settings consumes values and change/reset commands; the storage module remains the format boundary shared with backups and the prepaint theme bootstrap.
 
 [The feedback owner](../src/client/review-feedback.ts) owns the loaded comment session and editor behind scoped values and actions. App announces navigation and accepted project loads; the transaction engine lives for the App lifetime, retaining any pending clipboard lease across project switches. The comment module remains the persistence and anchor boundary.

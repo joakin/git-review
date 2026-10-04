@@ -6,6 +6,8 @@ Status: implemented and committed. Private HTTPS installation is covered by the 
 
 Run the Bun server with an approved host root (`--root /path/to/projects`; default: the current working directory). The folder picker is a navigable list screen. Open folders inside that root and select one as the project for this tab. An explicit project URL takes precedence; `/` restores this tab's active selection from session storage. Shared recent paths survive reloads in browser-local storage. Selecting a path asks the server to validate it again.
 
+The [project picker](../src/client/ProjectPicker.tsx) presents root and directory state with browse/select commands. The [project/session owner](../src/client/project-session.ts) owns accepted opening and persistence; App retains directory loading and URL transitions.
+
 This slice established project selection and root containment. Git status, diff cards, file browsing, comments, Search, voice input, and private HTTPS were completed in later slices; the [documentation map](README.md) links their current behavior.
 
 ## Wire shape

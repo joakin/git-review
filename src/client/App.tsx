@@ -1,6 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectTree } from "./api.ts";
-import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
+import { diffCardId } from "./DiffCard.tsx";
+import { ChangesSidebar, ChangesView } from "./ChangesView.tsx";
+import { FilesSidebar } from "./FilesSidebar.tsx";
+import { ProjectPicker, ProjectWelcome } from "./ProjectPicker.tsx";
+import { folderName } from "./folder-name.ts";
+import type { LoadState } from "./load-state.ts";
 import { FileViewer } from "./FileViewer.tsx";
 import { CommitViewer } from "./CommitViewer.tsx";
 import { GitSidebar } from "./GitSidebar.tsx";
@@ -18,48 +23,10 @@ import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, parseNavigationSearch, routeProjectPath, routeSection, routeUrl, type Route, type RouteState } from "./navigation.ts";
 import { readWrapPreference, saveWrapPreference } from "./storage.ts";
-import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, SearchMatch } from "../shared/api.ts";
-
-type LoadState<T> =
-  | { kind: "loading" }
-  | { kind: "ready"; value: T }
-  | { kind: "error"; message: string };
+import type { ChangeEntry, DirectoryListing, FileTree, LanguageOption, SearchMatch } from "../shared/api.ts";
 
 function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong";
-}
-
-function shortName(path: string): string {
-  if (path === "") return "Root folder";
-  return path.slice(path.lastIndexOf("/") + 1);
-}
-
-const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
-  { key: "conflict", label: "Conflicts" },
-  { key: "staged", label: "Staged" },
-  { key: "unstaged", label: "Unstaged" },
-  { key: "untracked", label: "Untracked" },
-];
-
-function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; onSelect: (entry: ChangeEntry) => void }) {
-  return <div class="change-groups change-groups-compact">
-    {changeLayers.map(({ key, label }) => {
-      const group = entries.filter((entry) => entry.layer === key);
-      if (key === "conflict" && group.length === 0) return null;
-      return <section class={`change-group change-group-${key}`} key={key}>
-        <h2><span>{label}</span><span class="change-count">{group.length}</span></h2>
-        {group.length === 0 ? <p class="change-empty">No {label.toLowerCase()} files</p> : <ul>
-          {group.map((entry) => <li key={diffCardKey(entry)}><button class="change-row-button" type="button" onClick={() => onSelect(entry)} aria-label={`Open ${entry.layer} diff for ${entry.path}`}>
-            <span class={`change-mark change-mark-${entry.kind}`} aria-hidden="true">{entry.kind === "conflicted" ? "!" : entry.kind === "deleted" ? "−" : entry.kind === "added" ? "+" : "•"}</span>
-            <span class="change-file">
-              <strong title={entry.path}>{entry.path}</strong>
-              <small><span class="change-kind">{entry.kind.replace("_", " ")}</span>{entry.oldPath === null ? "" : ` from ${entry.oldPath}`}{entry.isSubmodule ? " · submodule" : ""}</small>
-            </span>
-          </button></li>)}
-        </ul>}
-      </section>;
-    })}
-  </div>;
 }
 
 export function App() {
@@ -135,7 +102,7 @@ export function App() {
       if (current?.section === "changes" && current.projectPath === project.path) navigate({ section: "files", projectPath: project.path, directory: "", target: { kind: "list" } }, "replace");
     },
   });
-  const { status, refreshing, pendingUpdate, checkError, refreshKey, expandedKeys } = review.model;
+  const { status } = review.model;
 
   useEffect(() => {
     if (project === null || gitRoute === null) return;
@@ -371,9 +338,6 @@ export function App() {
     else navigate({ section: "search", projectPath: route.projectPath, query: route.query, target: { kind: "results" } });
   }
 
-  const rootLabel = root.kind === "ready" ? root.value.label : "Host folders";
-  const folderLabel = listing.kind === "ready" ? shortName(listing.value.path) : shortName(path);
-  const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
   const listSection = route?.section === "settings" ? project === null ? "projects" : "changes" : route?.section ?? "projects";
   const mobilePane = route?.section === "projects" || route?.section === "changes" && route.target.kind === "list" || route?.section === "files" && route.target.kind === "list" || route?.section === "search" && route.target.kind === "results" || route?.section === "git" && route.target.kind === "list" ? "list" : "content";
 
@@ -389,7 +353,7 @@ export function App() {
           else setMenuOpen((open) => !open);
         }}>
           <span class="switch-icon" aria-hidden="true">▦</span>
-          <span class="switch-label">{project?.name ?? (routeProject === null ? "Choose folder" : shortName(routeProject))}</span>
+          <span class="switch-label">{project?.name ?? (routeProject === null ? "Choose folder" : folderName(routeProject))}</span>
           <span aria-hidden="true">⌄</span>
         </button>
       </header>
@@ -399,13 +363,13 @@ export function App() {
         <aside class={`workspace-menu${menuOpen ? " workspace-menu-open" : ""}`} aria-label="Workspace menu">
           <div class="workspace-menu-head"><button class="icon-button close-menu" type="button" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)}>×</button></div>
           <button class="menu-project" type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Choose a project <span aria-hidden="true">→</span></button>
-          {recentPaths.length > 0 && <div class="menu-recents"><span class="section-label">RECENT PROJECTS</span>{recentPaths.map((recentPath) => <button type="button" key={recentPath} onClick={() => session.actions.selectFolder(recentPath)}><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></button>)}</div>}
+          {recentPaths.length > 0 && <div class="menu-recents"><span class="section-label">RECENT PROJECTS</span>{recentPaths.map((recentPath) => <button type="button" key={recentPath} onClick={() => session.actions.selectFolder(recentPath)}><strong>{folderName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></button>)}</div>}
           <button class="sidebar-settings" type="button" aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings <span aria-hidden="true">⚙</span></button>
         </aside>
         {drawerOpen && <button class="drawer-scrim" type="button" aria-label="Close sidebar" onClick={() => setDrawerOpen(false)} />}
         <aside class={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={listSection === "changes" ? "Changed files" : listSection === "files" ? "Project files" : listSection === "search" ? "Search results" : listSection === "git" ? "Git history" : "Folder picker"}>
           <div class="sidebar-head">
-            {listSection === "projects" ? <h2>Folders</h2> : project === null ? <h2>{routeProject === null ? "Folders" : shortName(routeProject)}</h2> : <div class="sidebar-project-identity">
+            {listSection === "projects" ? <h2>Folders</h2> : project === null ? <h2>{routeProject === null ? "Folders" : folderName(routeProject)}</h2> : <div class="sidebar-project-identity">
               <h2 class="sidebar-project-title">{project.name}</h2>
               <p class="sidebar-project-path" title={project.absolutePath}>{project.absolutePath}</p>
             </div>}
@@ -418,78 +382,11 @@ export function App() {
             <button type="button" aria-current={viewMode === "git" ? "page" : undefined} disabled={status.kind === "ready" && status.value.kind === "not_git"} onClick={() => chooseView("git")}>Git</button>
           </nav>}
 
-          {listSection === "git" && project !== null && gitRoute !== null ? <GitSidebar model={git} commands={git} route={gitRoute} onBranch={(ref) => navigate({ ...gitRoute, ref, target: { kind: "list" } })} onCommit={(oid) => navigate({ ...gitRoute, target: { kind: "commit", oid } })} /> : listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <div class="sidebar-files">
-            {treePath !== "" && <div class="file-tree-breadcrumb"><button class="back-button" type="button" aria-label="Go to parent directory" onClick={() => navigate({ section: "files", projectPath: project.path, directory: parentDirectory(treePath), target: { kind: "list" } })}><Icon name="back" /></button><span title={treePath}>/{treePath}</span></div>}
-            {tree.kind === "loading" && <DelayedLoading key={treeKey ?? "files"} className="sidebar-message" message="Loading files…" />}
-            {tree.kind === "error" && <div class="sidebar-error" role="alert">{tree.message} <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>Retry</button></div>}
-            {tree.kind === "ready" && tree.value.entries.length === 0 && <p class="sidebar-message">This directory is empty.</p>}
-            {tree.kind === "ready" && <div class="file-tree-list">{tree.value.entries.map((entry) => <button class={`file-tree-row${selectedFile === entry.path ? " file-tree-row-selected" : ""}`} type="button" key={entry.path} onClick={() => {
-              if (entry.kind === "directory") navigate({ section: "files", projectPath: project.path, directory: entry.path, target: { kind: "list" } });
-              else navigate({ section: "files", projectPath: project.path, directory: treePath, target: { kind: "file", path: entry.path, line: null } });
-            }} title={entry.path}>
-              <span class="file-tree-icon"><Icon name={entry.kind === "directory" ? "folder" : entry.kind === "symlink" ? "link" : entry.kind === "other" ? "other" : "file"} /></span>
-              <span>{entry.name}</span>{entry.kind === "directory" && <span class="row-arrow" aria-hidden="true">›</span>}
-            </button>)}</div>}
-          </div> : listSection === "changes" && project !== null ? <div class="sidebar-changes">
-            {status.kind === "loading" && <DelayedLoading className="sidebar-message" message="Reading Git changes…" />}
-            {status.kind === "error" && <p class="sidebar-error" role="alert">{status.message}</p>}
-            {status.kind === "ready" && status.value.kind === "not_git" && <p class="sidebar-message">This folder is not a Git worktree.</p>}
-            {gitStatus !== null && <ChangeGroups entries={gitStatus.entries} onSelect={selectEntry} />}
-          </div> : listSection !== "projects" && project === null ? <DelayedLoading key={routeProject ?? "project"} className="sidebar-message" message="Opening project…" /> : <>
-
-          <div class="root-card">
-            <span class="root-dot" aria-hidden="true" />
-            <div class="root-copy">
-              <strong>{rootLabel}</strong>
-              {root.kind === "ready" ? <span>{root.value.path}</span> : root.kind === "error" ? <span>{root.message}</span> : <DelayedLoading className="root-loading" message="Connecting to the local server…" />}
-            </div>
-          </div>
-
-          <div class="folder-location">
-            <span class="section-label">CURRENT FOLDER</span>
-            <div class="folder-name-row">
-              {listing.kind === "ready" && listing.value.parentPath !== null && (
-                <button class="back-button" type="button" aria-label="Go to parent folder" onClick={() => navigate({ section: "projects", directory: listing.value.parentPath ?? "" })}><Icon name="back" /></button>
-              )}
-              <strong title={path}>{folderLabel}</strong>
-            </div>
-            <span class="folder-path">{path === "" ? "/" : `/${path}`}</span>
-            <button class="open-button" type="button" disabled={root.kind !== "ready" || listing.kind !== "ready" || opening} onClick={() => session.actions.selectFolder(path)}>
-              {opening ? "Opening…" : "Open this folder"} <span aria-hidden="true">↗</span>
-            </button>
-          </div>
-
-          <div class="folder-list-section">
-            <div class="section-heading"><span class="section-label">SUBFOLDERS</span><span>{listing.kind === "ready" ? listing.value.entries.length : ""}</span></div>
-            {listing.kind === "loading" && <DelayedLoading key={path} className="sidebar-message" message="Loading folders…" />}
-            {listing.kind === "error" && (
-              <div class="sidebar-error" role="alert">
-                <p>{listing.message}</p>
-                <button type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Back to root</button>
-              </div>
-            )}
-            {listing.kind === "ready" && listing.value.entries.length === 0 && <p class="sidebar-message">No subfolders here.</p>}
-            {listing.kind === "ready" && listing.value.entries.map((entry) => (
-              <button class="folder-row" type="button" key={entry.path} onClick={() => navigate({ section: "projects", directory: entry.path })}>
-                <span class="folder-glyph"><Icon name="folder" /></span>
-                <span class="folder-row-name">{entry.name}</span>
-                <span class="row-arrow" aria-hidden="true">›</span>
-              </button>
-            ))}
-          </div>
-
-          {recentPaths.length > 0 && (
-            <div class="recent-section">
-              <span class="section-label">RECENT FOLDERS</span>
-              {recentPaths.map((recentPath) => (
-                <button class="recent-row" type="button" key={recentPath} onClick={() => session.actions.selectFolder(recentPath)}>
-                  <span aria-hidden="true">↺</span>
-                  <span><strong>{shortName(recentPath)}</strong><small>{recentPath === "" ? "/" : `/${recentPath}`}</small></span>
-                </button>
-              ))}
-            </div>
-          )}
-          </>}
+          {listSection === "git" && project !== null && gitRoute !== null ? <GitSidebar model={git} commands={git} route={gitRoute} onBranch={(ref) => navigate({ ...gitRoute, ref, target: { kind: "list" } })} onCommit={(oid) => navigate({ ...gitRoute, target: { kind: "commit", oid } })} /> : listSection === "search" && project !== null ? <SearchView query={searchQuery} state={searchState} onQuery={setSearchQuery} onSubmit={submitSearch} onRefresh={() => setSearchRefresh((value) => value + 1)} canRefresh={submittedQuery !== null} onOpen={openSearchMatch} /> : listSection === "files" && project !== null ? <FilesSidebar directory={treePath} selectedPath={selectedFile} state={tree} loadingKey={treeKey ?? "files"} onParent={() => navigate({ section: "files", projectPath: project.path, directory: parentDirectory(treePath), target: { kind: "list" } })} onSelect={(entry) => {
+            if (entry.kind === "directory") navigate({ section: "files", projectPath: project.path, directory: entry.path, target: { kind: "list" } });
+            else navigate({ section: "files", projectPath: project.path, directory: treePath, target: { kind: "file", path: entry.path, line: null } });
+          }} onRetry={() => setFileRefresh((value) => value + 1)} /> : listSection === "changes" && project !== null ? <ChangesSidebar status={status} onSelect={selectEntry} /> : listSection !== "projects" && project === null ? <DelayedLoading key={routeProject ?? "project"} className="sidebar-message" message="Opening project…" /> :
+          <ProjectPicker root={root} listing={listing} path={path} opening={opening} recentPaths={recentPaths} onBrowseDirectory={(directory) => navigate({ section: "projects", directory })} onSelectFolder={session.actions.selectFolder} />}
         </aside>
 
         <main class="main-content">
@@ -498,14 +395,7 @@ export function App() {
 
           <div hidden={settingsOpen}>
           {routeState.kind === "invalid" ? <div class="welcome"><h1>That link cannot be opened.</h1><p class="welcome-copy">{routeState.message}</p><button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose a project <span aria-hidden="true">→</span></button></div> : route === null ? null : route.section === "projects" ? (
-            <div class="welcome">
-              <div class="hero-orb" aria-hidden="true"><span>⌁</span></div>
-              <p class="eyebrow">A CLEARER WAY TO REVIEW</p>
-              <h1>Start with a folder.</h1>
-              <p class="welcome-copy">Choose a project on this computer to make it your review workspace.</p>
-              <button class="primary-action" type="button" onClick={() => navigate({ section: "projects", directory: "" })}>Browse host folders <span aria-hidden="true">→</span></button>
-              <div class="welcome-foot"><span class="line-decor" aria-hidden="true" /> Staged, unstaged, and untracked changes will live here.</div>
-            </div>
+            <ProjectWelcome onBrowseFolders={() => navigate({ section: "projects", directory: "" })} />
           ) : project === null ? projectOpenError?.path === routeProject ? <div class="status-message" role="alert">This project could not be opened: {projectOpenError.message} <button type="button" onClick={() => navigate({ section: "projects", directory: "" }, "replace")}>Choose another project</button>.</div> : <DelayedLoading key={routeProject ?? "project"} className="status-message" message="Opening project…" /> : (
             <div class="project-view">
               {viewMode === "git" && gitRoute !== null ? <>
@@ -524,49 +414,10 @@ export function App() {
                 </div>
                 <div class="file-location-bar"><span>{selectedFile ?? (treePath === "" ? "Choose a file to read" : `/${treePath}`)}</span></div>
                 {selectedFile === null ? <p class="status-message">Open a folder or file from the Files list. Changes and feedback remain available when you return to review.</p> : <FileViewer key={`${project.id}:${selectedFile}`} projectId={project.id} path={selectedFile} wrap={wrapCode} languages={languages} refreshKey={fileRefresh} searchTarget={searchTarget?.path === selectedFile ? searchTarget : null} />}
-              </> : <>
-              <div class="changes-heading">
-                <div class="content-heading-title"><button class="content-back" type="button" aria-label="Back to list" onClick={showList}><Icon name="back" /></button><h2>Changed files</h2></div>
-                <div class="changes-actions">
-                  <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
-                  <span class="visually-hidden" role="status">{pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}</span>
-                  {pendingUpdate && <button class="changes-update" type="button" disabled={refreshing} onClick={review.actions.refresh}>{refreshing ? "Updating…" : "New edits · Update"}</button>}
-                  <button type="button" disabled={refreshing} onClick={review.actions.refresh}>{refreshing ? "Refreshing…" : "Refresh"}</button>
-                </div>
-              </div>
-              {checkError && <p class="changes-check-error" role="status">Could not check for new edits. Refresh is still available.</p>}
-              {status.kind === "loading" && <DelayedLoading className="status-message" message="Reading Git changes…" />}
-              {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
-              {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. Use Files to browse its contents.</p>}
-              {gitStatus !== null && <>
-                {gitStatus.entries.length === 0 && <p class="status-message">No changes in this folder.</p>}
-                <div class="diff-groups">
-                  {changeLayers.map(({ key, label }) => {
-                    const group = gitStatus.entries.filter((entry) => entry.layer === key);
-                    if (key === "conflict" && group.length === 0) return null;
-                    return <section class={`diff-section diff-section-${key}`} key={key}>
-                      <h3><span>{label}</span><span class="change-count">{group.length}</span></h3>
-                      {group.length === 0 ? <p class="diff-section-empty">No {label.toLowerCase()} files</p> : group.map((entry) => <DiffCard
-                        key={`${project.id}:${diffCardKey(entry)}`}
-                        entry={entry}
-                        projectId={project.id}
-                        revision={gitStatus.revision}
-                        changeToken={gitStatus.changeToken}
-                        refreshKey={refreshKey}
-                        expanded={expandedKeys.has(diffCardKey(entry))}
-                        wrap={wrapCode}
-                        languages={languages}
-                        onToggle={() => review.actions.toggleEntry(entry)}
-                        onStale={review.actions.refresh}
-                        onComment={feedback.actions.chooseLine}
-                        reattachSide={reattachment?.side ?? null}
-                        drafts={drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path)}
-                      />)}
-                    </section>;
-                  })}
-                </div>
-              </>}
-              </>}
+              </> : <ChangesView
+                model={{ projectId: project.id, ...review.model, wrap: wrapCode, languages, drafts, reattachSide: reattachment?.side ?? null }}
+                commands={{ back: showList, toggleWrap, refresh: review.actions.refresh, toggleEntry: review.actions.toggleEntry, comment: feedback.actions.chooseLine }}
+              />}
             </div>
           )}
           </div>

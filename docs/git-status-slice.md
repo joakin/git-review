@@ -8,6 +8,8 @@ The Changes contextual list groups staged, unstaged, and untracked files with co
 
 Sidebar rows show state and path and now open the corresponding diff card. The main inventory has become the continuous card list described in [the diff slice](diff-slice.md).
 
+[Changes presentation](../src/client/ChangesView.tsx) keeps the ordered layers and compact list beside the card view. It consumes scoped values and review commands from the [working-copy owner](../src/client/working-copy-review.ts). App owns URL selection and one-time focus; toggling a card remains a separate review action.
+
 ## Data and API
 
 `GET /api/projects/:id/status` is available after `POST /api/projects/open` has registered the folder in the current server session. Reload restores the saved path by opening it again. A status request revalidates the folder against the approved root before invoking Git. Unknown or stale IDs return 404.

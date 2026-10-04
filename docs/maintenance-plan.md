@@ -1,10 +1,10 @@
 # Maintenance plan after the prototype review
 
-Status: in progress; M01–M08 and M09a–M09d committed; M09e working-copy owner accepted for commit; M09f view extraction authorized
+Status: on hold at maintainer request; M01–M09 committed; M10–M15 pending
 
 Created: 2026-09-30
 
-Updated: 2026-10-03
+Updated: 2026-10-04
 
 The maintainer requested this bounded maintenance pass after closing the initial implementation stage and gave the implementation go-ahead on 2026-10-01. Each handoff below records its decision, verification, review, and commit approval. Completed slices stay uncommitted for maintainer review.
 
@@ -47,7 +47,7 @@ The feedback transaction race is established by code inspection and needs a dela
 
 ## Slice order and status
 
-M01–M08 and M09a–M09d are accepted and committed. M09e is accepted for commit. M09f–M15 remain pending, with view extraction authorized next. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
+M01–M09 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing work in another thread. M10–M15 remain pending; resume with M10 when the maintainer requests it. The sequence below keeps independently risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 | ID | Slice | Main dependency | Completion evidence |
 | --- | --- | --- | --- |
@@ -234,7 +234,7 @@ Each row below is a separate reviewable substep. Proposed names are illustrative
 | M09c | [Feedback owner](../src/client/review-feedback.ts): store/editor/operation state and edit/check/copy/undo/reattach actions | M03 transaction rules, conservative anchors, persistence and navigation saving |
 | M09d | [Project/session owner](../src/client/project-session.ts): resolved project/opening/error state and project-opening actions | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks |
 | M09e | [Working-copy review owner](../src/client/working-copy-review.ts): displayed status, pending-update state and refresh/toggle/expand actions | Polling pauses/resumes, serialized requests, loaded snapshot, card preferences, review position; live-change/loading/navigation checks |
-| M09f | Presentational project picker, Files sidebar, and Changes content | Explicit small props; current phone/tablet/desktop hierarchy, focus, wrapping and overflow |
+| M09f | Presentational [project picker](../src/client/ProjectPicker.tsx), [Files sidebar](../src/client/FilesSidebar.tsx), and [Changes list/content](../src/client/ChangesView.tsx) | Explicit small props; current phone/tablet/desktop hierarchy, focus, wrapping and overflow |
 
 Keep Files/Search resource state keyed to its current project/path/query. Extract it further only where the move creates a coherent owner. Do not use one generic loading hook for working-copy status, mutable files, branch snapshots, and immutable commits. Navigation extraction comes last and only if it can retain synchronous route ownership, draft saving, and one-time focus without introducing a second source of truth.
 
@@ -274,13 +274,21 @@ The [handoff below](#m09d-handoff--2026-10-03) records verification and captures
 
 ### M09e — Working-copy review ownership
 
-**Status:** implemented and verified 2026-10-03; accepted 2026-10-04 and approved for commit.
+**Status:** implemented and verified 2026-10-03; accepted and committed as `0ccd35e` on 2026-10-04 after explicit approval.
 
 **Decision:** one [working-copy review owner](../src/client/working-copy-review.ts) owns displayed status, polling, refresh, open-card preferences, and Changes reading position behind scoped values and semantic actions. Background checks announce updates without replacing the accepted snapshot. Project initialization follows accepted handles; cached picker return preserves the retained session. The manual generation remains monotonic for the App lifetime. App keeps URL writes, one-time selected-card focus, and the view/dialog pause policy. Status acceptance checks the current request, generation, handle, and live project scope; non-Git redirection and queued position restoration use the current destination.
 
 **Bounded fixes:** a held non-Git status previously redirected a later selected Files destination to its list. Refresh could also restore against a different view. Current-route and exact handle/generation guards prevent those effects. Stronger phone QA reproduced an existing tall-file failure on both committed `37d4059` and the initial extraction: Update moved scroll from 1,927 px to zero while refreshed bodies had temporary loading heights. The owner now waits for expanded cards to settle before restoring once; the [shared frame](../src/client/DiffCardFrame.tsx) exposes loading/ready/error/collapsed state for that private readiness check. Observer and frame cleanup discard restoration after navigation. This preserves immediate manual diff renewal without changing cache or loading presentation policy.
 
 The [handoff below](#m09e-handoff--2026-10-03) records verification and captures.
+
+### M09f — Focused presentation modules
+
+**Status:** implemented, verified, and accepted 2026-10-04; committed after explicit approval.
+
+**Decision:** views declare the validated values and semantic commands they consume. [ProjectPicker](../src/client/ProjectPicker.tsx) contains the picker fragment and a separate welcome view; [FilesSidebar](../src/client/FilesSidebar.tsx) renders the scoped directory; [ChangesView](../src/client/ChangesView.tsx) keeps the compact list, card content, and layer order together. Their contracts are private and independent of whole owner interfaces. The shared [load-state value](../src/client/load-state.ts) retains only loading/ready/error variants; folder labels reuse one formatter. App keeps responsive shell, resource keys, URL interpretation, navigation, and one-time card focus. Existing DOM hierarchy, card keys, and hidden Changes lifetime under Settings stay intact.
+
+The [handoff below](#m09f-handoff--2026-10-04) records verification and captures. App is now 435 lines, down from 584 before this slice and 924 at the M09 review baseline. Files/Search loading and navigation remain together where further extraction would divide their current ownership.
 
 ## M10 — Share diff loading and language controls
 
@@ -562,5 +570,14 @@ Use this compact entry for each handoff:
 - **Verification:** strict type/CSS gates and build pass; the full suite passes 125 tests with 1,356 assertions. Live-change, loading, navigation, tabs, diff, and feedback browser checks pass. The strengthened live check requires actual tall-file scrolling, preserves pending inventory/preferences/cards/draft after failed Update, confirms immediate diff renewal, and retries successfully. Six held status/diff cases cover selected Files preservation, Files/Settings position, an actual renewed diff mutation after Settings navigation, and abandoned project success/error before cleanup. The committed comparison fails the new non-Git destination check and the deep-scroll check; the final implementation passes both. Independent source and QA reviews found no remaining material concern; local Markdown links and whitespace pass.
 - **Captures:** inspected the scrolled expanded review at [phone](../qa/screenshots/maintenance-m09e-working-copy/mobile.png), [tablet portrait](../qa/screenshots/maintenance-m09e-working-copy/tablet-portrait.png), [tablet landscape](../qa/screenshots/maintenance-m09e-working-copy/tablet-landscape.png), and [desktop](../qa/screenshots/maintenance-m09e-working-copy/desktop.png) sizes. Sticky headings, readable code, Feedback, and responsive panes remain intact; the [manifest](../qa/screenshots/maintenance-m09e-working-copy/manifest.json) records no horizontal overflow.
 - **Delivery and limits:** maintained HTTP/HTTPS health and rebuilt asset-byte checks pass. The isolated QA server is stopped and temporary comparison files removed; ignored diagnostic run outputs remain. Checks used Chrome emulation and controlled responses; no new real-device gesture, clipboard, microphone, keyboard, or installed-app checks were performed.
-- **Review/commit:** accepted and approved for commit by the maintainer on 2026-10-04.
+- **Review/commit:** accepted and committed as `0ccd35e` after explicit maintainer approval on 2026-10-04.
 - **Next authorized slice:** M09f, extract the project picker, Files sidebar, and Changes presentation with explicit small props while preserving the responsive hierarchy and navigation focus policy.
+
+### M09f handoff — 2026-10-04
+
+- **Result:** extracted [ProjectPicker](../src/client/ProjectPicker.tsx), [FilesSidebar](../src/client/FilesSidebar.tsx), and [ChangesView](../src/client/ChangesView.tsx) behind private typed value/command contracts. The Changes module shares layer ordering between the compact list and card content; picker and shell labels share one folder formatter. App retains resource identity, navigation, responsive shell, and one-time card focus. DOM hierarchy, loading keys, card keys/props, and the hidden Changes lifetime under Settings are preserved. M09e is committed as `0ccd35e`.
+- **Verification:** strict TypeScript and CSS gates plus build pass; the full suite passes 125 tests with 1,356 assertions. Navigation, loading, Files, live-change, diff, feedback, and tabs browser checks pass. New [view recovery checks](../qa/view-state-check.ts) cover a failed Files directory read with in-place Retry and recovered file selection, an empty parent directory removing prior rows, and picker failure with disabled opening followed by Back to root/reselection recovery. Existing checks retain delayed/superseded resource ownership, hidden Settings diff completion, deep-scroll Update recovery, wrapping, language persistence, feedback, and tab isolation. Independent source and QA review found no material concern; local Markdown links and whitespace pass.
+- **Captures:** inspected picker, Files list, Changes list, and scrolled expanded Changes at phone, tablet portrait, tablet landscape, and desktop sizes. New milestone sets cover the [picker](../qa/screenshots/maintenance-m09f-picker/manifest.json), [Files](../qa/screenshots/maintenance-m09f-files/manifest.json), and [Changes list](../qa/screenshots/maintenance-m09f-changes-list-ready/manifest.json), with no horizontal overflow. All four expanded captures match the existing [M09e images](../qa/screenshots/maintenance-m09e-working-copy/manifest.json) byte for byte, so those images are reused. Duplicate expanded images and the initial transient loading captures remain in ignored QA diagnostics instead of adding duplicate milestones.
+- **Delivery and limits:** maintained HTTP/HTTPS health and rebuilt asset-byte checks pass. The isolated QA server is stopped and the temporary extraction script removed. Checks used Chrome emulation and controlled failure responses; no new real-device gesture, clipboard, microphone, keyboard, or installed-app checks were performed. Status-error, empty-Git, and conflict branches were compared in source but have no new dedicated browser assertions in this slice.
+- **Review/commit:** accepted and committed after explicit maintainer approval on 2026-10-04.
+- **Hold/resume:** the maintainer requested a hold after this commit to complete work in another thread. Resume only when requested; the next slice is M10, sharing diff-loading mechanics and language-control presentation while retaining distinct mutable and immutable resource policies. M10–M15 remain in the maintenance plan.
