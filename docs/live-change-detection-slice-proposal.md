@@ -48,6 +48,8 @@ Behavior tests should show that editing an already modified tracked file or an e
 
 The maintainer approved this slice. The reader applies updates explicitly, and the status API now returns a validated metadata-based `changeToken` alongside its original diff `revision`. The browser checks Git Changes while the tab is visible, shows the Update action when the token changes, and refreshes expanded diffs only on request. The action remains above Feedback on phones. A polite status announcement and a small repeated-check error complete the visible states.
 
+The [working-copy review owner](../src/client/working-copy-review.ts) keeps the displayed snapshot separate from background checks and scopes refresh, card preferences, and reading position to the accepted project. Failed status refresh retains a ready snapshot and the pending notice; the manual generation still renews expanded diff requests. Late status results must belong to the current project. Refresh position waits for expanded diff bodies to finish loading and is restored only within its original Changes destination. App owns navigation and supplies the view/dialog polling policy. Maintenance decisions and verification are recorded in [M09e](maintenance-plan.md#m09e--working-copy-review-ownership).
+
 The [QA workflow](qa-workflow.md#live-change-detection) records the behavior and four viewport captures. The remaining human check is the exact placement and reachability of the Update action on an actual phone browser.
 
 ## Maintenance verification — 2026-10-01

@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 import { checkProjectOpeningCancellation } from "./project-opening-check.ts";
+import { checkWorkingCopyOwnership } from "./working-copy-ownership-check.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun run qa:loading <local app URL>");
@@ -9,6 +10,7 @@ if (base.protocol !== "http:" && base.protocol !== "https:") throw new Error("Ex
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   await checkProjectOpeningCancellation(browser, base);
+  await checkWorkingCopyOwnership(browser, base);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     const page = await context.newPage();

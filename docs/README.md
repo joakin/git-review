@@ -34,12 +34,14 @@ The `*-proposal.md` filenames preserve links from earlier reviews. Their status 
 | URL | Project, section, directory, selected file/diff, submitted Search query, file line, Git branch, and commit | [navigation.ts](../src/client/navigation.ts) |
 | Per-tab session storage | Active project used when opening `/` without an explicit route | [storage.ts](../src/client/storage.ts) |
 | Browser-local storage | Recent projects, drafts, copy history, wrapping, open-card preferences, language overrides, typography, and appearance | [storage.ts](../src/client/storage.ts), [comments.ts](../src/client/comments.ts), [backup.ts](../src/client/backup.ts) |
-| Tab memory | Open project handle, loaded data, bounded diff and Git caches, historical collapsed cards, route scroll positions, transient UI, and pending audio | [App.tsx](../src/client/App.tsx), [project-session.ts](../src/client/project-session.ts), [diff-cache.ts](../src/client/diff-cache.ts), [git-browser.ts](../src/client/git-browser.ts), [review-feedback.ts](../src/client/review-feedback.ts), [CommitViewer.tsx](../src/client/CommitViewer.tsx), [VoiceComment.tsx](../src/client/VoiceComment.tsx) |
+| Tab memory | Open project handle, loaded data, bounded diff and Git caches, historical collapsed cards, route scroll positions, transient UI, and pending audio | [App.tsx](../src/client/App.tsx), [project-session.ts](../src/client/project-session.ts), [working-copy-review.ts](../src/client/working-copy-review.ts), [diff-cache.ts](../src/client/diff-cache.ts), [git-browser.ts](../src/client/git-browser.ts), [review-feedback.ts](../src/client/review-feedback.ts), [CommitViewer.tsx](../src/client/CommitViewer.tsx), [VoiceComment.tsx](../src/client/VoiceComment.tsx) |
 | Service worker | Offline fallback page only; API responses and raw media are not cached | [sw.ts](../src/client/sw.ts) |
 
 [ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff adapter and Git browser own resource identities, freshness, and individual budgets.
 
 [The project/session owner](../src/client/project-session.ts) owns root connection, accepted project handles, recents, and per-tab restoration. App supplies current URL identity and handles opening/accepted events to initialize other domains. Storage remains the format and migration boundary.
+
+[Working-copy review](../src/client/working-copy-review.ts) owns the displayed Git snapshot, background update checks, refresh, card preferences, and review-position restoration. App supplies current navigation and modal pause policy, and retains one-time URL-selected card focus.
 
 [Appearance preferences](../src/client/appearance-preferences.ts) owns live appearance and typography for the App lifetime. Settings consumes values and change/reset commands; the storage module remains the format boundary shared with backups and the prepaint theme bootstrap.
 

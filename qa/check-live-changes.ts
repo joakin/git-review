@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { chromium } from "playwright-core";
+import { parseStatusResponse } from "../src/shared/api.ts";
 
 const url = process.argv[2];
 if (url === undefined) throw new Error("Usage: bun run qa:live-changes <local app URL>");
@@ -30,12 +31,14 @@ try {
   git("add", ".");
   git("-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "baseline");
   await writeFile(source, content("first"));
+  await writeFile(resolve(project, "src/reading.ts"), Array.from({ length: 180 }, (_, index) => `export const reading${index + 1} = ${index + 1};`).join("\n") + "\n");
 
   browser = await chromium.launch({ channel: "chrome", headless: true });
   const openPages = [];
   const errors: string[] = [];
   for (const view of views) {
     const context = await browser.newContext({ viewport: { width: view.width, height: view.height }, isMobile: view.isMobile, hasTouch: view.hasTouch });
+    context.setDefaultTimeout(10_000);
     const page = await context.newPage();
     if (view.name === "mobile") await page.clock.install();
     page.on("pageerror", (error) => errors.push(`${view.name}: ${error.message}`));
@@ -75,10 +78,14 @@ try {
   await phone.page.getByRole("button", { name: "Close feedback" }).click();
   await (await afterFeedback).finished();
   await phone.page.waitForTimeout(300);
+  const readingCard = phone.page.locator('main .diff-card[data-layer="untracked"][data-path="src/reading.ts"]');
+  await readingCard.locator(".diff-card-toggle").click();
+  await readingCard.locator(".diff-row").nth(70).scrollIntoViewIfNeeded();
   const before = await phone.page.evaluate(() => {
-    const card = document.querySelector<HTMLElement>('main .diff-card[data-path="src/live.ts"]');
+    const card = document.querySelector<HTMLElement>('main .diff-card[data-path="src/reading.ts"]');
     return { scrollY, top: card?.getBoundingClientRect().top ?? 0 };
   });
+  if (before.scrollY <= 0) throw new Error("Reading-position setup did not scroll into the tall expanded card");
 
   await writeFile(source, content("other"));
   await Promise.all(openPages.map(async ({ page, card }) => {
@@ -108,12 +115,14 @@ try {
   await phone.page.locator(".changes-update").click();
   await phone.card.getByText('export const message = "other";').waitFor({ state: "visible" });
   if (await phone.card.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "true") throw new Error("Update collapsed the open card");
+  await readingCard.locator(".diff-row").nth(70).waitFor({ state: "attached" });
+  if (await readingCard.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "true") throw new Error("Update collapsed the scrolled reading card");
   if (!(await phone.page.getByRole("button", { name: /Feedback 1/ }).isVisible())) throw new Error("Update lost the draft comment");
   const after = await phone.page.evaluate(() => {
-    const card = document.querySelector<HTMLElement>('main .diff-card[data-path="src/live.ts"]');
+    const card = document.querySelector<HTMLElement>('main .diff-card[data-path="src/reading.ts"]');
     return { scrollY, top: card?.getBoundingClientRect().top ?? 0 };
   });
-  if (before.scrollY > 0 && Math.abs(after.top - before.top) > 180) throw new Error(`Update moved the active card too far: ${JSON.stringify({ before, after })}`);
+  if (Math.abs(after.top - before.top) > 180) throw new Error(`Update moved the active card too far: ${JSON.stringify({ before, after })}`);
 
   await phone.page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
   await writeFile(source, content("third"));
@@ -139,8 +148,48 @@ try {
   await phone.page.unroute("**/api/projects/*/status");
   await phone.page.getByRole("button", { name: "Refresh", exact: true }).click();
   await phone.page.getByRole("status").filter({ hasText: "Could not check for new edits" }).waitFor({ state: "detached" });
+  await phone.card.getByText('export const message = "third";').waitFor({ state: "visible" });
+
+  // Keep the worktree unchanged during failure: a manual generation still refetches diffs,
+  // while a controlled pending token exercises retention of the displayed status snapshot.
+  let failUpdate = false;
+  await phone.page.route("**/api/projects/*/status", async (route) => {
+    if (failUpdate) {
+      await route.fulfill({ status: 503, json: { error: { code: "internal_error", message: "QA update failure" } } });
+      return;
+    }
+    const response = await route.fetch();
+    const latest = parseStatusResponse(await response.json() as unknown);
+    if (latest.kind !== "git") throw new Error("The live-change fixture must remain a Git worktree");
+    await route.fulfill({ response, json: { ...latest, changeToken: latest.changeToken === "00000000000000000000" ? "11111111111111111111" : "00000000000000000000" } });
+  });
+  await phone.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await phone.page.locator(".changes-update").waitFor({ state: "visible" });
+  const inventory = await phone.page.locator("main .diff-card").evaluateAll((cards) => JSON.stringify(cards.map((card) => [card.getAttribute("data-layer"), card.getAttribute("data-path")])));
+  const preferences = await phone.page.evaluate(() => JSON.stringify(Object.keys(localStorage).filter((key) => key.startsWith("git-review:open-cards:v1:")).sort().map((key) => [key, localStorage.getItem(key)])));
+  failUpdate = true;
+  const refetched = phone.page.waitForRequest((request) => {
+    const requested = new URL(request.url());
+    return requested.pathname.endsWith("/diff") && requested.searchParams.get("path") === "src/live.ts";
+  });
+  await phone.page.locator(".changes-update").click();
+  await refetched;
+  await phone.page.getByRole("alert").filter({ hasText: "QA update failure" }).waitFor({ state: "visible" });
+  await phone.page.locator(".changes-update").getByText("New edits · Update", { exact: true }).waitFor({ state: "visible" });
+  await phone.card.getByText('export const message = "third";').waitFor({ state: "visible" });
+  const retainedInventory = await phone.page.locator("main .diff-card").evaluateAll((cards) => JSON.stringify(cards.map((card) => [card.getAttribute("data-layer"), card.getAttribute("data-path")])));
+  if (retainedInventory !== inventory) throw new Error("Failed Update replaced the displayed inventory");
+  const retainedPreferences = await phone.page.evaluate(() => JSON.stringify(Object.keys(localStorage).filter((key) => key.startsWith("git-review:open-cards:v1:")).sort().map((key) => [key, localStorage.getItem(key)])));
+  if (retainedPreferences !== preferences) throw new Error("Failed Update changed persisted card preferences");
+  if (await phone.card.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "true" || await readingCard.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "true" || !(await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).isVisible())) throw new Error("Failed Update collapsed a card or lost the draft");
+  await phone.page.unroute("**/api/projects/*/status");
+  await writeFile(source, content("recovered"));
+  await phone.page.locator(".changes-update").click();
+  await phone.card.getByText('export const message = "recovered";').waitFor({ state: "visible" });
+  await phone.page.locator(".changes-update").waitFor({ state: "detached" });
+  if (!(await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).isVisible()) || await readingCard.locator(".diff-card-toggle").getAttribute("aria-expanded") !== "true") throw new Error("Update recovery lost the draft or reading-card preference");
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
-  console.log("Live edits appeared on four viewports without replacing code; Update kept the card and draft; editor/Feedback pause and close resume, 320px fit, hidden-tab pause/resume, serialized checks, error recovery, and manual Refresh passed.");
+  console.log("Live edits appeared on four viewports without replacing code; Update kept expanded cards, draft, and a deliberately scrolled reading position; editor/Feedback pause and close resume, 320px fit, hidden-tab pause/resume, serialized checks, poll/manual Update failure recovery, and manual Refresh passed.");
 } finally {
   await browser?.close();
   await rm(project, { recursive: true, force: true });

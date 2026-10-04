@@ -17,7 +17,7 @@ export function DiffCardFrame({ mode, id, expanded, onToggle, languages, overrid
   const oldPath = mode.kind === "review" ? mode.entry.oldPath : mode.file.old.kind === "present" && mode.file.old.path !== path ? mode.file.old.path : null;
   const submodule = mode.kind === "review" ? mode.entry.isSubmodule : [mode.file.old, mode.file.new].some((side) => side.kind === "present" && side.mode === "160000");
   const modeChange = mode.kind === "inspect" && mode.file.old.kind === "present" && mode.file.new.kind === "present" && mode.file.old.mode !== mode.file.new.mode ? ` · mode ${mode.file.old.mode} → ${mode.file.new.mode}` : "";
-  return <article class={`diff-card diff-card-${label}`} id={id} data-layer={label} data-path={path}>
+  return <article class={`diff-card diff-card-${label}`} id={id} data-layer={label} data-path={path} data-diff-state={expanded ? current.kind : "collapsed"}>
     <button class="diff-card-toggle" type="button" aria-expanded={expanded} onClick={onToggle}>
       <span class="diff-card-chevron" aria-hidden="true">{expanded ? "⌄" : "›"}</span>
       <span class="diff-card-title"><strong>{path}</strong><small><span class="change-kind">{kind.replace("_", " ")}</span>{oldPath === null ? "" : ` from ${oldPath}`}{submodule ? " · submodule" : ""}{modeChange}</small></span>

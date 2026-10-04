@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectStatus, fetchProjectTree } from "./api.ts";
+import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectTree } from "./api.ts";
 import { diffCardId, diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { FileViewer } from "./FileViewer.tsx";
 import { CommitViewer } from "./CommitViewer.tsx";
@@ -11,13 +11,14 @@ import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
 import { useProjectSession } from "./project-session.ts";
 import { useReviewFeedback } from "./review-feedback.ts";
+import { useWorkingCopyReview } from "./working-copy-review.ts";
 import { CommentEditor, FeedbackDialog } from "./ReviewDialogs.tsx";
 import { InstallDataDialog, isInstallPromptEvent, type InstallPromptEvent } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, parseNavigationSearch, routeProjectPath, routeSection, routeUrl, type Route, type RouteState } from "./navigation.ts";
-import { readOpenCards, readWrapPreference, saveOpenCards, saveWrapPreference } from "./storage.ts";
-import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, ProjectStatus, SearchMatch } from "../shared/api.ts";
+import { readWrapPreference, saveWrapPreference } from "./storage.ts";
+import type { ChangeEntry, ChangeLayer, DirectoryListing, FileTree, LanguageOption, SearchMatch } from "../shared/api.ts";
 
 type LoadState<T> =
   | { kind: "loading" }
@@ -39,9 +40,6 @@ const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
   { key: "unstaged", label: "Unstaged" },
   { key: "untracked", label: "Untracked" },
 ];
-const changePollIntervalMs = 10_000;
-
-type ReviewPosition = { projectId: string; cardId: string | null; cardIndex: number; top: number; scrollY: number };
 
 function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; onSelect: (entry: ChangeEntry) => void }) {
   return <div class="change-groups change-groups-compact">
@@ -66,11 +64,6 @@ function ChangeGroups({ entries, onSelect }: { entries: readonly ChangeEntry[]; 
 
 export function App() {
   const [listingLoad, setListingLoad] = useState<{ key: string; state: LoadState<DirectoryListing> }>({ key: "", state: { kind: "loading" } });
-  const [status, setStatus] = useState<LoadState<ProjectStatus>>({ kind: "loading" });
-  const [statusRefresh, setStatusRefresh] = useState(0);
-  const [pendingUpdate, setPendingUpdate] = useState(false);
-  const [changeCheckError, setChangeCheckError] = useState(false);
-  const reviewPosition = useRef<ReviewPosition | null>(null);
   const [treeLoad, setTreeLoad] = useState<{ key: string; state: LoadState<FileTree> } | null>(null);
   const [fileRefresh, setFileRefresh] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -90,8 +83,6 @@ export function App() {
   const selectedFile = route?.section === "files" && route.target.kind === "file" || route?.section === "search" && route.target.kind === "file" ? route.target.path : null;
   const submittedQuery = route?.section === "search" ? route.query : null;
   const searchTarget = route?.section === "search" && route.target.kind === "file" && route.query !== null ? { path: route.target.path, line: route.target.line, query: route.query } : route?.section === "files" && route.target.kind === "file" && route.target.line !== null ? { path: route.target.path, line: route.target.line, query: null } : null;
-  const [refreshing, setRefreshing] = useState(false);
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [wrapCode, setWrapCode] = useState(readWrapPreference);
   const preferences = useAppearancePreferences();
   const settingsOpen = route?.section === "settings";
@@ -110,15 +101,12 @@ export function App() {
     onSelectProject: (path) => navigate({ section: "changes", projectPath: path, target: { kind: "all" } }),
     onNotice: setNotice,
     onOpening: () => {
-      setStatus({ kind: "loading" });
-      setPendingUpdate(false);
-      setChangeCheckError(false);
-      reviewPosition.current = null;
+      review.actions.beginProjectOpen();
       feedback.actions.beginProjectOpen();
     },
     onOpened: (project) => {
       feedback.actions.loadProject(project);
-      setExpandedKeys(readOpenCards(project.id));
+      review.actions.loadProject(project);
     },
   });
   const { root, project, opening, openError: projectOpenError, recentPaths } = session.model;
@@ -136,6 +124,18 @@ export function App() {
     },
   });
   const { editor, preview, reattachment, drafts } = feedback.model;
+  const review = useWorkingCopyReview({
+    project,
+    route,
+    readCurrentRoute: () => routeRef.current,
+    pollingAllowed: viewMode === "changes" && editor === null && preview === null && !installDataOpen,
+    onNotice: setNotice,
+    onNonGit: (project) => {
+      const current = routeRef.current;
+      if (current?.section === "changes" && current.projectPath === project.path) navigate({ section: "files", projectPath: project.path, directory: "", target: { kind: "list" } }, "replace");
+    },
+  });
+  const { status, refreshing, pendingUpdate, checkError, refreshKey, expandedKeys } = review.model;
 
   useEffect(() => {
     if (project === null || gitRoute === null) return;
@@ -236,85 +236,6 @@ export function App() {
   }, [path]);
 
   useEffect(() => {
-    if (project === null) return;
-    const controller = new AbortController();
-    setRefreshing(true);
-    fetchProjectStatus(project.id, controller.signal).then(
-      (value) => {
-        if (controller.signal.aborted) return;
-        setStatus({ kind: "ready", value });
-        setPendingUpdate(false);
-        setChangeCheckError(false);
-        setRefreshing(false);
-        if (value.kind === "not_git" && route?.section === "changes") navigate({ section: "files", projectPath: project.path, directory: "", target: { kind: "list" } }, "replace");
-      },
-      (error: unknown) => {
-        if (controller.signal.aborted) return;
-        const message = messageFor(error);
-        setStatus((current) => current.kind === "ready" ? current : { kind: "error", message });
-        setNotice(message);
-        setRefreshing(false);
-      },
-    );
-    return () => controller.abort();
-  }, [project, statusRefresh]);
-
-  useEffect(() => {
-    if (project === null || status.kind !== "ready" || status.value.kind !== "git" || viewMode !== "changes" || settingsOpen || editor !== null || preview !== null || installDataOpen || refreshing) return;
-    const projectId = project.id;
-    const displayedToken = status.value.changeToken;
-    let timer: number | null = null;
-    let request: AbortController | null = null;
-    let disposed = false;
-    let checkOnResume = false;
-    let failures = 0;
-    const clearTimer = (): void => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
-    const check = async (): Promise<void> => {
-      if (disposed || document.visibilityState !== "visible" || request !== null) return;
-      clearTimer();
-      const controller = new AbortController();
-      request = controller;
-      try {
-        const latest = await fetchProjectStatus(projectId, controller.signal);
-        if (disposed || controller.signal.aborted) return;
-        setPendingUpdate(latest.kind !== "git" || latest.changeToken !== displayedToken);
-        setChangeCheckError(false);
-        failures = 0;
-      } catch {
-        if (disposed || controller.signal.aborted) return;
-        failures += 1;
-        if (failures >= 2) setChangeCheckError(true);
-      } finally {
-        if (request === controller) request = null;
-        if (!disposed && document.visibilityState === "visible") {
-          if (checkOnResume) { checkOnResume = false; void check(); }
-          else timer = window.setTimeout(() => void check(), changePollIntervalMs);
-        }
-      }
-    };
-    const onVisibility = (): void => {
-      if (document.visibilityState !== "visible") { clearTimer(); request?.abort(); return; }
-      if (request !== null) checkOnResume = true;
-      else void check();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    void check();
-    return () => { disposed = true; clearTimer(); request?.abort(); document.removeEventListener("visibilitychange", onVisibility); };
-  }, [project, status, viewMode, settingsOpen, editor, preview !== null, installDataOpen, refreshing]);
-
-  useEffect(() => {
-    const position = reviewPosition.current;
-    if (position === null || project?.id !== position.projectId || status.kind !== "ready" || refreshing) return;
-    reviewPosition.current = null;
-    requestAnimationFrame(() => {
-      const cards = [...document.querySelectorAll<HTMLElement>("main .diff-card")];
-      const target = (position.cardId === null ? null : document.getElementById(position.cardId)) ?? cards[Math.min(position.cardIndex, cards.length - 1)] ?? document.querySelector<HTMLElement>(".changes-heading");
-      if (target === null) { window.scrollTo({ top: position.scrollY, behavior: "instant" }); return; }
-      window.scrollBy({ top: target.getBoundingClientRect().top - position.top, behavior: "instant" });
-    });
-  }, [project, status, refreshing]);
-
-  useEffect(() => {
     if (route?.section !== "changes" || route.target.kind !== "file" || focusedChangesRoute.current === route || project?.path !== route.projectPath || status.kind !== "ready" || status.value.kind !== "git") return;
     const target = route.target;
     const entry = status.value.entries.find((candidate) => candidate.layer === target.layer && candidate.path === target.path);
@@ -322,8 +243,7 @@ export function App() {
       setNotice("This changed file is no longer in the current Git inventory. Refresh or choose another file.");
       return;
     }
-    const key = diffCardKey(entry);
-    setExpandedKeys((current) => current.has(key) ? current : new Set(current).add(key));
+    review.actions.expandEntry(entry);
     const frame = requestAnimationFrame(() => {
       if (routeRef.current !== route) return;
       const card = document.getElementById(diffCardId(entry));
@@ -377,20 +297,6 @@ export function App() {
     return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKeyDown); };
   }, [drawerOpen, menuOpen]);
 
-  useEffect(() => {
-    if (project !== null) saveOpenCards(project.id, expandedKeys);
-  }, [project, expandedKeys]);
-
-  function toggleEntry(entry: ChangeEntry): void {
-    const key = diffCardKey(entry);
-    setExpandedKeys((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
   function selectEntry(entry: ChangeEntry): void {
     if (project === null) return;
     navigate({ section: "changes", projectPath: project.path, target: { kind: "file", layer: entry.layer, path: entry.path } });
@@ -402,16 +308,6 @@ export function App() {
       saveWrapPreference(next);
       return next;
     });
-  }
-
-  function refreshChanges(): void {
-    if (project === null || refreshing) return;
-    const cards = [...document.querySelectorAll<HTMLElement>("main .diff-card")];
-    const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
-    const cardIndex = cards.findIndex((card) => card.getBoundingClientRect().bottom > topbarBottom + 8);
-    const card = cardIndex < 0 ? null : cards[cardIndex] ?? null;
-    reviewPosition.current = { projectId: project.id, cardId: card?.id ?? null, cardIndex: Math.max(0, cardIndex), top: card?.getBoundingClientRect().top ?? topbarBottom, scrollY: window.scrollY };
-    setStatusRefresh((value) => value + 1);
   }
 
   function chooseView(mode: "changes" | "files" | "search" | "git"): void {
@@ -634,11 +530,11 @@ export function App() {
                 <div class="changes-actions">
                   <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>{wrapCode ? "Wrap: on" : "Wrap: off"}</button>
                   <span class="visually-hidden" role="status">{pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}</span>
-                  {pendingUpdate && <button class="changes-update" type="button" disabled={refreshing} onClick={refreshChanges}>{refreshing ? "Updating…" : "New edits · Update"}</button>}
-                  <button type="button" disabled={refreshing} onClick={refreshChanges}>{refreshing ? "Refreshing…" : "Refresh"}</button>
+                  {pendingUpdate && <button class="changes-update" type="button" disabled={refreshing} onClick={review.actions.refresh}>{refreshing ? "Updating…" : "New edits · Update"}</button>}
+                  <button type="button" disabled={refreshing} onClick={review.actions.refresh}>{refreshing ? "Refreshing…" : "Refresh"}</button>
                 </div>
               </div>
-              {changeCheckError && <p class="changes-check-error" role="status">Could not check for new edits. Refresh is still available.</p>}
+              {checkError && <p class="changes-check-error" role="status">Could not check for new edits. Refresh is still available.</p>}
               {status.kind === "loading" && <DelayedLoading className="status-message" message="Reading Git changes…" />}
               {status.kind === "error" && <p class="status-message" role="alert">{status.message}</p>}
               {status.kind === "ready" && status.value.kind === "not_git" && <p class="status-message">This folder is not a Git worktree. Use Files to browse its contents.</p>}
@@ -656,12 +552,12 @@ export function App() {
                         projectId={project.id}
                         revision={gitStatus.revision}
                         changeToken={gitStatus.changeToken}
-                        refreshKey={statusRefresh}
+                        refreshKey={refreshKey}
                         expanded={expandedKeys.has(diffCardKey(entry))}
                         wrap={wrapCode}
                         languages={languages}
-                        onToggle={() => toggleEntry(entry)}
-                        onStale={refreshChanges}
+                        onToggle={() => review.actions.toggleEntry(entry)}
+                        onStale={review.actions.refresh}
                         onComment={feedback.actions.chooseLine}
                         reattachSide={reattachment?.side ?? null}
                         drafts={drafts.filter((draft) => draft.anchor.layer === entry.layer && draft.anchor.path === entry.path)}
