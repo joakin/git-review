@@ -109,6 +109,17 @@ error collection, within the shared browser lifetime. It still owns its temporar
 unique ignored screenshot runs. Recorder/transcription and clipboard controls remain mocked; these
 checks do not establish physical-device behavior. Their arguments and fixture setup are unchanged.
 
+The [final M13b browser batch](maintenance-plan.md#m13b-final-browser-batch-handoff--2026-10-06)
+adds `bun qa/check-git.ts`, `bun qa/check-file-feedback.ts` and `bun qa/check-selected-feedback.ts`.
+They retain their custom viewport/touch matrices, including mobile tablet contexts. Git releases its
+delayed refs gate before scoped cleanup and collects errors from its direct-link tab. File feedback
+closes its seeded context before restoring saved state; its legacy seed runs only on the app origin.
+Fresh backup-import contexts, plain-folder/clean-Git file feedback and desktop Old/New selection
+checks now use the same error collection and cleanup. Feature assertions, native Clipboard API
+permissions and fixture restoration remain local. All feature checks share browser lifetime; the
+screenshot command and loading's private scenario context cleanup retain their own contracts. This
+completes the bounded browser adoption; package commands and the helper interface are unchanged.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook

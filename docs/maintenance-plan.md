@@ -1,8 +1,8 @@
 # Maintenance plan after the prototype review
 
 Status: M01–M12, M13a, QA command cleanup and M13b first/feedback/project-entry/navigation/
-appearance batches accepted and committed; M13b voice/live changes/transactions batch accepted and
-approved for commit; final M13b browser batch, M13c and M14–M15 pending
+appearance/voice/live changes/transactions batches accepted and committed; final M13b browser batch
+accepted and approved for commit; M13c and M14–M15 pending
 
 Created: 2026-09-30
 
@@ -104,10 +104,11 @@ modals, and is committed as `b71d270`. The project-entry batch adopts the same s
 entry, project entry and independent tabs, and is committed as `165a6fc`. The navigation batch
 adopts the same support for navigation, history controls and loading, and is committed as `49418de`.
 The appearance/PWA batch adopts it for themes, typography and PWA, and is committed as `7a4ffa2`.
-The voice/live changes/transactions batch adopts it for those three related checks, and is accepted
-and approved for commit on 2026-10-06. The final M13b browser batch, M13c and M14–M15 remain
-pending. The sequence keeps independently risky changes in separate review steps; M15 starts with
-measurement before any optimization.
+The voice/live changes/transactions batch adopts it for those three related checks, and is committed
+as `382e148`. The final M13b browser batch adopts it for Git, file feedback and selected feedback,
+and is accepted and approved for commit on 2026-10-06. Its bounded caller audit completes M13b's
+implementation; M13c and M14–M15 remain pending. The sequence keeps independently risky changes in
+separate review steps; M15 starts with measurement before any optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -750,20 +751,21 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   `49418de`. The appearance/PWA batch adopts it for themes, typography and PWA, and is committed as
   `7a4ffa2`. The voice/live changes/transactions batch shares browser lifetime for all three checks
   and scoped contexts for voice and transactions, while live changes retains its four coordinated
-  contexts; it is accepted and approved for commit on 2026-10-06. Reuse the interface where useful
-  in the remaining scripts, adding argument/fixture and artifact handling only when callers need
-  them. Keep each feature's interactions and assertions local.
+  contexts; it is committed as `382e148`. The final batch adopts it for Git, file feedback and
+  selected feedback, and is accepted and approved for commit on 2026-10-06. Its bounded caller audit
+  completes M13b's implementation without adding helper APIs or QA infrastructure. Keep each
+  feature's interactions and assertions local.
 - **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
   temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
   affected server suite after that extraction.
 
-After the voice/live changes/transactions batch, three feature scripts still launch Chrome directly:
-Git, file feedback and selected feedback. Their adoption is the final M13b browser batch. Preserve
-each scenario's context options and fixtures, and keep the screenshot command's separate delivery
-contract. Loading's private scenario helpers keep their delayed-response gates and cleanup local;
-they do not launch another browser. Live changes keeps its four simultaneously open contexts and
-named page-error collection within the shared browser lifetime. Close M13b after that bounded caller
-audit; further QA infrastructure is outside this item.
+The final M13b caller audit finds no feature check that launches Chrome directly. Shared browser
+support owns those launches; the screenshot command retains its separate delivery contract.
+Loading's private scenario helpers keep their delayed-response gates and cleanup local; they do not
+launch another browser. Live changes keeps its four simultaneously open contexts and named
+page-error collection within the shared browser lifetime. These scoped exceptions need no extra
+coordinator or framework. M13b is complete and accepted on 2026-10-06; further QA infrastructure is
+outside this item.
 
 ## M14 — Curate artifacts and clarify historical records
 
@@ -2070,6 +2072,61 @@ maintainer approved the two-command cleanup on 2026-10-05.
   baseline bundle mode was preserved but not run. The full server suite was not rerun for this
   QA-only migration; M13c will run the suite affected by its separate extraction.
 - **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
-  continuation on 2026-10-06. The final M13b browser batch is Git, file feedback and selected
-  feedback. M13c, M14 and M15 remain within the bounded maintenance plan; stop when that plan is
-  complete.
+  continuation on 2026-10-06. This batch is committed as `382e148`. The final M13b browser batch is
+  Git, file feedback and selected feedback. M13c, M14 and M15 remain within the bounded maintenance
+  plan; stop when that plan is complete.
+
+## M13b final browser batch handoff — 2026-10-06
+
+- **Alignment:** the maintainer accepted the voice/live changes/transactions batch and requested its
+  commit and continuation. This is the agreed final browser-adoption batch, followed by a bounded
+  caller audit; it adds no product feature or QA framework.
+- **Implementation:** [Git](../qa/check-git.ts), [file feedback](../qa/check-file-feedback.ts) and
+  [selected feedback](../qa/check-selected-feedback.ts) use the existing HTTP(S) URL validation,
+  browser lifetime, scoped context cleanup, context-wide page-error collection and generic two-pixel
+  document-overflow assertion. The helper interface and package commands are unchanged. Success
+  messages follow completion of their context scopes, including page-error checks.
+- **Context ownership:** custom viewport/touch options are retained, including mobile tablet
+  contexts and 320 px phone cases. Git's direct-link tab belongs to the same scope and now has error
+  collection; its local `finally` releases delayed refs before context cleanup. History-refresh
+  release/unroute handling remains local. File feedback closes the seeded context before restoring
+  its saved browser state, eliminating the old second close. Its legacy storage initializer runs
+  only on the validated app origin, avoiding initial blank-document storage access. Both scripts'
+  fresh backup-import contexts, the plain/clean-folder contexts and selected feedback's desktop diff
+  context receive the same cleanup and error checks.
+- **Fixture and scenario ownership:** file feedback retains its CRLF, blank/last-line, stale,
+  missing-file and read-error cases. Selected feedback retains exact repeated-text offsets, token
+  spans, whitespace, Unicode, source changes, selection reattachment and Old/New diff sources.
+  Native Clipboard API permissions, saved-state paths, backup downloads/imports, route controls and
+  feature geometry assertions remain beside the checks. Fixture restoration surrounds browser
+  lifetime, including launch failure; selected feedback restores the previous file or removes its
+  owned file if none existed.
+- **Verification:** all five strict TypeScript configurations, `bun run qa:check`, formatting,
+  whitespace and local handoff-link checks pass, including 138 CSS token references. The three
+  existing app checks pass sequentially on the isolated inventory/history server at port 39911; file
+  feedback also uses the separate approved non-Git/clean-Git root at port 39912. Git passes phone,
+  both tablet orientations and desktop plus its 320 px case: history refresh/recovery,
+  navigation/independent tabs, historical source/media links, wrapping, reading-position and
+  immutable-cache preservation, metadata containment and peak three concurrent diff requests. File
+  feedback and selected feedback pass at 320, 390, 820, 1180 and 1440 px, including native
+  clipboard, copy/history/Undo, reload, Search source identity, stale exclusion/reattachment and
+  fresh backup import. Actual plain-folder and clean-Git file-only feedback pass with zero status
+  requests. Selected feedback's desktop Old/New source and synthetic annotation boundaries pass.
+- **Bounded caller audit:** no feature check launches Chrome directly. The only direct launches are
+  [browser-support.ts](../qa/browser-support.ts) and [capture.ts](../qa/capture.ts), whose
+  screenshot-delivery contract remains separate. Loading's private scenario helpers retain local
+  response-gate/context cleanup within the shared browser lifetime. Live changes retains its four
+  coordinated contexts and named errors there. M13b's implementation is complete; these scoped
+  exceptions need no extra coordinator, runner, helper self-test or infrastructure work.
+- **Delivery and limits:** both mutated inventory files were confirmed restored by matching their
+  before/after hashes, and the clean-Git fixture remains clean. Only the two isolated QA servers
+  started for this batch were stopped; maintained HTTP/HTTPS services remain available. Logs are
+  ignored `qa/.artifacts/m13b-final-browser-*.log`. Runtime source, client assets and tracked
+  screenshots are unchanged. No new screenshots or physical-device checks were performed; native
+  clipboard was exercised in installed headless Chrome on loopback, while real-device clipboard,
+  gestures and keyboard behavior remain unverified. The full server suite was not rerun for this
+  QA-only migration; M13c will run the suite affected by its separate extraction.
+- **Review/next step:** the maintainer accepted this final M13b batch and explicitly requested its
+  commit and continuation on 2026-10-06. M13b is complete; continue with M13c's low-level
+  Git/test-fixture support. M14 artifact curation and M15 measurement remain within the bounded
+  maintenance plan. Stop when that plan is complete.
