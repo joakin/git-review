@@ -79,6 +79,12 @@ temporary Git fixture and cleanup. Modals use all four profiles with service wor
 geometry, focus, dismissal and scroll-lock checks remain local. Their usage and fixture requirements
 are unchanged.
 
+The [M13b project-entry batch](maintenance-plan.md#m13b-project-entry-batch-handoff--2026-10-05)
+adds `bun qa/check-foundation.ts`, `bun qa/check-project-entry.ts` and `bun qa/check-tabs.ts`.
+Foundation retains its flag arguments and saved browser state. Project entry retains its custom
+breakpoint matrix and two fixture servers; the tab check retains default Chrome contexts and its
+delayed-root release guard. Their scenario assertions and setup remain local.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook

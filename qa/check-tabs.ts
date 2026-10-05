@@ -1,11 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { chromium, type Page } from "playwright-core";
+import type { Page } from "playwright-core";
+import { appUrl, withQaBrowser, withQaContext } from "./browser-support.ts";
 import { parseActiveProject } from "../src/client/storage.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-tabs.ts <local app URL>");
-const url = new URL(rawUrl);
+const url = appUrl(rawUrl);
 const startUrl = new URL("/", url).href;
 const rootPath = resolve("qa/.artifacts");
 await mkdir(resolve(rootPath, "other-project"), { recursive: true });
@@ -16,11 +17,9 @@ async function selectFolder(page: Page, folder: string): Promise<void> {
   await page.locator(".sidebar-project-title").getByText(folder, { exact: true }).waitFor();
 }
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
-try {
-  const context = await browser.newContext();
-  context.setDefaultTimeout(10_000);
-  try {
+await withQaBrowser(async (browser) => {
+  await withQaContext(browser, {}, async (context) => {
+    context.setDefaultTimeout(10_000);
     const first = await context.newPage();
     await first.goto(url.href);
     await selectFolder(first, "inventory-fixture");
@@ -103,56 +102,59 @@ try {
     )
       throw new Error("The explicit link changed another tab's selection");
 
-    const startup = await browser.newContext({ serviceWorkers: "block" });
-    startup.setDefaultTimeout(10_000);
-    let releaseRoot = () => {};
-    const rootGate = new Promise<void>((resolve) => {
-      releaseRoot = resolve;
+    await withQaContext(browser, { serviceWorkers: "block" }, async (startup) => {
+      startup.setDefaultTimeout(10_000);
+      let releaseRoot = () => {};
+      const rootGate = new Promise<void>((resolve) => {
+        releaseRoot = resolve;
+      });
+      try {
+        const pending = await startup.newPage();
+        await pending.addInitScript(
+          (approvedRoot) =>
+            sessionStorage.setItem(
+              "git-review:active-project:v1",
+              JSON.stringify({
+                version: 1,
+                rootPath: approvedRoot,
+                activePath: "inventory-fixture",
+              }),
+            ),
+          rootPath,
+        );
+        let opens = 0;
+        pending.on("request", (request) => {
+          if (new URL(request.url()).pathname === "/api/projects/open") opens += 1;
+        });
+        await pending.route("**/api/roots", async (route) => {
+          await rootGate;
+          await route.continue();
+        });
+        const requested = pending.waitForRequest(
+          (request) => new URL(request.url()).pathname === "/api/roots",
+        );
+        await pending.goto(startUrl, { waitUntil: "load" });
+        await requested;
+        await pending.evaluate(() => {
+          history.pushState(null, "", "/?section=settings");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        });
+        await pending.locator("#app-theme").waitFor({ state: "visible" });
+        releaseRoot();
+        await pending
+          .locator(".root-copy span")
+          .filter({ hasText: rootPath })
+          .waitFor({ state: "attached" });
+        if (new URL(pending.url()).searchParams.get("section") !== "settings" || opens !== 0)
+          throw new Error("Root completion replaced explicit Settings with the stored project");
+        await pending.locator("#app-theme").waitFor({ state: "visible" });
+      } finally {
+        releaseRoot();
+      }
     });
-    try {
-      const pending = await startup.newPage();
-      await pending.addInitScript(
-        (approvedRoot) =>
-          sessionStorage.setItem(
-            "git-review:active-project:v1",
-            JSON.stringify({ version: 1, rootPath: approvedRoot, activePath: "inventory-fixture" }),
-          ),
-        rootPath,
-      );
-      let opens = 0;
-      pending.on("request", (request) => {
-        if (new URL(request.url()).pathname === "/api/projects/open") opens += 1;
-      });
-      await pending.route("**/api/roots", async (route) => {
-        await rootGate;
-        await route.continue();
-      });
-      const requested = pending.waitForRequest(
-        (request) => new URL(request.url()).pathname === "/api/roots",
-      );
-      await pending.goto(startUrl, { waitUntil: "load" });
-      await requested;
-      await pending.evaluate(() => {
-        history.pushState(null, "", "/?section=settings");
-        window.dispatchEvent(new PopStateEvent("popstate"));
-      });
-      await pending.locator("#app-theme").waitFor({ state: "visible" });
-      releaseRoot();
-      await pending
-        .locator(".root-copy span")
-        .filter({ hasText: rootPath })
-        .waitFor({ state: "attached" });
-      if (new URL(pending.url()).searchParams.get("section") !== "settings" || opens !== 0)
-        throw new Error("Root completion replaced explicit Settings with the stored project");
-      await pending.locator("#app-theme").waitFor({ state: "visible" });
-    } finally {
-      releaseRoot();
-      await startup.close();
-    }
 
-    const migration = await browser.newContext();
-    migration.setDefaultTimeout(10_000);
-    try {
+    await withQaContext(browser, {}, async (migration) => {
+      migration.setDefaultTimeout(10_000);
       const migrated = await migration.newPage();
       await migrated.addInitScript((approvedRoot) => {
         if (
@@ -184,15 +186,9 @@ try {
       const fresh = await migration.newPage();
       await fresh.goto(startUrl);
       await fresh.locator(".welcome h1").waitFor();
-    } finally {
-      await migration.close();
-    }
-    console.log(
-      "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, and deterministic legacy selection migration passed.",
-    );
-  } finally {
-    await context.close();
-  }
-} finally {
-  await browser.close();
-}
+    });
+  });
+  console.log(
+    "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, and deterministic legacy selection migration passed.",
+  );
+});

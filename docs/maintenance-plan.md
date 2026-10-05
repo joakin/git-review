@@ -1,7 +1,8 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12, M13a, QA command cleanup and M13b first batch accepted and committed; M13b feedback
-batch accepted and approved for commit; further M13b adoption, M13c and M14–M15 pending
+Status: M01–M12, M13a, QA command cleanup and M13b first/feedback batches accepted and committed;
+M13b project-entry batch accepted and approved for commit; further M13b adoption, M13c and M14–M15
+pending
 
 Created: 2026-09-30
 
@@ -99,9 +100,10 @@ After accepting M13a, the maintainer requested cleanup of the 29 QA package alia
 migration. The two-command cleanup was accepted and committed as `f0ce3b3` on 2026-10-05. The first
 M13b batch migrates Search, selected-code Search and working-copy diffs to the existing browser
 interface and is committed as `097f245`. The feedback batch migrates feedback, line actions and
-modals, and is accepted and explicitly approved for commit on 2026-10-05. Further M13b adoption,
-M13c and M14–M15 remain pending. The sequence keeps independently risky changes in separate review
-steps; M15 starts with measurement before any optimization.
+modals, and is committed as `b71d270`. The project-entry batch adopts the same support for folder
+entry, project entry and independent tabs, and is accepted and explicitly approved for commit on
+2026-10-05. Further M13b adoption, M13c and M14–M15 remain pending. The sequence keeps independently
+risky changes in separate review steps; M15 starts with measurement before any optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -738,12 +740,21 @@ extraction. Document any changed QA invocation in the workflow and package scrip
 - **M13b — Further browser/fixture adoption:** the first batch migrates Search, selected-code Search
   and working-copy diffs without extending the agreed interface; it is committed as `097f245`. The
   feedback batch adopts the interface for feedback, line actions and modals, adding the two tablet
-  profiles used by modal checks; it is accepted and approved for commit. Reuse the interface where
-  useful in the remaining scripts, adding argument/fixture and artifact handling only when callers
-  need them. Keep each feature's interactions and assertions local.
+  profiles used by modal checks; it is committed as `b71d270`. The project-entry batch adopts the
+  interface for foundation, project entry and independent tabs, and is accepted and approved for
+  commit. Reuse the interface where useful in the remaining scripts, adding argument/fixture and
+  artifact handling only when callers need them. Keep each feature's interactions and assertions
+  local.
 - **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
   temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
   affected server suite after that extraction.
+
+After the project-entry batch, twelve feature scripts still launch Chrome directly. Continue their
+adoption in related review batches: navigation/history controls/loading; themes/typography/PWA;
+voice/live changes/feedback transactions; Git/file feedback/selected feedback. Preserve each
+scenario's context options and fixtures, and keep the screenshot command's separate delivery
+contract. Close M13b after that bounded caller audit; further QA infrastructure is outside this
+item.
 
 ## M14 — Curate artifacts and clarify historical records
 
@@ -1871,4 +1882,41 @@ maintainer approved the two-command cleanup on 2026-10-05.
   for this QA-only migration; M13c will run the suite affected by its separate extraction.
 - **Review/next step:** the maintainer accepted this batch, explicitly requested its commit and
   continuation, and restated the maintenance stopping boundary on 2026-10-05. Further M13b adoption
-  and the separate M13c server test-support slice remain pending.
+  and the separate M13c server test-support slice remain pending. This batch is committed as
+  `b71d270`.
+
+## M13b project-entry batch handoff — 2026-10-05
+
+- **Alignment:** after accepting the feedback batch, the maintainer requested its commit and
+  continuation within the maintenance plan, with an explicit stop at its completion. This batch
+  adopts the agreed browser support for three related project/session checks.
+- **Implementation:** [foundation](../qa/check-foundation.ts),
+  [project entry](../qa/check-project-entry.ts) and [independent tabs](../qa/check-tabs.ts) share
+  HTTP(S) URL validation and browser/context lifetime. Context-wide listeners collect page errors
+  from all tabs before a completed scope reports success. Project entry uses the shared document
+  overflow check while retaining its custom 320/390/600/601/820/1180/1440 px widths, heights and
+  touch settings. Default desktop contexts in the tab check remain default contexts.
+- **Scenario ownership:** foundation keeps its flags, direct-child folder validation and saved
+  browser state. Project entry keeps recents, explicit routes, rotation and controlled host-root
+  failure checks; clean-Git and non-Git cases use the existing separate root outside this worktree.
+  Tabs keep explicit-link precedence, per-tab restoration and legacy migration. The delayed-root
+  gate still releases in its local `finally` before scoped context cleanup.
+- **Scope:** no new helper API, package alias, runner, fixture generator or helper self-test is
+  added. The shared browser module and runtime app source are unchanged.
+- **Verification:** all five strict TypeScript configurations and `bun run qa:check` pass, including
+  138 CSS token references and formatting. All three existing app checks pass sequentially against
+  isolated servers on ports 39911 and 39912. Foundation covers folder entry, reload and
+  browser-state export. Project entry passes at 320, 390, 600, 601, 820, 1180 and 1440 px, including
+  Back/Forward, explicit destination reload, rotation, recents, bare restoration, host-root
+  failure/recovery and containment. The separate clean-Git fixture has no changes, and the plain
+  folder has no enclosing Git repository; both entry/file/bare-restoration flows pass. Tabs pass
+  independent project reload/restoration, explicit-link precedence, delayed root loading, shared
+  recents and legacy migration with page-error collection across all contexts. Logs and the
+  foundation browser state remain under ignored `qa/.artifacts/`.
+- **Delivery and limits:** only the two isolated servers started for this batch were stopped.
+  Runtime source, client assets, the maintained services and tracked screenshots are unchanged. No
+  new screenshot captures or physical-device checks were performed. The full server suite was not
+  rerun for this QA-only migration; M13c will run the suite affected by its separate extraction.
+- **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
+  continuation with the next batch on 2026-10-05. Further M13b caller adoption, M13c, M14 and M15
+  remain within the bounded plan. Stop once that plan is complete.

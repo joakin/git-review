@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
 
 function options(args: readonly string[]): { url: URL; folder: string } {
   if (args.length !== 4 || args[0] !== "--url" || args[2] !== "--folder") {
@@ -13,30 +13,18 @@ function options(args: readonly string[]): { url: URL; folder: string } {
   if (rawUrl === undefined || folder === undefined || folder.length === 0 || folder.includes("/")) {
     throw new Error("Provide an app URL and one direct child folder name");
   }
-  const url = new URL(rawUrl);
-  if (url.protocol !== "http:" && url.protocol !== "https:")
-    throw new Error("The app URL must use HTTP or HTTPS");
-  return { url, folder };
+  return { url: appUrl(rawUrl), folder };
 }
 
 async function main(): Promise<void> {
   const { url, folder } = options(process.argv.slice(2));
   const artifactDirectory = resolve("qa/.artifacts");
   await mkdir(artifactDirectory, { recursive: true });
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  try {
-    const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-      isMobile: true,
-      hasTouch: true,
-      deviceScaleFactor: 1,
-    });
-    try {
+  const statePath = resolve(artifactDirectory, "foundation-storage.json");
+  await withQaBrowser(async (browser) => {
+    await withQaContext(browser, qaProfiles.phone, async (context) => {
       const page = await context.newPage();
-      const pageErrors: string[] = [];
-      page.on("pageerror", (error) => pageErrors.push(error.message));
       await page.goto(url.href, { waitUntil: "load" });
-      if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
       await page.locator(".folder-row", { hasText: folder }).click();
       await page.getByRole("button", { name: /Open this folder/ }).click();
       await page
@@ -61,16 +49,10 @@ async function main(): Promise<void> {
       await page.goBack();
       await page.goBack();
       await page.locator(".project-view").waitFor({ state: "visible" });
-      if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      const statePath = resolve(artifactDirectory, "foundation-storage.json");
       await context.storageState({ path: statePath });
-      console.log(`Mobile folder selection and reload passed. Browser state: ${statePath}`);
-    } finally {
-      await context.close();
-    }
-  } finally {
-    await browser.close();
-  }
+    });
+    console.log(`Mobile folder selection and reload passed. Browser state: ${statePath}`);
+  });
 }
 
 main().catch((error: unknown) => {
