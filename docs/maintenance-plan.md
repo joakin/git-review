@@ -1,7 +1,7 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12 and M13a accepted and committed; QA command cleanup accepted and approved for
-commit; M13b/M13c and M14–M15 pending
+Status: M01–M12, M13a and QA command cleanup accepted and committed; M13b first batch accepted and
+approved for commit; further M13b adoption, M13c and M14–M15 pending
 
 Created: 2026-09-30
 
@@ -92,9 +92,11 @@ verification of this maintenance work.
 M01–M12 and M13a are accepted and committed. The maintainer held maintenance on 2026-10-04 for
 usability work and resumed it on 2026-10-05. M12 is committed as `379d870`, and M13a as `2bff14a`.
 After accepting M13a, the maintainer requested cleanup of the 29 QA package aliases before further
-migration. The two-command cleanup was accepted and explicitly approved for commit on 2026-10-05.
-M13b/M13c and M14–M15 remain pending. The sequence keeps independently risky changes in separate
-review steps; M15 starts with measurement before any optimization.
+migration. The two-command cleanup was accepted and committed as `f0ce3b3` on 2026-10-05. The first
+M13b batch migrates Search, selected-code Search and working-copy diffs to the existing browser
+interface and is accepted and explicitly approved for commit on 2026-10-05. Further M13b adoption,
+M13c and M14–M15 remain pending. The sequence keeps independently risky changes in separate review
+steps; M15 starts with measurement before any optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -728,8 +730,9 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   browser/context lifetime, the profiles used by the first callers, HTTP URL parsing, page-error
   collection and overflow checks. Migrate Files, images and media playback; verify their existing
   feature checks still pass. The [handoff](#m13a-handoff--2026-10-05) records this slice.
-- **M13b — Further browser/fixture adoption:** next after the accepted QA command cleanup. Reuse the
-  agreed interface where useful in the remaining scripts, adding shared tablet profiles,
+- **M13b — Further browser/fixture adoption:** the first batch migrates Search, selected-code Search
+  and working-copy diffs without extending the agreed interface; it is accepted and approved for
+  commit. Reuse the interface where useful in the remaining scripts, adding shared tablet profiles,
   argument/fixture and artifact handling only when callers need them. Keep each feature's
   interactions and assertions local.
 - **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
@@ -1788,4 +1791,35 @@ maintainer approved the two-command cleanup on 2026-10-05.
   captures or physical-device checks were rerun for package aliases, usage text and documentation.
   Runtime source and client assets are unchanged, and the maintained services were not restarted.
 - **Review/next step:** the maintainer accepted the cleanup, explicitly requested its commit and
-  continuation on 2026-10-05. M13b is next; M13c remains a separate test-support step.
+  continuation on 2026-10-05. The cleanup is committed as `f0ce3b3`. M13b continues below; M13c
+  remains a separate test-support step.
+
+## M13b first batch handoff — 2026-10-05
+
+- **Alignment:** the maintainer accepted the QA command cleanup and requested its commit and
+  continuation with maintenance. This batch continues the agreed browser-support adoption with three
+  related inventory-fixture checks before further migration.
+- **Implementation:** [Search](../qa/check-search.ts),
+  [selected-code Search](../qa/check-selected-search.ts) and
+  [working-copy diffs](../qa/check-diff.ts) reuse HTTP(S) URL validation, the existing phone
+  profile, browser/context lifetime, context-wide page-error collection and document overflow checks
+  from [browser-support.ts](../qa/browser-support.ts). Their arguments, fixtures, interactions,
+  code-pane geometry checks and feature assertions stay local. Success messages follow completion of
+  the context scope so a recorded page error fails the check before it reports success.
+- **Scope:** the shared interface is unchanged. No new runner, package alias or helper self-test is
+  added. Diff flag/folder validation remains in its script; no new shared argument API is needed.
+- **Verification:** all five strict TypeScript configurations and `bun run qa:check` pass, including
+  138 CSS token references and formatting. All three existing flows pass sequentially against the
+  isolated inventory-fixture server on port 39911. Search covers deep-line navigation, result
+  preservation/refresh and stale-result notices. Selected-code Search covers diff/file fragments,
+  touch placement, a short viewport, page/horizontal scrolling and invalid cross-row selection.
+  Diffs cover staged content, C highlighting, language override persistence, wrapping, contained
+  horizontal scrolling, compact rows, the sticky heading and reload. The compact rows remained 20.8
+  px with and without wrapping. Logs stay in ignored `qa/.artifacts/`.
+- **Delivery and limits:** only the isolated QA server started for this batch was stopped. No
+  runtime source or client asset changes were made; the maintained services were left running. No
+  new screenshot milestones or physical-device checks were performed. The full server suite was not
+  rerun for this QA-only migration; M13c will run the tests affected by its separate extraction.
+- **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
+  continuation on 2026-10-05. Further browser adoption remains in M13b; low-level server test
+  support remains the separate M13c slice.

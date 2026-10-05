@@ -64,6 +64,12 @@ server. Ordinary check output belongs in ignored `qa/.artifacts/`; these checks 
 milestones. The [M13a handoff](maintenance-plan.md#m13a-handoff--2026-10-05) records verification
 and the remaining browser/fixture and server-test migrations.
 
+The [first M13b batch](maintenance-plan.md#m13b-first-batch-handoff--2026-10-05) adds
+`bun qa/check-search.ts`, `bun qa/check-selected-search.ts` and `bun qa/check-diff.ts` as callers of
+the same interface. These checks retain their existing phone profile, arguments and inventory
+fixture setup; code-pane geometry and feature assertions remain in each script. Run the affected
+existing app flows when changing them.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook

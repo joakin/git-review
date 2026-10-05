@@ -1,24 +1,19 @@
-import { chromium } from "playwright-core";
+import {
+  appUrl,
+  assertNoHorizontalOverflow,
+  qaProfiles,
+  withQaBrowser,
+  withQaContext,
+} from "./browser-support.ts";
 import { selectCodeText } from "./select-code-text.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-selected-search.ts <local app URL>");
-const url = new URL(rawUrl);
-if (url.protocol !== "http:" && url.protocol !== "https:")
-  throw new Error("Expected an HTTP(S) URL");
+const url = appUrl(rawUrl);
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
-try {
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-    deviceScaleFactor: 1,
-  });
-  try {
+await withQaBrowser(async (browser) => {
+  await withQaContext(browser, qaProfiles.phone, async (context) => {
     const page = await context.newPage();
-    const pageErrors: string[] = [];
-    page.on("pageerror", (error) => pageErrors.push(error.message));
     await page.goto(url.href, { waitUntil: "load" });
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
@@ -129,19 +124,9 @@ try {
       selection.addRange(range);
     });
     await page.locator(".code-selection-action").waitFor({ state: "hidden" });
-    const widths = await page.evaluate(() => ({
-      document: document.documentElement.scrollWidth,
-      viewport: document.documentElement.clientWidth,
-    }));
-    if (widths.document > widths.viewport + 2)
-      throw new Error(`Selected-code Search overflowed: ${JSON.stringify(widths)}`);
-    if (pageErrors.length > 0) throw new Error(`Page errors: ${pageErrors.join("; ")}`);
-    console.log(
-      "Phone diff/file selection, page and code-pane scrolling, invalid cross-line selection, Search submission, results, and page width passed",
-    );
-  } finally {
-    await context.close();
-  }
-} finally {
-  await browser.close();
-}
+    await assertNoHorizontalOverflow(page);
+  });
+  console.log(
+    "Phone diff/file selection, page and code-pane scrolling, invalid cross-line selection, Search submission, results, and page width passed",
+  );
+});

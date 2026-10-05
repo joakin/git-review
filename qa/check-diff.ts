@@ -1,4 +1,10 @@
-import { chromium } from "playwright-core";
+import {
+  appUrl,
+  assertNoHorizontalOverflow,
+  qaProfiles,
+  withQaBrowser,
+  withQaContext,
+} from "./browser-support.ts";
 
 function options(args: readonly string[]): { url: URL; folder: string } {
   if (args.length !== 4 || args[0] !== "--url" || args[2] !== "--folder") {
@@ -11,26 +17,14 @@ function options(args: readonly string[]): { url: URL; folder: string } {
   if (rawUrl === undefined || folder === undefined || folder.length === 0 || folder.includes("/")) {
     throw new Error("Provide an app URL and one direct child fixture folder");
   }
-  const url = new URL(rawUrl);
-  if (url.protocol !== "http:" && url.protocol !== "https:")
-    throw new Error("The app URL must use HTTP or HTTPS");
-  return { url, folder };
+  return { url: appUrl(rawUrl), folder };
 }
 
 async function main(): Promise<void> {
   const { url, folder } = options(process.argv.slice(2));
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  try {
-    const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-      isMobile: true,
-      hasTouch: true,
-      deviceScaleFactor: 1,
-    });
-    try {
+  await withQaBrowser(async (browser) => {
+    await withQaContext(browser, qaProfiles.phone, async (context) => {
       const page = await context.newPage();
-      const pageErrors: string[] = [];
-      page.on("pageerror", (error) => pageErrors.push(error.message));
       await page.goto(url.href, { waitUntil: "load" });
       await page.getByRole("button", { name: new RegExp(folder) }).click();
       await page.getByRole("button", { name: /Open this folder/ }).click();
@@ -73,11 +67,10 @@ async function main(): Promise<void> {
         return {
           paneWidth: pane.clientWidth,
           contentWidth: pane.scrollWidth,
-          pageWidth: document.documentElement.scrollWidth,
-          viewportWidth: document.documentElement.clientWidth,
         };
       });
-      if (widths.contentWidth <= widths.paneWidth || widths.pageWidth > widths.viewportWidth + 2) {
+      await assertNoHorizontalOverflow(page);
+      if (widths.contentWidth <= widths.paneWidth) {
         throw new Error(`Code did not scroll inside its pane: ${JSON.stringify(widths)}`);
       }
 
@@ -225,16 +218,11 @@ async function main(): Promise<void> {
       await cCard.locator(".diff-row").waitFor({ state: "visible" });
       if ((await cCard.getByLabel("Language").inputValue()) !== "cpp")
         throw new Error("Language override was not restored after reload");
-      if (pageErrors.length > 0) throw new Error(`Browser errors: ${pageErrors.join("; ")}`);
-      console.log(
-        "Mobile diff navigation, staged content, C highlighting, language override, gutter-free compact rows, horizontal scrolling, wrap, sticky long-file header, and reload passed.",
-      );
-    } finally {
-      await context.close();
-    }
-  } finally {
-    await browser.close();
-  }
+    });
+    console.log(
+      "Mobile diff navigation, staged content, C highlighting, language override, gutter-free compact rows, horizontal scrolling, wrap, sticky long-file header, and reload passed.",
+    );
+  });
 }
 
 main().catch((error: unknown) => {

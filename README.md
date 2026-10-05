@@ -38,12 +38,13 @@ card state and loaded history pages stay in this tab's memory. See
 
 The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer
 considers the app usable and useful; the final reviewed feature delivery is `22de40e`. The
-subsequent [maintenance pass](docs/maintenance-plan.md) is on hold during the agreed
-[usability follow-ups](docs/pwa-navigation-and-file-feedback-proposal.md); its plan owns maintenance
-progress, review status, and verification evidence. The
-[remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product
-backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30)
-preserves acceptance and verification context.
+subsequent [maintenance pass](docs/maintenance-plan.md) resumed on 2026-10-05 after the agreed
+[usability follow-ups](docs/pwa-navigation-and-file-feedback-proposal.md) and selection extension
+were accepted and committed. Its plan owns maintenance progress, review status, and verification
+evidence. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an
+optional product backlog. The
+[stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30) preserves
+acceptance and verification context.
 
 ## Run the app
 
