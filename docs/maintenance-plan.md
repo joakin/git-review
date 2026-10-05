@@ -1,7 +1,7 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12, M13a and QA command cleanup accepted and committed; M13b first batch accepted and
-approved for commit; further M13b adoption, M13c and M14–M15 pending
+Status: M01–M12, M13a, QA command cleanup and M13b first batch accepted and committed; M13b feedback
+batch accepted and approved for commit; further M13b adoption, M13c and M14–M15 pending
 
 Created: 2026-09-30
 
@@ -86,6 +86,10 @@ verification of this maintenance work.
    work. Preserve the maintainer's app and stored review data.
 10. Update the affected behavior record and this plan when a decision or review status changes.
     Documentation-only changes need link, command, and whitespace checks.
+11. Stop when M01–M15 are complete, including reviewed decisions to close an item with evidence. The
+    maintainer explicitly restated this boundary on 2026-10-05. Do not start optional roadmap items,
+    the deferred stateless project work, new features or unrelated cleanup without a separate
+    maintainer request.
 
 ## Slice order and status
 
@@ -94,7 +98,8 @@ usability work and resumed it on 2026-10-05. M12 is committed as `379d870`, and 
 After accepting M13a, the maintainer requested cleanup of the 29 QA package aliases before further
 migration. The two-command cleanup was accepted and committed as `f0ce3b3` on 2026-10-05. The first
 M13b batch migrates Search, selected-code Search and working-copy diffs to the existing browser
-interface and is accepted and explicitly approved for commit on 2026-10-05. Further M13b adoption,
+interface and is committed as `097f245`. The feedback batch migrates feedback, line actions and
+modals, and is accepted and explicitly approved for commit on 2026-10-05. Further M13b adoption,
 M13c and M14–M15 remain pending. The sequence keeps independently risky changes in separate review
 steps; M15 starts with measurement before any optimization.
 
@@ -731,10 +736,11 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   collection and overflow checks. Migrate Files, images and media playback; verify their existing
   feature checks still pass. The [handoff](#m13a-handoff--2026-10-05) records this slice.
 - **M13b — Further browser/fixture adoption:** the first batch migrates Search, selected-code Search
-  and working-copy diffs without extending the agreed interface; it is accepted and approved for
-  commit. Reuse the interface where useful in the remaining scripts, adding shared tablet profiles,
-  argument/fixture and artifact handling only when callers need them. Keep each feature's
-  interactions and assertions local.
+  and working-copy diffs without extending the agreed interface; it is committed as `097f245`. The
+  feedback batch adopts the interface for feedback, line actions and modals, adding the two tablet
+  profiles used by modal checks; it is accepted and approved for commit. Reuse the interface where
+  useful in the remaining scripts, adding argument/fixture and artifact handling only when callers
+  need them. Keep each feature's interactions and assertions local.
 - **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
   temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
   affected server suite after that extraction.
@@ -799,6 +805,9 @@ A slice is complete after its scoped implementation, relevant checks, documentat
 maintainer review. Record implementation/review/commit status separately. Do not claim whole-pass
 completion while a pending item lacks either a delivered result or an explicit evidence-backed
 decision to defer it.
+
+Once this plan is complete, report its closure and stop. The optional backlog and separately
+deferred work remain outside this maintenance run.
 
 Use this compact entry for each handoff:
 
@@ -1821,5 +1830,45 @@ maintainer approved the two-command cleanup on 2026-10-05.
   new screenshot milestones or physical-device checks were performed. The full server suite was not
   rerun for this QA-only migration; M13c will run the tests affected by its separate extraction.
 - **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
-  continuation on 2026-10-05. Further browser adoption remains in M13b; low-level server test
-  support remains the separate M13c slice.
+  continuation on 2026-10-05. The batch is committed as `097f245`. Further browser adoption remains
+  in M13b; low-level server test support remains the separate M13c slice.
+
+## M13b feedback batch handoff — 2026-10-05
+
+- **Alignment:** after accepting the first M13b batch, the maintainer requested its commit and
+  continuation. This batch adopts the agreed support for three related feedback checks.
+- **Implementation:** [feedback](../qa/check-feedback.ts),
+  [line actions](../qa/check-line-action.ts) and [modals](../qa/check-modals.ts) share HTTP(S) URL
+  validation, browser/context cleanup and context-wide page-error collection.
+  [browser-support.ts](../qa/browser-support.ts) adds only the existing 820 × 1180 and 1180 × 820
+  touch profiles required by modals. Modal bounds, keyboard/focus, dismissal and scroll-lock
+  assertions remain local. Generic document overflow uses the existing helper; line-action box
+  bounds remain local, and its desktop context now also checks page errors and document containment.
+- **Context and fixture ownership:** feedback passes its preview and saved active session from the
+  primary context to its separate clipboard-fallback context; each scope closes on success or
+  failure. The existing storage-state file and reattachment scenarios remain in that script. Line
+  actions retain their temporary Git setup and outer `finally` removal after browser cleanup.
+  Success output follows completion of the scoped context checks.
+- **Scope:** feature interactions, assertions and fixture arguments are retained. No package alias,
+  runner, generic fixture abstraction or helper self-test is added.
+- **Setup correction:** the first feedback run caught the fallback session-storage initializer
+  executing on Chrome's initial `about:blank` document, where storage access is denied. The scoped
+  listener records that error before the older script attached its page listener. The initializer
+  now restores session storage only on the validated app origin. Its normal app flow still restores
+  the saved active session; no page errors are suppressed.
+- **Verification:** all five strict TypeScript configurations and `bun run qa:check` pass, including
+  138 CSS token references and formatting. The three existing scripts pass sequentially against the
+  isolated fixture server on port 39911 after the setup correction. Feedback covers reload, checked
+  preview, copy/history/Undo, clipboard fallback, stale exclusion, Cancel and Old-side reattachment,
+  export and persistent Delete. Line actions cover 320 px phone containment, gutter removal, New/Old
+  anchors, Feedback clearance, Escape, selection priority and desktop controls. Modal focus,
+  keyboard containment, inside interactions, all three dismissal paths, exact scroll restoration,
+  latest-body saving and editor handoff pass at 390, 820, 1180 and 1440 px, plus 320 px installation
+  containment. Logs, including the initial failure, remain in ignored `qa/.artifacts/`.
+- **Delivery and limits:** only the isolated server started for this batch was stopped. Runtime
+  source, client assets, the maintained services and tracked screenshots are unchanged. No new
+  screenshot captures or physical-device checks were performed. The full server suite was not rerun
+  for this QA-only migration; M13c will run the suite affected by its separate extraction.
+- **Review/next step:** the maintainer accepted this batch, explicitly requested its commit and
+  continuation, and restated the maintenance stopping boundary on 2026-10-05. Further M13b adoption
+  and the separate M13c server test-support slice remain pending.

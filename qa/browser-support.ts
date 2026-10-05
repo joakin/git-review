@@ -13,6 +13,8 @@ export const qaProfiles = {
     hasTouch: true,
     deviceScaleFactor: 1,
   },
+  tabletPortrait: { viewport: { width: 820, height: 1180 }, hasTouch: true },
+  tabletLandscape: { viewport: { width: 1180, height: 820 }, hasTouch: true },
   desktop: { viewport: { width: 1440, height: 900 } },
 } satisfies Record<string, BrowserContextOptions>;
 

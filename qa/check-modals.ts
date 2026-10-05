@@ -1,10 +1,17 @@
-import { chromium, type Locator, type Page } from "playwright-core";
+import type { Locator, Page } from "playwright-core";
+import {
+  appUrl,
+  assertNoHorizontalOverflow,
+  qaProfiles,
+  withQaBrowser,
+  withQaContext,
+} from "./browser-support.ts";
 
-const appUrl = process.argv[2];
-if (appUrl === undefined) throw new Error("Usage: bun qa/check-modals.ts <local app URL>");
+const rawUrl = process.argv[2];
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-modals.ts <local app URL>");
 const reviewUrl = new URL(
   "/?section=changes&project=inventory-fixture&layer=staged&file=src/view.ts",
-  appUrl,
+  appUrl(rawUrl),
 ).href;
 const previousOverflow = { body: "auto", document: "scroll" };
 type Dismissal = "escape" | "header" | "backdrop";
@@ -20,11 +27,11 @@ async function checkFit(page: Page, dialog: Locator): Promise<void> {
       rect.left >= -1 &&
       rect.right <= innerWidth + 1 &&
       rect.top >= -1 &&
-      rect.bottom <= innerHeight + 1 &&
-      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2
+      rect.bottom <= innerHeight + 1
     );
   });
   assert(fits, `Modal overflowed the ${page.viewportSize()?.width}px viewport`);
+  await assertNoHorizontalOverflow(page);
 }
 
 async function checkOpen(page: Page, dialog: Locator, initialFocus: Locator): Promise<void> {
@@ -146,25 +153,17 @@ async function dismiss(
   }
 }
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
-try {
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 820, height: 1180 },
-    { width: 1180, height: 820 },
-    { width: 1440, height: 900 },
+await withQaBrowser(async (browser) => {
+  for (const profile of [
+    qaProfiles.phone,
+    qaProfiles.tabletPortrait,
+    qaProfiles.tabletLandscape,
+    qaProfiles.desktop,
   ]) {
-    const context = await browser.newContext({
-      viewport,
-      isMobile: viewport.width < 600,
-      hasTouch: viewport.width < 1200,
-      serviceWorkers: "block",
-    });
-    try {
+    const { viewport } = profile;
+    await withQaContext(browser, { ...profile, serviceWorkers: "block" }, async (context) => {
       const page = await context.newPage();
       page.setDefaultTimeout(10_000);
-      const errors: string[] = [];
-      page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(reviewUrl, { waitUntil: "load" });
       const row = page
         .locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"] .diff-row-added')
@@ -261,17 +260,12 @@ try {
         );
         await dismiss(page, install, "escape", "Close install and local data", installOpener);
       }
-      assert(errors.length === 0, `Browser errors at ${viewport.width}px: ${errors.join("; ")}`);
-      console.log(
-        `Modal focus, keyboard containment, inside interactions, Escape/header/backdrop dismissal, exact scroll-lock cleanup, handoff, and latest-body saving passed at ${viewport.width}px.`,
-      );
-    } finally {
-      await context.close();
-    }
+    });
+    console.log(
+      `Modal focus, keyboard containment, inside interactions, Escape/header/backdrop dismissal, exact scroll-lock cleanup, handoff, and latest-body saving passed at ${viewport.width}px.`,
+    );
   }
   console.log(
     "Comment, Feedback, and installation modal checks passed at all four sizes, plus 320px installation containment. Real-device gestures were not exercised.",
   );
-} finally {
-  await browser.close();
-}
+});

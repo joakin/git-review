@@ -47,10 +47,12 @@ to `bun qa/prepare-inventory-fixture.ts` and `bun qa/prepare-git-fixture.ts` res
 
 [browser-support.ts](../qa/browser-support.ts) owns headless installed-Chrome lifetime and scoped
 context cleanup. Use `withQaBrowser` for a run and `withQaContext` for each isolated context. Pass
-context options explicitly: `qaProfiles.phone` preserves the 390 × 844 touch profile,
-`qaProfiles.desktop` the 1440 × 900 desktop, and `{}` retains Chrome's default context options.
-`appUrl` accepts HTTP(S) URLs; scripts continue to own positional/flag requirements and fixture
-selection. Keep feature interactions, requests and scenario assertions beside their check.
+context options explicitly: `qaProfiles.phone` preserves the 390 × 844 mobile touch profile,
+`qaProfiles.tabletPortrait` and `qaProfiles.tabletLandscape` the 820 × 1180 and 1180 × 820 tablet
+touch profiles, `qaProfiles.desktop` the 1440 × 900 desktop, and `{}` retains Chrome's default
+context options. `appUrl` accepts HTTP(S) URLs; scripts continue to own positional/flag requirements
+and fixture selection. Keep feature interactions, requests and scenario assertions beside their
+check.
 
 The context scope records page errors from all tabs and popups before invoking the check. It fails a
 completed check if any were collected and closes the context on either success or failure.
@@ -69,6 +71,13 @@ The [first M13b batch](maintenance-plan.md#m13b-first-batch-handoff--2026-10-05)
 the same interface. These checks retain their existing phone profile, arguments and inventory
 fixture setup; code-pane geometry and feature assertions remain in each script. Run the affected
 existing app flows when changing them.
+
+The [M13b feedback batch](maintenance-plan.md#m13b-feedback-batch-handoff--2026-10-05) adds
+`bun qa/check-feedback.ts`, `bun qa/check-line-action.ts` and `bun qa/check-modals.ts`. Feedback
+retains its saved-state handoff to the clipboard-fallback context. Line actions retain their own
+temporary Git fixture and cleanup. Modals use all four profiles with service workers blocked; dialog
+geometry, focus, dismissal and scroll-lock checks remain local. Their usage and fixture requirements
+are unchanged.
 
 ## Repository formatting
 
