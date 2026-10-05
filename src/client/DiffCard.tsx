@@ -1,10 +1,10 @@
-import { useEffect, useState } from "preact/hooks";
 import type { ChangeEntry, LanguageOption } from "../shared/api.ts";
 import { fetchProjectDiff } from "./api.ts";
-import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 import { type CommentAnchor, type DraftComment, type ReviewSide } from "./comments.ts";
-import { DiffCardFrame, type DiffState } from "./DiffCardFrame.tsx";
-import { diffCacheKey, readCachedDiff, rememberDiff } from "./diff-cache.ts";
+import { DiffCardFrame } from "./DiffCardFrame.tsx";
+import { diffCacheKey } from "./diff-cache.ts";
+import { useDiffLoading } from "./diff-loading.ts";
+import { useLanguageOverride } from "./language-override.ts";
 
 type DiffCardProps = {
   entry: ChangeEntry;
@@ -45,15 +45,11 @@ export function DiffCard({
   drafts,
   reattachSide,
 }: DiffCardProps) {
-  const [override, setOverride] = useState<string | null>(() =>
-    readLanguageOverride(projectId, entry.path),
+  const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
+    projectId,
+    entry.path,
+    languages,
   );
-  const effectiveOverride =
-    override === null ||
-    override === "text" ||
-    languages.some((language) => language.id === override)
-      ? override
-      : null;
   const requestKey = diffCacheKey({
     projectId,
     layer: entry.layer,
@@ -63,47 +59,15 @@ export function DiffCard({
     refreshKey,
     language: effectiveOverride,
   });
-  const [loaded, setLoaded] = useState<{ key: string; state: DiffState } | null>(null);
-  const [retry, setRetry] = useState(0);
-  const cached = expanded ? readCachedDiff(requestKey) : null;
-  const current: DiffState =
-    loaded?.key === requestKey
-      ? loaded.state
-      : cached === null
-        ? { kind: "loading" }
-        : { kind: "ready", value: cached };
-
-  useEffect(() => {
-    if (!expanded || current.kind === "ready") return;
-    const controller = new AbortController();
-    setLoaded({ key: requestKey, state: { kind: "loading" } });
-    fetchProjectDiff(
-      projectId,
-      entry.layer,
-      entry.path,
-      revision,
-      effectiveOverride,
-      controller.signal,
-    ).then(
-      (value) => {
-        if (controller.signal.aborted) return;
-        rememberDiff(requestKey, value);
-        setLoaded({ key: requestKey, state: { kind: "ready", value } });
-        if (value.kind === "stale") onStale();
-      },
-      (error: unknown) => {
-        if (!controller.signal.aborted)
-          setLoaded({
-            key: requestKey,
-            state: {
-              kind: "error",
-              message: error instanceof Error ? error.message : "Diff could not be loaded",
-            },
-          });
-      },
-    );
-    return () => controller.abort();
-  }, [expanded, projectId, entry.layer, entry.path, requestKey, retry]);
+  const { current, retry } = useDiffLoading(expanded, {
+    key: requestKey,
+    read: (signal) =>
+      fetchProjectDiff(projectId, entry.layer, entry.path, revision, effectiveOverride, signal),
+    errorMessage: "Diff could not be loaded",
+    onLoaded: (value) => {
+      if (value.kind === "stale") onStale();
+    },
+  });
 
   return (
     <DiffCardFrame
@@ -113,13 +77,10 @@ export function DiffCard({
       onToggle={onToggle}
       languages={languages}
       override={override}
-      onLanguage={(value) => {
-        setOverride(value);
-        saveLanguageOverride(projectId, entry.path, value);
-      }}
+      onLanguage={changeLanguage}
       current={current}
       requestKey={requestKey}
-      retry={() => setRetry((value) => value + 1)}
+      retry={retry}
       wrap={wrap}
     />
   );

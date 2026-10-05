@@ -1,10 +1,10 @@
-import type { DiffResult, LanguageOption } from "../shared/api.ts";
+import type { LanguageOption } from "../shared/api.ts";
 import type { CommitFileChange } from "../shared/git.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { DiffBody, type DiffInteraction } from "./DiffBody.tsx";
+import { LanguagePicker } from "./LanguagePicker.tsx";
+import type { DiffState } from "./diff-loading.ts";
 
-export type DiffState =
-  { kind: "loading" } | { kind: "ready"; value: DiffResult } | { kind: "error"; message: string };
 type DiffCardMode =
   Extract<DiffInteraction, { kind: "review" }> | { kind: "inspect"; file: CommitFileChange };
 
@@ -80,35 +80,17 @@ export function DiffCardFrame({
       </button>
       {expanded && (
         <div class="diff-card-body">
-          {languages.length > 0 && (current.kind !== "ready" || current.value.kind === "text") && (
-            <div class="diff-language-row">
-              <label>
-                Language{" "}
-                <select
-                  value={override ?? "auto"}
-                  onChange={(event) =>
-                    onLanguage(
-                      event.currentTarget.value === "auto" ? null : event.currentTarget.value,
-                    )
-                  }
-                >
-                  <option value="auto">Auto detect</option>
-                  <option value="text">Plain text</option>
-                  {languages.map((language) => (
-                    <option key={language.id} value={language.id}>
-                      {language.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {current.kind === "ready" && current.value.kind === "text" && (
-                <span>
-                  {current.value.syntax.kind === "highlighted"
-                    ? current.value.syntax.language
-                    : "Plain text"}
-                </span>
-              )}
-            </div>
+          {(current.kind !== "ready" || current.value.kind === "text") && (
+            <LanguagePicker
+              languages={languages}
+              override={override}
+              onChange={onLanguage}
+              syntax={
+                current.kind === "ready" && current.value.kind === "text"
+                  ? current.value.syntax
+                  : null
+              }
+            />
           )}
           {current.kind === "loading" && (
             <DelayedLoading key={requestKey} className="diff-message" message="Loading diff…" />

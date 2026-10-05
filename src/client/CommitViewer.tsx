@@ -1,10 +1,10 @@
-import { useEffect, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 import type { LanguageOption, Project } from "../shared/api.ts";
 import type { CommitDetail, CommitFileChange } from "../shared/git.ts";
 import { fetchCommitDiff } from "./git-api.ts";
-import { DiffCardFrame, type DiffState } from "./DiffCardFrame.tsx";
-import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
-import { readCachedDiff, rememberDiff } from "./diff-cache.ts";
+import { DiffCardFrame } from "./DiffCardFrame.tsx";
+import { useDiffLoading } from "./diff-loading.ts";
+import { useLanguageOverride } from "./language-override.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
 
 const collapsedCommits = new Map<string, Set<string>>();
@@ -26,55 +26,24 @@ function CommitCard({
   wrap: boolean;
   languages: readonly LanguageOption[];
 }) {
-  const [override, setOverride] = useState<string | null>(() =>
-    readLanguageOverride(projectId, file.path),
+  const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
+    projectId,
+    file.path,
+    languages,
   );
-  const effective =
-    override === null ||
-    override === "text" ||
-    languages.some((language) => language.id === override)
-      ? override
-      : null;
   const key = JSON.stringify([
     "commit",
     projectId,
     detail.oid,
     detail.comparison.kind === "empty" ? "empty" : detail.comparison.oid,
     file.path,
-    effective,
+    effectiveOverride,
   ]);
-  const [loaded, setLoaded] = useState<{ key: string; state: DiffState } | null>(null);
-  const [retry, setRetry] = useState(0);
-  const cached = expanded ? readCachedDiff(key) : null;
-  const current: DiffState =
-    loaded?.key === key
-      ? loaded.state
-      : cached === null
-        ? { kind: "loading" }
-        : { kind: "ready", value: cached };
-  useEffect(() => {
-    if (!expanded || current.kind === "ready") return;
-    const controller = new AbortController();
-    setLoaded({ key, state: { kind: "loading" } });
-    fetchCommitDiff(projectId, detail.oid, file.path, effective, controller.signal).then(
-      (value) => {
-        if (controller.signal.aborted) return;
-        rememberDiff(key, value);
-        setLoaded({ key, state: { kind: "ready", value } });
-      },
-      (error: unknown) => {
-        if (!controller.signal.aborted)
-          setLoaded({
-            key,
-            state: {
-              kind: "error",
-              message: error instanceof Error ? error.message : "Commit diff could not be loaded",
-            },
-          });
-      },
-    );
-    return () => controller.abort();
-  }, [expanded, projectId, detail.oid, file.path, key, retry]);
+  const { current, retry } = useDiffLoading(expanded, {
+    key,
+    read: (signal) => fetchCommitDiff(projectId, detail.oid, file.path, effectiveOverride, signal),
+    errorMessage: "Commit diff could not be loaded",
+  });
   return (
     <DiffCardFrame
       mode={{ kind: "inspect", file }}
@@ -83,13 +52,10 @@ function CommitCard({
       onToggle={onToggle}
       languages={languages}
       override={override}
-      onLanguage={(value) => {
-        setOverride(value);
-        saveLanguageOverride(projectId, file.path, value);
-      }}
+      onLanguage={changeLanguage}
       current={current}
       requestKey={key}
-      retry={() => setRetry((value) => value + 1)}
+      retry={retry}
       wrap={wrap}
     />
   );

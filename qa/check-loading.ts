@@ -2,6 +2,7 @@ import { chromium } from "playwright-core";
 import { checkProjectOpeningCancellation } from "./project-opening-check.ts";
 import { checkWorkingCopyOwnership } from "./working-copy-ownership-check.ts";
 import { checkViewStateRecovery } from "./view-state-check.ts";
+import { checkDiffLoading } from "./diff-loading-check.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun run qa:loading <local app URL>");
@@ -14,6 +15,7 @@ try {
   await checkProjectOpeningCancellation(browser, base);
   await checkWorkingCopyOwnership(browser, base);
   await checkViewStateRecovery(browser, base);
+  await checkDiffLoading(browser, base);
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,

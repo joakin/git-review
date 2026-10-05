@@ -61,6 +61,15 @@ capacity. [M06](maintenance-plan.md#m06--reuse-the-bounded-cache-implementation)
 duplicate mechanism without changing those domain policies. The byte estimate counts serialized
 UTF-16 data, not total browser memory.
 
+[The shared diff loader](../src/client/diff-loading.ts) now owns keyed loaded/error state,
+cancellation, retry, and immediate cache reads for working-copy and historical cards. Each card
+adapter supplies its resource key, request, error fallback, and any response policy. Working-copy
+stale handling stays in [DiffCard](../src/client/DiffCard.tsx); immutable commit keys stay in
+[CommitViewer](../src/client/CommitViewer.tsx), and its three-request queue stays in
+[git-api.ts](../src/client/git-api.ts). The loader checks current expansion and identity before
+accepting results, including before effect cleanup aborts a superseded request. The
+[M10 handoff](maintenance-plan.md#m10-handoff--2026-10-05) records the refactor and verification.
+
 The delay is a presentation choice, not a delay before starting requests. Network and parsing errors
 retain their existing messages and retry actions. We avoid retaining results from another project or
 query as if they belonged to the new route.
@@ -71,17 +80,21 @@ The loading suite also covers view recovery: a failed Files directory read retri
 opens a recovered file; an empty parent directory removes previous rows; a picker read failure
 disables opening until Back to root and reselection recover it.
 
-`bun run qa:loading http://127.0.0.1:3000/` uses the inventory fixture and holds project-open,
-directory, file, and Search responses in the browser. It checks that short waits do not show loading
-text, slow waits do, old destinations do not flash, returning to the same project does not reopen
-it, and switching projects sends one open request. It also verifies that an expanded diff sends no
-new diff request across two Back/Forward cycles, keeps its height and scroll position, and fetches
-again on Refresh. Held working-copy status and renewed diff responses verify that navigation
-preserves the selected Files URL, Files/Settings reading positions, and replacement project
-ownership without an old redirect or error. `bun run qa:navigation` checks the broader Back/Forward
-and responsive flows, including phone/desktop card toggles without repeat scrolling, collapsing the
-URL-selected card, Refresh without reopening it, and refocusing after reselection or Forward.
-Four-size captures cover [loaded Files](../qa/screenshots/loading-polish-file/mobile.png), an
+`bun run qa:loading http://127.0.0.1:3000/` uses the inventory and history fixtures and holds
+project-open, directory, file, and Search responses in the browser. It checks that short waits do
+not show loading text, slow waits do, old destinations do not flash, returning to the same project
+does not reopen it, and switching projects sends one open request. It also verifies that an expanded
+diff sends no new diff request across two Back/Forward cycles, keeps its height and scroll position,
+and fetches again on Refresh. The suite also uses the history fixture to exercise both diff adapters
+with fully buffered responses that ignore abort: collapse and language supersession exclude late
+results from the view and cache, Retry retains the override, and reload restores it. A current
+working-copy stale response still refreshes its status and diff. Held working-copy status and
+renewed diff responses verify that navigation preserves the selected Files URL, Files/Settings
+reading positions, and replacement project ownership without an old redirect or error.
+`bun run qa:navigation` checks the broader Back/Forward and responsive flows, including
+phone/desktop card toggles without repeat scrolling, collapsing the URL-selected card, Refresh
+without reopening it, and refocusing after reselection or Forward. Four-size captures cover
+[loaded Files](../qa/screenshots/loading-polish-file/mobile.png), an
 [expanded diff](../qa/screenshots/diff-cache-expanded/mobile.png), and
 [reviewing another card after URL selection](../qa/screenshots/diff-navigation-focus/mobile.png).
 

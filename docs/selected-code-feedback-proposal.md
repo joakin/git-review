@@ -1,6 +1,6 @@
 # Selected code → Search or Comment
 
-Status: implemented on 2026-10-04; accepted with explicit commit approval on 2026-10-05
+Status: implemented on 2026-10-04; accepted and committed as `9b55cac` on 2026-10-05
 
 Created: 2026-10-04
 

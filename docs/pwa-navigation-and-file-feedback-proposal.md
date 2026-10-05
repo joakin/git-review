@@ -8,8 +8,8 @@ Created: 2026-10-04
 The maintainer reported three issues while using the installed app: browser history has no visible
 controls, feedback cannot be created while reading working-tree files, and entering a project on a
 phone opens content before its contextual list. The maintainer requested the usual proposal,
-alignment, implementation, and review sequence. The [maintenance pass](maintenance-plan.md) remains
-on hold.
+alignment, implementation, and review sequence. These slices and the selection extension are now
+accepted and committed; the [maintenance pass](maintenance-plan.md) resumed at M10 on 2026-10-05.
 
 This proposal builds on the existing [URL navigation](navigation-and-url-history-slice-proposal.md),
 [file browser](file-browser-slice-proposal.md), [feedback](feedback-slice-proposal.md), and

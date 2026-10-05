@@ -96,11 +96,16 @@ selecting it again, opening its direct link, and browser Forward must still expa
 expanded card after entering Changes through a file URL at all four sizes.
 
 For loading and transition regressions, run `bun run qa:loading http://127.0.0.1:3000/` against the
-inventory fixture. It delays project, folder, file, and Search responses to check the 300 ms
-feedback delay, route-specific content, and return to an open project. It also checks that expanded
-diffs retain their content, height, and scroll position across Changes/Files Back and Forward, while
-Refresh refetches. The [loading and transition record](loading-and-transition-polish.md) describes
-the behavior; [loaded Files screenshots](../qa/screenshots/loading-polish-file/mobile.png) and
+inventory and history fixtures (prepare the latter with `bun run qa:git-fixture`). It delays
+project, folder, file, and Search responses to check the 300 ms feedback delay, route-specific
+content, and return to an open project. It also checks that expanded diffs retain their content,
+height, and scroll position across Changes/Files Back and Forward, while Refresh refetches.
+[Diff request checks](../qa/diff-loading-check.ts) also hold fully buffered responses that ignore
+abort for working-copy and historical cards: collapse and changed language exclude abandoned results
+from both view and cache, errors retry with the same override, reload restores it, and a current
+working-copy stale response refreshes. The
+[loading and transition record](loading-and-transition-polish.md) describes the behavior;
+[loaded Files screenshots](../qa/screenshots/loading-polish-file/mobile.png) and
 [expanded diff screenshots](../qa/screenshots/diff-cache-expanded/mobile.png) cover the four
 viewport sizes.
 

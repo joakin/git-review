@@ -1,10 +1,11 @@
 # Documentation map
 
 The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed
-the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is on hold
-during the agreed
+the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) resumed at M10
+on 2026-10-05 after the agreed
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
-slices; its plan owns maintenance progress and review status. Product additions remain in the
+slices and selection extension were accepted and committed; its plan owns maintenance progress and
+review status. Product additions remain in the
 [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current
 behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and
 engineering rules; the root [README](../README.md) explains running the app and private HTTPS
@@ -61,6 +62,13 @@ the bounded cleanup pass. Historical implementation checkpoints describe complet
 [ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU
 promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff
 adapter and Git browser own resource identities, freshness, and individual budgets.
+
+[The shared diff loader](../src/client/diff-loading.ts) owns keyed card state, request lifetime,
+retry, and cache-first rendering. Working-copy and historical card adapters retain their resource
+identities and response policies; Git requests retain their queue in
+[git-api.ts](../src/client/git-api.ts). [LanguagePicker](../src/client/LanguagePicker.tsx) shares
+the control presentation, and [language overrides](../src/client/language-override.ts) share
+validation and per-file persistence.
 
 [The project/session owner](../src/client/project-session.ts) owns root connection, accepted project
 handles, recents, and per-tab restoration. App supplies current URL identity and handles

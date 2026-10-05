@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { FileReadResult, LanguageOption } from "../shared/api.ts";
 import { fetchProjectFile } from "./api.ts";
-import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
+import { useLanguageOverride } from "./language-override.ts";
+import { LanguagePicker } from "./LanguagePicker.tsx";
 import {
   anchorForFileLine,
   type CommentAnchor,
@@ -38,17 +39,13 @@ export function FileViewer({
   searchTarget: { path: string; line: number; query: string | null } | null;
 }) {
   const panelRef = useRef<HTMLElement>(null);
-  const [override, setOverride] = useState<string | null>(() =>
-    readLanguageOverride(projectId, path),
+  const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
+    projectId,
+    path,
+    languages,
   );
   const [state, setState] = useState<FileState>({ kind: "loading" });
   const [retry, setRetry] = useState(0);
-  const effectiveOverride =
-    override === null ||
-    override === "text" ||
-    languages.some((language) => language.id === override)
-      ? override
-      : null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,34 +93,13 @@ export function FileViewer({
           </span>
         )}
       </div>
-      {languages.length > 0 && (result === null || result.kind === "text") && (
-        <div class="diff-language-row">
-          <label>
-            Language{" "}
-            <select
-              value={override ?? "auto"}
-              onChange={(event) => {
-                const value =
-                  event.currentTarget.value === "auto" ? null : event.currentTarget.value;
-                setOverride(value);
-                saveLanguageOverride(projectId, path, value);
-              }}
-            >
-              <option value="auto">Auto detect</option>
-              <option value="text">Plain text</option>
-              {languages.map((language) => (
-                <option key={language.id} value={language.id}>
-                  {language.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {result?.kind === "text" && (
-            <span>
-              {result.syntax.kind === "highlighted" ? result.syntax.language : "Plain text"}
-            </span>
-          )}
-        </div>
+      {(result === null || result.kind === "text") && (
+        <LanguagePicker
+          languages={languages}
+          override={override}
+          onChange={changeLanguage}
+          syntax={result?.syntax ?? null}
+        />
       )}
       {state.kind === "loading" && (
         <DelayedLoading className="diff-message" message="Loading file…" />

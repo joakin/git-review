@@ -1,10 +1,10 @@
 # Maintenance plan after the prototype review
 
-Status: on hold at maintainer request; M01–M09 committed; M10–M15 pending
+Status: resumed at maintainer request; M01–M10 accepted; M11–M15 pending
 
 Created: 2026-09-30
 
-Updated: 2026-10-04
+Updated: 2026-10-05
 
 The maintainer requested this bounded maintenance pass after closing the initial implementation
 stage and gave the implementation go-ahead on 2026-10-01. Each handoff below records its decision,
@@ -82,14 +82,16 @@ verification of this maintenance work.
 ## Slice order and status
 
 M01–M09 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
-work in another thread. M10–M15 remain pending; resume with M10 when the maintainer requests it. The
-sequence below keeps independently risky changes in separate review steps; M15 starts with
-measurement before any optimization.
+usability work. After accepting and requesting the commit of the selection extension and joined
+controls on 2026-10-05, the maintainer requested continuation with the plan. Maintenance resumes at
+M10; M11–M15 remain pending. The sequence below keeps independently risky changes in separate review
+steps; M15 starts with measurement before any optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
 through proposal, alignment, implementation, and review. These usability slices have their own work
-record; the maintenance hold remains in effect throughout this work.
+record. U01–U03, formatting, and the selection extension are accepted and committed; the selection
+extension and joined-control correction are committed as `9b55cac`.
 
 | ID   | Slice                                                   | Main dependency                | Completion evidence                                                                   |
 | ---- | ------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------- |
@@ -1550,3 +1552,53 @@ Use this compact entry for each handoff:
   thread. Resume only when requested; the next slice is M10, sharing diff-loading mechanics and
   language-control presentation while retaining distinct mutable and immutable resource policies.
   M10–M15 remain in the maintenance plan.
+
+## M10 handoff — 2026-10-05
+
+- **Alignment/resume:** the maintainer accepted selection feedback and the joined-control
+  correction, requested their commit (`9b55cac`), and requested continuation with the plan.
+  Maintenance resumes at the agreed M10 boundary.
+- **Implementation:** [diff-loading.ts](../src/client/diff-loading.ts) owns keyed loaded/error
+  state, cache-first rendering, request lifetime, retry and late-result exclusion. Its adapters in
+  [DiffCard](../src/client/DiffCard.tsx) and [CommitViewer](../src/client/CommitViewer.tsx) retain
+  their resource keys, HTTP readers, error fallbacks and response policy. Working-copy keys still
+  include revision, change token and refresh generation; current stale results still request a
+  working-copy refresh. Historical keys still include exact commit/comparison identity and retain
+  the three-request queue in [git-api.ts](../src/client/git-api.ts). The cache still excludes stale
+  results. The hook checks current expansion and key before accepting a completion, including before
+  passive cleanup aborts an obsolete request.
+- **Language controls:** [LanguagePicker](../src/client/LanguagePicker.tsx) renders the common
+  label, select/options and syntax caption for diffs and Files.
+  [language-override.ts](../src/client/language-override.ts) shares language validation and the
+  existing per-project/file storage behavior. Existing DOM classes, option order, captions,
+  text-only visibility and CSS are preserved. Files retains its separate mutable-file loading
+  policy.
+- **Durable regression coverage:** [diff-loading-check.ts](../qa/diff-loading-check.ts), invoked by
+  `qa:loading`, exercises both real card adapters with fully buffered responses deliberately
+  ignoring abort. It checks collapse/reopen, superseded languages, exclusion from the cache, visible
+  errors/Retry, override reload, and active working-copy stale refresh. Initial QA-only failures
+  were an overly strict label selector and a hold recreated by the reload init script; both were
+  corrected. A first working-diff capture used the wrong URL parameter; the failed capture remains
+  in ignored diagnostics and the corrected set below is complete.
+- **Verification:** all five strict TypeScript configurations pass; `bun test` passes 156 tests with
+  1,729 assertions across 25 files. CSS validation resolves 138 token references, formatting and the
+  client build pass. Loading, diff, Files, Git, navigation and live-change browser checks pass. Git
+  peaks at three diff requests at 390, 820, 1180 and 1440 px; immutable reuse, history refresh,
+  collapsed cards and Back/Forward reading positions pass. Live changes preserve cards, draft
+  feedback and reading position during accepted Update/Refresh; a 320 px fit check passes.
+- **Captures:** twelve screenshots were captured with `qa:capture` and inspected. The language
+  picker and surrounding code remain usable at phone, tablet portrait, tablet landscape and desktop
+  sizes. All three manifests report no page-wide horizontal overflow.
+
+| Surface           | Phone                                                           | Tablet portrait                                                          | Tablet landscape                                                          | Desktop                                                          |
+| ----------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Working-copy diff | [View](../qa/screenshots/maintenance-m10-working/mobile.png)    | [View](../qa/screenshots/maintenance-m10-working/tablet-portrait.png)    | [View](../qa/screenshots/maintenance-m10-working/tablet-landscape.png)    | [View](../qa/screenshots/maintenance-m10-working/desktop.png)    |
+| Historical diff   | [View](../qa/screenshots/maintenance-m10-historical/mobile.png) | [View](../qa/screenshots/maintenance-m10-historical/tablet-portrait.png) | [View](../qa/screenshots/maintenance-m10-historical/tablet-landscape.png) | [View](../qa/screenshots/maintenance-m10-historical/desktop.png) |
+| Working-tree file | [View](../qa/screenshots/maintenance-m10-file/mobile.png)       | [View](../qa/screenshots/maintenance-m10-file/tablet-portrait.png)       | [View](../qa/screenshots/maintenance-m10-file/tablet-landscape.png)       | [View](../qa/screenshots/maintenance-m10-file/desktop.png)       |
+
+- **Delivery and limits:** the maintained HTTP/HTTPS services and private HTTPS origin serve the
+  rebuilt assets. Browser checks used Chrome emulation and controlled responses. No new real-device
+  gestures, native selection menus, clipboard, microphone or installed-PWA interruption checks were
+  performed in this slice. Only the isolated QA server started for this slice is stopped.
+- **Review/next step:** the maintainer accepted M10 and explicitly requested its commit and
+  continuation on 2026-10-05. M11 is next: centralizing Git execution and repository/object context.

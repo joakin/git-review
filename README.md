@@ -119,8 +119,8 @@ bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
 bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
 bun run qa:files http://127.0.0.1:3000/
 bun run qa:navigation http://127.0.0.1:3000/
-bun run qa:loading http://127.0.0.1:3000/
 bun run qa:git-fixture
+bun run qa:loading http://127.0.0.1:3000/
 bun run qa:git http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
 bun run qa:selected-feedback http://127.0.0.1:39911/
