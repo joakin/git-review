@@ -1,6 +1,4 @@
-import { constants, type Stats } from "node:fs";
-import { lstat, open, opendir, realpath, stat, type FileHandle } from "node:fs/promises";
-import { isAbsolute, resolve, sep } from "node:path";
+import { opendir, type FileHandle } from "node:fs/promises";
 import type {
   FileReadResult,
   FileTree,
@@ -9,8 +7,13 @@ import type {
   SyntaxState,
   SyntaxToken,
 } from "../shared/api.ts";
-import { hasErrorCode } from "../shared/validation.ts";
-import { AppError, isWithinRoot, type ApprovedRoot } from "./paths.ts";
+import { AppError, type ApprovedRoot } from "./paths.ts";
+import {
+  checkedProjectPath,
+  openCheckedWorkingFile,
+  projectFileAccessError,
+  withCheckedWorkingFile,
+} from "./working-files.ts";
 import { detectLanguage, highlightSource } from "./syntax.ts";
 import {
   fileImageResource,
@@ -30,91 +33,12 @@ const maxEntries = 1000;
 const maxTextBytes = 1024 * 1024;
 const maxLines = 20_000;
 
-export function validateProjectFilePath(value: unknown): string {
-  if (
-    typeof value !== "string" ||
-    value.length > 4096 ||
-    value.includes("\0") ||
-    isAbsolute(value) ||
-    (sep === "\\" && value.includes("\\")) ||
-    (value !== "" &&
-      value.split("/").some((segment) => segment === "" || segment === "." || segment === ".."))
-  ) {
-    throw new AppError("invalid_request", 400, "Invalid project-relative path");
-  }
-  if (value.split("/").includes(".git"))
-    throw new AppError("forbidden", 403, "Git control files are not browsable");
-  return value;
-}
-
-function accessError(error: unknown): never {
-  if (error instanceof AppError) throw error;
-  if (hasErrorCode(error, "ENOENT") || hasErrorCode(error, "ENOTDIR"))
-    throw new AppError("not_found", 404, "File or folder was not found. Refresh the listing.");
-  if (hasErrorCode(error, "EACCES") || hasErrorCode(error, "EPERM"))
-    throw new AppError("forbidden", 403, "The file or folder cannot be read");
-  if (hasErrorCode(error, "ELOOP"))
-    throw new AppError("forbidden", 403, "Symbolic links cannot be followed");
-  throw error;
-}
-
-async function checkedPath(
-  root: ApprovedRoot,
-  project: Project,
-  rawPath: unknown,
-): Promise<{
-  path: string;
-  absolutePath: string;
-  kind: "directory" | "file" | "symlink" | "other";
-  size: number;
-}> {
-  const path = validateProjectFilePath(rawPath);
-  const segments = path === "" ? [] : path.split("/");
-  let candidate = project.absolutePath;
-  try {
-    for (const [index, segment] of segments.entries()) {
-      candidate = resolve(candidate, segment);
-      const metadata = await lstat(candidate);
-      if (metadata.isSymbolicLink()) {
-        if (index === segments.length - 1)
-          return { path, absolutePath: candidate, kind: "symlink", size: metadata.size };
-        throw new AppError("forbidden", 403, "Symbolic links cannot be followed");
-      }
-      if (index < segments.length - 1 && !metadata.isDirectory())
-        throw new AppError("not_found", 404, "Folder was not found");
-    }
-    // Bun's realpath currently rejects literal backslashes in macOS filenames.
-    const absolutePath = path.includes("\\") ? candidate : await realpath(candidate);
-    if (
-      !isWithinRoot(root.realPath, absolutePath) ||
-      !isWithinRoot(project.absolutePath, absolutePath)
-    ) {
-      throw new AppError("forbidden", 403, "Path is outside the selected project");
-    }
-    const metadata = await lstat(absolutePath);
-    return {
-      path,
-      absolutePath,
-      kind: metadata.isDirectory()
-        ? "directory"
-        : metadata.isFile()
-          ? "file"
-          : metadata.isSymbolicLink()
-            ? "symlink"
-            : "other",
-      size: metadata.size,
-    };
-  } catch (error: unknown) {
-    return accessError(error);
-  }
-}
-
 export async function readProjectTree(
   root: ApprovedRoot,
   project: Project,
   rawPath: unknown,
 ): Promise<FileTree> {
-  const location = await checkedPath(root, project, rawPath);
+  const location = await checkedProjectPath(root, project, rawPath);
   if (location.kind !== "directory") throw new AppError("not_found", 404, "Folder was not found");
   const entries: FileTreeEntry[] = [];
   try {
@@ -136,7 +60,7 @@ export async function readProjectTree(
       });
     }
   } catch (error: unknown) {
-    accessError(error);
+    projectFileAccessError(error);
   }
   entries.sort((left, right) => {
     if (left.kind === "directory" && right.kind !== "directory") return -1;
@@ -157,50 +81,12 @@ type WorkingImage =
     }
   | { kind: "too_large" | "unsupported"; byteLength: number };
 
-export async function openCheckedMedia(
-  root: ApprovedRoot,
-  project: Project,
-  rawPath: unknown,
-): Promise<{ file: FileHandle; path: string; metadata: Stats }> {
-  const location = await checkedPath(root, project, rawPath);
-  if (location.path === "" || location.kind !== "file")
-    throw new AppError("not_found", 404, "Previewable media file was not found");
-  let file: FileHandle;
-  try {
-    file = await open(
-      location.absolutePath,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
-  } catch (error: unknown) {
-    return accessError(error);
-  }
-  try {
-    const metadata = await file.stat();
-    const currentRealPath = await realpath(location.absolutePath);
-    const current = await stat(currentRealPath);
-    if (
-      !metadata.isFile() ||
-      !isWithinRoot(root.realPath, currentRealPath) ||
-      !isWithinRoot(project.absolutePath, currentRealPath) ||
-      metadata.dev !== current.dev ||
-      metadata.ino !== current.ino
-    ) {
-      throw new AppError("forbidden", 403, "Image is no longer inside the selected project");
-    }
-    return { file, path: location.path, metadata };
-  } catch (error: unknown) {
-    await file.close();
-    return accessError(error);
-  }
-}
-
 export async function inspectWorkingImage(
   root: ApprovedRoot,
   project: Project,
   rawPath: unknown,
 ): Promise<WorkingImage> {
-  const opened = await openCheckedMedia(root, project, rawPath);
-  try {
+  return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const { metadata, file, path } = opened;
     const mimeType = imageMimeType(path);
     if (mimeType === null) throw new AppError("not_found", 404, "Previewable image was not found");
@@ -215,9 +101,7 @@ export async function inspectWorkingImage(
       version,
       resource: fileImageResource(project.id, path, version, mimeType, metadata.size),
     };
-  } finally {
-    await opened.file.close();
-  }
+  });
 }
 
 export async function readWorkingImageBytes(
@@ -226,8 +110,7 @@ export async function readWorkingImageBytes(
   rawPath: unknown,
   version: string,
 ): Promise<{ bytes: Buffer; mimeType: string }> {
-  const opened = await openCheckedMedia(root, project, rawPath);
-  try {
+  return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const { file, metadata } = opened;
     const mimeType = imageMimeType(opened.path);
     if (mimeType === null) throw new AppError("not_found", 404, "Previewable image was not found");
@@ -251,9 +134,7 @@ export async function readWorkingImageBytes(
       throw new AppError("not_found", 409, "This image changed. Refresh its preview.");
     }
     return { bytes, mimeType };
-  } finally {
-    await opened.file.close();
-  }
+  });
 }
 
 export async function inspectWorkingAudioVideo(
@@ -261,8 +142,7 @@ export async function inspectWorkingAudioVideo(
   project: Project,
   rawPath: unknown,
 ): Promise<WorkingImage> {
-  const opened = await openCheckedMedia(root, project, rawPath);
-  try {
+  return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const type = audioVideoType(opened.path);
     if (type === null) throw new AppError("not_found", 404, "Previewable media file was not found");
     if (opened.metadata.size > maxAudioVideoBytes)
@@ -283,9 +163,7 @@ export async function inspectWorkingAudioVideo(
         opened.metadata.size,
       ),
     };
-  } finally {
-    await opened.file.close();
-  }
+  });
 }
 
 export async function openWorkingAudioVideo(
@@ -294,7 +172,7 @@ export async function openWorkingAudioVideo(
   rawPath: unknown,
   version: string,
 ): Promise<{ file: FileHandle; byteLength: number; mimeType: string; path: string }> {
-  const opened = await openCheckedMedia(root, project, rawPath);
+  const opened = await openCheckedWorkingFile(root, project, rawPath);
   try {
     const type = audioVideoType(opened.path);
     if (type === null) throw new AppError("not_found", 404, "Previewable media file was not found");
@@ -328,14 +206,14 @@ async function readFile(
   rawPath: unknown,
   requestedLanguage: string | null,
 ): Promise<FileReadResult> {
-  const location = await checkedPath(root, project, rawPath);
+  const location = await checkedProjectPath(root, project, rawPath);
   if (location.path === "" || location.kind === "directory")
     throw new AppError("not_found", 404, "File was not found");
   if (location.kind === "symlink" || location.kind === "other")
     return {
       kind: location.kind === "symlink" ? "symlink" : "unsupported",
       path: location.path,
-      byteLength: location.size,
+      byteLength: location.metadata.size,
     };
   if (imageMimeType(location.path) !== null) {
     const image = await inspectWorkingImage(root, project, location.path);
@@ -367,30 +245,29 @@ async function readFile(
       byteLength: media.byteLength,
     };
   }
-  if (location.size > maxTextBytes)
-    return { kind: "too_large", path: location.path, byteLength: location.size };
-  const bytes = Buffer.allocUnsafe(maxTextBytes + 1);
-  let size = 0;
-  try {
-    const file = await open(
-      location.absolutePath,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
-    try {
-      const metadata = await file.stat();
-      if (!metadata.isFile())
-        return { kind: "unsupported", path: location.path, byteLength: metadata.size };
-      while (size <= maxTextBytes) {
-        const { bytesRead } = await file.read(bytes, size, maxTextBytes + 1 - size, null);
+  if (location.metadata.size > maxTextBytes)
+    return { kind: "too_large", path: location.path, byteLength: location.metadata.size };
+  const content = await withCheckedWorkingFile(
+    root,
+    project,
+    location.path,
+    async ({ file, metadata }) => {
+      if (metadata.size > maxTextBytes)
+        return { kind: "too_large" as const, byteLength: metadata.size };
+      const bytes = Buffer.allocUnsafe(maxTextBytes + 1);
+      let size = 0;
+      while (size < bytes.length) {
+        const { bytesRead } = await file.read(bytes, size, bytes.length - size, null);
         if (bytesRead === 0) break;
         size += bytesRead;
       }
-    } finally {
-      await file.close();
-    }
-  } catch (error: unknown) {
-    return accessError(error);
-  }
+      return { kind: "content" as const, bytes: bytes.subarray(0, size) };
+    },
+  );
+  if (content.kind === "too_large")
+    return { kind: "too_large", path: location.path, byteLength: content.byteLength };
+  const bytes = content.bytes;
+  const size = bytes.length;
   if (size > maxTextBytes) return { kind: "too_large", path: location.path, byteLength: size };
   let source: string;
   try {

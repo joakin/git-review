@@ -3,7 +3,12 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseDiffResponse, parseProjectResponse, parseStatusResponse } from "../shared/api.ts";
+import {
+  parseDiffResponse,
+  parseFileReadResponse,
+  parseProjectResponse,
+  parseStatusResponse,
+} from "../shared/api.ts";
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
@@ -29,6 +34,55 @@ const mediaCases = [
     bytes: (label: string) => Buffer.from(`\0\0\0\x18ftypisom${label}`),
   },
 ] as const;
+
+test("working media with literal backslashes supports raw bytes, HEAD, ranges and stale versions", async () => {
+  const base = await mkdtemp(join(tmpdir(), "git-review-literal-media-"));
+  try {
+    await mkdir(join(base, "project", "literal\\directory"), { recursive: true });
+    const handle = createApiHandler(await approveRoot(base));
+    const opened = await handle(
+      new Request("http://localhost/api/projects/open", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "project" }),
+      }),
+    );
+    const project = parseProjectResponse(await opened.json());
+    for (const media of mediaCases) {
+      const path = `literal\\directory/odd\\${media.path}`;
+      const absolutePath = join(base, "project", path);
+      const bytes = media.bytes("working original");
+      await writeFile(absolutePath, bytes);
+      const query = new URLSearchParams({ path, source: "worktree" });
+      const response = await handle(
+        new Request(`http://localhost/api/projects/${project.id}/file?${query}`),
+      );
+      expect(response.status).toBe(200);
+      const file = parseFileReadResponse(await response.json());
+      if (file.kind !== "media") throw new Error(`Expected ${media.kind} preview`);
+      expect(file.resource.kind).toBe(media.kind);
+      const rawUrl = `http://localhost${file.resource.url}`;
+      const raw = await handle(new Request(rawUrl));
+      expect(raw.status).toBe(200);
+      expect(Buffer.from(await raw.arrayBuffer())).toEqual(bytes);
+      const head = await handle(new Request(rawUrl, { method: "HEAD" }));
+      expect(head.status).toBe(200);
+      expect(head.headers.get("content-length")).toBe(String(bytes.length));
+      expect(await head.text()).toBe("");
+      if (media.kind !== "image") {
+        const range = await handle(new Request(rawUrl, { headers: { range: "bytes=0-7" } }));
+        expect(range.status).toBe(206);
+        expect(Buffer.from(await range.arrayBuffer())).toEqual(bytes.subarray(0, 8));
+      }
+      await writeFile(absolutePath, media.bytes("working replacement with different size"));
+      expect((await handle(new Request(rawUrl))).status).toBe(409);
+      await rm(absolutePath);
+      expect((await handle(new Request(rawUrl))).status).toBe(404);
+    }
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
 
 for (const format of ["sha1", "sha256"] as const) {
   for (const namesake of [true, false]) {

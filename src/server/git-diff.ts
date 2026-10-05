@@ -1,14 +1,12 @@
-import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { ChangeEntry, DiffHunk, DiffLine, DiffResult, Project } from "../shared/api.ts";
-import { hasErrorCode } from "../shared/validation.ts";
 import { GitCommandError, runGit } from "./git-execution.ts";
 import { readGitPrefix, repositoryPath } from "./git-context.ts";
 import { readGitPath } from "./git-objects.ts";
 import { AppError, isWithinRoot, type ApprovedRoot } from "./paths.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { withWordDetails } from "./diff-words.ts";
+import { checkedProjectPath, withCheckedWorkingFile } from "./working-files.ts";
 
 const maxTextBytes = 1024 * 1024;
 const maxPatchBytes = 2 * 1024 * 1024;
@@ -207,41 +205,29 @@ async function readWorkingFile(
   project: Project,
   path: string,
 ): Promise<WorkingFile> {
-  const candidate = resolve(project.absolutePath, path);
-  if (!isWithinRoot(project.absolutePath, candidate))
-    throw new AppError("forbidden", 403, "File is outside the selected folder");
   try {
-    const metadata = await lstat(candidate);
-    if (metadata.isSymbolicLink()) return { kind: "binary", reason: "symlink" };
-    if (!metadata.isFile()) return { kind: "binary", reason: "binary" };
-    const real = await realpath(candidate);
-    if (!isWithinRoot(root.realPath, real) || !isWithinRoot(project.absolutePath, real)) {
-      throw new AppError("forbidden", 403, "File is outside the approved folder");
-    }
-    if (metadata.size > maxTextBytes) return { kind: "too_large" };
-    const file = await open(real, constants.O_RDONLY | constants.O_NOFOLLOW);
-    try {
-      const current = await file.stat();
-      if (!current.isFile()) return { kind: "binary", reason: "binary" };
-      if (current.size > maxTextBytes) return { kind: "too_large" };
-      const content = Buffer.alloc(maxTextBytes + 1);
-      let size = 0;
-      while (size < content.length) {
-        const { bytesRead } = await file.read(content, size, content.length - size, null);
-        if (bytesRead === 0) break;
-        size += bytesRead;
-      }
-      return { kind: "content", content: content.subarray(0, size) };
-    } finally {
-      await file.close();
-    }
+    const location = await checkedProjectPath(root, project, path);
+    if (location.kind === "symlink") return { kind: "binary", reason: "symlink" };
+    if (location.kind !== "file") return { kind: "binary", reason: "binary" };
+    if (location.metadata.size > maxTextBytes) return { kind: "too_large" };
+    return await withCheckedWorkingFile(
+      root,
+      project,
+      path,
+      async ({ file, metadata }): Promise<WorkingFile> => {
+        if (metadata.size > maxTextBytes) return { kind: "too_large" };
+        const content = Buffer.alloc(maxTextBytes + 1);
+        let size = 0;
+        while (size < content.length) {
+          const { bytesRead } = await file.read(content, size, content.length - size, null);
+          if (bytesRead === 0) break;
+          size += bytesRead;
+        }
+        return { kind: "content", content: content.subarray(0, size) };
+      },
+    );
   } catch (error: unknown) {
-    if (
-      hasErrorCode(error, "ENOENT") ||
-      hasErrorCode(error, "ENOTDIR") ||
-      hasErrorCode(error, "ELOOP")
-    )
-      return { kind: "stale" };
+    if (error instanceof AppError && error.code === "not_found") return { kind: "stale" };
     throw error;
   }
 }

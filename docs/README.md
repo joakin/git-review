@@ -62,7 +62,9 @@ the bounded cleanup pass. Historical implementation checkpoints describe complet
 [Git read boundaries](git-read-boundaries.md) describe shared subprocess execution, repository
 context and object access. Status, diff, history, statistics and media retain their parsers and
 source/version policy. HTTP handlers continue to revalidate opened projects against the approved
-root.
+root. [Checked working-file boundaries](working-file-boundaries.md) describe shared no-follow
+opening, identity rechecks and descriptor lifetime for Files, diffs and media. Their callers retain
+byte limits, decoding and content-version policy.
 
 [ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU
 promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff

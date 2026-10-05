@@ -4,7 +4,7 @@ import { isAbsolute, join } from "node:path";
 import type { Project, SearchMatch, SearchResponse } from "../shared/api.ts";
 import { expectNonNegativeInteger, expectRecord, expectString } from "../shared/validation.ts";
 import { AppError } from "./paths.ts";
-import { validateProjectFilePath } from "./project-files.ts";
+import { validateProjectFilePath } from "./working-files.ts";
 
 const maxMatches = 100;
 const maxOutputBytes = 8 * 1024 * 1024;

@@ -1,6 +1,6 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M11 accepted; M11 approved for commit; M12–M15 pending
+Status: M01–M12 accepted; M12 approved for commit; M13–M15 pending
 
 Created: 2026-09-30
 
@@ -30,6 +30,13 @@ this goal.
 This pass adds no product features, repository writes, historical comments, storage synchronization,
 or new previews. Existing URLs, wire formats, storage keys, backup compatibility, and responsive
 behavior should remain compatible unless a focused fix explicitly requires a documented adjustment.
+
+The separately requested [stateless project access plan](stateless-project-access-plan.md) records
+the agreed removal of project registration and hashed IDs in favor of canonical absolute paths. On
+2026-10-05 the maintainer explicitly waived preservation of existing local review data and all
+transition/backward compatibility for that change. This is a scoped exception to the compatibility
+requirements here, including rule 6 below. Its implementation is deferred until the maintainer
+returns to it; this planning decision does not change M12's review status or start another slice.
 
 ## Review evidence and baseline
 
@@ -81,12 +88,13 @@ verification of this maintenance work.
 
 ## Slice order and status
 
-M01–M10 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
+M01–M11 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
 usability work. After accepting and requesting the commit of the selection extension and joined
 controls on 2026-10-05, the maintainer requested continuation with the plan. The maintainer accepted
-M11 and explicitly requested its commit and continuation on 2026-10-05. M12 is next; M12–M15 remain
-pending. The sequence below keeps independently risky changes in separate review steps; M15 starts
-with measurement before any optimization.
+M11 and explicitly requested its commit (`e9da16a`) and continuation on 2026-10-05. M12 is accepted
+and explicitly approved for commit on 2026-10-05; M13–M15 remain pending. The sequence below keeps
+independently risky changes in separate review steps; M15 starts with measurement before any
+optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -1651,4 +1659,56 @@ Use this compact entry for each handoff:
   started for this slice was stopped. Browser QA used Chrome emulation; no new real-device gestures,
   native selection menus, clipboard, microphone or installed-PWA interruption checks were performed.
 - **Review/next step:** the maintainer accepted M11 and explicitly requested its commit and
-  continuation on 2026-10-05. M12 is next: centralizing checked working-file opening.
+  continuation on 2026-10-05. M11 is committed as `e9da16a`. M12 is next: centralizing checked
+  working-file opening.
+
+## M12 handoff — 2026-10-05
+
+- **Alignment:** the maintainer accepted M11, explicitly requested its commit (`e9da16a`) and
+  continuation with M12 on 2026-10-05. The agreed checked-open boundary is implemented.
+- **Implementation:** [working-files.ts](../src/server/working-files.ts) shares project-relative
+  validation, canonical project containment, no-follow component inspection, regular-file opening
+  with `O_NOFOLLOW | O_NONBLOCK`, descriptor identity and parent-component rechecks. Bounded readers
+  check again after access and close on success or failure. The audio/video path explicitly
+  transfers its checked descriptor to the existing streaming owner, which retains content-version
+  checks and cleanup on completion, cancellation, failure, HEAD and invalid ranges. Files tree
+  inspection, media and Search use the same path validator.
+- **Behavior and fixes:** Files/diff/image/audio/video keep their own byte/line limits, decoders,
+  syntax fallback, versions and result variants. Diff absence or detected replacement remains stale;
+  Files preserves precise `file_not_found` for file-level absence. Diff source and anchor text
+  retain CRLF exactly, while Files keeps display normalization. Literal backslash filenames now work
+  for diffs and media as well as text. The new special-file test reproduced a FIFO wait in Bun's
+  `realpath`; individual file paths no longer use it, and special files are classified without
+  opening. Intermediate links are consistently rejected across these working-file readers.
+- **Durable regression coverage:** eight shared-boundary tests cover literal names and exact bytes;
+  success/consumer-failure cleanup; traversal, control directories, final/intermediate links,
+  missing and special files; file replacement, deletion, final links and parent replacement/linking
+  during a read; and transferred stream cleanup on completion, partial ranges, HEAD, invalid ranges,
+  cancellation and changed content. The parent-replacement fixture keeps the same leaf inode via a
+  hard link. Two consumer regressions cover CRLF anchors versus Files normalization, literal-name
+  diffs, invalid UTF-8, oversized and disappeared content, and literal-name image/audio/video raw
+  bytes, HEAD, ranges, changed sizes and stale versions. An initial syntax assertion expected
+  highlighting for CRLF lines; it was corrected to verify exact tokens/text without ruling out the
+  existing plain fallback.
+- **Verification:** all five strict TypeScript configurations pass. The full suite passes **171
+  tests with 1,882 assertions across 28 files**. Formatting and CSS validation (138 token
+  references) pass. Phone Files and diff browser checks, image/raw SVG checks and audio/video
+  load/seek/range checks pass. File feedback and selection-feedback checks pass at 320, 390, 820,
+  1180 and 1440 px, including exact fragments, CRLF normalization, reload, mixed preview/copy/Undo,
+  stale/error behavior, reattachment and Search source identity. Plain-folder and clean-Git
+  file-only feedback also pass. All 726 local documentation file targets exist.
+- **Delivery:** both maintained backends were restarted. HTTP, loopback HTTPS backend and the
+  private HTTPS origin serve the current assets and pass real literal-name file/media reads,
+  normalized Files text, exact CRLF diff anchors, image/audio raw bytes, HEAD and audio ranges.
+  Status, refs, current commit detail, historical blob diff and staged Old/New Git audio ranges/HEAD
+  also pass. An old smoke-test target was a file absent from M11's commit; the helper was corrected
+  to select an actual changed text file. Temporary live fixtures were removed, and only the two
+  isolated QA servers started for this slice were stopped.
+- **Limits:** the replacement checks are portable identity rechecks around descriptor access; they
+  do not constitute an atomic OS-level path walk or proof against every concurrent mutation. No
+  frontend/style changes or screenshot milestone were introduced in this backend slice. Browser
+  checks used Chrome emulation and its clipboard implementation; no new physical-device gestures,
+  native selection menus, microphone or installed-PWA interruption checks were performed.
+- **Review/next step:** the maintainer accepted M12 and explicitly requested its commit and
+  continuation on 2026-10-05. M13 is next: sharing QA/browser and low-level test support in small
+  substeps, starting with two or three browser scripts before reviewing the interface.

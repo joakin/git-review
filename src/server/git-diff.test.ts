@@ -12,6 +12,7 @@ import {
 import { parseGitPatch, readProjectDiff } from "./git-diff.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { approveRoot, openProject } from "./paths.ts";
+import { readProjectFile } from "./project-files.ts";
 
 function git(cwd: string, ...args: string[]): void {
   execFileSync("git", args, { cwd, stdio: "pipe" });
@@ -28,6 +29,48 @@ function textDiff(diff: DiffResult): Extract<DiffResult, { kind: "text" }> {
   if (diff.kind !== "text") throw new Error(`Expected text diff, got ${diff.kind}`);
   return diff;
 }
+
+test("working-file consumers preserve CRLF anchors and literal names while classifying missing and oversized content", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "git-review-working-diff-"));
+  try {
+    git(directory, "init", "-q");
+    const path = "odd\\name.ts";
+    await writeFile(join(directory, path), "const first = 1;\r\nconst last = 2;\r\n");
+    await writeFile(join(directory, "large.txt"), "x".repeat(1024 * 1024 + 1));
+    await writeFile(join(directory, "invalid.txt"), Buffer.from([0xff]));
+    const root = await approveRoot(directory);
+    const project = await openProject(root, "");
+    const status = await readProjectStatus(project.absolutePath);
+    const entry = changed(status, "untracked", path);
+    const diff = textDiff(await readProjectDiff(root, project, entry));
+    expect(diff.hunks[0]?.lines.map((line) => [line.newLine, line.text])).toEqual([
+      [1, "const first = 1;\r"],
+      [2, "const last = 2;\r"],
+    ]);
+    expect(
+      diff.hunks[0]?.lines.every(
+        (line) => line.tokens.map((token) => token.text).join("") === line.text,
+      ),
+    ).toBe(true);
+    const file = await readProjectFile(root, project, path, null);
+    if (file.kind !== "text") throw new Error("Expected Files text");
+    expect(file.lines.map((line) => line.text)).toEqual(["const first = 1;", "const last = 2;"]);
+    expect(await readProjectDiff(root, project, changed(status, "untracked", "large.txt"))).toEqual(
+      { kind: "too_large" },
+    );
+    expect(
+      await readProjectDiff(root, project, changed(status, "untracked", "invalid.txt")),
+    ).toEqual({ kind: "binary", reason: "binary" });
+    await rm(join(directory, path));
+    expect(await readProjectDiff(root, project, entry)).toEqual({ kind: "stale" });
+    await expect(readProjectFile(root, project, path, null)).rejects.toMatchObject({
+      code: "file_not_found",
+      status: 404,
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("diffs show each Git layer's content and preserve line anchors", async () => {
   const directory = await mkdtemp(join(tmpdir(), "git-review-diff-"));

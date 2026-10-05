@@ -59,9 +59,10 @@ untracked files, treat the old side as empty. The
 translation and bounded object reads. Git uses fixed argument arrays, literal pathspecs,
 `--no-ext-diff`, `--no-textconv`, `--no-color`, three context lines, and `--` before paths. The
 parser validates hunk headers, row counts, and line prefixes. Untracked files are read only after
-realpath containment and with `O_NOFOLLOW`. Input is bounded to 1 MiB for untracked files, 2 MiB for
-patches, and 20,000 diff lines. A repository without a first commit produces staged additions
-against an empty old tree.
+[shared containment and identity checks](working-file-boundaries.md), with `O_NOFOLLOW` and
+`O_NONBLOCK` on the literal path. Input is bounded to 1 MiB for untracked files, 2 MiB for patches,
+and 20,000 diff lines. A repository without a first commit produces staged additions against an
+empty old tree.
 
 The pure `parseGitPatch` and `diffFromContent` functions return a private text/binary/size-limit
 union. Conflict and stale states belong to working-copy status/filesystem/version boundaries; media

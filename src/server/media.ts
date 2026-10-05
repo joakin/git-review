@@ -15,8 +15,8 @@ import {
   inspectWorkingAudioVideo,
   openWorkingAudioVideo,
   readWorkingImageBytes,
-  validateProjectFilePath,
 } from "./project-files.ts";
+import { validateProjectFilePath } from "./working-files.ts";
 import { audioVideoResponse, type StreamableMedia } from "./media-stream.ts";
 
 type ImageSource =

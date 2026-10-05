@@ -38,14 +38,15 @@ change reviewable while delivering the requested media types in one planned slic
   generates these URLs from validated results. Each raw request revalidates the opened project,
   approved root, project-relative path, file kind, layer/side, and version. There is no generic
   static-directory mapping for host files.
-- Read worktree bytes from an already validated, no-follow file descriptor rather than lazily
-  reopening a path after the containment check. For Git versions, resolve the index or tree entry to
-  a blob object ID, verify its type and size, then read that object with fixed argument-array
-  subprocess calls through the [shared Git read boundaries](git-read-boundaries.md). Buffered and
-  streamed reads share literal argument handling, environment overrides and cleanup. Each awaited
-  stream read has a deadline; pausing the consumer does not impose a total playback deadline. No
-  shell, checkout, repository write, or historical browsing is required. This source mapping is
-  essential: a staged file may differ from both `HEAD` and the working tree.
+- Read worktree bytes through [shared checked file access](working-file-boundaries.md), from an
+  already validated, no-follow file descriptor rather than lazily reopening a path after the
+  containment check. For Git versions, resolve the index or tree entry to a blob object ID, verify
+  its type and size, then read that object with fixed argument-array subprocess calls through the
+  [shared Git read boundaries](git-read-boundaries.md). Buffered and streamed reads share literal
+  argument handling, environment overrides and cleanup. Each awaited stream read has a deadline;
+  pausing the consumer does not impose a total playback deadline. No shell, checkout, repository
+  write, or historical browsing is required. This source mapping is essential: a staged file may
+  differ from both `HEAD` and the working tree.
   [Git object reads](https://git-scm.com/docs/git-cat-file),
   [Git index entries](https://git-scm.com/docs/git-ls-files)
 - Selected projects may be repository subfolders. Resolve staged Old paths with Git's `HEAD:./path`

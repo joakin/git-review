@@ -42,9 +42,11 @@ desktop. Search results reuse the same file viewer, and
   and denied or transient reads remain errors. Feedback can mark a deleted file outdated without
   treating an offline host as deleted content.
 - Both routes require an opened project ID, revalidate that project under the approved root, parse
-  each path once, and confine reads to the selected project's real directory as well as the approved
-  root. Do not follow symlinks in this first slice. Read only regular files. Use no shell for
-  subprocesses.
+  each path at the [shared working-file boundary](working-file-boundaries.md), and confine reads to
+  the selected project's real directory as well as the approved root. Do not follow symlinks in this
+  first slice. Read only regular files. Use no shell for subprocesses. Bounded reads recheck file
+  and parent identities before returning, and the shared scope closes descriptors on success or
+  failure.
 - Bound text reads to 1 MiB and 20,000 lines. Media has separate byte limits in its
   [behavior record](media-preview-slice-proposal.md). Detect NUL bytes and invalid UTF-8 before
   syntax highlighting. Return semantic token roles; the client applies its own theme. Parse every

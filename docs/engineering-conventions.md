@@ -51,6 +51,13 @@ cleanup. Stream deadlines cover awaited reads, so consumer backpressure does not
 playback deadline. Keep approved-root checks, domain parsers and unavailable/stale policies at their
 existing boundaries.
 
+Use [checked working-file access](working-file-boundaries.md) for shared path validation,
+containment, no-follow opening and file/parent identity rechecks. Bounded readers use the scoped
+operation so cleanup and post-read checks stay with that owner. Streaming transfers descriptor
+ownership explicitly to its response owner. Domain callers retain byte limits, decoding, source
+normalization and content-version policy; an unchanged inode alone does not establish unchanged
+content.
+
 ## Browser navigation
 
 URLs own navigable destinations. Local state owns transient interaction, unsaved work, and

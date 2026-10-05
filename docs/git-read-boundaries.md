@@ -1,6 +1,6 @@
 # Git read boundaries
 
-Status: M11 accepted and explicitly approved for commit on 2026-10-05
+Status: M11 accepted and committed as `e9da16a` on 2026-10-05
 
 The server shares subprocess execution, repository context and object access across working-copy
 review, historical inspection and media. The
@@ -47,8 +47,10 @@ The runner is a transport boundary, while each domain owns its command selection
   its immutable totals cache.
 - [Media](../src/server/media.ts) owns format/header checks, source mapping and version matching;
   [media streaming](../src/server/media-stream.ts) owns range/HEAD responses and byte slicing.
-  Working files keep their existing descriptor and version checks.
+  [Checked working-file access](working-file-boundaries.md) shares containment and descriptor
+  identity/lifetime checks; media retains its content versions.
 
 Generic unknown-value guards come from [shared validation](../src/shared/validation.ts).
-Git-specific parsers stay at their domain boundaries. Filesystem `AppError` ownership and checked
-working-file opening are outside this extraction; the latter is the next maintenance slice, M12.
+Git-specific parsers stay at their domain boundaries. Filesystem `AppError` remains in
+[paths.ts](../src/server/paths.ts). [M12](working-file-boundaries.md) owns shared checked
+working-file opening separately from Git object access.
