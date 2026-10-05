@@ -1,6 +1,6 @@
 # Selected code → Search or Comment
 
-Status: approved for implementation on 2026-10-04; implementation will remain uncommitted for review
+Status: implemented on 2026-10-04; accepted with explicit commit approval on 2026-10-05
 
 Created: 2026-10-04
 
@@ -84,5 +84,99 @@ whose selection was edited or reattached.
   inspect the combined action and selection editor at phone, tablet portrait, tablet landscape and
   desktop sizes. Browser emulation does not replace maintainer Android/iOS selection-menu review.
 
-Next step: commit the accepted U03 work, then implement this approved single-line fragment flow as
-an uncommitted extension for review.
+The maintainer accepted the selection extension and joined-control correction on 2026-10-05 and
+explicitly requested their commit. U03 is committed as `7632b4d`. The next maintenance slice is M10;
+its work and review are recorded in the [maintenance plan](maintenance-plan.md).
+
+## Implementation and review handoff — 2026-10-04
+
+The approved slice is implemented. [Rendered code registration](../src/client/code-selection.tsx)
+connects each line to its project, source anchor, and resource snapshot. The
+[shared action](../src/client/CodeSelectionActions.tsx) derives exact offsets from the native Range,
+then offers Search and Comment. Wrapped selections place the touch action below the visible selected
+range. Both buttons have 44 px hit areas. The action follows scrolling and viewport movement, avoids
+navigation/Feedback/reattachment controls, and clears on outside pointer input, source replacement,
+navigation, Escape, or editor opening. Tooltip focus may retain the validated range.
+
+[Comments](../src/client/comments.ts) store a line or selection subject in version 3 at the existing
+storage key. Versions 1 and 2 migrate to line subjects; archived copied text stays exact. Backup
+export uses version 5 and accepts earlier versions 1–4 with their original comment formats. Import
+preserves fragment positions and text. Selection export includes the full source line plus a quoted
+fragment and one-based, inclusive UTF-16 columns. Checks and copy snapshots include subject
+identity; a reattachment during a pending check/write cannot validate or clear the newer fragment.
+
+The editor and feedback preview highlight the fragment inside its full source quote and label the
+subject as Selection. Existing line markers count both subjects. Selection reattachment requires a
+fresh fragment from the same source kind and preserves the comment body and identity. Whole-line
+reattachment keeps its existing flow. Historical Git views remain inspection-only; multi-row
+selection remains outside this slice.
+
+Verification:
+
+- Strict TypeScript across the five projects, formatting/CSS gates, and the full test suite pass
+  (156 tests, 1,729 assertions across 25 files).
+  [Selection invariants](../src/client/selection-feedback.test.ts) cover repeated text, exact
+  whitespace, surrogate boundaries, invalid records, legacy migration, exports, late check/copy
+  identity and Undo. [File transaction tests](../src/client/file-feedback.test.ts) also hold a read
+  or clipboard write while reattaching a fragment to another occurrence on the same source line.
+- `qa:selected-feedback` passes at 320, 390, 820, 1180 and 1440 px. It checks native Range offsets
+  across tokens, leading/trailing spaces, Unicode, long wrapped fragments, keyboard-focus collapse,
+  save/reload, preview, granted Chrome Clipboard API, history/Undo, stale focused actions, selection
+  reattachment, Search file identity, UI backup export/import, Old/New diff sources, and exclusion
+  of the synthetic no-newline annotation. Existing selected Search/scrolling/cross-row rejection,
+  all nine feedback transaction regressions, U03 file feedback including plain/unchanged Git
+  folders, and PWA/backup checks also pass.
+- `qa:capture` produced and all twelve images were inspected: combined action at
+  [phone](../qa/screenshots/usability-selected-actions/mobile.png),
+  [tablet portrait](../qa/screenshots/usability-selected-actions/tablet-portrait.png),
+  [tablet landscape](../qa/screenshots/usability-selected-actions/tablet-landscape.png), and
+  [desktop](../qa/screenshots/usability-selected-actions/desktop.png); editor at
+  [phone](../qa/screenshots/usability-selected-editor/mobile.png),
+  [tablet portrait](../qa/screenshots/usability-selected-editor/tablet-portrait.png),
+  [tablet landscape](../qa/screenshots/usability-selected-editor/tablet-landscape.png), and
+  [desktop](../qa/screenshots/usability-selected-editor/desktop.png); preview at
+  [phone](../qa/screenshots/usability-selected-preview/mobile.png),
+  [tablet portrait](../qa/screenshots/usability-selected-preview/tablet-portrait.png),
+  [tablet landscape](../qa/screenshots/usability-selected-preview/tablet-landscape.png), and
+  [desktop](../qa/screenshots/usability-selected-preview/desktop.png). All manifests report no
+  page-wide horizontal overflow; the preview includes a clearly excluded outdated fragment.
+
+The maintained app serves rebuilt assets. Both backends and the private HTTPS origin were checked
+for availability and matching assets. QA used isolated fixture ports and only its own servers were
+stopped. Browser checks use Chrome emulation; clipboard copy uses the real granted API on loopback,
+while transaction race checks control promises. Native selection menus/handles, installed-PWA safe
+areas, keyboard and microphone behavior have not been newly verified on physical Android/iOS
+hardware. The implementation remains uncommitted for maintainer review.
+
+## Joined control borders — 2026-10-05
+
+The maintainer's review found rounded inner corners and doubled edges where the textarea meets its
+voice footer and where Search meets Comment. The editor now gives the textarea/voice group one outer
+border and one continuous focus outline, with a single straight divider above the voice footer. The
+textarea label remains explicitly associated with its input; resizing and keyboard focus on the
+microphone keep the group connected. The voice footer retains its original text weight.
+
+Selection buttons round only the outer corners of the group, including hover backgrounds. Their
+shared divider is straight and drawn once. A single available action receives all four outer
+corners. Each button retains its keyboard focus indicator and touch target.
+
+Strict TypeScript, formatting and CSS gates pass. `qa:selected-feedback` passes at 320 px and all
+four standard viewports; `qa:voice` passes its caret, retry, cancellation, automatic-send and editor
+dismissal flows with mocked recording/transcription. Temporary Chrome layout checks cover both light
+and dark themes at 320, 390, 820, 1180 and 1440 px, including hover/focus, the textarea label,
+Tab/Enter between selection buttons, resizing, single-action corners and no page-wide overflow.
+Physical-device checks were not repeated for this visual correction.
+
+All sixteen final `qa:capture` images were inspected, with no page-wide horizontal overflow:
+
+| State                  | Phone                                                              | Tablet portrait                                                             | Tablet landscape                                                             | Desktop                                                             |
+| ---------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Light selection action | [View](../qa/screenshots/joined-controls-light-actions/mobile.png) | [View](../qa/screenshots/joined-controls-light-actions/tablet-portrait.png) | [View](../qa/screenshots/joined-controls-light-actions/tablet-landscape.png) | [View](../qa/screenshots/joined-controls-light-actions/desktop.png) |
+| Dark selection action  | [View](../qa/screenshots/joined-controls-dark-actions/mobile.png)  | [View](../qa/screenshots/joined-controls-dark-actions/tablet-portrait.png)  | [View](../qa/screenshots/joined-controls-dark-actions/tablet-landscape.png)  | [View](../qa/screenshots/joined-controls-dark-actions/desktop.png)  |
+| Light comment editor   | [View](../qa/screenshots/joined-controls-light-editor/mobile.png)  | [View](../qa/screenshots/joined-controls-light-editor/tablet-portrait.png)  | [View](../qa/screenshots/joined-controls-light-editor/tablet-landscape.png)  | [View](../qa/screenshots/joined-controls-light-editor/desktop.png)  |
+| Dark comment editor    | [View](../qa/screenshots/joined-controls-dark-editor/mobile.png)   | [View](../qa/screenshots/joined-controls-dark-editor/tablet-portrait.png)   | [View](../qa/screenshots/joined-controls-dark-editor/tablet-landscape.png)   | [View](../qa/screenshots/joined-controls-dark-editor/desktop.png)   |
+
+The maintained HTTP/HTTPS backends and private HTTPS origin serve assets matching the rebuilt
+client. Only the isolated QA server started for this correction was stopped. The maintainer accepted
+the correction and selection extension on 2026-10-05 and explicitly requested their commit and
+continuation with the plan.

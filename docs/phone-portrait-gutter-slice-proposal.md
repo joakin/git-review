@@ -59,9 +59,9 @@ number can differ.
 - At narrow widths, remove the sign and number columns from layout. Preserve a focusable, visibly
   outlined keyboard path to the line action without giving the gutter any width. On wider layouts,
   retain the current direct old/new line controls and also reveal the action when code is clicked.
-- Coordinate the line action with `CodeSelectionSearch`: only a completed short tap with no selected
-  text opens it. Do not cancel the browser's pointer-down behavior on code. Selection and scrolling
-  take precedence. Avoid overlapping the Search and line actions.
+- Coordinate the line action with `CodeSelectionActions`: only a completed short tap with no
+  selected text opens it. Do not cancel the browser's pointer-down behavior on code. Selection and
+  scrolling take precedence. Avoid overlapping the Search and line actions.
 - Use client design tokens for the action's colors and spacing. Clamp its position to the visual
   viewport so it remains reachable with browser chrome and the on-screen keyboard present.
 

@@ -178,9 +178,19 @@ approved for commit on 2026-09-28.
 
 The
 [file-feedback follow-up](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
-implemented and awaiting review, exports backup version 4 for mixed diff/file anchors. Comment
-stores use version 2, retaining the original project-keyed storage location so valid version-1 data
-migrates in place. Import still accepts backup versions 1–3 and their legacy diff comments; v4
-validates the expanded model. Root/project validation, import preview and explicit replacement,
-typography/appearance choices, and rollback behavior retain their existing roles. Older apps reject
-v4 as unsupported. Previously copied history text is never regenerated during migration or import.
+accepted and committed as `7632b4d`, introduced backup version 4 for mixed diff/file anchors.
+Comment stores use version 2, retaining the original project-keyed storage location so valid
+version-1 data migrates in place. Import still accepts backup versions 1–3 and their legacy diff
+comments; v4 validates the expanded model. Root/project validation, import preview and explicit
+replacement, typography/appearance choices, and rollback behavior retain their existing roles. Older
+apps reject v4 as unsupported. Previously copied history text is never regenerated during migration
+or import.
+
+## Selection backup compatibility — 2026-10-04
+
+The [selection-feedback extension](selected-code-feedback-proposal.md), accepted on 2026-10-05, uses
+comment-store version 3 and exports backup version 5. It imports versions 1–4 using their original
+store formats, migrating whole-line subjects without changing archived copied text. Version-5
+imports validate exact fragment text, UTF-16 bounds and character boundaries. Typography,
+appearance, root/project validation, replacement preview and storage rollback retain their existing
+roles. Earlier app versions reject v5 as unsupported.

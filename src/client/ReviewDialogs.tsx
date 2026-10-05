@@ -3,6 +3,7 @@ import {
   maxBodyLength,
   snapshotFeedback,
   type CommentAnchor,
+  type CommentSubject,
   type CommentStore,
 } from "./comments.ts";
 import { useVoiceComment, VoiceCommentFooter } from "./VoiceComment.tsx";
@@ -14,6 +15,27 @@ function anchorLabel(anchor: CommentAnchor): string {
   return anchor.kind === "file"
     ? `Working tree · line ${anchor.line}`
     : `${anchor.layer} · ${anchor.side} line ${anchor.line}`;
+}
+
+function SourceQuote({ anchor, subject }: { anchor: CommentAnchor; subject: CommentSubject }) {
+  return (
+    <pre
+      class="review-source"
+      aria-label={
+        subject.kind === "selection" ? "Source line with selected text highlighted" : "Source line"
+      }
+    >
+      {subject.kind === "line" ? (
+        anchor.sourceText
+      ) : (
+        <>
+          {anchor.sourceText.slice(0, subject.start)}
+          <mark class="review-selected-text">{subject.text}</mark>
+          {anchor.sourceText.slice(subject.end)}
+        </>
+      )}
+    </pre>
+  );
 }
 
 export function CommentEditor({
@@ -39,7 +61,9 @@ export function CommentEditor({
     >
       <div class="review-dialog-head">
         <div>
-          <p class="eyebrow">LINE FEEDBACK</p>
+          <p class="eyebrow">
+            {editor.subject.kind === "selection" ? "SELECTION FEEDBACK" : "LINE FEEDBACK"}
+          </p>
           <h2 id="comment-editor-title">
             {editor.draftId === null ? "Add a comment" : "Edit comment"}
           </h2>
@@ -55,23 +79,29 @@ export function CommentEditor({
       </div>
       <p class="review-anchor">
         <strong>{editor.anchor.path}</strong>
-        <span>{anchorLabel(editor.anchor)}</span>
+        <span>
+          {anchorLabel(editor.anchor)}
+          {editor.subject.kind === "selection" ? " · selection" : ""}
+        </span>
       </p>
-      <pre class="review-source">{editor.anchor.sourceText}</pre>
-      <label class="review-field">
-        Your feedback
-        <textarea
-          ref={textareaRef}
-          autofocus
-          value={editor.body}
-          readOnly={voice.locked}
-          maxLength={maxBodyLength}
-          rows={6}
-          placeholder="Add a question, note, or suggestion…"
-          onInput={(event) => onBody(event.currentTarget.value)}
-        />
-      </label>
-      <VoiceCommentFooter voice={voice} />
+      <SourceQuote anchor={editor.anchor} subject={editor.subject} />
+      <div class="review-field">
+        <label for="comment-body">Your feedback</label>
+        <div class="review-composer">
+          <textarea
+            id="comment-body"
+            ref={textareaRef}
+            autofocus
+            value={editor.body}
+            readOnly={voice.locked}
+            maxLength={maxBodyLength}
+            rows={6}
+            placeholder="Add a question, note, or suggestion…"
+            onInput={(event) => onBody(event.currentTarget.value)}
+          />
+          <VoiceCommentFooter voice={voice} />
+        </div>
+      </div>
       <div class="review-dialog-actions">
         {editor.draftId !== null && (
           <button class="review-danger" type="button" onClick={onDelete}>
@@ -175,9 +205,12 @@ export function FeedbackDialog({
           >
             <div class="review-item-top">
               <strong>{draft.anchor.path}</strong>
-              <span>{anchorLabel(draft.anchor)}</span>
+              <span>
+                {anchorLabel(draft.anchor)}
+                {draft.subject.kind === "selection" ? " · selection" : ""}
+              </span>
             </div>
-            <pre>{draft.anchor.sourceText}</pre>
+            <SourceQuote anchor={draft.anchor} subject={draft.subject} />
             <p>{draft.body}</p>
             {draft.state === "outdated" && (
               <p class="review-outdated">Line changed or disappeared. Reattach before copying.</p>
@@ -188,7 +221,7 @@ export function FeedbackDialog({
               </button>
               {draft.state === "outdated" && (
                 <button type="button" onClick={() => onReattach(draft.id)}>
-                  Reattach to line
+                  {draft.subject.kind === "selection" ? "Reattach selection" : "Reattach to line"}
                 </button>
               )}
             </div>

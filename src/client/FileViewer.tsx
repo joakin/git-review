@@ -9,6 +9,7 @@ import {
   type FileCommentAnchor,
 } from "./comments.ts";
 import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts";
+import { SelectableCode } from "./code-selection.tsx";
 import { MediaPreview } from "./MediaPreview.tsx";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 
@@ -168,6 +169,7 @@ export function FileViewer({
           <p class="diff-message">This file is empty.</p>
         ) : (
           <FileLines
+            projectId={projectId}
             result={result}
             wrap={wrap}
             drafts={drafts}
@@ -189,12 +191,14 @@ type FileLineAction = {
 };
 
 function FileLines({
+  projectId,
   result,
   wrap,
   drafts,
   onComment,
   targetLine,
 }: {
+  projectId: string;
   result: Extract<FileReadResult, { kind: "text" }>;
   wrap: boolean;
   drafts: readonly DraftComment[];
@@ -244,13 +248,19 @@ function FileLines({
                   {line.number}
                   {count > 0 && <span class="diff-comment-dot" aria-hidden="true" />}
                 </button>
-                <code class="file-code-line">
+                <SelectableCode
+                  className="file-code-line"
+                  projectId={projectId}
+                  resource={result}
+                  anchor={anchor}
+                  text={line.text}
+                >
                   {line.tokens.map((token, tokenIndex) => (
                     <span class={`syntax-token syntax-token-${token.role}`} key={tokenIndex}>
                       {token.text}
                     </span>
                   ))}
-                </code>
+                </SelectableCode>
               </div>
             );
           })}

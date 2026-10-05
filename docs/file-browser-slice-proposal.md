@@ -1,7 +1,7 @@
 # Files browser: first readable file slice
 
 Status: original Files slice implemented and committed after maintainer review; U03 line-feedback
-extension accepted; commit approved.
+extension accepted and committed as `7632b4d`.
 
 ## Why this slice
 
@@ -134,3 +134,7 @@ easier to read. The [updated phone](../qa/screenshots/files-row-polish/mobile.pn
 [desktop](../qa/screenshots/files-row-polish/desktop.png) captures record that stage. The later
 [URL navigation redesign](navigation-and-url-history-slice-proposal.md) replaced the remaining
 mobile button with the shared content-heading back arrow.
+
+The [selected-code feedback follow-up](selected-code-feedback-proposal.md), accepted on 2026-10-05,
+adds Comment beside Search for fragments within one logical code line. Files and Search resolve the
+same working-tree anchor and preserve exact selected offsets.

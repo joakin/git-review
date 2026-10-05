@@ -1,7 +1,7 @@
 # PWA navigation, phone project entry, and file feedback
 
 Status: U01 accepted and committed as `df92a53`; U02 accepted and committed as `b9aeee3`; formatting
-accepted and committed as `fa927ac`; U03 accepted; commit approved
+accepted and committed as `fa927ac`; U03 accepted and committed as `7632b4d`
 
 Created: 2026-10-04
 
@@ -22,7 +22,7 @@ for review separately and stays uncommitted until explicit approval to commit th
 | ----- | ------------------------------------------------------ | -------------------------------- |
 | U01   | Visible Back/Forward controls for known app history    | Accepted; committed as `df92a53` |
 | U02   | Phone project entry opens the contextual list          | Accepted; committed as `b9aeee3` |
-| U03   | Line feedback in working-tree Files and Search results | Accepted; commit approved        |
+| U03   | Line feedback in working-tree Files and Search results | Accepted; committed as `7632b4d` |
 
 U01 and U02 are small, separately reviewable navigation changes. U03 changes the persisted feedback
 model and receives its own focused implementation and review after navigation. Alignment on this
@@ -216,8 +216,9 @@ for every visible change. Record useful milestones and exact verification limits
 installed-app Back/Forward and real-device selection, line taps, clipboard, and keyboard behavior
 require maintainer device review; browser emulation alone cannot confirm them.
 
-Next step: commit the accepted U03 work, then implement the approved
-[selected-code feedback extension](selected-code-feedback-proposal.md). Maintenance remains paused.
+The [selected-code feedback extension](selected-code-feedback-proposal.md) and its joined-control
+correction were accepted with explicit commit approval on 2026-10-05. The maintainer requested
+continuation with the plan; the next maintenance slice is M10.
 
 ## U01 handoff — 2026-10-04
 
@@ -417,5 +418,6 @@ Next step: commit the accepted U03 work, then implement the approved
 The maintainer requested Comment beside Search in the selected-code tooltip. The
 [selection-feedback proposal](selected-code-feedback-proposal.md) records the user flow,
 fragment/source model, migration and checks. The maintainer approved the single-line fragment flow
-and U03 commit on 2026-10-04. Multi-line ranges remain a separate extension. The selection
-implementation will remain uncommitted for review; maintenance remains on hold.
+and U03 commit on 2026-10-04. Multi-line ranges remain a separate extension. The selection extension
+and joined-control correction were accepted with explicit commit approval on 2026-10-05. U03 is
+committed as `7632b4d`; continuation is recorded in the [maintenance plan](maintenance-plan.md).

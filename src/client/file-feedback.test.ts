@@ -11,6 +11,7 @@ import {
   mergeCheckedComments,
   recordSuccessfulCopy,
   snapshotFeedback,
+  selectionSubject,
   undoSuccessfulCopy,
   validateCommentStore,
   type CommentStore,
@@ -49,7 +50,15 @@ function draft(
 ): DraftComment & { anchor: FileCommentAnchor } {
   const anchor = anchorForFileLine(value.path, value.lines, index);
   if (anchor === null) throw new Error("Missing fixture line");
-  return { id, anchor, body: `Question ${id}`, state: "current", createdAt: 10, updatedAt: 11 };
+  return {
+    id,
+    anchor,
+    subject: { kind: "line" },
+    body: `Question ${id}`,
+    state: "current",
+    createdAt: 10,
+    updatedAt: 11,
+  };
 }
 const diffDraft: DraftComment = {
   ...draft("diff"),
@@ -138,7 +147,8 @@ test("file anchors handle first, blank and last lines, exact neighbors, path and
 test("version-one migration preserves all draft and history fields and the exact copied text", () => {
   if (diffDraft.anchor.kind !== "diff") throw new Error("Expected diff fixture");
   const { kind: _kind, ...legacyAnchor } = diffDraft.anchor;
-  const legacyDraft = { ...diffDraft, anchor: legacyAnchor };
+  const { subject: _subject, ...legacyFields } = diffDraft;
+  const legacyDraft = { ...legacyFields, anchor: legacyAnchor };
   const text = "Previously copied text\nwith its original whitespace  ";
   const raw = {
     version: 1,
@@ -147,7 +157,7 @@ test("version-one migration preserves all draft and history fields and the exact
     history: [{ id: "copy", copiedAt: 12, text, comments: [legacyDraft] }],
   };
   expect(validateCommentStore(raw, project.id)).toEqual({
-    version: 2,
+    version: 3,
     projectId: project.id,
     drafts: [diffDraft],
     history: [{ id: "copy", copiedAt: 12, text, comments: [diffDraft] }],
@@ -192,7 +202,7 @@ test("expanded stores reject malformed, ambiguous and unsupported anchors atomic
       ),
     ).toBeNull();
   }
-  expect(validateCommentStore({ ...store, version: 3 }, project.id)).toBeNull();
+  expect(validateCommentStore({ ...store, version: 4 }, project.id)).toBeNull();
 });
 
 test("mixed export separates working-tree feedback, sorts duplicate anchors deterministically and preserves Undo", () => {
@@ -230,20 +240,22 @@ test("mixed export separates working-tree feedback, sorts duplicate anchors dete
       { ...store, drafts: [diffDraft] },
       {
         projectId: project.id,
-        drafts: [{ id: diffDraft.id, anchor: first.anchor, state: "outdated" }],
+        drafts: [
+          { id: diffDraft.id, anchor: first.anchor, subject: first.subject, state: "outdated" },
+        ],
       },
     ).drafts,
   ).toEqual([diffDraft]);
 });
 
-test("backup version four round-trips mixed stores and legacy versions cannot carry file anchors", () => {
+test("backup version five round-trips mixed stores and legacy versions cannot carry file anchors", () => {
   const store = {
     ...emptyCommentStore(project.id),
     drafts: [diffDraft, draft()],
     history: [{ id: "copy", copiedAt: 12, text: "Old copy text", comments: [draft("history")] }],
   };
   const backup = {
-    version: 4,
+    version: 5,
     rootPath: "/repo",
     workspace: { version: 3, rootPath: "/repo", recentPaths: ["project"] },
     wrap: true,
@@ -256,14 +268,14 @@ test("backup version four round-trips mixed stores and legacy versions cannot ca
   const parsed = parseReviewBackup(backup, "/repo");
   expect(parsed.comments).toEqual([store]);
   expect(parseReviewBackup(JSON.parse(JSON.stringify(parsed)) as unknown, "/repo")).toEqual(parsed);
-  for (const version of [1, 2, 3]) {
+  for (const version of [1, 2, 3, 4]) {
     expect(() => parseReviewBackup({ ...backup, version }, "/repo")).toThrow("invalid comments");
     expect(() =>
       parseReviewBackup({ ...backup, version, comments: [{ ...store, version: 1 }] }, "/repo"),
     ).toThrow("invalid comments");
   }
   expect(() => parseReviewBackup(backup, "/other")).toThrow("different host root");
-  expect(() => parseReviewBackup({ ...backup, version: 5 }, "/repo")).toThrow("unsupported format");
+  expect(() => parseReviewBackup({ ...backup, version: 6 }, "/repo")).toThrow("unsupported format");
 });
 
 test("file-only check and copy read each path once using plain text without Git", async () => {
@@ -403,4 +415,47 @@ test("source changes after preview are rechecked on copy and cancellation reject
   expect(late.store.projectId).toBe("another");
   expect(late.store.drafts).toEqual([]);
   expect(late.state.check.kind).toBe("idle");
+});
+
+test("selection reattachment during a file check or clipboard write preserves the newer fragment", async () => {
+  const value = file(["first first"]);
+  const first = selectionSubject("first first", 0, 5);
+  const second = selectionSubject("first first", 6, 11);
+  if (first === null || second === null) throw new Error("Missing selection fixture");
+  const original = { ...draft("fragment", 0, value), subject: first };
+  const moved = { ...original, subject: second };
+  let finishRead: (result: FileReadResult) => void = () => {};
+  const pendingRead = new Promise<FileReadResult>((resolve) => {
+    finishRead = resolve;
+  });
+  const checking = harness([original], { fetchFile: async () => pendingRead });
+  const pendingCopy = checking.engine.copy(project);
+  checking.store = { ...checking.store, drafts: [moved] };
+  finishRead(value);
+  await pendingCopy;
+  expect(checking.written).toEqual([]);
+  expect(checking.store.drafts).toEqual([moved]);
+
+  let finishWrite: () => void = () => {};
+  const pendingWrite = new Promise<void>((resolve) => {
+    finishWrite = resolve;
+  });
+  let startedWrite: () => void = () => {};
+  const started = new Promise<void>((resolve) => {
+    startedWrite = resolve;
+  });
+  const copying = harness([original], {
+    fetchFile: async () => value,
+    writeText: async () => {
+      startedWrite();
+      await pendingWrite;
+    },
+  });
+  const copy = copying.engine.copy(project);
+  await started;
+  copying.store = { ...copying.store, drafts: [moved] };
+  finishWrite();
+  await copy;
+  expect(copying.store.drafts).toEqual([moved]);
+  expect(copying.store.history[0]?.comments).toEqual([original]);
 });

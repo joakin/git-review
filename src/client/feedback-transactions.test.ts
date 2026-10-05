@@ -60,6 +60,7 @@ const diff: DiffResult = {
 function draft(id: string): DraftComment & { anchor: DiffCommentAnchor } {
   return {
     id,
+    subject: { kind: "line" },
     anchor: {
       kind: "diff",
       layer: "unstaged",

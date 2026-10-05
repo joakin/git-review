@@ -12,7 +12,7 @@ import { GitSidebar } from "./GitSidebar.tsx";
 import { useGitBrowser } from "./git-browser.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { Icon } from "./Icons.tsx";
-import { CodeSelectionSearch } from "./CodeSelectionSearch.tsx";
+import { CodeSelectionActions } from "./CodeSelectionActions.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
 import { useProjectSession } from "./project-session.ts";
 import { useReviewFeedback } from "./review-feedback.ts";
@@ -1038,7 +1038,8 @@ export function App() {
                       wrap: wrapCode,
                       languages,
                       drafts,
-                      reattachSide: reattachment?.kind === "diff" ? reattachment.side : null,
+                      reattachSide:
+                        reattachment?.anchor.kind === "diff" ? reattachment.anchor.side : null,
                     }}
                     commands={{
                       back: showList,
@@ -1100,7 +1101,13 @@ export function App() {
         (viewMode === "changes" ||
           viewMode === "files" ||
           (viewMode === "search" && selectedFile !== null)) && (
-          <CodeSelectionSearch key={project.id} onSearch={searchSelectedCode} wrap={wrapCode} />
+          <CodeSelectionActions
+            key={route === null ? project.id : routeUrl(route)}
+            projectId={project.id}
+            onSearch={searchSelectedCode}
+            onComment={feedback.actions.chooseSelection}
+            wrap={wrapCode}
+          />
         )}
       {!settingsOpen && project !== null && viewMode !== null && (
         <button class="feedback-launch" type="button" onClick={feedback.actions.openPreview}>
@@ -1109,7 +1116,9 @@ export function App() {
       )}
       {reattachment !== null && (
         <div class="reattach-banner" role="status">
-          Choose a line from this feedback source, then Comment to reattach.{" "}
+          {reattachment.subject.kind === "selection"
+            ? "Select a fresh fragment from this feedback source, then Comment to reattach."
+            : "Choose a line from this feedback source, then Comment to reattach."}{" "}
           <button type="button" onClick={feedback.actions.cancelReattachment}>
             Cancel
           </button>

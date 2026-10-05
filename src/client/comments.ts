@@ -17,9 +17,13 @@ export type DiffCommentAnchor = LineContext & {
 };
 export type FileCommentAnchor = LineContext & { kind: "file"; source: "worktree" };
 export type CommentAnchor = DiffCommentAnchor | FileCommentAnchor;
+export type SelectionSubject = { kind: "selection"; start: number; end: number; text: string };
+export type CommentSubject = { kind: "line" } | SelectionSubject;
+export type CommentTarget = { anchor: CommentAnchor; subject: CommentSubject };
 export type DraftComment = {
   id: string;
   anchor: CommentAnchor;
+  subject: CommentSubject;
   body: string;
   createdAt: number;
   updatedAt: number;
@@ -32,14 +36,14 @@ export type FeedbackHistory = {
   comments: DraftComment[];
 };
 export type CommentStore = {
-  version: 2;
+  version: 3;
   projectId: string;
   drafts: DraftComment[];
   history: FeedbackHistory[];
 };
 export type CheckedComments = {
   projectId: string;
-  drafts: Pick<DraftComment, "id" | "anchor" | "state">[];
+  drafts: Pick<DraftComment, "id" | "anchor" | "subject" | "state">[];
 };
 export type FeedbackSnapshot = { projectId: string; text: string; drafts: DraftComment[] };
 
@@ -55,14 +59,14 @@ export function newLocalId(): string {
 }
 
 export function emptyCommentStore(projectId: string): CommentStore {
-  return { version: 2, projectId, drafts: [], history: [] };
+  return { version: 3, projectId, drafts: [], history: [] };
 }
 
 function validText(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length <= max && !value.includes("\0");
 }
 
-function parseAnchor(value: unknown, version: 1 | 2): CommentAnchor | null {
+function parseAnchor(value: unknown, version: 1 | 2 | 3): CommentAnchor | null {
   if (!isRecord(value)) return null;
   const { path, line, sourceText, before, after } = value;
   if (!validText(path, 4096) || path.length === 0 || !validText(sourceText, 20_000)) return null;
@@ -73,7 +77,7 @@ function parseAnchor(value: unknown, version: 1 | 2): CommentAnchor | null {
   )
     return null;
   const context = { path, line, sourceText, before, after };
-  if (version === 2 && value["kind"] === "file") {
+  if (version !== 1 && value["kind"] === "file") {
     if (
       value["source"] !== "worktree" ||
       "layer" in value ||
@@ -93,7 +97,7 @@ function parseAnchor(value: unknown, version: 1 | 2): CommentAnchor | null {
   }
   if (
     (version === 1 && "kind" in value) ||
-    (version === 2 && value["kind"] !== "diff") ||
+    (version !== 1 && value["kind"] !== "diff") ||
     "source" in value
   )
     return null;
@@ -103,7 +107,48 @@ function parseAnchor(value: unknown, version: 1 | 2): CommentAnchor | null {
   return { kind: "diff", layer, side, ...context };
 }
 
-function parseDraft(value: unknown, version: 1 | 2): DraftComment | null {
+/** Offsets use UTF-16, but may not split a surrogate pair. */
+export function selectionSubject(
+  source: string,
+  start: number,
+  end: number,
+): SelectionSubject | null {
+  const splitsPair = (offset: number): boolean =>
+    offset > 0 &&
+    offset < source.length &&
+    /[\uD800-\uDBFF]/.test(source.charAt(offset - 1)) &&
+    /[\uDC00-\uDFFF]/.test(source.charAt(offset));
+  if (
+    !validText(source, 20_000) ||
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start < 0 ||
+    end <= start ||
+    end > source.length ||
+    splitsPair(start) ||
+    splitsPair(end)
+  )
+    return null;
+  const text = source.slice(start, end);
+  if (text.trim().length === 0 || /[\r\n]/.test(text)) return null;
+  return { kind: "selection", start, end, text };
+}
+
+function parseSubject(value: unknown, source: string): CommentSubject | null {
+  if (!isRecord(value)) return null;
+  if (value["kind"] === "line")
+    return "start" in value || "end" in value || "text" in value ? null : { kind: "line" };
+  if (
+    value["kind"] !== "selection" ||
+    typeof value["start"] !== "number" ||
+    typeof value["end"] !== "number"
+  )
+    return null;
+  const subject = selectionSubject(source, value["start"], value["end"]);
+  return subject?.kind === "selection" && subject.text === value["text"] ? subject : null;
+}
+
+function parseDraft(value: unknown, version: 1 | 2 | 3): DraftComment | null {
   if (!isRecord(value)) return null;
   const { id, body, createdAt, updatedAt, state } = value;
   const anchor = parseAnchor(value["anchor"], version);
@@ -125,13 +170,20 @@ function parseDraft(value: unknown, version: 1 | 2): DraftComment | null {
   )
     return null;
   if (state !== "current" && state !== "outdated") return null;
-  return { id, anchor, body, createdAt, updatedAt, state };
+  const subject =
+    version === 3
+      ? parseSubject(value["subject"], anchor.sourceText)
+      : "subject" in value
+        ? null
+        : ({ kind: "line" } as const);
+  if (subject === null) return null;
+  return { id, anchor, subject, body, createdAt, updatedAt, state };
 }
 
 export function validateCommentStore(value: unknown, projectId: string): CommentStore | null {
   if (
     !isRecord(value) ||
-    (value["version"] !== 1 && value["version"] !== 2) ||
+    (value["version"] !== 1 && value["version"] !== 2 && value["version"] !== 3) ||
     value["projectId"] !== projectId
   )
     return null;
@@ -173,7 +225,7 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
     }
     history.push({ id: item["id"], copiedAt: item["copiedAt"], text: item["text"], comments });
   }
-  return { version: 2, projectId, drafts, history };
+  return { version: 3, projectId, drafts, history };
 }
 
 export function parseCommentStore(value: unknown, projectId: string): CommentStore {
@@ -187,7 +239,7 @@ export function readCommentStore(projectId: string): CommentStore {
     const value: unknown = JSON.parse(raw);
     const store = validateCommentStore(value, projectId);
     if (store === null) return emptyCommentStore(projectId);
-    if (isRecord(value) && value["version"] === 1) saveCommentStore(store);
+    if (isRecord(value) && value["version"] !== 3) saveCommentStore(store);
     return store;
   } catch {
     return emptyCommentStore(projectId);
@@ -219,6 +271,12 @@ export function anchorForLine(
       ? other.text
       : null;
   };
+  if (
+    ![line.text, sideText(-1), sideText(1)].every(
+      (text) => text === null || validText(text, 20_000),
+    )
+  )
+    return null;
   return {
     kind: "diff",
     layer,
@@ -314,6 +372,10 @@ export function formatFeedback(projectPath: string, drafts: readonly DraftCommen
     lines.push(
       `  ${draft.anchor.kind === "diff" ? `${draft.anchor.side} ` : ""}line ${draft.anchor.line}  ${quote(draft.anchor.sourceText)}`,
     );
+    if (draft.subject.kind === "selection")
+      lines.push(
+        `    selected ${quote(draft.subject.text)} (columns ${draft.subject.start + 1}–${draft.subject.end})`,
+      );
     for (const bodyLine of draft.body.trim().split(/\r?\n/)) lines.push(`    ${bodyLine}`);
   }
   return lines.join("\n");
@@ -332,6 +394,17 @@ function sameAnchor(first: CommentAnchor, second: CommentAnchor): boolean {
   );
 }
 
+export function sameSubject(first: CommentSubject, second: CommentSubject): boolean {
+  return (
+    first.kind === second.kind &&
+    (first.kind === "line" ||
+      (second.kind === "selection" &&
+        first.start === second.start &&
+        first.end === second.end &&
+        first.text === second.text))
+  );
+}
+
 export function mergeCheckedComments(store: CommentStore, checked: CheckedComments): CommentStore {
   if (store.projectId !== checked.projectId) return store;
   const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
@@ -339,7 +412,9 @@ export function mergeCheckedComments(store: CommentStore, checked: CheckedCommen
     ...store,
     drafts: store.drafts.map((draft) => {
       const result = byId.get(draft.id);
-      return result !== undefined && sameAnchor(draft.anchor, result.anchor)
+      return result !== undefined &&
+        sameAnchor(draft.anchor, result.anchor) &&
+        sameSubject(draft.subject, result.subject)
         ? { ...draft, state: result.state }
         : draft;
     }),
@@ -361,10 +436,15 @@ export function snapshotFeedback(
             return (
               draft.state === "current" &&
               result?.state === "current" &&
-              sameAnchor(draft.anchor, result.anchor)
+              sameAnchor(draft.anchor, result.anchor) &&
+              sameSubject(draft.subject, result.subject)
             );
           })
-          .map((draft) => ({ ...draft, anchor: { ...draft.anchor } }));
+          .map((draft) => ({
+            ...draft,
+            anchor: { ...draft.anchor },
+            subject: { ...draft.subject },
+          }));
   return { projectId: store.projectId, text: formatFeedback(projectPath, drafts), drafts };
 }
 
@@ -393,7 +473,8 @@ export function recordSuccessfulCopy(
         draft.body !== copied.body ||
         draft.createdAt !== copied.createdAt ||
         draft.updatedAt !== copied.updatedAt ||
-        !sameAnchor(draft.anchor, copied.anchor)
+        !sameAnchor(draft.anchor, copied.anchor) ||
+        !sameSubject(draft.subject, copied.subject)
       );
     }),
     history: [entry, ...store.history].slice(0, maxHistory),

@@ -59,13 +59,14 @@ if (anchor === null) throw new Error("Missing fixture comment anchor");
 const draft: DraftComment = {
   id: "transaction-draft",
   anchor,
+  subject: { kind: "line" },
   body: "Original draft",
   createdAt: 1,
   updatedAt: 1,
   state: "current",
 };
 const seed: CommentStore = {
-  version: 2,
+  version: 3,
   projectId: project.id,
   drafts: [draft],
   history: [{ id: "previous-copy", copiedAt: 1, text: "Previous feedback", comments: [draft] }],
@@ -448,7 +449,7 @@ try {
         ),
       );
       const otherSeed: CommentStore = {
-        version: 2,
+        version: 3,
         projectId: other.id,
         drafts: [{ ...draft, id: "other-draft", body: "Other project draft" }],
         history: [],

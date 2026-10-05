@@ -9,12 +9,13 @@ import {
   saveCommentStore,
   undoSuccessfulCopy,
   type CommentAnchor,
+  type CommentTarget,
   type CommentStore,
   type DraftComment,
 } from "./comments.ts";
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
 
-export type EditorState = { anchor: CommentAnchor; draftId: string | null; body: string };
+export type EditorState = CommentTarget & { draftId: string | null; body: string };
 
 type FeedbackSession = {
   store: CommentStore | null;
@@ -37,7 +38,7 @@ type FeedbackModel = {
   drafts: readonly DraftComment[];
   editor: EditorState | null;
   preview: FeedbackPreview | null;
-  reattachment: CommentAnchor | null;
+  reattachment: CommentTarget | null;
 };
 
 type FeedbackActions = {
@@ -45,6 +46,7 @@ type FeedbackActions = {
   beginProjectOpen: () => void;
   loadProject: (project: Project) => void;
   chooseLine: (anchor: CommentAnchor) => void;
+  chooseSelection: (target: CommentTarget) => void;
   changeBody: (body: string) => void;
   closeEditor: () => void;
   deleteEditor: () => void;
@@ -152,6 +154,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
         const draft: DraftComment = {
           id: newLocalId(),
           anchor: editor.anchor,
+          subject: editor.subject,
           body: editor.body.trim(),
           createdAt: now,
           updatedAt: now,
@@ -184,6 +187,11 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function chooseLine(anchor: CommentAnchor): void {
+    chooseSelection({ anchor, subject: { kind: "line" } });
+  }
+
+  function chooseSelection({ anchor, subject }: CommentTarget): void {
+    if (sessionRef.current.store?.projectId !== inputsRef.current.project?.id) return;
     const id = sessionRef.current.reattachId;
     if (id !== null) {
       const draft = currentDraft(id);
@@ -194,10 +202,20 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
         );
         return;
       }
+      if (draft.subject.kind !== subject.kind) {
+        inputsRef.current.onNotice(
+          draft.subject.kind === "selection"
+            ? "Select a fresh fragment, then Comment to reattach this selection."
+            : "Choose a line, then Comment to reattach this line comment.",
+        );
+        return;
+      }
       updateStore((current) => ({
         ...current,
         drafts: current.drafts.map((draft) =>
-          draft.id === id ? { ...draft, anchor, state: "current", updatedAt: Date.now() } : draft,
+          draft.id === id
+            ? { ...draft, anchor, subject, state: "current", updatedAt: Date.now() }
+            : draft,
         ),
       }));
       updateSession((current) => ({ ...current, reattachId: null }));
@@ -206,7 +224,10 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       );
       return;
     }
-    updateSession((current) => ({ ...current, editor: { anchor, draftId: null, body: "" } }));
+    updateSession((current) => ({
+      ...current,
+      editor: { anchor, subject, draftId: null, body: "" },
+    }));
   }
 
   function changeBody(body: string): void {
@@ -255,7 +276,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
     updateSession((current) => ({
       ...current,
       previewOpen: false,
-      editor: { anchor: draft.anchor, draftId: draft.id, body: draft.body },
+      editor: { anchor: draft.anchor, subject: draft.subject, draftId: draft.id, body: draft.body },
     }));
   }
 
@@ -311,13 +332,14 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
               canUndo: session.undoCopyId !== null && store.history[0]?.id === session.undoCopyId,
             }
           : null,
-      reattachment: store?.drafts.find((draft) => draft.id === session.reattachId)?.anchor ?? null,
+      reattachment: store?.drafts.find((draft) => draft.id === session.reattachId) ?? null,
     },
     actions: {
       prepareNavigation,
       beginProjectOpen,
       loadProject,
       chooseLine,
+      chooseSelection,
       changeBody,
       closeEditor,
       deleteEditor,

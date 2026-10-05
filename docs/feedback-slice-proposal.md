@@ -9,8 +9,8 @@ tap/click access at every size.
 This slice established the review loop: select a diff line, write a comment, preview comments, and
 copy a line-numbered summary into an editing session. Later slices add row actions, voice input, and
 URL navigation.
-[U03](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
-accepted; commit approved, extends the anchor and export model to working-tree text lines in Files
+[U03](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files), accepted
+and committed as `7632b4d`, extends the anchor and export model to working-tree text lines in Files
 and Search.
 
 ## User flow
@@ -19,7 +19,7 @@ and Search.
    then its floating Comment action. Files use Working tree lines and provide a keyboard-accessible
    line-number button. In diffs, added and unchanged lines use New; removed lines use Old. Phones
    hide diff gutters, while wider screens also offer direct old/new line-number buttons. Native text
-   selection takes precedence and opens Search; double tap is not a comment shortcut.
+   selection takes precedence and offers Search or Comment; double tap is not a comment shortcut.
 2. A comment editor opens as a bottom sheet on a phone and a dialog on wider screens. It shows path,
    Git layer and side for a diff anchor, or Working tree for a file anchor, plus line number and a
    short source quote. Type a comment, save it, edit it, or delete it. Closing an edited sheet saves
@@ -76,15 +76,17 @@ Only a resolved clipboard write counts as a successful copy for history. The exp
 pure function so behavior tests can cover ordering, escaping, and stale exclusion.
 
 The [feedback transaction owner](../src/client/feedback-transactions.ts) keeps checks and clipboard
-operations in tab memory. Stored comments use version 2 at the existing `git-review:comments:v1:`
-key. Valid legacy version-1 stores migrate in place after validation, including history anchors;
-copied history text remains exact. Backup export uses version 4, while versions 1–3 remain
-importable with validated legacy diff stores. A check merges validity only into still-existing
-drafts with matching full anchors, preserving newer bodies, additions, deletions, reattachments, and
-history. The successful check carries its checked ID/anchor set into both the selectable preview and
-the automatic copy snapshot. Drafts added or restored during a check need another check before
-entering that export. Copy always checks again and snapshots the latest saved bodies belonging to
-the checked anchors.
+operations in tab memory. Stored comments use version 3 at the existing `git-review:comments:v1:`
+key. Valid legacy version-1/2 stores migrate in place after validation, including history anchors;
+copied history text remains exact. Backup export uses version 5, while versions 1–4 remain
+importable with their validated original comment models. The
+[selection follow-up](selected-code-feedback-proposal.md) adds precise line/selection subjects;
+legacy comments migrate to line subjects. A check merges validity only into still-existing drafts
+with matching full anchors and subjects, preserving newer bodies, additions, deletions,
+reattachments, and history. The successful check carries its checked ID/anchor/subject set into both
+the selectable preview and the automatic copy snapshot. Drafts added or restored during a check need
+another check before entering that export. Copy always checks again and snapshots the latest saved
+bodies belonging to the checked anchors.
 
 While a clipboard write is pending, show **Copying feedback…** and disable further feedback/history
 writes. Check/copy cancellation happens synchronously on navigation and before opening an existing

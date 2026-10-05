@@ -6,12 +6,14 @@ import {
   type DraftComment,
   type ReviewSide,
 } from "./comments.ts";
+import { SelectableCode } from "./code-selection.tsx";
 import { MediaDiff } from "./MediaPreview.tsx";
 import { decorateDiffTokens } from "./diff-detail.ts";
 
 export type DiffInteraction =
   | {
       kind: "review";
+      projectId: string;
       entry: ChangeEntry;
       onComment: (anchor: DiffCommentAnchor) => void;
       drafts: readonly DraftComment[];
@@ -34,10 +36,12 @@ type LineAction = {
 type LineReveal = (hunk: DiffHunk, index: number, row: HTMLElement, clientX: number) => void;
 
 function HunkRows({
+  resource,
   hunk,
   interaction,
   onReveal,
 }: {
+  resource: DiffResult;
   hunk: DiffHunk;
   interaction: DiffInteraction;
   onReveal: LineReveal;
@@ -119,7 +123,26 @@ function HunkRows({
               }
             }}
           />
-          <code class="diff-code">
+          <SelectableCode
+            className="diff-code"
+            resource={resource}
+            projectId={interaction.kind === "review" ? interaction.projectId : null}
+            text={line.text}
+            anchor={
+              interaction.kind === "review"
+                ? anchorForLine(
+                    interaction.entry.layer,
+                    interaction.entry.path,
+                    hunk,
+                    index,
+                    line.kind === "removed" ||
+                      (line.kind === "context" && interaction.reattachSide === "old")
+                      ? "old"
+                      : "new",
+                  )
+                : null
+            }
+          >
             {decorateDiffTokens(line.tokens, line.detail).map((token, tokenIndex) => (
               <span
                 class={`syntax-token syntax-token-${token.role}${token.changed ? " diff-word-change" : ""}`}
@@ -129,7 +152,7 @@ function HunkRows({
               </span>
             ))}
             {line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}
-          </code>
+          </SelectableCode>
         </div>
       ))}
     </div>
@@ -220,6 +243,7 @@ export function DiffBody({
         <div class="diff-scroll-content">
           {result.hunks.map((hunk, index) => (
             <HunkRows
+              resource={result}
               hunk={hunk}
               interaction={interaction}
               onReveal={reveal}

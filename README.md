@@ -2,14 +2,15 @@
 
 A local, browser-based code review app. Choose a host folder within an approved root, review staged,
 unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search
-current files in the working tree. Select text in a code line for a contextual Search action. Tap a
-text row in Files, a Search result, or a working-copy diff to reveal its Comment action, dictate
-into the comment, check the source lines, and copy a line-numbered summary. The Git tab browses
-local and already-present remote branches and opens full commit messages with historical diff cards,
-without checking out a branch. Projects, directories, files, Search results, branches, and commits
-have URLs for direct links and browser Back/Forward. With no explicit URL, the selected folder is
-restored **in its own tab**; recent folders, code wrapping, working-copy open cards, language
-overrides, comments, and copy history survive reload in this browser. The
+current files in the working tree. Select text in one code line for contextual Search and Comment
+actions. Selection comments preserve the exact fragment in their source quote, export, and history.
+Tap a text row in Files, a Search result, or a working-copy diff to reveal its Comment action,
+dictate into the comment, check the source lines, and copy a line-numbered summary. The Git tab
+browses local and already-present remote branches and opens full commit messages with historical
+diff cards, without checking out a branch. Projects, directories, files, Search results, branches,
+and commits have URLs for direct links and browser Back/Forward. With no explicit URL, the selected
+folder is restored **in its own tab**; recent folders, code wrapping, working-copy open cards,
+language overrides, comments, and copy history survive reload in this browser. The
 [documentation map](docs/README.md) links current behavior and engineering records.
 
 Expanded diffs stay cached in tab memory across section navigation, preserving their content and
@@ -122,6 +123,7 @@ bun run qa:loading http://127.0.0.1:3000/
 bun run qa:git-fixture
 bun run qa:git http://127.0.0.1:3000/
 bun run qa:feedback http://127.0.0.1:3000/
+bun run qa:selected-feedback http://127.0.0.1:39911/
 bun run qa:file-feedback http://127.0.0.1:39911/ http://127.0.0.1:39912/
 bun run qa:voice http://127.0.0.1:3000/
 bun run qa:tabs http://127.0.0.1:3000/

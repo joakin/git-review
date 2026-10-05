@@ -107,7 +107,7 @@ export function DiffCard({
 
   return (
     <DiffCardFrame
-      mode={{ kind: "review", entry, onComment, drafts, reattachSide }}
+      mode={{ kind: "review", projectId, entry, onComment, drafts, reattachSide }}
       id={diffCardId(entry)}
       expanded={expanded}
       onToggle={onToggle}

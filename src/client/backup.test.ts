@@ -55,16 +55,18 @@ test("backup versions 1–3 preserve every reviewable layer in drafts and copy h
   };
   const migrated = {
     ...store,
-    version: 2 as const,
+    version: 3 as const,
     drafts: drafts.map((draft) => ({
       ...draft,
       anchor: { ...draft.anchor, kind: "diff" as const },
+      subject: { kind: "line" as const },
     })),
     history: store.history.map((entry) => ({
       ...entry,
       comments: entry.comments.map((draft) => ({
         ...draft,
         anchor: { ...draft.anchor, kind: "diff" as const },
+        subject: { kind: "line" as const },
       })),
     })),
   };

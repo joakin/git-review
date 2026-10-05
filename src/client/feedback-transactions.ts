@@ -151,7 +151,12 @@ export class FeedbackTransactions {
           const result = files.get(anchor.path);
           current = result !== undefined && result !== null && fileAnchorMatches(result, anchor);
         }
-        return { id: draft.id, anchor, state: current ? "current" : "outdated" };
+        return {
+          id: draft.id,
+          anchor,
+          subject: draft.subject,
+          state: current ? "current" : "outdated",
+        };
       }),
     };
   }

@@ -161,7 +161,7 @@ try {
         typeof migrated === "object" &&
           migrated !== null &&
           "version" in migrated &&
-          migrated.version === 2,
+          migrated.version === 3,
         "Legacy store did not migrate in place",
       );
       assert(
@@ -274,7 +274,7 @@ try {
             resolve("qa/.artifacts"),
           );
           assert(
-            backup.version === 4 &&
+            backup.version === 5 &&
               backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "file") === true &&
               backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "diff") === true,
             "Export omitted mixed comment sources",

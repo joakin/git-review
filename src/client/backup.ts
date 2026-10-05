@@ -40,7 +40,11 @@ type ReviewBackupData = {
 export type ReviewBackup =
   | (ReviewBackupData & { version: 1 })
   | (ReviewBackupData & { version: 2; codeTypography: CodeTypography })
-  | (ReviewBackupData & { version: 3 | 4; codeTypography: CodeTypography; appearance: Appearance });
+  | (ReviewBackupData & {
+      version: 3 | 4 | 5;
+      codeTypography: CodeTypography;
+      appearance: Appearance;
+    });
 
 function safePath(value: unknown): value is string {
   if (
@@ -70,17 +74,16 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
     (value["version"] !== 1 &&
       value["version"] !== 2 &&
       value["version"] !== 3 &&
-      value["version"] !== 4) ||
+      value["version"] !== 4 &&
+      value["version"] !== 5) ||
     value["rootPath"] !== rootPath
   )
     throw new Error("This backup belongs to a different host root or uses an unsupported format.");
   const version = value["version"];
   const typography = version === 1 ? null : validateCodeTypography(value["codeTypography"]);
   if (version !== 1 && typography === null) throw new Error("Backup code typography is invalid.");
-  const appearance =
-    version === 3 || version === 4 ? validateAppearance(value["appearance"]) : null;
-  if ((version === 3 || version === 4) && appearance === null)
-    throw new Error("Backup appearance is invalid.");
+  const appearance = version >= 3 ? validateAppearance(value["appearance"]) : null;
+  if (version >= 3 && appearance === null) throw new Error("Backup appearance is invalid.");
   const workspace = validateSavedWorkspace(value["workspace"], rootPath);
   if (workspace === null || typeof value["wrap"] !== "boolean")
     throw new Error("Backup preferences are invalid.");
@@ -110,7 +113,10 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   for (const item of rawComments) {
     if (!isRecord(item) || !uniqueProjectId(item["projectId"], commentIds))
       throw new Error("Backup contains an invalid or duplicate project comment record.");
-    if (version !== 4 && item["version"] !== 1)
+    if (
+      (version <= 3 && item["version"] !== 1) ||
+      (version === 4 && item["version"] !== 1 && item["version"] !== 2)
+    )
       throw new Error("Backup contains invalid comments or copy history.");
     const store = validateCommentStore(item, item["projectId"]);
     if (store === null) throw new Error("Backup contains invalid comments or copy history.");
@@ -202,7 +208,7 @@ export function createReviewBackup(rootPath: string): ReviewBackup {
   }
   const backup = parseReviewBackup(
     {
-      version: 4,
+      version: 5,
       rootPath,
       workspace,
       wrap: readWrapPreference(),
@@ -226,7 +232,7 @@ export function applyReviewBackup(backup: ReviewBackup): void {
   ]);
   if (backup.version !== 1)
     writes.set(codeTypographyStorageKey, JSON.stringify(backup.codeTypography));
-  if (backup.version === 3 || backup.version === 4)
+  if (backup.version !== 1 && backup.version !== 2)
     writes.set(appearanceStorageKey, JSON.stringify(backup.appearance));
   for (const store of backup.comments)
     writes.set(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store));

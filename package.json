@@ -40,7 +40,8 @@
     "qa:git-fixture": "bun qa/prepare-git-fixture.ts",
     "qa:git": "bun qa/check-git.ts",
     "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts && bun run format:check",
-    "qa:file-feedback": "bun qa/check-file-feedback.ts"
+    "qa:file-feedback": "bun qa/check-file-feedback.ts",
+    "qa:selected-feedback": "bun qa/check-selected-feedback.ts"
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"

@@ -21,8 +21,8 @@ installation.
   types, state ownership, navigation, transactions, and documentation.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and
   optional further device checks.
-- [Selected-code feedback proposal](selected-code-feedback-proposal.md): proposed Comment action
-  alongside Search, exact selected fragments and compatibility checks; approved for implementation.
+- [Selected-code feedback proposal](selected-code-feedback-proposal.md): Comment action alongside
+  Search, exact selected fragments and compatibility checks; accepted on 2026-10-05.
 - [Formatting workflow](formatting-workflow.md): pinned formatter, repository-wide commands,
   staged-file hook, and verification record.
 
@@ -34,19 +34,19 @@ the bounded cleanup pass. Historical implementation checkpoints describe complet
 
 ## Behavior records
 
-| Area                         | Documents                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Host folders and containment | [Foundation](foundation-slice.md), [Files browser](file-browser-slice-proposal.md)                                                                                        |
-| Git review                   | [Change inventory](git-status-slice.md), [diff cards](diff-slice.md), [syntax highlighting](syntax-highlighting-slice.md), [word detail](diff-fidelity-slice-proposal.md) |
-| Git inspection               | [Branches, paginated history, full commits, immutable diffs, and media](git-history-slice-proposal.md)                                                                    |
-| Feedback                     | [Line comments, draft checks, copy, and history](feedback-slice-proposal.md), [phone line action and Old/New semantics](phone-portrait-gutter-slice-proposal.md)          |
-| Files and Search             | [Working-tree Files](file-browser-slice-proposal.md), [ripgrep Search](search-slice-proposal.md), [selected-code Search](selected-code-search-slice-proposal.md)          |
-| Media                        | [Images, SVG, audio/video, raw links, and Git sides](media-preview-slice-proposal.md)                                                                                     |
-| Voice                        | [Local Handy dictation, caret insertion, and Retry](local-voice-comment-slice-proposal.md)                                                                                |
-| Appearance                   | [Typography](code-typography-slice-proposal.md), [20 Google code fonts](google-code-fonts-followup.md), [app and code themes](theme-settings-slice-proposal.md)           |
-| Navigation                   | [URLs, History API, menu/list/content, and breakpoints](navigation-and-url-history-slice-proposal.md)                                                                     |
-| Updates and loading          | [Live change detection](live-change-detection-slice-proposal.md), [loading delay, diff cache, and route focus](loading-and-transition-polish.md)                          |
-| Local data and installation  | [Independent tabs, PWA, backups, and HTTPS](independent-tabs-and-pwa-proposal.md)                                                                                         |
+| Area                         | Documents                                                                                                                                                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Host folders and containment | [Foundation](foundation-slice.md), [Files browser](file-browser-slice-proposal.md)                                                                                                                                         |
+| Git review                   | [Change inventory](git-status-slice.md), [diff cards](diff-slice.md), [syntax highlighting](syntax-highlighting-slice.md), [word detail](diff-fidelity-slice-proposal.md)                                                  |
+| Git inspection               | [Branches, paginated history, full commits, immutable diffs, and media](git-history-slice-proposal.md)                                                                                                                     |
+| Feedback                     | [Line comments, draft checks, copy, and history](feedback-slice-proposal.md), [phone line action and Old/New semantics](phone-portrait-gutter-slice-proposal.md)                                                           |
+| Files and Search             | [Working-tree Files](file-browser-slice-proposal.md), [ripgrep Search](search-slice-proposal.md), [selected-code Search](selected-code-search-slice-proposal.md), [selection comments](selected-code-feedback-proposal.md) |
+| Media                        | [Images, SVG, audio/video, raw links, and Git sides](media-preview-slice-proposal.md)                                                                                                                                      |
+| Voice                        | [Local Handy dictation, caret insertion, and Retry](local-voice-comment-slice-proposal.md)                                                                                                                                 |
+| Appearance                   | [Typography](code-typography-slice-proposal.md), [20 Google code fonts](google-code-fonts-followup.md), [app and code themes](theme-settings-slice-proposal.md)                                                            |
+| Navigation                   | [URLs, History API, menu/list/content, and breakpoints](navigation-and-url-history-slice-proposal.md)                                                                                                                      |
+| Updates and loading          | [Live change detection](live-change-detection-slice-proposal.md), [loading delay, diff cache, and route focus](loading-and-transition-polish.md)                                                                           |
+| Local data and installation  | [Independent tabs, PWA, backups, and HTTPS](independent-tabs-and-pwa-proposal.md)                                                                                                                                          |
 
 ## Where state belongs
 
@@ -93,10 +93,10 @@ focus handling.
 
 - Files reads the working tree. The
   [U03 follow-up](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
-  accepted; commit approved, adds text-line feedback in Files and Search alongside working-copy Git
-  diff comments. Whole-file/project notes remain outside this slice. Git opens historical commit
-  comparisons with line information and media; historical comments, file-specific history, and a
-  full old-tree browser remain optional later work.
+  accepted and committed as `7632b4d`, adds text-line feedback in Files and Search alongside
+  working-copy Git diff comments. Whole-file/project notes remain outside this slice. Git opens
+  historical commit comparisons with line information and media; historical comments, file-specific
+  history, and a full old-tree browser remain optional later work.
 - Draft checking requires the same side, line, source text, and neighboring context. Outdated drafts
   need explicit reattachment; automatic relocation is not implemented.
 - Recent projects exist; recent-file history is optional future work. Diff payloads are cached only

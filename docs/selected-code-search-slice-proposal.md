@@ -11,10 +11,12 @@ on their phone. Additional iOS selection checks remain unverified
    can use the same action. Do not replace native selection handles, Copy, or the gutter's comment
    buttons.
 2. When a valid selection is inside **one code line**, show a compact **Search selected text**
-   tooltip next to it, with a short preview. On touch screens, place it below the selected text to
-   avoid Android's native selection menu above the text; on mouse-driven screens, prefer above. Keep
-   it outside the code pane's clipping and horizontal scroll container. Deselecting or pressing
-   Escape dismisses it.
+   tooltip next to it, with a short preview. The
+   [selection-feedback extension](selected-code-feedback-proposal.md), accepted on 2026-10-05, adds
+   Comment alongside Search. On touch screens, place it below the selected text to avoid Android's
+   native selection menu above the text; on mouse-driven screens, prefer above. Keep it outside the
+   code pane's clipping and horizontal scroll container. Deselecting or pressing Escape dismisses
+   it.
 3. Tapping the action opens the existing Search tab, fills its query, submits one bounded literal
    search, and shows the results. The query stays editable. A result still opens the current
    working-tree file at the matching line.
@@ -30,9 +32,10 @@ returns to earlier destinations.
   current 1–128 character, single-line validation.
 - Add one client-side selection reader shared by diff and file code. It inspects the browser
   `Selection`/`Range`, accepts a non-collapsed range whose start and end belong to the same
-  `.diff-code` or `.file-code-line`, and stores only the trimmed selected string. Syntax-highlight
-  spans within that code element may be crossed; selection across two code rows, a line number, page
-  text, or a dialog is ignored.
+  `.diff-code` or `.file-code-line`, and retains the exact Range and registered source snapshot.
+  Search submits only the trimmed selected string; Comment preserves exact fragment offsets and
+  whitespace. Syntax-highlight spans within that code element may be crossed; selection across two
+  code rows, a line number, page text, or a dialog is ignored.
 - Treat selection as ephemeral UI state. Clear it on project change, code replacement, Search
   submission, and dismissal. Do not save it in browser storage or send the source line/path to
   Search.

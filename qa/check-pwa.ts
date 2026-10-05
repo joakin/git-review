@@ -91,7 +91,7 @@ try {
     throw new Error("Export omitted the review record");
   if (
     !("version" in backup) ||
-    backup.version !== 4 ||
+    backup.version !== 5 ||
     !("codeTypography" in backup) ||
     typeof backup.codeTypography !== "object" ||
     backup.codeTypography === null ||

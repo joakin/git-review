@@ -72,6 +72,7 @@ function draft(
   return {
     id,
     anchor,
+    subject: { kind: "line" },
     body: "Change this\nthen check it",
     createdAt: 1,
     updatedAt: 1,

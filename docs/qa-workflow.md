@@ -472,3 +472,14 @@ file-only checks without status requests. Clipboard uses Chrome's granted Clipbo
 Browser emulation does not establish physical-device clipboard, gesture, keyboard or microphone
 behavior. Saved browser states stay under ignored `qa/.artifacts/` and support the U03
 action/editor/preview captures via `qa:capture`.
+
+## Selected-code feedback
+
+`bun run qa:selected-feedback http://127.0.0.1:39911/` uses the inventory fixture under
+`qa/.artifacts`. It creates/restores `src/selection-feedback.ts` to check repeated fragments,
+whitespace/tokens, Unicode, wrapped ranges, save/reload, clipboard/history/Undo, source replacement,
+reattachment, Search, backup transfer and diff Old/New/annotation boundaries at 320 px plus the four
+standard viewports. Exact offsets are selected through native DOM Ranges; the app receives no
+special test source metadata. Saved browser states support action/editor/preview `qa:capture`
+milestones. Existing `qa:selected-search` covers page/horizontal scrolling and invalid cross-row
+selection; `qa:file-feedback` covers legacy whole-line flows and source-kind reattachment guards.

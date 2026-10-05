@@ -88,11 +88,15 @@ From this repository on a phone, search for a symbol, open its current file at t
 return to the same results. The same path works in a non-Git folder. Search is bounded and
 read-only. Its full-file viewer also supports
 [U03 working-tree line feedback](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
-accepted; commit approved. Files and Search share file-anchor identity and markers; the Search query
-is not part of that identity.
+accepted and committed as `7632b4d`. Files and Search share file-anchor identity and markers; the
+Search query is not part of that identity.
 
 Search is an explicit project tab. Its URL records the submitted query and optional result
 file/line; the latest matching response stays in tab memory during section switches. Back/Forward
 and reload rerun a query when its data is not loaded. The file location bar stays visible during
 deep line jumps, and changed or deleted results show a stale notice. The selected-code tooltip is
 implemented and reviewed on the maintainer's phone; iOS selection remains unverified.
+
+The [selected-code feedback follow-up](selected-code-feedback-proposal.md), accepted on 2026-10-05,
+adds Comment beside Search for fragments within one logical code line. Files and Search resolve the
+same working-tree anchor and preserve exact selected offsets.
