@@ -1,6 +1,7 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12 accepted; M12 approved for commit; M13–M15 pending
+Status: M01–M12 accepted and committed; M13a accepted and approved for commit; M13b/M13c and M14–M15
+pending
 
 Created: 2026-09-30
 
@@ -88,7 +89,7 @@ verification of this maintenance work.
 
 ## Slice order and status
 
-M01–M11 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
+M01–M12 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
 usability work. After accepting and requesting the commit of the selection extension and joined
 controls on 2026-10-05, the maintainer requested continuation with the plan. The maintainer accepted
 M11 and explicitly requested its commit (`e9da16a`) and continuation on 2026-10-05. M12 is accepted
@@ -720,6 +721,19 @@ large test framework or one centralized fixture that obscures each scenario.
 **Validation:** type-check and run each migrated script on an isolated fixture server; confirm
 equivalent failure detection and M04 output ownership. Run server tests after test-support
 extraction. Document any changed QA invocation in the workflow and package scripts.
+
+### M13 review steps
+
+- **M13a — First browser interface:** accepted and explicitly approved for commit on 2026-10-05.
+  Share browser/context lifetime, the profiles used by the first callers, HTTP URL parsing,
+  page-error collection and overflow checks. Migrate Files, images and media playback; verify their
+  existing feature checks still pass. The [handoff](#m13a-handoff--2026-10-05) records this slice.
+- **M13b — Further browser/fixture adoption:** pending M13a review. Reuse the agreed interface where
+  useful in the remaining scripts, adding shared tablet profiles, argument/fixture and artifact
+  handling only when callers need them. Keep each feature's interactions and assertions local.
+- **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
+  temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
+  affected server suite after that extraction.
 
 ## M14 — Curate artifacts and clarify historical records
 
@@ -1710,5 +1724,46 @@ Use this compact entry for each handoff:
   checks used Chrome emulation and its clipboard implementation; no new physical-device gestures,
   native selection menus, microphone or installed-PWA interruption checks were performed.
 - **Review/next step:** the maintainer accepted M12 and explicitly requested its commit and
-  continuation on 2026-10-05. M13 is next: sharing QA/browser and low-level test support in small
-  substeps, starting with two or three browser scripts before reviewing the interface.
+  continuation on 2026-10-05. M12 is committed as `379d870`. M13 is next: sharing QA/browser and
+  low-level test support in small substeps, starting with two or three browser scripts before
+  reviewing the interface.
+
+## M13a handoff — 2026-10-05
+
+- **Alignment:** the maintainer accepted M12, explicitly requested its commit (`379d870`) and
+  continuation with M13 on 2026-10-05. The first slice implements the agreed two-or-three-script
+  interface review before broader migration.
+- **Implementation:** [browser-support.ts](../qa/browser-support.ts) owns installed headless Chrome
+  launch/cleanup, scoped context cleanup, HTTP(S) app URL validation, phone/desktop context
+  profiles, context-wide page-error collection and the existing two-pixel document overflow
+  tolerance. Contexts collect errors from every page, including additional tabs and popups, and
+  reject a completed check when any were seen. Callback failures still fail and release their
+  context/browser. [Files](../qa/check-files.ts), [images](../qa/check-media.ts) and
+  [media playback](../qa/check-media-playback.ts) are the three first callers. Their interactions,
+  syntax/wrapping/scrolling, navigation, SVG raw/header checks, media seeking and range assertions
+  remain beside the scripts. The images script retains its default Chrome viewport; the named
+  profiles preserve the other callers' 390 × 844 phone and 1440 × 900 desktop layouts.
+- **Detection and workflow:** media checks now collect page errors and check page-wide overflow;
+  Files also checks errors in its desktop context. Script commands, fixture arguments and defaults
+  remain compatible. The [QA workflow](qa-workflow.md#shared-browser-support) documents the
+  contract.
+- **Review adjustment:** after maintainer feedback on 2026-10-05, the dedicated helper self-check
+  file and command were removed as unnecessary for this cleanup. Validate further QA refactoring
+  through type-checking and the affected existing feature checks.
+- **Verification:** all five strict TypeScript configurations pass; CSS validation resolves 138
+  token references; formatting and whitespace checks pass. All 736 local documentation file targets
+  exist. All three migrated scripts pass on an isolated fixture server. Files covers its phone code
+  flow and desktop sidebar; images render and raw SVG remains sandboxed; audio/video load and seek
+  in staged cards and Files, with a raw video range returning 206. Direct CLI checks confirm missing
+  required Files input and non-HTTP media/Files URLs exit with failure before launching a browser.
+  Existing tracked screenshots/manifests remain untouched, and ordinary logs stay in ignored
+  `qa/.artifacts/`.
+- **Delivery and limits:** QA support changes no runtime source or client assets. The maintained
+  HTTP/HTTPS services remain available. No new app screenshot captures or physical-device checks
+  were performed. The full server suite was not rerun for this QA-only extraction; M12's 171-test
+  result remains its dated evidence, and M13c will run the affected server tests. Only the isolated
+  QA server started for this slice was stopped.
+- **Review/next step:** the maintainer accepted M13a and explicitly requested its commit on
+  2026-10-05. Before further migration, the maintainer requested a review of the 29 QA aliases in
+  `package.json`. M13b resumes after that command-surface decision; M13c remains a separate
+  test-support step.

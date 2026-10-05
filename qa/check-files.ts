@@ -1,23 +1,18 @@
-import { chromium } from "playwright-core";
+import {
+  appUrl,
+  assertNoHorizontalOverflow,
+  qaProfiles,
+  withQaBrowser,
+  withQaContext,
+} from "./browser-support.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun run qa:files <local app URL>");
-const url = new URL(rawUrl);
-if (url.protocol !== "http:" && url.protocol !== "https:")
-  throw new Error("Expected an HTTP(S) URL");
+const url = appUrl(rawUrl);
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
-try {
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-    deviceScaleFactor: 1,
-  });
-  try {
+await withQaBrowser(async (browser) => {
+  await withQaContext(browser, qaProfiles.phone, async (context) => {
     const page = await context.newPage();
-    const pageErrors: string[] = [];
-    page.on("pageerror", (error) => pageErrors.push(error.message));
     await page.goto(url.href, { waitUntil: "load" });
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
@@ -58,11 +53,10 @@ try {
       return {
         client: element.clientWidth,
         scroll: element.scrollWidth,
-        document: document.documentElement.scrollWidth,
-        viewport: document.documentElement.clientWidth,
       };
     });
-    if (scrolled.scroll <= scrolled.client || scrolled.document > scrolled.viewport + 2)
+    await assertNoHorizontalOverflow(page);
+    if (scrolled.scroll <= scrolled.client)
       throw new Error(`Code scrolling escaped the pane: ${JSON.stringify(scrolled)}`);
     await page.getByRole("button", { name: "Wrap: off" }).click();
     const wrapped = await page.locator(".file-code-scroll").evaluate((element) => {
@@ -78,17 +72,14 @@ try {
     if ((await staged.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true")
       throw new Error("Open diff was lost after visiting Files");
 
-    if (pageErrors.length > 0) throw new Error(`Page errors: ${pageErrors.join("; ")}`);
-    console.log(
-      "Phone Files flow, C syntax, contained scrolling, wrapping, and Changes return passed",
-    );
-  } finally {
-    await context.close();
-  }
+    await assertNoHorizontalOverflow(page);
+  });
+  console.log(
+    "Phone Files flow, C syntax, contained scrolling, wrapping, and Changes return passed",
+  );
 
-  const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  try {
-    const page = await desktop.newPage();
+  await withQaContext(browser, qaProfiles.desktop, async (context) => {
+    const page = await context.newPage();
     await page.goto(url.href, { waitUntil: "load" });
     await page.getByRole("button", { name: /inventory-fixture/ }).click();
     await page.getByRole("button", { name: /Open this folder/ }).click();
@@ -98,9 +89,6 @@ try {
       throw new Error("File path bar still contains a separate navigation button");
     if (!(await page.locator(".sidebar").isVisible()))
       throw new Error("Desktop file sidebar is missing");
-  } finally {
-    await desktop.close();
-  }
-} finally {
-  await browser.close();
-}
+    await assertNoHorizontalOverflow(page);
+  });
+});

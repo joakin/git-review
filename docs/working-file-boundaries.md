@@ -1,6 +1,6 @@
 # Checked working-file boundaries
 
-Status: M12 accepted and explicitly approved for commit on 2026-10-05
+Status: M12 accepted and committed as `379d870` on 2026-10-05
 
 [working-files.ts](../src/server/working-files.ts) owns path validation, approved/project
 containment, no-follow inspection, regular-file opening, identity rechecks and bounded-reader

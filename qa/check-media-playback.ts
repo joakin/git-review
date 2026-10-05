@@ -1,8 +1,14 @@
-import { chromium, type Page } from "playwright-core";
+import type { Page } from "playwright-core";
+import {
+  appUrl,
+  assertNoHorizontalOverflow,
+  qaProfiles,
+  withQaBrowser,
+  withQaContext,
+} from "./browser-support.ts";
 
-const base = new URL(process.argv[2] ?? "http://127.0.0.1:3000/");
+const base = appUrl(process.argv[2] ?? "http://127.0.0.1:3000/");
 const activePath = process.argv[3] ?? "media-av-fixture";
-const browser = await chromium.launch({ channel: "chrome", headless: true });
 
 async function seek(page: Page, selector: string): Promise<void> {
   await page.locator(selector).first().waitFor();
@@ -38,53 +44,50 @@ async function seek(page: Page, selector: string): Promise<void> {
     throw new Error(`${selector} sought to ${time} instead of 1 second`);
 }
 
-try {
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
+await withQaBrowser(async (browser) => {
+  await withQaContext(browser, qaProfiles.phone, async (context) => {
+    const page = await context.newPage();
+    await page.goto(
+      new URL(`/?section=changes&project=${encodeURIComponent(activePath)}`, base).href,
+    );
+    await page
+      .locator('.diff-card[data-layer="staged"][data-path="clip.mp4"] .diff-card-toggle')
+      .click();
+    await page
+      .locator('.diff-card[data-layer="staged"][data-path="sound.wav"] .diff-card-toggle')
+      .click();
+    await seek(page, '.diff-card[data-layer="staged"][data-path="clip.mp4"] video');
+    await seek(page, '.diff-card[data-layer="staged"][data-path="sound.wav"] audio');
+    await assertNoHorizontalOverflow(page);
+    const raw = await page
+      .locator('.diff-card[data-layer="staged"][data-path="clip.mp4"] .media-preview-head a')
+      .first()
+      .getAttribute("href");
+    if (raw === null) throw new Error("Video raw link missing");
+    const range = await page.evaluate(async (path) => {
+      const response = await fetch(path, { headers: { range: "bytes=0-31" } });
+      return {
+        status: response.status,
+        contentRange: response.headers.get("content-range"),
+        byteLength: (await response.arrayBuffer()).byteLength,
+      };
+    }, raw);
+    if (
+      range.status !== 206 ||
+      range.contentRange?.startsWith("bytes 0-31/") !== true ||
+      range.byteLength !== 32
+    )
+      throw new Error("Raw video range failed");
+    await page.getByRole("button", { name: "Open list" }).click();
+    await page.locator(".sidebar-project-tabs").getByRole("button", { name: "Files" }).click();
+    await page.locator('.file-tree-row[title="clip.mp4"]').click();
+    await seek(page, ".file-panel video");
+    await page.getByRole("button", { name: "Open list" }).click();
+    await page.locator('.file-tree-row[title="sound.wav"]').click();
+    await seek(page, ".file-panel audio");
+    await assertNoHorizontalOverflow(page);
   });
-  const page = await context.newPage();
-  await page.goto(
-    new URL(`/?section=changes&project=${encodeURIComponent(activePath)}`, base).href,
-  );
-  await page
-    .locator('.diff-card[data-layer="staged"][data-path="clip.mp4"] .diff-card-toggle')
-    .click();
-  await page
-    .locator('.diff-card[data-layer="staged"][data-path="sound.wav"] .diff-card-toggle')
-    .click();
-  await seek(page, '.diff-card[data-layer="staged"][data-path="clip.mp4"] video');
-  await seek(page, '.diff-card[data-layer="staged"][data-path="sound.wav"] audio');
-  const raw = await page
-    .locator('.diff-card[data-layer="staged"][data-path="clip.mp4"] .media-preview-head a')
-    .first()
-    .getAttribute("href");
-  if (raw === null) throw new Error("Video raw link missing");
-  const range = await page.evaluate(async (path) => {
-    const response = await fetch(path, { headers: { range: "bytes=0-31" } });
-    return {
-      status: response.status,
-      contentRange: response.headers.get("content-range"),
-      byteLength: (await response.arrayBuffer()).byteLength,
-    };
-  }, raw);
-  if (
-    range.status !== 206 ||
-    range.contentRange?.startsWith("bytes 0-31/") !== true ||
-    range.byteLength !== 32
-  )
-    throw new Error("Raw video range failed");
-  await page.getByRole("button", { name: "Open list" }).click();
-  await page.locator(".sidebar-project-tabs").getByRole("button", { name: "Files" }).click();
-  await page.locator('.file-tree-row[title="clip.mp4"]').click();
-  await seek(page, ".file-panel video");
-  await page.getByRole("button", { name: "Open list" }).click();
-  await page.locator('.file-tree-row[title="sound.wav"]').click();
-  await seek(page, ".file-panel audio");
-  console.log(
-    "Audio and video loaded and sought in staged cards and Files; raw video range returned 206.",
-  );
-} finally {
-  await browser.close();
-}
+});
+console.log(
+  "Audio and video loaded and sought in staged cards and Files; raw video range returned 206.",
+);

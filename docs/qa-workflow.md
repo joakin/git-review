@@ -32,6 +32,27 @@ current client before the handoff and reload the review tab. Clean up QA process
 without stopping the existing review service. Backend source changes need a restart of the relevant
 service; frontend-only edits need `bun run build`.
 
+## Shared browser support
+
+[browser-support.ts](../qa/browser-support.ts) owns headless installed-Chrome lifetime and scoped
+context cleanup. Use `withQaBrowser` for a run and `withQaContext` for each isolated context. Pass
+context options explicitly: `qaProfiles.phone` preserves the 390 × 844 touch profile,
+`qaProfiles.desktop` the 1440 × 900 desktop, and `{}` retains Chrome's default context options.
+`appUrl` accepts HTTP(S) URLs; scripts continue to own positional/flag requirements and fixture
+selection. Keep feature interactions, requests and scenario assertions beside their check.
+
+The context scope records page errors from all tabs and popups before invoking the check. It fails a
+completed check if any were collected and closes the context on either success or failure.
+`assertNoHorizontalOverflow` checks the document with a two-pixel tolerance; feature checks still
+own whether a code pane should scroll or wrap. Browser and context scopes close in `finally`.
+
+The first adopters are `qa:files`, `qa:media` and `qa:media-playback`; their invocation and fixture
+defaults are unchanged. When changing this shared owner, type-check and run the affected existing
+checks against the isolated fixture server. Ordinary check output belongs in ignored
+`qa/.artifacts/`; these checks create no screenshot milestones. The
+[M13a handoff](maintenance-plan.md#m13a-handoff--2026-10-05) records verification and the remaining
+browser/fixture and server-test migrations.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook
