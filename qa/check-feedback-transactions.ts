@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { chromium, type Page, type Route } from "playwright-core";
+import type { Page, Route } from "playwright-core";
+import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
 import { responseBody } from "../src/client/api.ts";
 import {
   anchorForLine,
@@ -16,14 +17,14 @@ import {
   type Project,
 } from "../src/shared/api.ts";
 
-const appUrl = process.argv[2];
+const rawUrl = process.argv[2];
 const baselineBundle = process.argv[3];
-if (appUrl === undefined)
+if (rawUrl === undefined)
   throw new Error(
     "Usage: bun qa/check-feedback-transactions.ts <local app URL> [baseline main.js]",
   );
+const origin = appUrl(rawUrl).origin;
 await mkdir(resolve("qa/.artifacts/other-project"), { recursive: true });
-const origin = new URL(appUrl).origin;
 const root = parseRootResponse(await responseBody(await fetch(`${origin}/api/roots`)));
 const project = parseProjectResponse(
   await responseBody(
@@ -165,8 +166,7 @@ async function awayAndBack(page: Page): Promise<void> {
   await openFeedback(page);
 }
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
-try {
+await withQaBrowser(async (browser) => {
   async function scenario(
     name: string,
     run: (
@@ -174,125 +174,129 @@ try {
       hold: (kind: "status" | "diff") => Promise<() => Promise<void>>,
     ) => Promise<void>,
   ) {
-    const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-      isMobile: true,
-      hasTouch: true,
-      serviceWorkers: "block",
-    });
-    const releases: (() => void)[] = [];
-    const errors: string[] = [];
-    try {
-      await context.addInitScript(
-        ({ key, store, rootPath, projectPath }) => {
-          if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(store));
-          sessionStorage.setItem(
-            "git-review:active-project:v1",
-            JSON.stringify({ version: 1, rootPath, activePath: projectPath }),
-          );
-          window.feedbackQa = { calls: [], pending: [], requests: 0 };
-          const originalFetch = window.fetch.bind(window);
-          Object.defineProperty(window, "fetch", {
-            configurable: true,
-            value: async (input: RequestInfo | URL, init?: RequestInit) => {
-              window.feedbackQa.requests += 1;
-              try {
-                const response = await originalFetch(input, init);
-                const originalJson = response.json.bind(response);
-                Object.defineProperty(response, "json", {
-                  value: async () => {
-                    try {
-                      return await originalJson();
-                    } finally {
-                      window.feedbackQa.requests -= 1;
-                    }
+    await withQaContext(
+      browser,
+      { ...qaProfiles.phone, serviceWorkers: "block" },
+      async (context) => {
+        const releases: (() => void)[] = [];
+        try {
+          await context.addInitScript(
+            ({ key, store, rootPath, projectPath, appOrigin }) => {
+              if (window.location.origin !== appOrigin) return;
+              if (localStorage.getItem(key) === null)
+                localStorage.setItem(key, JSON.stringify(store));
+              sessionStorage.setItem(
+                "git-review:active-project:v1",
+                JSON.stringify({ version: 1, rootPath, activePath: projectPath }),
+              );
+              window.feedbackQa = { calls: [], pending: [], requests: 0 };
+              const originalFetch = window.fetch.bind(window);
+              Object.defineProperty(window, "fetch", {
+                configurable: true,
+                value: async (input: RequestInfo | URL, init?: RequestInit) => {
+                  window.feedbackQa.requests += 1;
+                  try {
+                    const response = await originalFetch(input, init);
+                    const originalJson = response.json.bind(response);
+                    Object.defineProperty(response, "json", {
+                      value: async () => {
+                        try {
+                          return await originalJson();
+                        } finally {
+                          window.feedbackQa.requests -= 1;
+                        }
+                      },
+                    });
+                    return response;
+                  } catch (error: unknown) {
+                    window.feedbackQa.requests -= 1;
+                    throw error;
+                  }
+                },
+              });
+              Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: {
+                  writeText(text: string) {
+                    window.feedbackQa.calls.push(text);
+                    return new Promise<void>((resolve, reject) =>
+                      window.feedbackQa.pending.push({ resolve, reject }),
+                    );
                   },
-                });
-                return response;
-              } catch (error: unknown) {
-                window.feedbackQa.requests -= 1;
-                throw error;
-              }
+                },
+              });
             },
-          });
-          Object.defineProperty(navigator, "clipboard", {
-            configurable: true,
-            value: {
-              writeText(text: string) {
-                window.feedbackQa.calls.push(text);
-                return new Promise<void>((resolve, reject) =>
-                  window.feedbackQa.pending.push({ resolve, reject }),
-                );
-              },
+            {
+              key: storageKey,
+              store: seed,
+              rootPath: root.path,
+              projectPath: project.path,
+              appOrigin: origin,
             },
-          });
-        },
-        { key: storageKey, store: seed, rootPath: root.path, projectPath: project.path },
-      );
-      if (baselineBundle !== undefined)
-        await context.route("**/assets/main.js", async (route) =>
-          route.fulfill({
-            contentType: "text/javascript",
-            body: await Bun.file(baselineBundle).text(),
-          }),
-        );
-      const page = await context.newPage();
-      page.setDefaultTimeout(10_000);
-      page.on("pageerror", (error) => errors.push(error.message));
-      await page.goto(reviewUrl, { waitUntil: "networkidle" });
-      await page.getByRole("button", { name: /^Feedback 1$/ }).waitFor();
-      async function hold(kind: "status" | "diff"): Promise<() => Promise<void>> {
-        await openFeedback(page);
-        await ready(page);
-        await networkSettled(page);
-        const entered = deferred(),
-          release = deferred(),
-          done = deferred();
-        releases.push(release.resolve);
-        let first = true;
-        const handler = async (route: Route): Promise<void> => {
-          if (!first) {
-            await route.continue();
-            return;
-          }
-          first = false;
-          try {
-            const response = await route.fetch();
-            entered.resolve();
-            await release.promise;
-            await route.fulfill({ response });
-          } catch {
-            /* A canceled browser request cannot receive the held response. */
-          } finally {
-            done.resolve();
-          }
-        };
-        await page.route(
-          `**/api/projects/${project.id}/${kind}${kind === "diff" ? "?*" : ""}`,
-          handler,
-        );
-        await page.getByRole("button", { name: "Check lines", exact: true }).click();
-        await Promise.race([
-          entered.promise,
-          page.waitForFunction(() => false, undefined, { timeout: 10_000 }),
-        ]);
-        return async () => {
-          release.resolve();
-          await done.promise;
-          await page.unroute(
-            `**/api/projects/${project.id}/${kind}${kind === "diff" ? "?*" : ""}`,
-            handler,
           );
-          await networkSettled(page);
-        };
-      }
-      await run(page, hold);
-      assert(errors.length === 0, `${name}: browser errors: ${errors.join("; ")}`);
-      console.log(`Passed: ${name}`);
-    } finally {
-      for (const release of releases) release();
-      await context.close();
-    }
+          if (baselineBundle !== undefined)
+            await context.route("**/assets/main.js", async (route) =>
+              route.fulfill({
+                contentType: "text/javascript",
+                body: await Bun.file(baselineBundle).text(),
+              }),
+            );
+          const page = await context.newPage();
+          page.setDefaultTimeout(10_000);
+          await page.goto(reviewUrl, { waitUntil: "networkidle" });
+          await page.getByRole("button", { name: /^Feedback 1$/ }).waitFor();
+          async function hold(kind: "status" | "diff"): Promise<() => Promise<void>> {
+            await openFeedback(page);
+            await ready(page);
+            await networkSettled(page);
+            const entered = deferred(),
+              release = deferred(),
+              done = deferred();
+            releases.push(release.resolve);
+            let first = true;
+            const handler = async (route: Route): Promise<void> => {
+              if (!first) {
+                await route.continue();
+                return;
+              }
+              first = false;
+              try {
+                const response = await route.fetch();
+                entered.resolve();
+                await release.promise;
+                await route.fulfill({ response });
+              } catch {
+                /* A canceled browser request cannot receive the held response. */
+              } finally {
+                done.resolve();
+              }
+            };
+            await page.route(
+              `**/api/projects/${project.id}/${kind}${kind === "diff" ? "?*" : ""}`,
+              handler,
+            );
+            await page.getByRole("button", { name: "Check lines", exact: true }).click();
+            await Promise.race([
+              entered.promise,
+              page.waitForFunction(() => false, undefined, { timeout: 10_000 }),
+            ]);
+            return async () => {
+              release.resolve();
+              await done.promise;
+              await page.unroute(
+                `**/api/projects/${project.id}/${kind}${kind === "diff" ? "?*" : ""}`,
+                handler,
+              );
+              await networkSettled(page);
+            };
+          }
+          await run(page, hold);
+        } finally {
+          for (const release of releases) release();
+        }
+      },
+    );
+    console.log(`Passed: ${name}`);
   }
 
   for (const kind of ["status", "diff"] as const)
@@ -589,6 +593,4 @@ try {
   console.log(
     "Feedback transaction browser regressions passed. Clipboard promises were controlled; real-device clipboard behavior was not exercised.",
   );
-} finally {
-  await browser.close();
-}
+});

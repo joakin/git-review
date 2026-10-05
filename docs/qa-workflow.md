@@ -99,6 +99,16 @@ requests and waits for font registration before loading; its separate fallback c
 Google hosts. PWA retains its download-enabled context and fresh import context through the offline
 check. Their arguments and inventory fixture setup are unchanged.
 
+The
+[M13b voice/live changes/transactions batch](maintenance-plan.md#m13b-voice-live-changes-and-feedback-transactions-handoff--2026-10-06)
+adds `bun qa/check-voice.ts`, `bun qa/check-live-changes.ts` and
+`bun qa/check-feedback-transactions.ts`. Voice and transaction response gates release before scoped
+context cleanup; transaction setup seeds storage and installs controls only on the app origin. Live
+changes keeps four contexts open together, including its custom mobile tablet options and named
+error collection, within the shared browser lifetime. It still owns its temporary Git fixture and
+unique ignored screenshot runs. Recorder/transcription and clipboard controls remain mocked; these
+checks do not establish physical-device behavior. Their arguments and fixture setup are unchanged.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook
