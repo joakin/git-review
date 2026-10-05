@@ -92,6 +92,13 @@ viewport and touch matrix, default journal context and extra-tab scenarios. Load
 private delayed-response helpers and their local gate cleanup. Run all three existing app checks
 against the inventory/history fixture server when changing these callers.
 
+The [M13b appearance/PWA batch](maintenance-plan.md#m13b-appearancepwa-batch-handoff--2026-10-06)
+adds `bun qa/check-themes.ts`, `bun qa/check-typography.ts` and `bun qa/check-pwa.ts`. Themes retain
+saved-state paths and the default prepaint context. Typography still requires real Google font
+requests and waits for font registration before loading; its separate fallback context blocks both
+Google hosts. PWA retains its download-enabled context and fresh import context through the offline
+check. Their arguments and inventory fixture setup are unchanged.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook

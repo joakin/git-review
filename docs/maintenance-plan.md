@@ -1,8 +1,8 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12, M13a, QA command cleanup and M13b first/feedback/project-entry batches accepted and
-committed; M13b navigation batch accepted and approved for commit; further M13b adoption, M13c and
-M14–M15 pending
+Status: M01–M12, M13a, QA command cleanup and M13b first/feedback/project-entry/navigation batches
+accepted and committed; M13b appearance/PWA batch accepted and approved for commit; further M13b
+adoption, M13c and M14–M15 pending
 
 Created: 2026-09-30
 
@@ -102,8 +102,9 @@ M13b batch migrates Search, selected-code Search and working-copy diffs to the e
 interface and is committed as `097f245`. The feedback batch migrates feedback, line actions and
 modals, and is committed as `b71d270`. The project-entry batch adopts the same support for folder
 entry, project entry and independent tabs, and is committed as `165a6fc`. The navigation batch
-adopts the same support for navigation, history controls and loading, and is accepted and approved
-for commit on 2026-10-06. Further M13b adoption, M13c and M14–M15 remain pending. The sequence keeps
+adopts the same support for navigation, history controls and loading, and is committed as `49418de`.
+The appearance/PWA batch adopts it for themes, typography and PWA, and is accepted and approved for
+commit on 2026-10-06. Further M13b adoption, M13c and M14–M15 remain pending. The sequence keeps
 independently risky changes in separate review steps; M15 starts with measurement before any
 optimization.
 
@@ -744,7 +745,8 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   feedback batch adopts the interface for feedback, line actions and modals, adding the two tablet
   profiles used by modal checks; it is committed as `b71d270`. The project-entry batch adopts the
   interface for foundation, project entry and independent tabs, and is committed as `165a6fc`. The
-  navigation batch adopts it for navigation, history controls and loading, and is accepted and
+  navigation batch adopts it for navigation, history controls and loading, and is committed as
+  `49418de`. The appearance/PWA batch adopts it for themes, typography and PWA, and is accepted and
   approved for commit on 2026-10-06. Reuse the interface where useful in the remaining scripts,
   adding argument/fixture and artifact handling only when callers need them. Keep each feature's
   interactions and assertions local.
@@ -752,10 +754,10 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
   affected server suite after that extraction.
 
-After the navigation batch, nine feature scripts still launch Chrome directly. Continue their
-adoption in related review batches: themes/typography/PWA; voice/live changes/feedback transactions;
-Git/file feedback/selected feedback. Preserve each scenario's context options and fixtures, and keep
-the screenshot command's separate delivery contract. Loading's private scenario helpers keep their
+After the appearance/PWA batch, six feature scripts still launch Chrome directly. Continue their
+adoption in two related review batches: voice/live changes/feedback transactions; Git/file
+feedback/selected feedback. Preserve each scenario's context options and fixtures, and keep the
+screenshot command's separate delivery contract. Loading's private scenario helpers keep their
 delayed-response gates and cleanup local; they do not launch another browser. Close M13b after that
 bounded caller audit; further QA infrastructure is outside this item.
 
@@ -1964,5 +1966,52 @@ maintainer approved the two-command cleanup on 2026-10-05.
   screenshot captures or physical-device checks were performed. The full server suite was not rerun
   for this QA-only migration; M13c will run the suite affected by its separate extraction.
 - **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
-  continuation on 2026-10-06. The next M13b batch is themes, typography and PWA. M13c, M14 and M15
-  remain within the bounded maintenance plan; stop when that plan is complete.
+  continuation on 2026-10-06. This batch is committed as `49418de`. The next M13b batch is themes,
+  typography and PWA. M13c, M14 and M15 remain within the bounded maintenance plan; stop when that
+  plan is complete.
+
+## M13b appearance/PWA batch handoff — 2026-10-06
+
+- **Alignment:** the maintainer accepted the navigation batch and requested its commit and
+  continuation. This step adopts the existing browser support for themes, typography and PWA.
+- **Implementation:** [themes](../qa/check-themes.ts), [typography](../qa/check-typography.ts) and
+  [PWA](../qa/check-pwa.ts) share HTTP(S) URL validation, browser lifetime and scoped context
+  cleanup. Context-wide listeners now include the extra theme and typography tabs, the prepaint page
+  and the fresh PWA import page. Success is reported after completed scopes check their collected
+  errors. Themes and typography reuse the shared document overflow assertion with its existing
+  two-pixel tolerance.
+- **Scenario ownership:** theme checks preserve the explicit light color scheme, phone dimensions,
+  denied-storage behavior and all three saved browser-state paths. The delayed prepaint context
+  keeps default Chrome options and its saved state. Typography keeps both real Google font requests,
+  local-font privacy checks, cross-tab updates and a separate context with Google hosts blocked. PWA
+  keeps downloads enabled, the download alive through fresh-context import, manifest and PNG checks,
+  backup validation, service-worker readiness, cache inspection and offline fallback. The original
+  context lifetimes and feature assertions remain local.
+- **Font readiness:** the first typography run reached the stylesheet response but failed the
+  loaded-font assertion. The pre-refactor app check passed in comparison, and direct browser
+  inspection confirmed the real font loads. The response-based check can run before CSS registers
+  the font, so it now waits for each requested family in `document.fonts` before the existing
+  `fonts.load()` and loaded-state assertions. This preserves the required real downloads without an
+  arbitrary delay. The final typography flow passes; its temporary baseline source was removed.
+- **Scope:** no new helper API, package command, runner, fixture generator or helper self-test is
+  added. The shared browser module and runtime app source are unchanged.
+- **Verification:** all five strict TypeScript configurations, `bun run qa:check`, formatting and
+  whitespace checks pass, including 138 CSS token references. All three existing app checks pass
+  against the isolated inventory fixture server at port 39911. Themes cover independent app/code
+  palettes in Settings, real diffs, Files and feedback, review-position preservation, 320 px
+  containment, reload, cross-tab invalid/cleared data, system preference, independent resets,
+  unavailable storage and prepaint application. Typography covers the 20 offered Google fonts,
+  actual JetBrains Mono and Iosevka Charon Mono downloads, local font privacy, diff/Files font
+  families, borderless rows, reading position, 320 px containment, persistence/tab updates and
+  blocked-font fallback/reset. PWA covers manifest MIME/standalone root, all four icon dimensions,
+  service-worker control, draft/typography/appearance backup export and fresh-context import,
+  invalid-backup rejection, no API/diff cache and the offline Host unavailable page. Logs and saved
+  theme states remain under ignored `qa/.artifacts/`.
+- **Delivery and limits:** only the isolated QA server started for this batch was stopped. Runtime
+  source, client assets, the maintained services and tracked screenshots are unchanged. No new
+  screenshot captures, actual installation or physical-device checks were performed. The full server
+  suite was not rerun for this QA-only migration; M13c will run the suite affected by its separate
+  extraction.
+- **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
+  continuation on 2026-10-06. The next M13b batch is voice, live changes and feedback transactions.
+  M13c, M14 and M15 remain within the bounded maintenance plan; stop when that plan is complete.
