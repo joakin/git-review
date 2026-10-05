@@ -41,8 +41,11 @@ change reviewable while delivering the requested media types in one planned slic
 - Read worktree bytes from an already validated, no-follow file descriptor rather than lazily
   reopening a path after the containment check. For Git versions, resolve the index or tree entry to
   a blob object ID, verify its type and size, then read that object with fixed argument-array
-  subprocess calls. No shell, checkout, repository write, or historical browsing is required. This
-  source mapping is essential: a staged file may differ from both `HEAD` and the working tree.
+  subprocess calls through the [shared Git read boundaries](git-read-boundaries.md). Buffered and
+  streamed reads share literal argument handling, environment overrides and cleanup. Each awaited
+  stream read has a deadline; pausing the consumer does not impose a total playback deadline. No
+  shell, checkout, repository write, or historical browsing is required. This source mapping is
+  essential: a staged file may differ from both `HEAD` and the working tree.
   [Git object reads](https://git-scm.com/docs/git-cat-file),
   [Git index entries](https://git-scm.com/docs/git-ls-files)
 - Selected projects may be repository subfolders. Resolve staged Old paths with Git's `HEAD:./path`

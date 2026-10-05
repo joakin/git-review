@@ -59,6 +59,11 @@ the bounded cleanup pass. Historical implementation checkpoints describe complet
 | Tab memory              | Open project handle, loaded data, bounded diff and Git caches, historical collapsed cards, route scroll positions, transient UI, and pending audio | [App.tsx](../src/client/App.tsx), [project-session.ts](../src/client/project-session.ts), [working-copy-review.ts](../src/client/working-copy-review.ts), [diff-cache.ts](../src/client/diff-cache.ts), [git-browser.ts](../src/client/git-browser.ts), [review-feedback.ts](../src/client/review-feedback.ts), [CommitViewer.tsx](../src/client/CommitViewer.tsx), [VoiceComment.tsx](../src/client/VoiceComment.tsx) |
 | Service worker          | Offline fallback page only; API responses and raw media are not cached                                                                             | [sw.ts](../src/client/sw.ts)                                                                                                                                                                                                                                                                                                                                                                                           |
 
+[Git read boundaries](git-read-boundaries.md) describe shared subprocess execution, repository
+context and object access. Status, diff, history, statistics and media retain their parsers and
+source/version policy. HTTP handlers continue to revalidate opened projects against the approved
+root.
+
 [ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU
 promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff
 adapter and Git browser own resource identities, freshness, and individual budgets.

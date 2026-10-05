@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
 import type { FileHandle } from "node:fs/promises";
 import { basename } from "node:path";
 import type { Project } from "../shared/api.ts";
 import { workingVersion } from "./image-types.ts";
+import { openGitStream } from "./git-execution.ts";
 
 type MediaStreamSource =
   | { kind: "file"; file: FileHandle; version: string }
@@ -91,33 +91,16 @@ function gitStream(
   oid: string,
   start: number,
   end: number,
+  byteLength: number,
 ): ReadableStream<Uint8Array<ArrayBuffer>> {
-  const child = spawn(
-    "git",
-    ["--literal-pathspecs", "-c", "core.fsmonitor=false", "cat-file", "blob", oid],
-    {
-      cwd: project.absolutePath,
-      env: { ...process.env, LC_ALL: "C", GIT_OPTIONAL_LOCKS: "0" },
-      stdio: ["ignore", "pipe", "ignore"],
-    },
-  );
-  const output = child.stdout;
-  if (output === null) throw new Error("Git media stream could not start");
-  let processError: Error | null = null;
-  child.on("error", (error: Error) => {
-    processError = error;
-  });
-  const iterator = output[Symbol.asyncIterator]();
+  const stream = openGitStream(project.absolutePath, ["cat-file", "blob", oid], byteLength);
   let offset = 0;
   return new ReadableStream<Uint8Array<ArrayBuffer>>({
     async pull(controller) {
       try {
         while (offset <= end) {
-          const next = await iterator.next();
-          if (next.done)
-            throw processError ?? new Error("Git media ended before the requested range");
-          const raw: unknown = next.value;
-          if (!Buffer.isBuffer(raw)) throw new Error("Git returned an invalid media chunk");
+          const raw = await stream.read();
+          if (raw === null) throw new Error("Git media ended before the requested range");
           const chunkStart = offset;
           offset += raw.length;
           if (offset <= start) continue;
@@ -125,18 +108,18 @@ function gitStream(
           const to = Math.min(raw.length, end - chunkStart + 1);
           controller.enqueue(new Uint8Array(raw.subarray(from, to)));
           if (offset > end) {
-            child.kill();
+            stream.close();
             controller.close();
           }
           return;
         }
       } catch (error: unknown) {
-        child.kill();
+        stream.close();
         controller.error(error);
       }
     },
     cancel() {
-      child.kill();
+      stream.close();
     },
   });
 }
@@ -177,6 +160,6 @@ export async function audioVideoResponse(
   const body =
     media.source.kind === "file"
       ? fileStream(media.source.file, media.source.version, range.start, range.end)
-      : gitStream(media.source.project, media.source.oid, range.start, range.end);
+      : gitStream(media.source.project, media.source.oid, range.start, range.end, media.byteLength);
   return new Response(body, { status: range.partial ? 206 : 200, headers });
 }

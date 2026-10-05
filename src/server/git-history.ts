@@ -1,6 +1,5 @@
 import type { Project } from "../shared/api.ts";
 import {
-  expectGitOid,
   gitPath,
   parseCommitDetail,
   parseCommitMetadata,
@@ -15,76 +14,22 @@ import {
   type GitRefs,
 } from "../shared/git.ts";
 import { AppError } from "./paths.ts";
-import { GitCommandError, runGit } from "./git-status.ts";
+import { GitCommandError, runGit } from "./git-execution.ts";
+import {
+  readGitContext,
+  requireGitContext,
+  validateGitObjectId as objectId,
+  type GitContext,
+} from "./git-context.ts";
+import { hasGitObject, readGitBlob } from "./git-objects.ts";
 import { decodedText, diffFromContent, parseGitPatch } from "./git-diff.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { commitParents, readCommitStats, readHistoryStats } from "./git-stats.ts";
 
-type GitContext = { prefix: string; oidLength: 40 | 64 };
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
-async function context(project: Project): Promise<GitContext | null> {
-  try {
-    if (
-      decoder
-        .decode(await runGit(project.absolutePath, ["rev-parse", "--is-inside-work-tree"], 4096))
-        .trim() !== "true"
-    )
-      return null;
-  } catch (error: unknown) {
-    if (
-      error instanceof GitCommandError &&
-      error.code === 128 &&
-      error.stderr.includes("not a git repository")
-    )
-      return null;
-    throw error;
-  }
-  const [prefixBytes, formatBytes] = await Promise.all([
-    runGit(project.absolutePath, ["rev-parse", "--show-prefix"], 8192),
-    runGit(project.absolutePath, ["rev-parse", "--show-object-format"], 4096),
-  ]);
-  const prefix = decoder.decode(prefixBytes);
-  if (!prefix.endsWith("\n") || (prefix !== "\n" && !prefix.endsWith("/\n")))
-    throw new Error("Invalid Git project prefix");
-  const scope = prefix.slice(0, -1);
-  gitPath(scope === "" ? "" : scope.slice(0, -1), true);
-  const format = decoder.decode(formatBytes).trim();
-  if (format !== "sha1" && format !== "sha256") throw new Error("Unsupported Git object format");
-  return { prefix: scope, oidLength: format === "sha1" ? 40 : 64 };
-}
-
-async function requireContext(project: Project): Promise<GitContext> {
-  const value = await context(project);
-  if (value === null)
-    throw new AppError("invalid_request", 400, "This folder is not a Git worktree");
-  return value;
-}
-
-function objectId(value: string, ctx: GitContext): string {
-  if (value.length !== ctx.oidLength)
-    throw new AppError("invalid_request", 400, "Invalid Git object ID for this repository");
-  try {
-    return expectGitOid(value);
-  } catch {
-    throw new AppError("invalid_request", 400, "Specify a complete Git object ID");
-  }
-}
-
-async function commitExists(project: Project, oid: string): Promise<boolean> {
-  try {
-    return (
-      decoder.decode(await runGit(project.absolutePath, ["cat-file", "-t", oid], 4096)).trim() ===
-      "commit"
-    );
-  } catch (error: unknown) {
-    if (error instanceof GitCommandError && error.code === 128) return false;
-    throw error;
-  }
-}
-
 export async function readGitRefs(project: Project): Promise<GitRefs> {
-  const ctx = await context(project);
+  const ctx = await readGitContext(project.absolutePath);
   if (ctx === null) return { kind: "not_git" };
   const output = decoder.decode(
     await runGit(project.absolutePath, [
@@ -157,7 +102,7 @@ export async function readGitHistory(
   project: Project,
   request: GitLogRequest,
 ): Promise<GitHistoryPage> {
-  const ctx = await requireContext(project);
+  const ctx = await requireGitContext(project.absolutePath);
   let tip: string;
   let offset = 0;
   if (request.kind === "ref") {
@@ -181,7 +126,7 @@ export async function readGitHistory(
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1_000_000 || offset % 50 !== 0)
       throw new AppError("invalid_request", 400, "Invalid history page offset");
   }
-  if (!(await commitExists(project, tip)))
+  if (!(await hasGitObject(project.absolutePath, tip, "commit")))
     throw new AppError("not_found", 404, "This history snapshot is no longer available");
   const output = decoder.decode(
     await runGit(project.absolutePath, [
@@ -295,9 +240,9 @@ function parseInventory(output: Buffer, ctx: GitContext): CommitFileChange[] {
 }
 
 export async function readCommit(project: Project, requestedOid: string): Promise<CommitDetail> {
-  const ctx = await requireContext(project);
+  const ctx = await requireGitContext(project.absolutePath);
   const oid = objectId(requestedOid, ctx);
-  if (!(await commitExists(project, oid)))
+  if (!(await hasGitObject(project.absolutePath, oid, "commit")))
     throw new AppError("not_found", 404, "This commit is no longer available in this repository");
   let raw: Buffer;
   let metadata: Buffer;
@@ -340,7 +285,12 @@ export async function readCommit(project: Project, requestedOid: string): Promis
   const comparison: CommitComparison =
     parent === undefined
       ? { kind: "empty" }
-      : { kind: (await commitExists(project, parent)) ? "parent" : "missing_parent", oid: parent };
+      : {
+          kind: (await hasGitObject(project.absolutePath, parent, "commit"))
+            ? "parent"
+            : "missing_parent",
+          oid: parent,
+        };
   const [files, stats] = await Promise.all([
     comparison.kind === "missing_parent"
       ? Promise.resolve([])
@@ -424,7 +374,7 @@ export async function readCommitDiff(
       const selected = file.new.kind === "present" ? file.new : file.old;
       if (selected.kind === "absent") throw new Error("Missing commit file content");
       diff = diffFromContent(
-        await runGit(project.absolutePath, ["cat-file", "blob", selected.oid], 1024 * 1024 + 1),
+        await readGitBlob(project.absolutePath, selected.oid, 1024 * 1024 + 1),
         file.new.kind === "present" ? "new" : "old",
       );
     }
@@ -437,9 +387,7 @@ export async function readCommitDiff(
   const readSide = async (side: CommitFileSide): Promise<string | null> => {
     if (side.kind === "absent") return "";
     try {
-      return decodedText(
-        await runGit(project.absolutePath, ["cat-file", "blob", side.oid], 1024 * 1024 + 1),
-      );
+      return decodedText(await readGitBlob(project.absolutePath, side.oid, 1024 * 1024 + 1));
     } catch (error: unknown) {
       if (error instanceof GitCommandError) return null;
       throw error;

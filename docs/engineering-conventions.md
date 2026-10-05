@@ -44,6 +44,13 @@ processing it. Keep paths within approved roots, avoid following untrusted links
 subprocess arguments as arrays without a shell. Preserve deliberate compatibility and migration
 paths until their supported inputs are explicitly retired.
 
+Use the [shared Git read boundaries](git-read-boundaries.md) for subprocess execution, repository
+context and bounded object access. Domain callers choose fixed read commands and interpret results;
+the shared transport owns literal argument handling, environment overrides, limits and process
+cleanup. Stream deadlines cover awaited reads, so consumer backpressure does not impose a total
+playback deadline. Keep approved-root checks, domain parsers and unavailable/stale policies at their
+existing boundaries.
+
 ## Browser navigation
 
 URLs own navigable destinations. Local state owns transient interaction, unsaved work, and

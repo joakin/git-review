@@ -2,7 +2,7 @@ import { basename } from "node:path";
 import type { ChangeEntry, DiffResult, MediaSide, Project } from "../shared/api.ts";
 import type { CommitDetail, CommitFileChange, CommitFileSide, CommitDiff } from "../shared/git.ts";
 import { AppError, type ApprovedRoot } from "./paths.ts";
-import { runGit } from "./git-status.ts";
+import { inspectGitBlob, readGitBlob, resolveGitBlob } from "./git-objects.ts";
 import {
   diffImageResource,
   imageMimeType,
@@ -21,7 +21,8 @@ import { audioVideoResponse, type StreamableMedia } from "./media-stream.ts";
 
 type ImageSource =
   | { kind: "absent" }
-  | { kind: "worktree" | "index" | "head"; path: string }
+  | { kind: "worktree"; path: string }
+  | { kind: "index" | "head"; path: string }
   | { kind: "commit"; path: string; oid: string };
 
 function sourceForSide(entry: ChangeEntry, side: "old" | "new"): ImageSource {
@@ -36,46 +37,15 @@ function sourceForSide(entry: ChangeEntry, side: "old" | "new"): ImageSource {
   return { kind: entry.layer === "staged" ? "index" : "worktree", path: entry.path };
 }
 
-function gitOid(output: Buffer): string | null {
-  const oid = output.toString("utf8").trim();
-  return /^[0-9a-f]{40,64}$/.test(oid) ? oid : null;
-}
-
 async function oidForSource(
   project: Project,
   source: Exclude<ImageSource, { kind: "absent" }>,
 ): Promise<string | null> {
   if (source.kind === "worktree") return null;
-  if (source.kind === "commit") return source.oid;
-  if (source.kind === "head") {
-    // :./ resolves from the selected project's cwd rather than the repository root.
-    try {
-      return gitOid(
-        await runGit(
-          project.absolutePath,
-          ["rev-parse", "--verify", "--end-of-options", `HEAD:./${source.path}`],
-          4096,
-        ),
-      );
-    } catch {
-      return null;
-    }
-  }
-  let output: Buffer;
-  try {
-    output = await runGit(
-      project.absolutePath,
-      ["ls-files", "--stage", "-z", "--", source.path],
-      16 * 1024,
-    );
-  } catch {
-    return null;
-  }
-  for (const record of output.toString("utf8").split("\0")) {
-    const match = /^(100644|100755) ([0-9a-f]{40,64}) 0\t([^]*)$/.exec(record);
-    if (match !== null && match[3] === source.path) return match[2] ?? null;
-  }
-  return null;
+  return resolveGitBlob(
+    project.absolutePath,
+    source.kind === "commit" ? { kind: "object", oid: source.oid } : source,
+  );
 }
 
 type GitImageInfo =
@@ -91,22 +61,11 @@ async function gitImageInfo(
   const oid = await oidForSource(project, source);
   if (oid === null) return { kind: "unavailable", reason: "missing" };
   try {
-    if (
-      (await runGit(project.absolutePath, ["cat-file", "-t", oid], 4096))
-        .toString("utf8")
-        .trim() !== "blob"
-    )
-      return { kind: "unavailable", reason: "unsupported" };
-    const size = Number(
-      (await runGit(project.absolutePath, ["cat-file", "-s", oid], 4096)).toString("utf8").trim(),
-    );
-    if (!Number.isSafeInteger(size) || size < 0) return { kind: "unavailable", reason: "missing" };
+    const info = await inspectGitBlob(project.absolutePath, oid);
+    if (info.kind === "other") return { kind: "unavailable", reason: "unsupported" };
+    const size = info.byteLength;
     if (size > maxImageBytes) return { kind: "unavailable", reason: "too_large" };
-    const bytes = await runGit(
-      project.absolutePath,
-      ["cat-file", "blob", oid],
-      maxImageBytes + 4096,
-    );
+    const bytes = await readGitBlob(project.absolutePath, oid, maxImageBytes + 4096);
     if (
       bytes.length !== size ||
       !validImageHeader(bytes.subarray(0, Math.min(size, 4096)), mimeType)
@@ -130,16 +89,10 @@ async function gitAudioVideoInfo(
   const oid = await oidForSource(project, source);
   if (oid === null) return { kind: "unavailable", reason: "missing" };
   try {
-    if (
-      (await runGit(project.absolutePath, ["cat-file", "-t", oid], 4096))
-        .toString("utf8")
-        .trim() !== "blob"
-    )
-      return { kind: "unavailable", reason: "unsupported" };
-    const size = Number(
-      (await runGit(project.absolutePath, ["cat-file", "-s", oid], 4096)).toString("utf8").trim(),
-    );
-    if (!Number.isSafeInteger(size) || size <= 0) return { kind: "unavailable", reason: "missing" };
+    const info = await inspectGitBlob(project.absolutePath, oid);
+    if (info.kind === "other") return { kind: "unavailable", reason: "unsupported" };
+    const size = info.byteLength;
+    if (size === 0) return { kind: "unavailable", reason: "missing" };
     if (size > maxAudioVideoBytes) return { kind: "unavailable", reason: "too_large" };
     return { kind: "ready", oid, byteLength: size };
   } catch {
@@ -335,11 +288,7 @@ export async function readDiffImageBytes(
   const image = await gitImageInfo(project, source);
   if (image.kind !== "ready" || image.oid !== version)
     throw new AppError("not_found", 409, "This image changed. Refresh its preview.");
-  const bytes = await runGit(
-    project.absolutePath,
-    ["cat-file", "blob", image.oid],
-    maxImageBytes + 4096,
-  );
+  const bytes = await readGitBlob(project.absolutePath, image.oid, maxImageBytes + 4096);
   return { bytes, mimeType: image.mimeType, path };
 }
 
@@ -433,11 +382,7 @@ export async function commitMediaResponse(
     const image = await gitImageInfo(project, source);
     if (image.kind !== "ready")
       throw new AppError("not_found", 404, "This committed image is unavailable");
-    const bytes = await runGit(
-      project.absolutePath,
-      ["cat-file", "blob", image.oid],
-      maxImageBytes + 4096,
-    );
+    const bytes = await readGitBlob(project.absolutePath, image.oid, maxImageBytes + 4096);
     return imageResponse(bytes, image.mimeType, source.path, request.method === "HEAD");
   }
   const type = audioVideoType(source.path);

@@ -54,7 +54,9 @@ fetching and cache ownership stay in their separate callers.
 [M08b](maintenance-plan.md#m08b--diff-card-modes) records the contract and verification.
 
 For staged files, compare `HEAD` to index; for unstaged files, compare index to working tree; for
-untracked files, treat the old side as empty. Git uses fixed argument arrays, literal pathspecs,
+untracked files, treat the old side as empty. The
+[shared Git read boundaries](git-read-boundaries.md) own execution, repository-relative source
+translation and bounded object reads. Git uses fixed argument arrays, literal pathspecs,
 `--no-ext-diff`, `--no-textconv`, `--no-color`, three context lines, and `--` before paths. The
 parser validates hunk headers, row counts, and line prefixes. Untracked files are read only after
 realpath containment and with `O_NOFOLLOW`. Input is bounded to 1 MiB for untracked files, 2 MiB for

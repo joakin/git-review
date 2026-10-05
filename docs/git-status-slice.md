@@ -59,9 +59,10 @@ parsed with NUL delimiters, preserving spaces and newlines in names. For a selec
 origins use the same relative basis and can include `../` when outside the selected subtree; the
 diff server checks containment before using them.
 
-Git runs with fixed argument arrays, a timeout, a bounded output buffer, and no shell. The parser
-validates record structure, modes, hashes, status codes, and paths before creating typed entries.
-The client validates the JSON response before rendering it.
+Git uses the [shared execution and repository context](git-read-boundaries.md) with fixed argument
+arrays, a timeout, a bounded output buffer, and no shell. The parser validates record structure,
+modes, hashes, status codes, and paths before creating typed entries. The client validates the JSON
+response before rendering it.
 
 ## Edge cases
 

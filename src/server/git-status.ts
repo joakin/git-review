@@ -1,68 +1,11 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
 import { dirname, posix, resolve } from "node:path";
 import type { ChangeEntry, ChangeKind, ProjectStatus } from "../shared/api.ts";
 import { hasErrorCode } from "../shared/validation.ts";
 import { AppError, isWithinRoot } from "./paths.ts";
-
-const maxOutputBytes = 8 * 1024 * 1024;
-const gitTimeoutMs = 10_000;
-
-export class GitCommandError extends Error {
-  constructor(
-    readonly stderr: string,
-    readonly code: number | string | null,
-  ) {
-    super(stderr || "Git could not read this folder");
-  }
-}
-
-export function runGit(
-  cwd: string,
-  args: readonly string[],
-  maxBytes = maxOutputBytes,
-  input: string | null = null,
-): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const child = execFile(
-      "git",
-      ["--literal-pathspecs", "-c", "core.fsmonitor=false", ...args],
-      {
-        cwd,
-        encoding: "buffer",
-        maxBuffer: maxBytes,
-        timeout: gitTimeoutMs,
-        env: { ...process.env, LC_ALL: "C", GIT_OPTIONAL_LOCKS: "0" },
-      },
-      (error, stdout, stderr) => {
-        if (error !== null) {
-          const code = error.code ?? (error.killed ? "ETIMEDOUT" : null);
-          reject(
-            new GitCommandError(
-              stderr.toString("utf8").trim() || (code === "ETIMEDOUT" ? "Git read timed out" : ""),
-              code,
-            ),
-          );
-          return;
-        }
-        resolve(stdout);
-      },
-    );
-    if (input !== null) {
-      if (child.stdin === null) {
-        child.kill();
-        reject(new Error("Git input pipe is unavailable"));
-        return;
-      }
-      child.stdin.on("error", (error: Error) => {
-        child.kill();
-        reject(error);
-      });
-      child.stdin.end(input);
-    }
-  });
-}
+import { runGit } from "./git-execution.ts";
+import { isGitWorktree, readGitPrefix } from "./git-context.ts";
 
 function fields(record: string, count: number): string[] {
   const result: string[] = [];
@@ -240,22 +183,9 @@ async function workingPathFingerprint(projectPath: string, path: string): Promis
 }
 
 export async function readProjectStatus(projectPath: string): Promise<ProjectStatus> {
-  let insideWorkTree: Buffer;
-  try {
-    insideWorkTree = await runGit(projectPath, ["rev-parse", "--is-inside-work-tree"]);
-  } catch (error: unknown) {
-    if (
-      error instanceof GitCommandError &&
-      error.code === 128 &&
-      error.stderr.includes("not a git repository")
-    ) {
-      return { kind: "not_git" };
-    }
-    throw error;
-  }
-  if (insideWorkTree.toString("utf8").trim() !== "true") return { kind: "not_git" };
-  const [prefixOutput, output] = await Promise.all([
-    runGit(projectPath, ["rev-parse", "--show-prefix"]),
+  if (!(await isGitWorktree(projectPath))) return { kind: "not_git" };
+  const [prefix, output] = await Promise.all([
+    readGitPrefix(projectPath),
     runGit(projectPath, [
       "status",
       "--porcelain=v2",
@@ -266,9 +196,6 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectSta
       ".",
     ]),
   ]);
-  const rawPrefix = new TextDecoder("utf-8", { fatal: true }).decode(prefixOutput);
-  if (!rawPrefix.endsWith("\n")) throw new Error("Git returned an invalid worktree prefix");
-  const prefix = rawPrefix.slice(0, -1);
   const entries = parsePorcelainStatus(output).map((entry): ChangeEntry => {
     if (!entry.path.startsWith(prefix))
       throw new Error("Git returned a path outside the selected folder");

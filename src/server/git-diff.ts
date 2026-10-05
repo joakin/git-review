@@ -1,9 +1,11 @@
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
-import { posix, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { ChangeEntry, DiffHunk, DiffLine, DiffResult, Project } from "../shared/api.ts";
 import { hasErrorCode } from "../shared/validation.ts";
-import { GitCommandError, runGit } from "./git-status.ts";
+import { GitCommandError, runGit } from "./git-execution.ts";
+import { readGitPrefix, repositoryPath } from "./git-context.ts";
+import { readGitPath } from "./git-objects.ts";
 import { AppError, isWithinRoot, type ApprovedRoot } from "./paths.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { withWordDetails } from "./diff-words.ts";
@@ -262,11 +264,13 @@ export function decodedText(content: Buffer): string | null {
   }
 }
 
-async function readBlob(project: Project, spec: string): Promise<string | null> {
+async function readBlob(
+  project: Project,
+  kind: "head" | "index",
+  path: string,
+): Promise<string | null> {
   try {
-    return decodedText(
-      await runGit(project.absolutePath, ["show", "--no-textconv", spec], maxTextBytes + 1),
-    );
+    return decodedText(await readGitPath(project.absolutePath, { kind, path }, maxTextBytes + 1));
   } catch (error: unknown) {
     if (error instanceof GitCommandError) return null;
     throw error;
@@ -290,19 +294,10 @@ async function withSyntax(
   override: string | null,
 ): Promise<DiffResult> {
   if (diff.kind !== "text" || diff.hunks.length === 0) return diff;
-  const prefixOutput = await runGit(project.absolutePath, ["rev-parse", "--show-prefix"]);
-  const prefix = new TextDecoder("utf-8", { fatal: true }).decode(prefixOutput);
-  if (!prefix.endsWith("\n")) throw new Error("Git returned an invalid project prefix");
-  const projectPrefix = prefix.slice(0, -1);
-  const gitPath = (path: string): string | null => {
-    const relative = posix.normalize(posix.join(projectPrefix, path));
-    return relative === ".." || relative.startsWith("../") || relative.startsWith("/")
-      ? null
-      : relative;
-  };
+  const prefix = await readGitPrefix(project.absolutePath);
   const oldPath = entry.oldPath ?? entry.path;
-  const oldGitPath = gitPath(oldPath);
-  const newGitPath = gitPath(entry.path);
+  const oldGitPath = repositoryPath(prefix, oldPath);
+  const newGitPath = repositoryPath(prefix, entry.path);
   return withDiffSyntax(
     diff,
     entry.path,
@@ -310,12 +305,12 @@ async function withSyntax(
     () =>
       oldGitPath === null || !isWithinRoot(root.realPath, resolve(project.absolutePath, oldPath))
         ? Promise.resolve(null)
-        : readBlob(project, `${entry.layer === "staged" ? "HEAD" : ""}:${oldGitPath}`),
+        : readBlob(project, entry.layer === "staged" ? "head" : "index", oldGitPath),
     () =>
       newGitPath === null
         ? Promise.resolve(null)
         : entry.layer === "staged"
-          ? readBlob(project, `:${newGitPath}`)
+          ? readBlob(project, "index", newGitPath)
           : readWorkingSource(root, project, entry.path),
   );
 }

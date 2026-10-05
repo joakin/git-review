@@ -1,6 +1,6 @@
 # Maintenance plan after the prototype review
 
-Status: resumed at maintainer request; M01–M10 accepted; M11–M15 pending
+Status: M01–M11 accepted; M11 approved for commit; M12–M15 pending
 
 Created: 2026-09-30
 
@@ -81,11 +81,12 @@ verification of this maintenance work.
 
 ## Slice order and status
 
-M01–M09 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
+M01–M10 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
 usability work. After accepting and requesting the commit of the selection extension and joined
-controls on 2026-10-05, the maintainer requested continuation with the plan. Maintenance resumes at
-M10; M11–M15 remain pending. The sequence below keeps independently risky changes in separate review
-steps; M15 starts with measurement before any optimization.
+controls on 2026-10-05, the maintainer requested continuation with the plan. The maintainer accepted
+M11 and explicitly requested its commit and continuation on 2026-10-05. M12 is next; M12–M15 remain
+pending. The sequence below keeps independently risky changes in separate review steps; M15 starts
+with measurement before any optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -1601,4 +1602,53 @@ Use this compact entry for each handoff:
   gestures, native selection menus, clipboard, microphone or installed-PWA interruption checks were
   performed in this slice. Only the isolated QA server started for this slice is stopped.
 - **Review/next step:** the maintainer accepted M10 and explicitly requested its commit and
-  continuation on 2026-10-05. M11 is next: centralizing Git execution and repository/object context.
+  continuation on 2026-10-05. M10 is committed as `8359d8c`. M11 is next: centralizing Git execution
+  and repository/object context.
+
+## M11 handoff — 2026-10-05
+
+- **Alignment:** the maintainer accepted M10, explicitly requested its commit (`8359d8c`) and
+  continuation with M11 on 2026-10-05. The agreed execution/context boundary is implemented.
+- **Implementation:** [git-execution.ts](../src/server/git-execution.ts) owns buffered and streamed
+  subprocess execution with common literal arguments, filesystem-monitor disabling and read-only
+  environment overrides. Buffered reads retain their output budget, ten-second timeout, optional
+  batch input and typed command errors. Streamed reads own byte accounting, bounded diagnostics,
+  EOF/error/cancellation cleanup and a ten-second deadline for each awaited read. Consumer pauses do
+  not impose a total playback deadline. Media keeps range slicing and response headers.
+- **Repository/object ownership:** [git-context.ts](../src/server/git-context.ts) shares worktree
+  detection, strict prefix parsing, object format, object-ID validation and repository-relative
+  translation. Status keeps its original request count and prefix/status parallelism.
+  [git-objects.ts](../src/server/git-objects.ts) shares HEAD/index/blob lookup, type/size checks and
+  bounded content reads. HEAD media retains selected-cwd `HEAD:./path`; index paths stay literal and
+  stage-zero matched. Full OIDs accept exactly 40 or 64 hex characters and object byte sizes are
+  validated safe integers. HTTP approved-root validation and domain source/version policies remain
+  in their owners. Porcelain, patch, raw-inventory, history and statistics parsers remain separate;
+  batch-statistics caching and unavailable-state recovery are preserved. `AppError` ownership and
+  working-file opening remain outside this extraction.
+- **Records:** [Git read boundaries](git-read-boundaries.md) describe the final ownership and
+  contracts. The documentation map, engineering conventions, status, diff, history and media records
+  now point to those boundaries.
+- **Durable regression coverage:** five new tests exercise literal filename handling, disabled
+  fsmonitor hooks and unchanged index bytes for both transports; binary output, byte limits, typed
+  process errors, cancellation and idempotent close; stalled buffered input and a real streamed Git
+  object FIFO reaching their deadlines; scoped HEAD/index sources, CRLF content, outside namesakes,
+  missing objects and SHA-1/SHA-256 identity checks. The timeout test captures both failures before
+  assertions because Bun's eager async matchers otherwise leave a concurrent rejection unhandled. An
+  initial malformed-OID assertion was also corrected to expect the synchronous validation failure.
+  No implementation failure remained after those harness fixes.
+- **Verification:** all five strict TypeScript configurations pass. The full suite passes **161
+  tests with 1,777 assertions across 27 files**, including status/diff/history/statistics/API and
+  media regressions, M01's outside-namesake fixtures, non-Git/unborn/detached/shallow states,
+  immutable comparisons, and range/HEAD/version failures. Formatting and CSS validation (138 token
+  references) pass. Loading, diff, Git, image and media-playback browser checks pass. Git
+  navigation, immutable reuse, reading positions and queue bounds pass at 390, 820, 1180 and 1440
+  px, with a peak of three diff requests. Audio/video loaded and sought in staged cards and Files; a
+  raw video range returned 206. SVG raw access retained its sandbox behavior. No frontend/style
+  changes or new screenshot milestone were introduced in this backend slice.
+- **Delivery and limits:** both maintained backends were restarted. HTTP, loopback HTTPS backend and
+  private HTTPS origin pass health/current-asset checks plus real status, refs, commit detail, exact
+  historical blob diff, and staged Old/New audio range/HEAD requests. Only the isolated QA server
+  started for this slice was stopped. Browser QA used Chrome emulation; no new real-device gestures,
+  native selection menus, clipboard, microphone or installed-PWA interruption checks were performed.
+- **Review/next step:** the maintainer accepted M11 and explicitly requested its commit and
+  continuation on 2026-10-05. M12 is next: centralizing checked working-file opening.

@@ -147,7 +147,9 @@ couples heading metadata and line interaction: inspect carries the historical fi
 carries one working-copy entry and its comment capabilities. Comment creation stays on the
 working-copy variant. [M08b](maintenance-plan.md#m08b--diff-card-modes) records the contract and
 regression checks. [CommitViewer](../src/client/CommitViewer.tsx) owns historical card state, and
-[git-history.ts](../src/server/git-history.ts) owns the read-only Git commands.
+[git-history.ts](../src/server/git-history.ts) owns branch/commit interpretation and command
+selection. [Shared Git read boundaries](git-read-boundaries.md) own subprocess execution, repository
+context and bounded blob reads; statistics retain their batch parsers and cache.
 
 Git supplies structured ref fields and full commit messages, so no new dependency or human-output
 scraping is needed. Ref enumeration can use NUL-delimited fields; pretty formats provide `%B` for

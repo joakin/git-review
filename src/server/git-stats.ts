@@ -7,7 +7,7 @@ import {
   type CommitStats,
 } from "../shared/git.ts";
 import { AppError } from "./paths.ts";
-import { GitCommandError, runGit } from "./git-status.ts";
+import { GitCommandError, runGit } from "./git-execution.ts";
 
 type ReadyStats = Extract<CommitStats, { kind: "ready" }>;
 const decoder = new TextDecoder("utf-8", { fatal: true });
