@@ -85,6 +85,13 @@ Foundation retains its flag arguments and saved browser state. Project entry ret
 breakpoint matrix and two fixture servers; the tab check retains default Chrome contexts and its
 delayed-root release guard. Their scenario assertions and setup remain local.
 
+The [M13b navigation batch](maintenance-plan.md#m13b-navigation-batch-handoff--2026-10-05) adds
+`bun qa/check-navigation.ts`, `bun qa/check-history-controls.ts` and `bun qa/check-loading.ts`.
+Navigation retains its compact/sidebar breakpoint checks; history controls retain their custom
+viewport and touch matrix, default journal context and extra-tab scenarios. Loading retains its
+private delayed-response helpers and their local gate cleanup. Run all three existing app checks
+against the inventory/history fixture server when changing these callers.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook

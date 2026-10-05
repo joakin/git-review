@@ -1,4 +1,4 @@
-import { chromium } from "playwright-core";
+import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
 import { checkProjectOpeningCancellation } from "./project-opening-check.ts";
 import { checkWorkingCopyOwnership } from "./working-copy-ownership-check.ts";
 import { checkViewStateRecovery } from "./view-state-check.ts";
@@ -6,25 +6,15 @@ import { checkDiffLoading } from "./diff-loading-check.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-loading.ts <local app URL>");
-const base = new URL(rawUrl);
-if (base.protocol !== "http:" && base.protocol !== "https:")
-  throw new Error("Expected an HTTP(S) URL");
+const base = appUrl(rawUrl);
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
-try {
+await withQaBrowser(async (browser) => {
   await checkProjectOpeningCancellation(browser, base);
   await checkWorkingCopyOwnership(browser, base);
   await checkViewStateRecovery(browser, base);
   await checkDiffLoading(browser, base);
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  });
-  try {
+  await withQaContext(browser, qaProfiles.phone, async (context) => {
     const page = await context.newPage();
-    const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
 
     let releaseOpen = () => {};
     const openGate = new Promise<void>((resolve) => {
@@ -169,17 +159,12 @@ try {
       .waitFor({ state: "attached" });
     if (countOpenRequests() !== 3)
       throw new Error("Explicitly opening the same folder did not renew its project handle");
+  });
+  console.log(
+    "Delayed loading feedback, route-specific folder and Search data, file loading, and single-request project transitions passed.",
+  );
 
-    if (errors.length > 0) throw new Error(`Browser errors: ${errors.join("; ")}`);
-    console.log(
-      "Delayed loading feedback, route-specific folder and Search data, file loading, and single-request project transitions passed.",
-    );
-  } finally {
-    await context.close();
-  }
-
-  const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  try {
+  await withQaContext(browser, qaProfiles.desktop, async (desktop) => {
     const page = await desktop.newPage();
     let diffRequests = 0;
     page.on("request", (request) => {
@@ -232,12 +217,8 @@ try {
       .getByRole("button", { name: "Refresh", exact: true })
       .click();
     await refreshedDiff;
-    console.log(
-      "Expanded diffs keep their payload and scroll position across Back/Forward; Refresh fetches new data.",
-    );
-  } finally {
-    await desktop.close();
-  }
-} finally {
-  await browser.close();
-}
+  });
+  console.log(
+    "Expanded diffs keep their payload and scroll position across Back/Forward; Refresh fetches new data.",
+  );
+});

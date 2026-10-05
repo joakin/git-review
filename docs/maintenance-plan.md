@@ -1,12 +1,12 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12, M13a, QA command cleanup and M13b first/feedback batches accepted and committed;
-M13b project-entry batch accepted and approved for commit; further M13b adoption, M13c and M14–M15
-pending
+Status: M01–M12, M13a, QA command cleanup and M13b first/feedback/project-entry batches accepted and
+committed; M13b navigation batch accepted and approved for commit; further M13b adoption, M13c and
+M14–M15 pending
 
 Created: 2026-09-30
 
-Updated: 2026-10-05
+Updated: 2026-10-06
 
 The maintainer requested this bounded maintenance pass after closing the initial implementation
 stage and gave the implementation go-ahead on 2026-10-01. Each handoff below records its decision,
@@ -101,9 +101,11 @@ migration. The two-command cleanup was accepted and committed as `f0ce3b3` on 20
 M13b batch migrates Search, selected-code Search and working-copy diffs to the existing browser
 interface and is committed as `097f245`. The feedback batch migrates feedback, line actions and
 modals, and is committed as `b71d270`. The project-entry batch adopts the same support for folder
-entry, project entry and independent tabs, and is accepted and explicitly approved for commit on
-2026-10-05. Further M13b adoption, M13c and M14–M15 remain pending. The sequence keeps independently
-risky changes in separate review steps; M15 starts with measurement before any optimization.
+entry, project entry and independent tabs, and is committed as `165a6fc`. The navigation batch
+adopts the same support for navigation, history controls and loading, and is accepted and approved
+for commit on 2026-10-06. Further M13b adoption, M13c and M14–M15 remain pending. The sequence keeps
+independently risky changes in separate review steps; M15 starts with measurement before any
+optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -741,20 +743,21 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   and working-copy diffs without extending the agreed interface; it is committed as `097f245`. The
   feedback batch adopts the interface for feedback, line actions and modals, adding the two tablet
   profiles used by modal checks; it is committed as `b71d270`. The project-entry batch adopts the
-  interface for foundation, project entry and independent tabs, and is accepted and approved for
-  commit. Reuse the interface where useful in the remaining scripts, adding argument/fixture and
-  artifact handling only when callers need them. Keep each feature's interactions and assertions
-  local.
+  interface for foundation, project entry and independent tabs, and is committed as `165a6fc`. The
+  navigation batch adopts it for navigation, history controls and loading, and is accepted and
+  approved for commit on 2026-10-06. Reuse the interface where useful in the remaining scripts,
+  adding argument/fixture and artifact handling only when callers need them. Keep each feature's
+  interactions and assertions local.
 - **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
   temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
   affected server suite after that extraction.
 
-After the project-entry batch, twelve feature scripts still launch Chrome directly. Continue their
-adoption in related review batches: navigation/history controls/loading; themes/typography/PWA;
-voice/live changes/feedback transactions; Git/file feedback/selected feedback. Preserve each
-scenario's context options and fixtures, and keep the screenshot command's separate delivery
-contract. Close M13b after that bounded caller audit; further QA infrastructure is outside this
-item.
+After the navigation batch, nine feature scripts still launch Chrome directly. Continue their
+adoption in related review batches: themes/typography/PWA; voice/live changes/feedback transactions;
+Git/file feedback/selected feedback. Preserve each scenario's context options and fixtures, and keep
+the screenshot command's separate delivery contract. Loading's private scenario helpers keep their
+delayed-response gates and cleanup local; they do not launch another browser. Close M13b after that
+bounded caller audit; further QA infrastructure is outside this item.
 
 ## M14 — Curate artifacts and clarify historical records
 
@@ -1918,5 +1921,48 @@ maintainer approved the two-command cleanup on 2026-10-05.
   new screenshot captures or physical-device checks were performed. The full server suite was not
   rerun for this QA-only migration; M13c will run the suite affected by its separate extraction.
 - **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
-  continuation with the next batch on 2026-10-05. Further M13b caller adoption, M13c, M14 and M15
-  remain within the bounded plan. Stop once that plan is complete.
+  continuation with the next batch on 2026-10-05. This batch is committed as `165a6fc`. Further M13b
+  caller adoption, M13c, M14 and M15 remain within the bounded plan. Stop once that plan is
+  complete.
+
+## M13b navigation batch handoff — 2026-10-05
+
+- **Alignment:** the maintainer accepted the project-entry batch and requested its commit and the
+  next maintenance batch. This step adopts the existing browser support for three related checks.
+- **Implementation:** [navigation](../qa/check-navigation.ts),
+  [history controls](../qa/check-history-controls.ts) and [loading](../qa/check-loading.ts) share
+  HTTP(S) URL validation and browser lifetime. Their directly created contexts use scoped cleanup
+  and context-wide page-error collection, including the extra navigation/history tabs and desktop
+  loading context. Completed scopes report success after collected errors are checked. Navigation
+  and history controls reuse the shared two-pixel document overflow assertion.
+- **Scenario ownership:** navigation preserves rapid Back during project opening, one-time card
+  focus, direct links, saved drafts and the 899/900 px sidebar boundary. Its standard profiles and
+  custom compact viewport retain their previous dimensions and touch behavior. History controls keep
+  their custom 320/390/820/1180/1440 px matrix, including touch disabled at 1180 px, and default
+  Chrome context for journal/tab checks. Button geometry, overlay behavior, denied storage,
+  malformed journals and traversal limits remain local. Loading keeps all existing delayed-request
+  gates, request counts, cache/height/scroll assertions and calls to its private scenario helpers;
+  those helpers retain their own context and gate cleanup.
+- **Scope:** no new helper API, package command, runner, fixture generator or helper self-test is
+  added. The shared browser module and runtime app source are unchanged.
+- **Verification:** all five strict TypeScript configurations, `bun run qa:check`, formatting and
+  whitespace checks pass, including 138 CSS token references. All three existing app checks pass
+  sequentially on the isolated inventory/history fixture server at port 39911. Navigation passes
+  card toggle/Refresh focus, direct links, Back/Forward, draft saving across project changes,
+  responsive panes, narrow Settings containment and invalid-link recovery. History controls pass all
+  five widths, native/visible traversal, reload, branching, Git replacement, overlay resizing,
+  rapid/ignored traversal, touch targets and containment. Denied storage, malformed metadata,
+  independent tabs and external-document return pass; after 60 pushes Chrome retains 50 known
+  destinations, with reload/traversal stopping at the oldest retained entry. Loading passes
+  cancellation/retry, accepted-project ownership, Files/Settings reading positions, stale status
+  outcomes during project switching, directory failure/recovery, buffered working/historical diff
+  responses, language supersession/retry, delayed feedback and single-request transitions. Expanded
+  diff payload, height and scroll survive two Back/Forward cycles; Refresh renews the request. Logs
+  remain under ignored `qa/.artifacts/m13b-navigation-*.log`.
+- **Delivery and limits:** only the isolated QA server started for this batch was stopped. Runtime
+  source, client assets, the maintained services and tracked screenshots are unchanged. No new
+  screenshot captures or physical-device checks were performed. The full server suite was not rerun
+  for this QA-only migration; M13c will run the suite affected by its separate extraction.
+- **Review/next step:** the maintainer accepted this batch and explicitly requested its commit and
+  continuation on 2026-10-06. The next M13b batch is themes, typography and PWA. M13c, M14 and M15
+  remain within the bounded maintenance plan; stop when that plan is complete.
