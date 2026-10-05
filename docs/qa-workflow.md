@@ -26,11 +26,22 @@ snapshots of incidental DOM structure. Remove exploratory tests that would only 
 noise.
 
 Keep the maintainer's running app available for review. Start fixture QA on a separate port with
-`--root "$PWD/qa/.artifacts"`; the inventory fixture is created by `bun run qa:fixture`, which
-refuses to overwrite an existing fixture. Client assets are shared under `dist/`, so rebuild the
-current client before the handoff and reload the review tab. Clean up QA processes you started
-without stopping the existing review service. Backend source changes need a restart of the relevant
-service; frontend-only edits need `bun run build`.
+`--root "$PWD/qa/.artifacts"`; the inventory fixture is created by
+`bun qa/prepare-inventory-fixture.ts`, which refuses to overwrite an existing fixture. Client assets
+are shared under `dist/`, so rebuild the current client before the handoff and reload the review
+tab. Clean up QA processes you started without stopping the existing review service. Backend source
+changes need a restart of the relevant service; frontend-only edits need `bun run build`.
+
+## QA commands
+
+The package exposes two QA commands: `bun run qa:check` for the static gate and `bun run qa:capture`
+for screenshots. Run focused checks directly with Bun, for example
+`bun qa/check-files.ts <local app URL>`. Fixture preparation and the formatting-hook check also run
+directly from their scripts; the sections below document the required setup and arguments.
+
+Dated review records retain the former `qa:<name>` aliases used at those checkpoints. Their current
+invocation is `bun qa/check-<name>.ts`; the old `qa:fixture` and `qa:git-fixture` aliases correspond
+to `bun qa/prepare-inventory-fixture.ts` and `bun qa/prepare-git-fixture.ts` respectively.
 
 ## Shared browser support
 
@@ -46,20 +57,20 @@ completed check if any were collected and closes the context on either success o
 `assertNoHorizontalOverflow` checks the document with a two-pixel tolerance; feature checks still
 own whether a code pane should scroll or wrap. Browser and context scopes close in `finally`.
 
-The first adopters are `qa:files`, `qa:media` and `qa:media-playback`; their invocation and fixture
-defaults are unchanged. When changing this shared owner, type-check and run the affected existing
-checks against the isolated fixture server. Ordinary check output belongs in ignored
-`qa/.artifacts/`; these checks create no screenshot milestones. The
-[M13a handoff](maintenance-plan.md#m13a-handoff--2026-10-05) records verification and the remaining
-browser/fixture and server-test migrations.
+The first adopters are `bun qa/check-files.ts`, `bun qa/check-media.ts` and
+`bun qa/check-media-playback.ts`; their arguments and fixture defaults are unchanged. When changing
+this shared owner, type-check and run the affected existing checks against the isolated fixture
+server. Ordinary check output belongs in ignored `qa/.artifacts/`; these checks create no screenshot
+milestones. The [M13a handoff](maintenance-plan.md#m13a-handoff--2026-10-05) records verification
+and the remaining browser/fixture and server-test migrations.
 
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook
 installation, staged-file behavior, and its review evidence. Run `bun run format` after edits and
-`bun run format:check` before delivery. Run `bun run qa:format-hook` when changing formatter or hook
-setup; it uses an isolated Git fixture and checks staged formatting, partial edits, ignored files,
-unusual names, deletions, and failure rollback without modifying this checkout's index.
+`bun run format:check` before delivery. Run `bun qa/check-format-hook.ts` when changing formatter or
+hook setup; it uses an isolated Git fixture and checks staged formatting, partial edits, ignored
+files, unusual names, deletions, and failure rollback without modifying this checkout's index.
 
 ## Screenshot command
 
@@ -81,7 +92,7 @@ the contextual drawer at narrower tablet widths before waiting for the ready sel
 capture works at all four layouts. `--help` lists options.
 
 For the foundation picker,
-`bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>` checks mobile
+`bun qa/check-foundation.ts --url http://127.0.0.1:3000/ --folder <direct-child-name>` checks mobile
 folder selection and reload, then saves browser state under `qa/.artifacts/`. Browser state files
 omit per-tab `sessionStorage`; add `--active-path <folder-relative-path>` to capture the explicit
 Changes URL for a selected project at all four sizes. Combine it with `--storage-state` when the
@@ -90,7 +101,7 @@ pass its full `--url` with query parameters; direct links are the authoritative 
 
 ## URL navigation and responsive screens
 
-Run `bun run qa:history-controls http://127.0.0.1:39911/` against an isolated inventory-fixture
+Run `bun qa/check-history-controls.ts http://127.0.0.1:39911/` against an isolated inventory-fixture
 server to verify visible Back/Forward at 320 px and all four standard widths, native traversal,
 Search return, reload, branching, Git-ref replacement, overlay/resizing behavior, touch targets, hit
 testing, denied/malformed storage, independent tabs, and return from another document. The
@@ -98,41 +109,41 @@ testing, denied/malformed storage, independent tabs, and return from another doc
 four-size captures and records device-verification limits. Unit checks live in
 `src/client/navigation-history.test.ts`. History metadata stays out of review-data backups.
 
-Run `bun run qa:project-entry http://127.0.0.1:39911/ http://127.0.0.1:39912/` for implicit phone
-entry, the 600/601 px boundary, picker/menu recents, bare restoration, Review all changes,
+Run `bun qa/check-project-entry.ts http://127.0.0.1:39911/ http://127.0.0.1:39912/` for implicit
+phone entry, the 600/601 px boundary, picker/menu recents, bare restoration, Review all changes,
 Back/Forward, explicit content reload, rotation, touch targets, host-root failure, and containment.
 The first server uses the inventory fixture root. The second uses a separate temporary approved root
 **outside any Git worktree**, containing `clean-git` (a clean initialized Git repository with a
 committed `readme.txt`) and `plain-folder` (a non-Git folder with `readme.txt`). Start that server
 on its own port; stop only QA servers you started. Project-open failure/cancellation/retry remains
-covered by `qa:loading`. The
+covered by `bun qa/check-loading.ts`. The
 [U02 handoff](pwa-navigation-and-file-feedback-proposal.md#u02-handoff--2026-10-04) links all eight
 inspected entry/review captures and records device limits. Existing phone feature checks use Review
 all changes when they need continuous review.
 
-`qa:navigation` also checks that a URL-selected diff can be collapsed and that toggling another card
-does not scroll back to it, on phone and desktop. Refresh must keep the selected card collapsed;
-selecting it again, opening its direct link, and browser Forward must still expand and focus it. The
-[diff navigation focus captures](../qa/screenshots/diff-navigation-focus/mobile.png) show another
-expanded card after entering Changes through a file URL at all four sizes.
+`bun qa/check-navigation.ts` also checks that a URL-selected diff can be collapsed and that toggling
+another card does not scroll back to it, on phone and desktop. Refresh must keep the selected card
+collapsed; selecting it again, opening its direct link, and browser Forward must still expand and
+focus it. The [diff navigation focus captures](../qa/screenshots/diff-navigation-focus/mobile.png)
+show another expanded card after entering Changes through a file URL at all four sizes.
 
-For loading and transition regressions, run `bun run qa:loading http://127.0.0.1:3000/` against the
-inventory and history fixtures (prepare the latter with `bun run qa:git-fixture`). It delays
-project, folder, file, and Search responses to check the 300 ms feedback delay, route-specific
-content, and return to an open project. It also checks that expanded diffs retain their content,
-height, and scroll position across Changes/Files Back and Forward, while Refresh refetches.
-[Diff request checks](../qa/diff-loading-check.ts) also hold fully buffered responses that ignore
-abort for working-copy and historical cards: collapse and changed language exclude abandoned results
-from both view and cache, errors retry with the same override, reload restores it, and a current
-working-copy stale response refreshes. The
+For loading and transition regressions, run `bun qa/check-loading.ts http://127.0.0.1:3000/` against
+the inventory and history fixtures (prepare the latter with `bun qa/prepare-git-fixture.ts`). It
+delays project, folder, file, and Search responses to check the 300 ms feedback delay,
+route-specific content, and return to an open project. It also checks that expanded diffs retain
+their content, height, and scroll position across Changes/Files Back and Forward, while Refresh
+refetches. [Diff request checks](../qa/diff-loading-check.ts) also hold fully buffered responses
+that ignore abort for working-copy and historical cards: collapse and changed language exclude
+abandoned results from both view and cache, errors retry with the same override, reload restores it,
+and a current working-copy stale response refreshes. The
 [loading and transition record](loading-and-transition-polish.md) describes the behavior;
 [loaded Files screenshots](../qa/screenshots/loading-polish-file/mobile.png) and
 [expanded diff screenshots](../qa/screenshots/diff-cache-expanded/mobile.png) cover the four
 viewport sizes.
 
 Start the app with `--root "$PWD/qa/.artifacts"` and the inventory fixture present, then run
-`bun run qa:navigation http://127.0.0.1:3000/`. The browser check covers the project picker, tab
-navigation, Search results and file Back/Forward, reload and direct links, Files directories and
+`bun qa/check-navigation.ts http://127.0.0.1:3000/`. The browser check covers the project picker,
+tab navigation, Search results and file Back/Forward, reload and direct links, Files directories and
 lines, a targeted Git diff, a comment draft preserved across Back and a project switch, phone
 list/content screens, tablet Changes/Search/Files list access, desktop's three panes, and invalid or
 unavailable link recovery. Run `bun test src/client/navigation.test.ts` for URL parser round trips
@@ -159,10 +170,10 @@ host/project headings, and moves Install & local data into Settings. Its four-si
 [unified content navigation](../qa/screenshots/navigation-unified-content-review/mobile.png),
 [phone list with tabs](../qa/screenshots/navigation-unified-list-review/mobile.png), and
 [updated live HTTPS app](../qa/screenshots/navigation-unified-live-review/mobile.png) captures show
-the later back-arrow refinement at all four sizes. `qa:navigation` checks phone tabs only with the
-list, the tablet drawer, the 899/900 px boundary, root Files breadcrumb, and Settings actions at 320
-px; `qa:pwa` opens the backup dialog from Settings. The selected-code QA uses a short viewport to
-test the docked action after the main header was removed.
+the later back-arrow refinement at all four sizes. `bun qa/check-navigation.ts` checks phone tabs
+only with the list, the tablet drawer, the 899/900 px boundary, root Files breadcrumb, and Settings
+actions at 320 px; `bun qa/check-pwa.ts` opens the backup dialog from Settings. The selected-code QA
+uses a short viewport to test the docked action after the main header was removed.
 
 The shared content-heading alignment was checked in loaded
 [Changes](../qa/screenshots/nav-heading-changes-final/mobile.png),
@@ -175,8 +186,9 @@ The following polish pass has four-size captures of the
 [rounded phone Changes list](../qa/screenshots/navigation-polish-changes-list/mobile.png),
 [folder browser and breadcrumb](../qa/screenshots/navigation-polish-folder-list/mobile.png), and
 [file view with one visible path](../qa/screenshots/navigation-polish-file-view/mobile.png).
-`qa:navigation`, `qa:files`, `qa:search`, and `qa:foundation` cover navigation after the icon swap;
-a 320 px Chrome check covers overflow in Changes list, Files list, and file content.
+`bun qa/check-navigation.ts`, `bun qa/check-files.ts`, `bun qa/check-search.ts`, and
+`bun qa/check-foundation.ts` cover navigation after the icon swap; a 320 px Chrome check covers
+overflow in Changes list, Files list, and file content.
 
 The [M05a maintenance record](maintenance-plan.md#m05a-handoff--2026-10-01) verifies obsolete UI/CSS
 removal with four-size [picker](../qa/screenshots/maintenance-m05-obsolete-picker/mobile.png),
@@ -199,11 +211,11 @@ refactored clients: aborting the operation does not clear its opening flag. The 
 route-ownership guard, with deliberate delayed-response regression checks; a successful ordinary run
 alone does not prove cancellation is correct. The CSS gate now checks every client stylesheet.
 
-`qa:loading` now invokes [project-opening-check.ts](../qa/project-opening-check.ts): native
-canceled-open → Back → same-folder retry at 320 px and all four standard sizes, success released
-during `popstate`, late success/error while a replacement is pending or completed, persisted
-selection ownership, and non-aborted failure/recovery. Controlled responses are fully buffered, and
-the stale-result cases intentionally model completion despite cancellation. The
+`bun qa/check-loading.ts` now invokes [project-opening-check.ts](../qa/project-opening-check.ts):
+native canceled-open → Back → same-folder retry at 320 px and all four standard sizes, success
+released during `popstate`, late success/error while a replacement is pending or completed,
+persisted selection ownership, and non-aborted failure/recovery. Controlled responses are fully
+buffered, and the stale-result cases intentionally model completion despite cancellation. The
 [M05c recovery captures](../qa/screenshots/maintenance-m05c-opening-recovery/mobile.png) show the
 picker after a controlled opening request was aborted by Back at all four sizes. They were made with
 `qa:capture` through an ignored local capture proxy; the manifest URL records that isolated origin.
@@ -214,24 +226,25 @@ installed app, then try browser Back/Forward, project switching, a comment draft
 tablet rotation, text selection, horizontal code scrolling, and the native edge Back gesture. The
 optional list/content swipe remains deferred until these gesture interactions are checked.
 
-For inventory screenshots, run `bun run qa:fixture` once to create `qa/.artifacts/inventory-fixture`
-with staged, unstaged, and untracked changes. Start the app with `--root "$PWD/qa/.artifacts"`, run
-`qa:foundation` with `--folder inventory-fixture`, then pass its saved browser state to
-`qa:capture`. The fixture script refuses to overwrite an existing fixture; remove that ignored
-folder yourself when you need a fresh one.
+For inventory screenshots, run `bun qa/prepare-inventory-fixture.ts` once to create
+`qa/.artifacts/inventory-fixture` with staged, unstaged, and untracked changes. Start the app with
+`--root "$PWD/qa/.artifacts"`, run `bun qa/check-foundation.ts` with `--folder inventory-fixture`,
+then pass its saved browser state to `qa:capture`. The fixture script refuses to overwrite an
+existing fixture; remove that ignored folder yourself when you need a fresh one.
 
-Run `bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture` against that fixture
-to check a phone flow through the file drawer, staged diff rows, wrap persistence, open-card
+Run `bun qa/check-diff.ts --url http://127.0.0.1:3000/ --folder inventory-fixture` against that
+fixture to check a phone flow through the file drawer, staged diff rows, wrap persistence, open-card
 persistence, contained horizontal scrolling, and the sticky heading of a long file.
 [Long-file screenshots](../qa/screenshots/sticky-file-header/mobile.png) show the header after
 scrolling at all four sizes. The same command checks C syntax tokens and a language override saved
 across reload. [Syntax screenshots](../qa/screenshots/syntax-c-diff/mobile.png) show the expanded C
 card at all four capture sizes.
 
-Run `bun run qa:files http://127.0.0.1:3000/` with the inventory fixture under the approved root to
-check phone Files navigation, syntax, wrapping, contained horizontal scrolling, and return to an
-open diff. [Working-tree Files screenshots](../qa/screenshots/files-working-tree-first/mobile.png)
-and [non-Git Files screenshots](../qa/screenshots/files-nongit-first/mobile.png) each have four-size
+Run `bun qa/check-files.ts http://127.0.0.1:3000/` with the inventory fixture under the approved
+root to check phone Files navigation, syntax, wrapping, contained horizontal scrolling, and return
+to an open diff.
+[Working-tree Files screenshots](../qa/screenshots/files-working-tree-first/mobile.png) and
+[non-Git Files screenshots](../qa/screenshots/files-nongit-first/mobile.png) each have four-size
 captures. A non-Git folder must live outside any enclosing Git repository for that case; a directory
 under `qa/.artifacts` is still inside this repository. The
 [horizontally scrolled Files capture](../qa/screenshots/files-horizontal-scroll-first/mobile.png)
@@ -239,7 +252,7 @@ shows the sticky line-number gutter with wrapping off at the four standard sizes
 [live project Files capture](../qa/screenshots/files-live-project-first/mobile.png) shows
 `src/client/App.tsx` loaded through the HTTPS service at all four sizes.
 
-Run `bun run qa:search http://127.0.0.1:3000/` against the inventory fixture to check the phone
+Run `bun qa/check-search.ts http://127.0.0.1:3000/` against the inventory fixture to check the phone
 Search tab, a deep result opening at its highlighted line, the sticky file path, drawer closure,
 preserved results, refresh, a simulated deleted-result notice, and page width. The
 [Search results](../qa/screenshots/search-results-first/mobile.png),
@@ -249,9 +262,9 @@ preserved results, refresh, a simulated deleted-result notice, and page width. T
 over private HTTPS. For repeatable search captures, `qa:capture` accepts `--fill <selector> <value>`
 interleaved with `--click`; use `--after-click-ready` to wait for results or the target row.
 
-Run `bun run qa:selected-search http://127.0.0.1:3000/` against the same fixture to check selection
-in a diff and a full file, tooltip repositioning on page and horizontal code-pane scroll, rejection
-of a cross-line range, and Search submission. The
+Run `bun qa/check-selected-search.ts http://127.0.0.1:3000/` against the same fixture to check
+selection in a diff and a full file, tooltip repositioning on page and horizontal code-pane scroll,
+rejection of a cross-line range, and Search submission. The
 [revised tooltip captures](../qa/screenshots/selected-code-search-touch-placement/mobile.png) show
 phone, tablet portrait, tablet landscape, and desktop without page-wide overflow. Touch placement is
 below the selection, with a header-adjacent fallback when there is no room; desktop placement is
@@ -260,14 +273,14 @@ repeatable screenshots after the chosen clicks and scrolls. Real Android Chrome 
 need manual checks for native selection handles, browser selection menus, and long-press
 interaction.
 
-Run `bun run qa:feedback http://127.0.0.1:3000/` against the same fixture to check a phone flow
+Run `bun qa/check-feedback.ts http://127.0.0.1:3000/` against the same fixture to check a phone flow
 through line comments, reload persistence, export, copy history, Undo, Clipboard API absence, and
 stale-line exclusion. It writes `qa/.artifacts/feedback-storage.json` for repeatable captures.
 [Feedback preview](../qa/screenshots/feedback-first-slice/mobile.png) and
 [comment editor](../qa/screenshots/comment-editor-first-slice/mobile.png) each have all four
 viewport captures.
 
-Run `bun run qa:modals http://127.0.0.1:3000/` against the inventory fixture to check comment,
+Run `bun qa/check-modals.ts http://127.0.0.1:3000/` against the inventory fixture to check comment,
 Feedback, and installation dialogs at phone, tablet portrait, tablet landscape, and desktop sizes.
 It covers native modal focus, background controls remaining inert during keyboard navigation, inside
 interaction, Escape/header/backdrop dismissal, focus return after Escape/header close, exact
@@ -275,7 +288,7 @@ scroll-lock restoration, Feedback-to-editor handoff, and saving the latest edite
 checks installation containment at 320 px. Voice QA separately covers editor dismissal while
 recording or transcribing.
 
-Run `bun run qa:line-action http://127.0.0.1:3000/` with `qa/.artifacts` as the server root. It
+Run `bun qa/check-line-action.ts http://127.0.0.1:3000/` with `qa/.artifacts` as the server root. It
 makes a temporary Git fixture with staged and unstaged versions of the same file, then checks the
 hidden phone gutters, 320 px fit, unchanged-line New anchor, removed-line Old anchor, copied
 feedback, selection priority, Escape, Feedback-button clearance, and desktop row clicks and direct
@@ -284,20 +297,20 @@ line controls. [Line action screenshots](../qa/screenshots/line-action-review/mo
 four capture sizes. Browser emulation does not prove native long-press selection or tap accuracy;
 verify those on real Android and iOS devices.
 
-Run `bun run qa:typography http://127.0.0.1:3000/` against the inventory fixture to check phone
+Run `bun qa/check-typography.ts http://127.0.0.1:3000/` against the inventory fixture to check phone
 Settings access before project selection, live preview, diff and Files fonts, scroll restoration,
-320 px containment at 20 px, reload, and cross-tab updates. `qa:pwa` checks version 3 backup
-export/import of typography and appearance alongside drafts.
+320 px containment at 20 px, reload, and cross-tab updates. `bun qa/check-pwa.ts` checks version 3
+backup export/import of typography and appearance alongside drafts.
 [Settings](../qa/screenshots/font-list-20-settings-review/mobile.png) and
 [larger diff text](../qa/screenshots/code-typography-diff-review/mobile.png) have four-size
 captures. Font availability and comfortable reading should also be judged on actual devices.
 
-The [Google font follow-up](google-code-fonts-followup.md) extends `qa:typography` to check that
-local choices make no Google request, that Settings offers 20 Google families, that JetBrains Mono
-and a newly added family load, that diff rows have no separator border, and that the selected family
-reaches the `<code>` content in both Changes and Files. Each Google Fonts CSS URL is checked for an
-HTTP 200 response. Chrome loaded JetBrains Mono through the live HTTPS app after the backend Content
-Security Policy update. The
+The [Google font follow-up](google-code-fonts-followup.md) extends `bun qa/check-typography.ts` to
+check that local choices make no Google request, that Settings offers 20 Google families, that
+JetBrains Mono and a newly added family load, that diff rows have no separator border, and that the
+selected family reaches the `<code>` content in both Changes and Files. Each Google Fonts CSS URL is
+checked for an HTTP 200 response. Chrome loaded JetBrains Mono through the live HTTPS app after the
+backend Content Security Policy update. The
 [expanded Settings](../qa/screenshots/font-list-20-settings-review/mobile.png) and
 [new font in review code](../qa/screenshots/font-list-20-code-closeup/mobile.png) have four-size
 captures. The check also blocks both Google font hosts in a fresh context, verifies visible code and
@@ -306,12 +319,13 @@ download.
 
 ## Theme settings
 
-Run `bun run qa:themes http://127.0.0.1:3000/` with `qa/.artifacts` as the approved root and the
-inventory fixture present. It checks app/code independence in the Settings preview and real diffs,
-the Files and feedback palettes, 320 px fit, reload, cross-tab sync including malformed values and
-cleared storage, System preference changes, independent appearance/typography resets, unavailable
-storage, and saved-theme application before the main browser app loads. `bun run qa:pwa` checks
-version 3 backup export/import of a dark app and light code while retaining drafts and typography.
+Run `bun qa/check-themes.ts http://127.0.0.1:3000/` with `qa/.artifacts` as the approved root and
+the inventory fixture present. It checks app/code independence in the Settings preview and real
+diffs, the Files and feedback palettes, 320 px fit, reload, cross-tab sync including malformed
+values and cleared storage, System preference changes, independent appearance/typography resets,
+unavailable storage, and saved-theme application before the main browser app loads.
+`bun qa/check-pwa.ts` checks version 3 backup export/import of a dark app and light code while
+retaining drafts and typography.
 [Dark Settings](../qa/screenshots/theme-dark-settings-review/mobile.png),
 [dark app with dark code](../qa/screenshots/theme-dark-app-dark-code-review/mobile.png),
 [dark app with light code](../qa/screenshots/theme-dark-app-light-code-review/mobile.png), and
@@ -322,10 +336,10 @@ controls, and the installed app's status bar on real devices.
 ## Live change detection
 
 Start the app with `--root "$PWD/qa/.artifacts"`, then run
-`bun run qa:live-changes http://127.0.0.1:3000/`. It creates and removes a temporary Git project.
-The script checks that a same-length edit to an already modified file raises the Update action
-without replacing the displayed diff, then confirms Update keeps expanded cards, a draft comment,
-and a deliberately scrolled tall-file reading position. It checks the 320 px phone width,
+`bun qa/check-live-changes.ts http://127.0.0.1:3000/`. It creates and removes a temporary Git
+project. The script checks that a same-length edit to an already modified file raises the Update
+action without replacing the displayed diff, then confirms Update keeps expanded cards, a draft
+comment, and a deliberately scrolled tall-file reading position. It checks the 320 px phone width,
 editor/Feedback and hidden-tab polling pauses, immediate resume, serialized status requests,
 repeated-check recovery, failed manual Update with retained inventory/preferences/draft and
 successful retry, and manual Refresh.
@@ -341,7 +355,7 @@ milestone explicitly. The [phone](../qa/screenshots/navigation-live-update-revie
 navigation milestone; routine runs no longer rewrite them. Inspect the action's reachability on real
 phone browsers as well as in emulation.
 
-Run `bun run qa:voice http://127.0.0.1:3000/` against the inventory fixture to check transcript
+Run `bun qa/check-voice.ts http://127.0.0.1:3000/` against the inventory fixture to check transcript
 insertion at a saved caret, selected-range replacement, failure and Retry with the original clip,
 Cancel without upload, automatic Send at five minutes, and control access in a keyboard-sized
 viewport using a mocked recorder and endpoint. It also dismisses the editor during recording and a
@@ -354,10 +368,10 @@ cues, or iOS/Android keyboard behavior. Test those on devices through the privat
 local endpoint smoke check can POST a non-sensitive WebM speech fixture to `/api/transcriptions`; it
 must return validated text through FFmpeg and Handy.
 
-Run `bun run qa:tabs http://127.0.0.1:3000/` to check that two tabs keep different projects across
-reload and bare `/` restoration while sharing recents. It also checks explicit-link priority,
+Run `bun qa/check-tabs.ts http://127.0.0.1:3000/` to check that two tabs keep different projects
+across reload and bare `/` restoration while sharing recents. It also checks explicit-link priority,
 delayed root completion after a route change, and one-time legacy selection migration. Run
-`bun run qa:pwa http://127.0.0.1:3000/` to check manifest/icon delivery, service-worker offline
+`bun qa/check-pwa.ts http://127.0.0.1:3000/` to check manifest/icon delivery, service-worker offline
 fallback, that API responses stay out of its cache, and draft backup export/import with invalid-file
 rejection. The [install/data dialog](../qa/screenshots/tab-pwa-install-data/mobile.png) and
 [review view](../qa/screenshots/tab-pwa-review/mobile.png) have four-size captures. Browser QA does
@@ -393,7 +407,7 @@ are called complete.
 ## Feedback transaction races
 
 For feedback transaction changes, also run
-`bun run qa:feedback-transactions http://127.0.0.1:39909/` against an isolated server approving
+`bun qa/check-feedback-transactions.ts http://127.0.0.1:39909/` against an isolated server approving
 `qa/.artifacts` with `inventory-fixture` present. It holds status/diff/clipboard results to check
 edits, same-project navigation, project-switch isolation, late-result cancellation, preview-close
 completion and Undo, feedback/history write serialization, failure/retry, and persisted reloads. It
@@ -408,9 +422,10 @@ before/after regression comparison, served only inside the isolated browser cont
 Use `bun qa/prepare-media-fixture.ts` and `bun qa/prepare-media-av-fixture.ts` to create ignored Git
 fixtures under `qa/.artifacts/`; both commands refuse to overwrite an existing fixture. The
 audio/video fixture generator needs FFmpeg with H.264 encoding. Start the local app with
-`--root "$PWD/qa/.artifacts"`. Run `bun run qa:media http://127.0.0.1:3000/` for image rendering and
-the raw SVG script restriction, then `bun run qa:media-playback http://127.0.0.1:3000/` for mobile
-Chrome audio/video loading, seeking, and raw byte ranges.
+`--root "$PWD/qa/.artifacts"`. Run `bun qa/check-media.ts http://127.0.0.1:3000/` for image
+rendering and the raw SVG script restriction, then
+`bun qa/check-media-playback.ts http://127.0.0.1:3000/` for mobile Chrome audio/video loading,
+seeking, and raw byte ranges.
 
 Capture four sizes with `bun run qa:capture --active-path media-fixture` or
 `--active-path media-av-fixture`. Use `--media-ready` to wait for native player metadata. The
@@ -423,12 +438,12 @@ and raw-link checks in real Android Chrome and iOS Safari over HTTPS.
 
 ## Git branches and commits
 
-Run `bun run qa:git-fixture` once to create `qa/.artifacts/history-fixture`; it refuses to overwrite
-existing content. Start the fixture server on a separate port with `--root "$PWD/qa/.artifacts"`,
-then run `bun run qa:git http://127.0.0.1:39901/`. The fixture includes local/remote branches, a
-root commit, over 50 commits for paging, an empty history checkpoint, a first-parent merge, a full
-multi-paragraph message, five changed files, mode changes, Old/New SVGs, long C code, and a worktree
-that differs from the selected historical commit.
+Run `bun qa/prepare-git-fixture.ts` once to create `qa/.artifacts/history-fixture`; it refuses to
+overwrite existing content. Start the fixture server on a separate port with
+`--root "$PWD/qa/.artifacts"`, then run `bun qa/check-git.ts http://127.0.0.1:39901/`. The fixture
+includes local/remote branches, a root commit, over 50 commits for paging, an empty history
+checkpoint, a first-parent merge, a full multi-paragraph message, five changed files, mode changes,
+Old/New SVGs, long C code, and a worktree that differs from the selected historical commit.
 
 The check runs at phone, both tablet orientations, and desktop sizes. It covers default branch URL
 normalization without closing an opened drawer (including a delayed-ref tablet check), paging, held
@@ -460,10 +475,10 @@ card, then capture the [wrapped review](../qa/screenshots/word-detail-review/mob
 [unwrapped, horizontally scrolled review](../qa/screenshots/word-detail-scroll/mobile.png) at all
 four standard sizes. The screenshots should keep syntax colors, source text, line-number gutters,
 and added/removed row colors intact while marking only changed spans on clear pairs. Check selection
-contrast and no page-wide overflow. `bun run qa:diff`, `bun run qa:selected-search`, and
-`bun run qa:feedback` cover compact rows, selected-code Search through decorated markup, and line
-comments/copy in mobile Chrome emulation. Verify native selection handles and comment tapping on
-real phones when reviewing the slice.
+contrast and no page-wide overflow. `bun qa/check-diff.ts`, `bun qa/check-selected-search.ts`, and
+`bun qa/check-feedback.ts` cover compact rows, selected-code Search through decorated markup, and
+line comments/copy in mobile Chrome emulation. Verify native selection handles and comment tapping
+on real phones when reviewing the slice.
 
 ## Baseline matrix as features arrive
 
@@ -482,11 +497,11 @@ behavior exists.
 
 ## Working-tree file feedback
 
-`bun run qa:file-feedback http://127.0.0.1:39911/ http://127.0.0.1:39912/` checks the U03 follow-up.
-The first isolated server approves `qa/.artifacts`, with the existing inventory fixture. The check
-creates/restores only `inventory-fixture/src/feedback notes β.txt` there for CRLF, blank/last-line,
-changed-file and deletion cases. The second isolated server must approve a fixture root outside any
-enclosing Git repository containing `plain-folder/readme.txt` and a clean Git
+`bun qa/check-file-feedback.ts http://127.0.0.1:39911/ http://127.0.0.1:39912/` checks the U03
+follow-up. The first isolated server approves `qa/.artifacts`, with the existing inventory fixture.
+The check creates/restores only `inventory-fixture/src/feedback notes β.txt` there for CRLF,
+blank/last-line, changed-file and deletion cases. The second isolated server must approve a fixture
+root outside any enclosing Git repository containing `plain-folder/readme.txt` and a clean Git
 `clean-git/readme.txt`; the U02 setup is recorded in ignored
 `qa/.artifacts/usability-u02-plain-root.txt` on this checkout. The maintainer's running project is
 not a mutation fixture.
@@ -501,11 +516,12 @@ action/editor/preview captures via `qa:capture`.
 
 ## Selected-code feedback
 
-`bun run qa:selected-feedback http://127.0.0.1:39911/` uses the inventory fixture under
+`bun qa/check-selected-feedback.ts http://127.0.0.1:39911/` uses the inventory fixture under
 `qa/.artifacts`. It creates/restores `src/selection-feedback.ts` to check repeated fragments,
 whitespace/tokens, Unicode, wrapped ranges, save/reload, clipboard/history/Undo, source replacement,
 reattachment, Search, backup transfer and diff Old/New/annotation boundaries at 320 px plus the four
 standard viewports. Exact offsets are selected through native DOM Ranges; the app receives no
 special test source metadata. Saved browser states support action/editor/preview `qa:capture`
-milestones. Existing `qa:selected-search` covers page/horizontal scrolling and invalid cross-row
-selection; `qa:file-feedback` covers legacy whole-line flows and source-kind reattachment guards.
+milestones. Existing `bun qa/check-selected-search.ts` covers page/horizontal scrolling and invalid
+cross-row selection; `bun qa/check-file-feedback.ts` covers legacy whole-line flows and source-kind
+reattachment guards.

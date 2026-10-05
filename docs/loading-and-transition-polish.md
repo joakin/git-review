@@ -80,7 +80,7 @@ The loading suite also covers view recovery: a failed Files directory read retri
 opens a recovered file; an empty parent directory removes previous rows; a picker read failure
 disables opening until Back to root and reselection recover it.
 
-`bun run qa:loading http://127.0.0.1:3000/` uses the inventory and history fixtures and holds
+`bun qa/check-loading.ts http://127.0.0.1:3000/` uses the inventory and history fixtures and holds
 project-open, directory, file, and Search responses in the browser. It checks that short waits do
 not show loading text, slow waits do, old destinations do not flash, returning to the same project
 does not reopen it, and switching projects sends one open request. It also verifies that an expanded
@@ -91,7 +91,7 @@ results from the view and cache, Retry retains the override, and reload restores
 working-copy stale response still refreshes its status and diff. Held working-copy status and
 renewed diff responses verify that navigation preserves the selected Files URL, Files/Settings
 reading positions, and replacement project ownership without an old redirect or error.
-`bun run qa:navigation` checks the broader Back/Forward and responsive flows, including
+`bun qa/check-navigation.ts` checks the broader Back/Forward and responsive flows, including
 phone/desktop card toggles without repeat scrolling, collapsing the URL-selected card, Refresh
 without reopening it, and refocusing after reselection or Forward. Four-size captures cover
 [loaded Files](../qa/screenshots/loading-polish-file/mobile.png), an

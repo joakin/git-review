@@ -1,7 +1,7 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
 const appUrl = process.argv[2];
-if (appUrl === undefined) throw new Error("Usage: bun run qa:modals <local app URL>");
+if (appUrl === undefined) throw new Error("Usage: bun qa/check-modals.ts <local app URL>");
 const reviewUrl = new URL(
   "/?section=changes&project=inventory-fixture&layer=staged&file=src/view.ts",
   appUrl,

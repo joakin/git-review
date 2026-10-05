@@ -10,7 +10,7 @@ import { selectCodeText } from "./select-code-text.ts";
 const url = process.argv[2];
 const plainUrl = process.argv[3];
 if (url === undefined || plainUrl === undefined)
-  throw new Error("Usage: bun run qa:file-feedback <fixture URL> <plain/clean fixture URL>");
+  throw new Error("Usage: bun qa/check-file-feedback.ts <fixture URL> <plain/clean fixture URL>");
 const origin = new URL(url).origin;
 const path = "src/feedback notes β.txt";
 const location = resolve("qa/.artifacts/inventory-fixture", path);

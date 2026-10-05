@@ -8,7 +8,7 @@ import { parseProjectResponse } from "../src/shared/api.ts";
 import { selectCodeText } from "./select-code-text.ts";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:selected-feedback <fixture URL>");
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-selected-feedback.ts <fixture URL>");
 const origin = new URL(rawUrl).origin;
 const path = "src/selection-feedback.ts";
 const location = resolve("qa/.artifacts/inventory-fixture", path);

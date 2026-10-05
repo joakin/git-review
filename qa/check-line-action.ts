@@ -5,7 +5,7 @@ import { chromium } from "playwright-core";
 import { selectCodeText } from "./select-code-text.ts";
 
 const url = process.argv[2];
-if (url === undefined) throw new Error("Usage: bun run qa:line-action <local app URL>");
+if (url === undefined) throw new Error("Usage: bun qa/check-line-action.ts <local app URL>");
 
 const artifacts = resolve("qa/.artifacts");
 await mkdir(artifacts, { recursive: true });

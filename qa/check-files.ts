@@ -7,7 +7,7 @@ import {
 } from "./browser-support.ts";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:files <local app URL>");
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-files.ts <local app URL>");
 const url = appUrl(rawUrl);
 
 await withQaBrowser(async (browser) => {

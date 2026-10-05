@@ -239,10 +239,11 @@ with one back arrow beside the content title.
   rapid history changes, and limits selected-card focus to one action per navigation. The maintainer
   approved the corrected card behavior on 2026-09-30.
 - `bun test src/client/navigation.test.ts` protects route round trips and invalid URL behavior.
-  `bun run qa:navigation <url>` checks Back/Forward, Search → result → Back, reload/direct links,
-  Files and Changes targets, a draft across Back, the phone list/content flow, tablet list toggle,
-  the 899/900 px sidebar boundary, desktop panes, and invalid-link recovery. Existing feature QA was
-  adapted to use routes. The [QA workflow](qa-workflow.md) has capture and device checks.
+  `bun qa/check-navigation.ts <url>` checks Back/Forward, Search → result → Back, reload/direct
+  links, Files and Changes targets, a draft across Back, the phone list/content flow, tablet list
+  toggle, the 899/900 px sidebar boundary, desktop panes, and invalid-link recovery. Existing
+  feature QA was adapted to use routes. The [QA workflow](qa-workflow.md) has capture and device
+  checks.
 
 ## Maintenance verification — 2026-10-01
 

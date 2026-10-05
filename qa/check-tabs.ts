@@ -4,7 +4,7 @@ import { chromium, type Page } from "playwright-core";
 import { parseActiveProject } from "../src/client/storage.ts";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:tabs <local app URL>");
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-tabs.ts <local app URL>");
 const url = new URL(rawUrl);
 const startUrl = new URL("/", url).href;
 const rootPath = resolve("qa/.artifacts");

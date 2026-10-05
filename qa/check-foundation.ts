@@ -5,7 +5,7 @@ import { chromium } from "playwright-core";
 function options(args: readonly string[]): { url: URL; folder: string } {
   if (args.length !== 4 || args[0] !== "--url" || args[2] !== "--folder") {
     throw new Error(
-      "Usage: bun run qa:foundation --url <local app URL> --folder <direct child folder>",
+      "Usage: bun qa/check-foundation.ts --url <local app URL> --folder <direct child folder>",
     );
   }
   const rawUrl = args[1];

@@ -3,7 +3,7 @@ import { chromium, type Page } from "playwright-core";
 const [rawUrl, rawPlainUrl, ...extra] = process.argv.slice(2);
 if (rawUrl === undefined || rawPlainUrl === undefined || extra.length !== 0)
   throw new Error(
-    "Usage: bun run qa:project-entry <inventory fixture app URL> <clean-git and plain-folder app URL>",
+    "Usage: bun qa/check-project-entry.ts <inventory fixture app URL> <clean-git and plain-folder app URL>",
   );
 const base = new URL(rawUrl);
 const plainBase = new URL(rawPlainUrl);

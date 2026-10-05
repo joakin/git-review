@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { chromium } from "playwright-core";
 
 const url = process.argv[2];
-if (url === undefined) throw new Error("Usage: bun run qa:themes <local app URL>");
+if (url === undefined) throw new Error("Usage: bun qa/check-themes.ts <local app URL>");
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {

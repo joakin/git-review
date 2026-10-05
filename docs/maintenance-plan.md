@@ -1,7 +1,7 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12 accepted and committed; M13a accepted and approved for commit; M13b/M13c and M14–M15
-pending
+Status: M01–M12 and M13a accepted and committed; QA command cleanup accepted and approved for
+commit; M13b/M13c and M14–M15 pending
 
 Created: 2026-09-30
 
@@ -89,13 +89,12 @@ verification of this maintenance work.
 
 ## Slice order and status
 
-M01–M12 are accepted and committed. The maintainer requested a hold on 2026-10-04 while completing
-usability work. After accepting and requesting the commit of the selection extension and joined
-controls on 2026-10-05, the maintainer requested continuation with the plan. The maintainer accepted
-M11 and explicitly requested its commit (`e9da16a`) and continuation on 2026-10-05. M12 is accepted
-and explicitly approved for commit on 2026-10-05; M13–M15 remain pending. The sequence below keeps
-independently risky changes in separate review steps; M15 starts with measurement before any
-optimization.
+M01–M12 and M13a are accepted and committed. The maintainer held maintenance on 2026-10-04 for
+usability work and resumed it on 2026-10-05. M12 is committed as `379d870`, and M13a as `2bff14a`.
+After accepting M13a, the maintainer requested cleanup of the 29 QA package aliases before further
+migration. The two-command cleanup was accepted and explicitly approved for commit on 2026-10-05.
+M13b/M13c and M14–M15 remain pending. The sequence keeps independently risky changes in separate
+review steps; M15 starts with measurement before any optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -211,9 +210,9 @@ active operation's state, including after leaving and returning to the same proj
 **Validation:** hold status/diff and clipboard responses while editing, deleting, reattaching,
 undoing, adding drafts, navigating away/back, or starting another operation. Cover clipboard
 rejection and late results. Retain anchor matching, export formatting, history bounds, reload
-persistence, and ordinary `qa:feedback` coverage. Add four-size captures if dialog states or
-controls change. Update the [feedback record](feedback-slice-proposal.md). Fix behavior before the
-M09 extraction.
+persistence, and ordinary `qa/check-feedback.ts` coverage. Add four-size captures if dialog states
+or controls change. Update the [feedback record](feedback-slice-proposal.md). Fix behavior before
+the M09 extraction.
 
 **Implemented and accepted 2026-10-01; committed as `59cadf3`:**
 [FeedbackTransactions](../src/client/feedback-transactions.ts) owns cancellable checks, operation
@@ -307,11 +306,11 @@ invariant for the later M09d project/route owner extraction.
 starts. Browser Back can cancel it before completion; cleanup aborts the controller, both promise
 branches bail out for an aborted signal, and the next effect invocation returns for a null route
 project without clearing `opening`. The picker then remains disabled with “Opening…”, and
-`selectFolder` also refuses another open. The project-switch label used by `qa:navigation` can show
-the route's short name before the project request completes. A held `/api/projects/open` response
-followed by Back reproduces this on both committed `2d6879d` and M05b clients. This identifies the
-concrete path behind the previously unisolated M05a navigation timeout; successful reruns do not
-eliminate the defect.
+`selectFolder` also refuses another open. The project-switch label used by `qa/check-navigation.ts`
+can show the route's short name before the project request completes. A held `/api/projects/open`
+response followed by Back reproduces this on both committed `2d6879d` and M05b clients. This
+identifies the concrete path behind the previously unisolated M05a navigation timeout; successful
+reruns do not eliminate the defect.
 
 **Smallest slice and contract:** reset the opening state when the route no longer needs an open
 operation. Both completion branches require the request to remain non-aborted and belong to the
@@ -325,13 +324,14 @@ unconditional asynchronous `finally` that could let an older canceled request cl
 operation's flag.
 
 **Validation and result:** [project-opening-check.ts](../qa/project-opening-check.ts), called by
-`qa:loading`, deliberately holds opens across browser Back, checks the returned directory and
-enabled button, confirms retry at five widths, and releases abandoned success/error while another
-open is pending or completed. The controlled success released during `popstate` also preserves saved
-ownership before effect cleanup. An ordinary opening error still displays recovery and permits
-retry. The [handoff below](#m05c-handoff--2026-10-01) records baseline failures, strict gates,
-existing behavior checks, and four-size recovery captures. These checks wait for actual project data
-when asserting completed opening; the ordinary navigation check retains its rapid Back path.
+`qa/check-loading.ts`, deliberately holds opens across browser Back, checks the returned directory
+and enabled button, confirms retry at five widths, and releases abandoned success/error while
+another open is pending or completed. The controlled success released during `popstate` also
+preserves saved ownership before effect cleanup. An ordinary opening error still displays recovery
+and permits retry. The [handoff below](#m05c-handoff--2026-10-01) records baseline failures, strict
+gates, existing behavior checks, and four-size recovery captures. These checks wait for actual
+project data when asserting completed opening; the ordinary navigation check retains its rapid Back
+path.
 
 ## M06 — Reuse the bounded cache implementation
 
@@ -527,7 +527,7 @@ matching the final responsibility.
 
 | Substep | Owner and interface                                                                                                                                                                         | Important invariants/checks                                                                                                            |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| M09a    | [Appearance/preferences owner](../src/client/appearance-preferences.ts): typed preferences and change/reset actions; owns storage events, system theme, theme application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa:themes`, `qa:typography`, relevant PWA checks                         |
+| M09a    | [Appearance/preferences owner](../src/client/appearance-preferences.ts): typed preferences and change/reset actions; owns storage events, system theme, theme application, and font loading | Theme bootstrap, cross-tab updates, font fallback, Settings; `qa/check-themes.ts`, `qa/check-typography.ts`, relevant PWA checks       |
 | M09b    | [Shared modal hook](../src/client/modal.ts) used directly by installation and feedback dialogs                                                                                              | Focus/cancel/close behavior and voice/editor lifetime; modal, feedback, voice, and PWA checks                                          |
 | M09c    | [Feedback owner](../src/client/review-feedback.ts): store/editor/operation state and edit/check/copy/undo/reattach actions                                                                  | M03 transaction rules, conservative anchors, persistence and navigation saving                                                         |
 | M09d    | [Project/session owner](../src/client/project-session.ts): resolved project/opening/error state and project-opening actions                                                                 | Root/project identity, recents, per-tab restoration, unavailable project recovery; tabs/navigation/loading checks                      |
@@ -724,13 +724,14 @@ extraction. Document any changed QA invocation in the workflow and package scrip
 
 ### M13 review steps
 
-- **M13a — First browser interface:** accepted and explicitly approved for commit on 2026-10-05.
-  Share browser/context lifetime, the profiles used by the first callers, HTTP URL parsing,
-  page-error collection and overflow checks. Migrate Files, images and media playback; verify their
-  existing feature checks still pass. The [handoff](#m13a-handoff--2026-10-05) records this slice.
-- **M13b — Further browser/fixture adoption:** pending M13a review. Reuse the agreed interface where
-  useful in the remaining scripts, adding shared tablet profiles, argument/fixture and artifact
-  handling only when callers need them. Keep each feature's interactions and assertions local.
+- **M13a — First browser interface:** accepted and committed as `2bff14a` on 2026-10-05. Share
+  browser/context lifetime, the profiles used by the first callers, HTTP URL parsing, page-error
+  collection and overflow checks. Migrate Files, images and media playback; verify their existing
+  feature checks still pass. The [handoff](#m13a-handoff--2026-10-05) records this slice.
+- **M13b — Further browser/fixture adoption:** next after the accepted QA command cleanup. Reuse the
+  agreed interface where useful in the remaining scripts, adding shared tablet profiles,
+  argument/fixture and artifact handling only when callers need them. Keep each feature's
+  interactions and assertions local.
 - **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
   temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
   affected server suite after that extraction.
@@ -1764,6 +1765,27 @@ Use this compact entry for each handoff:
   result remains its dated evidence, and M13c will run the affected server tests. Only the isolated
   QA server started for this slice was stopped.
 - **Review/next step:** the maintainer accepted M13a and explicitly requested its commit on
-  2026-10-05. Before further migration, the maintainer requested a review of the 29 QA aliases in
-  `package.json`. M13b resumes after that command-surface decision; M13c remains a separate
-  test-support step.
+  2026-10-05. M13a is committed as `2bff14a`. Before further migration, the maintainer requested a
+  review of the 29 QA aliases in `package.json`. M13b resumes after that command-surface decision;
+  M13c remains a separate test-support step.
+
+### QA command cleanup — 2026-10-05
+
+The maintainer called out the 29 `qa:*` aliases before further M13 migration: 24 browser-scenario
+aliases, two fixture aliases, the formatting-hook check, screenshots and the static QA gate. The
+maintainer approved the two-command cleanup on 2026-10-05.
+
+- **Implementation:** [package.json](../package.json) retains `qa:check` and `qa:capture` as the QA
+  package commands. Focused checks, fixture preparation and the hook check run directly with Bun,
+  for example `bun qa/check-files.ts <url>` and `bun qa/prepare-inventory-fixture.ts`. The current
+  command documentation and script usage messages use those invocations. Dated evidence retains the
+  former aliases, explained in the [QA workflow](qa-workflow.md#qa-commands).
+- **Scope:** the underlying checks and their assertions remain available. This slice adds no
+  dispatcher, runner or tests. Existing browser-script overlap remains part of M13b's cleanup.
+- **Verification:** all five strict TypeScript configurations pass. `bun run qa:check` passes,
+  including 138 resolved CSS token references and the repository formatting check. Current commands
+  and script usage messages were reviewed; whitespace checks pass. No browser scenarios, screenshot
+  captures or physical-device checks were rerun for package aliases, usage text and documentation.
+  Runtime source and client assets are unchanged, and the maintained services were not restarted.
+- **Review/next step:** the maintainer accepted the cleanup, explicitly requested its commit and
+  continuation on 2026-10-05. M13b is next; M13c remains a separate test-support step.

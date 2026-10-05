@@ -3,7 +3,7 @@ import { chromium } from "playwright-core";
 function options(args: readonly string[]): { url: URL; folder: string } {
   if (args.length !== 4 || args[0] !== "--url" || args[2] !== "--folder") {
     throw new Error(
-      "Usage: bun run qa:diff --url <local app URL> --folder <direct child Git fixture>",
+      "Usage: bun qa/check-diff.ts --url <local app URL> --folder <direct child Git fixture>",
     );
   }
   const rawUrl = args[1];

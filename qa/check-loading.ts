@@ -5,7 +5,7 @@ import { checkViewStateRecovery } from "./view-state-check.ts";
 import { checkDiffLoading } from "./diff-loading-check.ts";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:loading <local app URL>");
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-loading.ts <local app URL>");
 const base = new URL(rawUrl);
 if (base.protocol !== "http:" && base.protocol !== "https:")
   throw new Error("Expected an HTTP(S) URL");

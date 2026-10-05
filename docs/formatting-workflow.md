@@ -20,7 +20,7 @@ partially staged files.
   `bun run qa:check`.
 - `bun run format:staged` runs the staged-file formatter manually; the Git hook invokes it with
   Bun's runtime.
-- `bun run qa:format-hook` exercises the actual installed hook in a temporary Git fixture.
+- `bun qa/check-format-hook.ts` exercises the actual installed hook in a temporary Git fixture.
 - `bun install` activates hooks through the `prepare` script. `bun run prepare` can reactivate them
   in an existing checkout.
 

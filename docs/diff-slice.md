@@ -91,8 +91,8 @@ contracts, unchanged limits/fallbacks, and regression evidence.
 Temporary Git fixture tests cover staged and unstaged versions of one path, renames, deletions,
 unusual filenames, untracked text, binary files, symlinks, missing final newlines, an unborn
 repository, malformed hunks, and stale API requests.
-`bun run qa:diff --url <url> --folder inventory-fixture` checks mobile drawer navigation, staged
-rows, wrap persistence, open-card persistence, compact short rows in both wrap modes, growing
+`bun qa/check-diff.ts --url <url> --folder inventory-fixture` checks mobile drawer navigation,
+staged rows, wrap persistence, open-card persistence, compact short rows in both wrap modes, growing
 wrapped rows, aligned horizontal scrolling, sticky gutters, and page overflow containment.
 [Wrapped rows](../qa/screenshots/diff-marker-left-wrap/mobile.png),
 [scrolled rows](../qa/screenshots/diff-marker-left-scroll/mobile.png), and

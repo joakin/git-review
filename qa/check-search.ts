@@ -1,7 +1,7 @@
 import { chromium } from "playwright-core";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:search <local app URL>");
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-search.ts <local app URL>");
 const url = new URL(rawUrl);
 if (url.protocol !== "http:" && url.protocol !== "https:")
   throw new Error("Expected an HTTP(S) URL");

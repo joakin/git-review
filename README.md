@@ -115,22 +115,11 @@ icons, and Bun's lockfile retain their own formats. See the
 bun run typecheck
 bun run test
 bun run qa:check
-bun run qa:foundation --url http://127.0.0.1:3000/ --folder <direct-child-name>
-bun run qa:diff --url http://127.0.0.1:3000/ --folder inventory-fixture
-bun run qa:files http://127.0.0.1:3000/
-bun run qa:navigation http://127.0.0.1:3000/
-bun run qa:git-fixture
-bun run qa:loading http://127.0.0.1:3000/
-bun run qa:git http://127.0.0.1:3000/
-bun run qa:feedback http://127.0.0.1:3000/
-bun run qa:selected-feedback http://127.0.0.1:39911/
-bun run qa:file-feedback http://127.0.0.1:39911/ http://127.0.0.1:39912/
-bun run qa:voice http://127.0.0.1:3000/
-bun run qa:tabs http://127.0.0.1:3000/
-bun run qa:pwa http://127.0.0.1:3000/
 bun run qa:capture --url http://127.0.0.1:3000/ --label <milestone>
 ```
 
-The browser QA commands use the installed Chrome. See [the QA workflow](docs/qa-workflow.md) for
-screenshots and device checks, and [the foundation slice](docs/foundation-slice.md) for the current
+Run focused browser checks directly with Bun, for example
+`bun qa/check-files.ts http://127.0.0.1:3000/`. The scripts use the installed Chrome and an isolated
+fixture server. See [the QA workflow](docs/qa-workflow.md) for fixture setup, scenario arguments,
+screenshots, and device checks, and [the foundation slice](docs/foundation-slice.md) for the current
 API and boundaries.

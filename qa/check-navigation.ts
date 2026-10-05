@@ -1,7 +1,7 @@
 import { chromium, type Page } from "playwright-core";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:navigation <local app URL>");
+if (rawUrl === undefined) throw new Error("Usage: bun qa/check-navigation.ts <local app URL>");
 const base = new URL(rawUrl);
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 

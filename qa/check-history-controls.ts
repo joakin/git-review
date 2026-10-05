@@ -2,7 +2,8 @@ import { chromium, type Page } from "playwright-core";
 import { selectCodeText } from "./select-code-text.ts";
 
 const rawUrl = process.argv[2];
-if (rawUrl === undefined) throw new Error("Usage: bun run qa:history-controls <local app URL>");
+if (rawUrl === undefined)
+  throw new Error("Usage: bun qa/check-history-controls.ts <local app URL>");
 const base = new URL(rawUrl);
 const fileUrl = new URL(
   "/?section=files&project=inventory-fixture&dir=src&file=src%2Fview.ts",

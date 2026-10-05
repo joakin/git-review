@@ -5,7 +5,9 @@ import { expectGitOid, parseCommitDetail, parseGitHistory } from "../src/shared/
 
 const url = process.argv[2];
 if (url === undefined)
-  throw new Error("Usage: bun run qa:git <local QA app URL>; prepare qa:git-fixture first");
+  throw new Error(
+    "Usage: bun qa/check-git.ts <local QA app URL>; prepare with bun qa/prepare-git-fixture.ts first",
+  );
 const base = new URL(url);
 const fixture = expectRecord(
   JSON.parse(await readFile("qa/.artifacts/history-fixture-info.json", "utf8")) as unknown,
