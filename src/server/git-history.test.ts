@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { testGitText as git, withTempDirectory } from "../test-support.ts";
+import { chmod, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseCommitDetail, parseCommitSummary, type CommitDetail } from "../shared/git.ts";
@@ -13,14 +13,6 @@ import {
 } from "./git-history.ts";
 import { approveRoot, openProject } from "./paths.ts";
 
-function git(cwd: string, ...args: string[]): string {
-  return execFileSync(
-    "git",
-    ["-c", "user.name=History QA", "-c", "user.email=history@example.invalid", ...args],
-    { cwd, encoding: "utf8" },
-  ).trim();
-}
-
 function commit(cwd: string, message: string): string {
   git(cwd, "add", ".");
   git(cwd, "commit", "-qm", message);
@@ -32,8 +24,7 @@ function file(detail: CommitDetail, path: string) {
 }
 
 test("commit inspection reads immutable full messages, root/parent diffs and file kinds", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-"));
-  try {
+  await withTempDirectory("git-review-history-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await writeFile(join(directory, "value.ts"), "export const value = 'before';\n");
     await writeFile(join(directory, "old name.txt"), "unchanged rename content\n");
@@ -86,14 +77,11 @@ test("commit inspection reads immutable full messages, root/parent diffs and fil
     await expect(readCommit(project, "a".repeat(64))).rejects.toThrow("object ID");
     expect(() => commitFile(detail, "../secret")).toThrow("Invalid commit file path");
     expect(() => commitFile(detail, "absent.ts")).toThrow("not changed");
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("historical binary and oversized content keep their variants for root and parent comparisons", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-content-"));
-  try {
+  await withTempDirectory("git-review-history-content-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await writeFile(join(directory, "binary.dat"), Buffer.from([0, 1, 2]));
     await writeFile(join(directory, "large.txt"), "a".repeat(1024 * 1024 + 1));
@@ -113,14 +101,11 @@ test("historical binary and oversized content keep their variants for root and p
         kind: "too_large",
       });
     }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("branches, detached/unborn states, pagination snapshots, merges and empty commits", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-list-"));
-  try {
+  await withTempDirectory("git-review-history-list-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     const root = await approveRoot(directory);
     const project = await openProject(root, "");
@@ -186,14 +171,11 @@ test("branches, detached/unborn states, pagination snapshots, merges and empty c
     expect((await readGitRefs(project)).kind === "git").toBe(true);
     const detached = await readGitRefs(project);
     expect(detached.kind === "git" && detached.head).toEqual({ kind: "detached", oid: feature });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("project-subfolder history confines both sides, including renames across its boundary", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-scope-"));
-  try {
+  await withTempDirectory("git-review-history-scope-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await mkdir(join(directory, "inside"));
     await writeFile(join(directory, "outside.txt"), "outside content\n");
@@ -220,14 +202,11 @@ test("project-subfolder history confines both sides, including renames across it
     expect(history.commits[0]?.oid).toBe(oid);
     expect(detail.stats).toEqual({ kind: "ready", added: 1, deleted: 1, binaryFiles: 0 });
     expect(history.commits[0]?.stats).toEqual(detail.stats);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("shallow missing parents stay unavailable and messages respect the explicit limit", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-shallow-"));
-  try {
+  await withTempDirectory("git-review-history-shallow-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await writeFile(join(directory, "value.txt"), "base\n");
     const base = commit(directory, "Base");
@@ -253,14 +232,11 @@ test("shallow missing parents stay unavailable and messages respect the explicit
     await expect(readCommit(original, "a".repeat(40))).rejects.toThrow("no longer available");
     const folder = await openProject(await approveRoot(tmpdir()), "");
     expect(await readGitRefs(folder)).toEqual({ kind: "not_git" });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("commit line totals agree across history and detail for text, binary, rename and mode changes", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-stats-"));
-  try {
+  await withTempDirectory("git-review-history-stats-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await writeFile(join(directory, "value.txt"), "one\ntwo\nthree\n");
     await writeFile(join(directory, "old\tname\n{odd}.txt"), "rename\n");
@@ -296,14 +272,11 @@ test("commit line totals agree across history and detail for text, binary, renam
       { kind: "unavailable", reason: "unknown" },
     ])
       expect(() => parseCommitSummary({ ...summary, stats })).toThrow();
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("statistics limits preserve readable history instead of fabricating zero totals", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-history-stats-limit-"));
-  try {
+  await withTempDirectory("git-review-history-stats-limit-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await writeFile(join(directory, "value.txt"), "base\n");
     const base = commit(directory, "Base");
@@ -316,7 +289,5 @@ test("statistics limits preserve readable history instead of fabricating zero to
     expect(history.commits[0]?.subject).toBe("Large body");
     expect(history.commits[0]?.stats).toEqual({ kind: "unavailable", reason: "limit" });
     expect(history.commits[1]?.oid).toBe(base);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });

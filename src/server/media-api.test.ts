@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testGit as git, withTempDirectory } from "../test-support.ts";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   parseDiffResponse,
@@ -36,8 +35,7 @@ const mediaCases = [
 ] as const;
 
 test("working media with literal backslashes supports raw bytes, HEAD, ranges and stale versions", async () => {
-  const base = await mkdtemp(join(tmpdir(), "git-review-literal-media-"));
-  try {
+  await withTempDirectory("git-review-literal-media-", async (base) => {
     await mkdir(join(base, "project", "literal\\directory"), { recursive: true });
     const handle = createApiHandler(await approveRoot(base));
     const opened = await handle(
@@ -79,33 +77,26 @@ test("working media with literal backslashes supports raw bytes, HEAD, ranges an
       await rm(absolutePath);
       expect((await handle(new Request(rawUrl))).status).toBe(404);
     }
-  } finally {
-    await rm(base, { recursive: true, force: true });
-  }
+  });
 });
 
 for (const format of ["sha1", "sha256"] as const) {
   for (const namesake of [true, false]) {
     test(`subfolder media stays scoped across Git layers (${format}, outside namesake: ${namesake})`, async () => {
-      const repository = await mkdtemp(join(tmpdir(), "git-review-subfolder-media-"));
-      const selected = join(repository, "inside space\nñ");
-      const git = (...args: string[]) =>
-        execFileSync("git", args, { cwd: repository, stdio: "pipe" });
-      try {
+      await withTempDirectory("git-review-subfolder-media-", async (repository) => {
+        const selected = join(repository, "inside space\nñ");
         await mkdir(selected);
-        git("init", "-q", `--object-format=${format}`);
-        git("config", "user.name", "Review Test");
-        git("config", "user.email", "review@example.test");
+        git(repository, "init", "-q", `--object-format=${format}`);
         for (const media of mediaCases) {
           await writeFile(join(selected, media.path), media.bytes("HEAD inside"));
           if (namesake)
             await writeFile(join(repository, media.path), media.bytes("OUTSIDE approved root"));
         }
-        git("add", ".");
-        git("commit", "-qm", "media baseline");
+        git(repository, "add", ".");
+        git(repository, "commit", "-qm", "media baseline");
         for (const media of mediaCases)
           await writeFile(join(selected, media.path), media.bytes("INDEX inside"));
-        git("add", ".");
+        git(repository, "add", ".");
         for (const media of mediaCases)
           await writeFile(join(selected, media.path), media.bytes("WORKTREE inside"));
 
@@ -167,31 +158,27 @@ for (const format of ["sha1", "sha256"] as const) {
               }
               if (namesake && layer === "staged" && side === diff.old) {
                 const forged = new URL(rawUrl);
-                const outsideOid = git("rev-parse", `HEAD:${media.path}`).toString("utf8").trim();
+                const outsideOid = git(repository, "rev-parse", `HEAD:${media.path}`)
+                  .toString("utf8")
+                  .trim();
                 forged.searchParams.set("version", outsideOid);
                 expect((await handle(new Request(forged))).status).toBe(409);
               }
             }
           }
         }
-      } finally {
-        await rm(repository, { recursive: true, force: true });
-      }
+      });
     });
   }
 }
 
 test("subfolder staged rename and deletion retain their scoped Old image", async () => {
-  const repository = await mkdtemp(join(tmpdir(), "git-review-subfolder-renames-"));
-  const selected = join(repository, "inside");
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repository, stdio: "pipe" });
-  const renamed = mediaCases[0].bytes("renamed inside");
-  const deleted = mediaCases[0].bytes("deleted inside");
-  try {
+  await withTempDirectory("git-review-subfolder-renames-", async (repository) => {
+    const selected = join(repository, "inside");
+    const renamed = mediaCases[0].bytes("renamed inside");
+    const deleted = mediaCases[0].bytes("deleted inside");
     await mkdir(selected);
-    git("init", "-q");
-    git("config", "user.name", "Review Test");
-    git("config", "user.email", "review@example.test");
+    git(repository, "init", "-q");
     for (const [path, bytes] of [
       ["old name.svg", renamed],
       ["deleted.svg", deleted],
@@ -199,10 +186,10 @@ test("subfolder staged rename and deletion retain their scoped Old image", async
       await writeFile(join(selected, path), bytes);
       await writeFile(join(repository, path), mediaCases[0].bytes("OUTSIDE approved root"));
     }
-    git("add", ".");
-    git("commit", "-qm", "media baseline");
-    git("mv", "inside/old name.svg", "inside/new name.svg");
-    git("rm", "-q", "inside/deleted.svg");
+    git(repository, "add", ".");
+    git(repository, "commit", "-qm", "media baseline");
+    git(repository, "mv", "inside/old name.svg", "inside/new name.svg");
+    git(repository, "rm", "-q", "inside/deleted.svg");
     const handle = createApiHandler(await approveRoot(selected));
     const project = parseProjectResponse(
       (await (
@@ -248,7 +235,5 @@ test("subfolder staged rename and deletion retain their scoped Old image", async
         expect(Buffer.from(await next.arrayBuffer())).toEqual(renamed);
       } else expect(diff.new.kind).toBe("absent");
     }
-  } finally {
-    await rm(repository, { recursive: true, force: true });
-  }
+  });
 });

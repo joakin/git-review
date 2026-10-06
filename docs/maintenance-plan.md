@@ -1,8 +1,7 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12, M13a, QA command cleanup and M13b first/feedback/project-entry/navigation/
-appearance/voice/live changes/transactions batches accepted and committed; final M13b browser batch
-accepted and approved for commit; M13c and M14–M15 pending
+Status: M01–M12, M13a, M13b and QA command cleanup accepted and committed; M13c accepted and
+approved for commit; M14–M15 pending
 
 Created: 2026-09-30
 
@@ -106,9 +105,11 @@ adopts the same support for navigation, history controls and loading, and is com
 The appearance/PWA batch adopts it for themes, typography and PWA, and is committed as `7a4ffa2`.
 The voice/live changes/transactions batch adopts it for those three related checks, and is committed
 as `382e148`. The final M13b browser batch adopts it for Git, file feedback and selected feedback,
-and is accepted and approved for commit on 2026-10-06. Its bounded caller audit completes M13b's
-implementation; M13c and M14–M15 remain pending. The sequence keeps independently risky changes in
-separate review steps; M15 starts with measurement before any optimization.
+and is committed as `6341acd`. Its bounded caller audit completes M13b. M13c shares low-level Git
+execution, fixture author identity and temporary-directory cleanup across the server tests; it is
+accepted and approved for commit on 2026-10-06. M14–M15 remain pending. The sequence keeps
+independently risky changes in separate review steps; M15 starts with measurement before any
+optimization.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -752,12 +753,13 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   `7a4ffa2`. The voice/live changes/transactions batch shares browser lifetime for all three checks
   and scoped contexts for voice and transactions, while live changes retains its four coordinated
   contexts; it is committed as `382e148`. The final batch adopts it for Git, file feedback and
-  selected feedback, and is accepted and approved for commit on 2026-10-06. Its bounded caller audit
-  completes M13b's implementation without adding helper APIs or QA infrastructure. Keep each
-  feature's interactions and assertions local.
-- **M13c — Low-level test support:** separately share Git execution, deterministic author setup and
-  temporary-root cleanup, keeping scenario-specific files/commits beside their tests. Run the
-  affected server suite after that extraction.
+  selected feedback, and is committed as `6341acd`. Its bounded caller audit completes M13b without
+  adding helper APIs or QA infrastructure. Keep each feature's interactions and assertions local.
+- **M13c — Low-level test support:** accepted and approved for commit on 2026-10-06. Shared fixture
+  support owns Git command execution, fixed author/committer identity, byte/text output and scoped
+  temporary-root cleanup. Nine server test files use it, including Search's one-off initialization.
+  Scenario-specific files, commits, subprocess controls and assertions remain beside their tests.
+  The existing full test suite and strict gates validate the extraction.
 
 The final M13b caller audit finds no feature check that launches Chrome directly. Shared browser
 support owns those launches; the screenshot command retains its separate delivery contract.
@@ -2127,6 +2129,51 @@ maintainer approved the two-command cleanup on 2026-10-05.
   gestures and keyboard behavior remain unverified. The full server suite was not rerun for this
   QA-only migration; M13c will run the suite affected by its separate extraction.
 - **Review/next step:** the maintainer accepted this final M13b batch and explicitly requested its
-  commit and continuation on 2026-10-06. M13b is complete; continue with M13c's low-level
-  Git/test-fixture support. M14 artifact curation and M15 measurement remain within the bounded
-  maintenance plan. Stop when that plan is complete.
+  commit and continuation on 2026-10-06. This batch is committed as `6341acd`. M13b is complete;
+  continue with M13c's low-level Git/test-fixture support. M14 artifact curation and M15 measurement
+  remain within the bounded maintenance plan. Stop when that plan is complete.
+
+## M13c handoff — 2026-10-06
+
+- **Alignment:** the maintainer accepted the final M13b browser batch and requested its commit and
+  continuation. This completes M13's separate low-level test-support extraction; browser adoption
+  remains complete and committed as `6341acd`.
+- **Shared owner:** [test-support.ts](../src/test-support.ts) owns Git execution with an explicit
+  cwd and argument array, fixed fixture author/committer identity in the child environment, byte
+  output and the existing UTF-8/trimmed text variant. Git errors propagate unchanged. The temporary
+  directory scope creates a fresh OS directory, awaits its scenario and removes it in `finally`.
+  Nested scopes cover approved/outside roots independently, including failure during second-root
+  creation. Environment overrides are per subprocess and do not change process or user Git config.
+- **Callers:** [status](../src/server/git-status.test.ts), [diff](../src/server/git-diff.test.ts),
+  [history](../src/server/git-history.test.ts),
+  [history API](../src/server/git-history-api.test.ts),
+  [objects](../src/server/git-objects.test.ts), [execution](../src/server/git-execution.test.ts),
+  [API](../src/server/api.test.ts) and [media API](../src/server/media-api.test.ts) use the owner.
+  The final audit also adopts Search's
+  [one-off Git initialization and temporary roots](../src/server/search.test.ts); no server test
+  retains a direct Git spawn or a private Git wrapper. Other non-Git test files retain their local
+  setup. Their cleanup is outside this extraction's bounded scope.
+- **Scenario ownership:** each file retains its existing test names, assertions, source files,
+  repository format, branch/commit sequence and explicit mutations. History's commit-building helper
+  stays local. Production read execution and typed errors remain under their existing owner; the
+  test helper creates the fixtures they inspect. Index bytes, fsmonitor control, binary data, output
+  limits, cancellation, FIFO timeouts, shallow parents, scoped namesakes, literal paths, HTTP media
+  ranges and containment attacks remain observable scenario checks. No helper self-test, test
+  runner, package command, centralized repository fixture or production change is added.
+- **Verification:** all five strict TypeScript configurations, `bun run qa:check`, formatting,
+  whitespace and local documentation links pass, including 138 CSS token references. The final
+  existing full suite passes **171 tests, zero failures and 1,882 assertions across 28 files** in
+  20.97 seconds. The same totals passed before adopting Search's final one-off initializer; the
+  final run includes that change. Tests and assertions were neither added nor removed. Logs stay
+  under ignored `qa/.artifacts/m13c-*.log`, with the final suite in `m13c-tests-final.log`.
+- **Cleanup and delivery:** the 32 fixture prefixes used by these callers were checked after the
+  suite. No directory from this run remains; the two matching timeout directories predate this work
+  (2026-10-05) and were left untouched. Tests used fresh OS temporary fixtures and in-process HTTP
+  handlers, so no fixture server needed starting or stopping. Maintained HTTP/HTTPS services remain
+  running. Runtime source, client assets and tracked screenshots are unchanged; no browser capture
+  or physical-device check was performed for this test-support-only extraction. The separate
+  stateless-project planning changes remain outside this slice.
+- **Review/next step:** the maintainer accepted M13c and explicitly requested its commit and
+  continuation on 2026-10-06. Continue with M14's confirmed-obsolete screenshot curation and
+  historical-record clarification. M15 then starts with performance measurement. Stop once the
+  bounded maintenance plan is complete.

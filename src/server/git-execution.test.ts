@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
+import { testGit as git, withTempDirectory } from "../test-support.ts";
 import { execFileSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { GitCommandError, openGitStream, runGit, type GitReadStream } from "./git-execution.ts";
 
@@ -19,12 +19,10 @@ async function collect(stream: GitReadStream): Promise<Buffer> {
 }
 
 test("buffered and streamed Git reads use literal paths, skip fsmonitor and leave the index untouched", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-execution-"));
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: directory });
-  try {
-    git("init", "-q");
+  await withTempDirectory("git-review-execution-", async (directory) => {
+    git(directory, "init", "-q");
     await writeFile(join(directory, "tracked.txt"), "before\n");
-    git("add", "tracked.txt");
+    git(directory, "add", "tracked.txt");
     const before = await readFile(join(directory, ".git/index"));
     await writeFile(join(directory, "tracked.txt"), "after with changed metadata\n");
     await writeFile(join(directory, "[1].ts"), "literal\n");
@@ -32,26 +30,22 @@ test("buffered and streamed Git reads use literal paths, skip fsmonitor and leav
     const monitor = join(directory, ".git/hooks/monitor");
     await writeFile(monitor, "#!/bin/sh\ntouch fsmonitor-ran\nprintf '\\0'\n");
     await chmod(monitor, 0o755);
-    git("config", "core.fsmonitor", monitor);
+    git(directory, "config", "core.fsmonitor", monitor);
     const args = ["status", "--short", "-z", "--", "[1].ts"];
     expect(await runGit(directory, args)).toEqual(Buffer.from("?? [1].ts\0"));
     expect(await collect(openGitStream(directory, args, 4096))).toEqual(Buffer.from("?? [1].ts\0"));
     expect(await readFile(join(directory, ".git/index"))).toEqual(before);
     expect(await readFile(join(directory, "fsmonitor-ran")).catch(() => null)).toBeNull();
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("Git binary reads, output limits, process failures and stream cancellation preserve their boundaries", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-stream-"));
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: directory });
-  try {
-    git("init", "-q");
+  await withTempDirectory("git-review-stream-", async (directory) => {
+    git(directory, "init", "-q");
     const bytes = Buffer.alloc(256 * 1024);
     for (let index = 0; index < bytes.length; index += 1) bytes[index] = index % 256;
     await writeFile(join(directory, "binary.dat"), bytes);
-    const oid = git("hash-object", "-w", "binary.dat").toString("utf8").trim();
+    const oid = git(directory, "hash-object", "-w", "binary.dat").toString("utf8").trim();
     const args = ["cat-file", "blob", oid];
     expect(await runGit(directory, args, bytes.length)).toEqual(bytes);
     expect(await collect(openGitStream(directory, args, bytes.length))).toEqual(bytes);
@@ -72,15 +66,12 @@ test("Git binary reads, output limits, process failures and stream cancellation 
     cancelled.close();
     expect(await pending).toBeNull();
     expect(await cancelled.read()).toBeNull();
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("stalled buffered and streamed Git reads time out with typed command errors", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-timeout-"));
-  try {
-    execFileSync("git", ["init", "-q"], { cwd: directory });
+  await withTempDirectory("git-review-timeout-", async (directory) => {
+    git(directory, "init", "-q");
     const oid = "a".repeat(40);
     await mkdir(join(directory, ".git/objects/aa"));
     // A loose-object FIFO stalls the real Git process opening its source.
@@ -99,7 +90,5 @@ test("stalled buffered and streamed Git reads time out with typed command errors
       if (!(error instanceof GitCommandError)) throw new Error("Missing Git timeout error");
       expect(error.code).toBe("ETIMEDOUT");
     }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 }, 15_000);

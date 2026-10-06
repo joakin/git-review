@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { testGit as git, withTempDirectory } from "../test-support.ts";
+import { rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import {
   parseDiffResponse,
   type ChangeEntry,
@@ -13,10 +12,6 @@ import { parseGitPatch, readProjectDiff } from "./git-diff.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { approveRoot, openProject } from "./paths.ts";
 import { readProjectFile } from "./project-files.ts";
-
-function git(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd, stdio: "pipe" });
-}
 
 function changed(status: ProjectStatus, layer: ChangeEntry["layer"], path: string): ChangeEntry {
   if (status.kind !== "git") throw new Error("Expected a Git fixture");
@@ -31,8 +26,7 @@ function textDiff(diff: DiffResult): Extract<DiffResult, { kind: "text" }> {
 }
 
 test("working-file consumers preserve CRLF anchors and literal names while classifying missing and oversized content", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-working-diff-"));
-  try {
+  await withTempDirectory("git-review-working-diff-", async (directory) => {
     git(directory, "init", "-q");
     const path = "odd\\name.ts";
     await writeFile(join(directory, path), "const first = 1;\r\nconst last = 2;\r\n");
@@ -67,14 +61,11 @@ test("working-file consumers preserve CRLF anchors and literal names while class
       code: "file_not_found",
       status: 404,
     });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("diffs show each Git layer's content and preserve line anchors", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-diff-"));
-  try {
+  await withTempDirectory("git-review-diff-", async (directory) => {
     git(directory, "init", "-q");
     await writeFile(join(directory, "both.ts"), "const value = 'base';\n");
     await writeFile(join(directory, "literal[1].ts"), "before\n");
@@ -85,16 +76,7 @@ test("diffs show each Git layer's content and preserve line anchors", async () =
       `/*\n${Array.from({ length: 14 }, (_, index) => `comment ${index + 1}`).join("\n")}\n*/\nexport const done = true;\n`,
     );
     git(directory, "add", ".");
-    git(
-      directory,
-      "-c",
-      "user.name=QA",
-      "-c",
-      "user.email=qa@example.invalid",
-      "commit",
-      "-qm",
-      "base",
-    );
+    git(directory, "commit", "-qm", "base");
 
     await writeFile(join(directory, "both.ts"), "const value = 'staged';\n");
     git(directory, "add", "both.ts");
@@ -195,14 +177,11 @@ test("diffs show each Git layer's content and preserve line anchors", async () =
       kind: "binary",
       reason: "symlink",
     });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("staged content in a repository without a first commit is an addition", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-unborn-diff-"));
-  try {
+  await withTempDirectory("git-review-unborn-diff-", async (directory) => {
     git(directory, "init", "-q");
     await writeFile(join(directory, "first.txt"), "first\n");
     git(directory, "add", "first.txt");
@@ -221,9 +200,7 @@ test("staged content in a repository without a first commit is an addition", asy
       detail: { kind: "none" },
       noNewlineAtEnd: false,
     });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("malformed Git hunks fail before reaching the UI", () => {

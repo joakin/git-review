@@ -1,17 +1,11 @@
 import { expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { testGit as git, withTempDirectory } from "../test-support.ts";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { readProjectStatus } from "./git-status.ts";
 
-function git(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd, stdio: "pipe" });
-}
-
 test("Git inventory keeps layers separate and preserves unusual paths", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-status-"));
-  try {
+  await withTempDirectory("git-review-status-", async (directory) => {
     git(directory, "init", "-q");
     await mkdir(join(directory, "sub"));
     await writeFile(join(directory, "both.txt"), "base\n");
@@ -19,16 +13,7 @@ test("Git inventory keeps layers separate and preserves unusual paths", async ()
     await writeFile(join(directory, "old name.txt"), "rename this unchanged content\n");
     await writeFile(join(directory, "sub", "nested.txt"), "nested base\n");
     git(directory, "add", ".");
-    git(
-      directory,
-      "-c",
-      "user.name=QA",
-      "-c",
-      "user.email=qa@example.invalid",
-      "commit",
-      "-qm",
-      "base",
-    );
+    git(directory, "commit", "-qm", "base");
 
     await writeFile(join(directory, "both.txt"), "staged\n");
     git(directory, "add", "both.txt");
@@ -85,14 +70,11 @@ test("Git inventory keeps layers separate and preserves unusual paths", async ()
       "nested.txt",
       "odd\nname.txt",
     ]);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("non-Git folders and repositories without commits have clear inventory states", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-nongit-"));
-  try {
+  await withTempDirectory("git-review-nongit-", async (directory) => {
     expect(await readProjectStatus(directory)).toEqual({ kind: "not_git" });
     git(directory, "init", "-q");
     await writeFile(join(directory, "first.txt"), "first file\n");
@@ -107,27 +89,15 @@ test("non-Git folders and repositories without commits have clear inventory stat
         isSubmodule: false,
       });
     }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });
 
 test("change token notices edits behind unchanged Git status entries", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "git-review-change-token-"));
-  try {
+  await withTempDirectory("git-review-change-token-", async (directory) => {
     git(directory, "init", "-q");
     await writeFile(join(directory, "tracked.txt"), "base\n");
     git(directory, "add", "tracked.txt");
-    git(
-      directory,
-      "-c",
-      "user.name=QA",
-      "-c",
-      "user.email=qa@example.invalid",
-      "commit",
-      "-qm",
-      "base",
-    );
+    git(directory, "commit", "-qm", "base");
 
     await writeFile(join(directory, "tracked.txt"), "first\n");
     const trackedBefore = await readProjectStatus(directory);
@@ -154,7 +124,5 @@ test("change token notices edits behind unchanged Git status entries", async () 
     if (staged.kind !== "git") throw new Error("Expected Git status");
     expect(staged.revision).not.toBe(untrackedAfter.revision);
     expect(staged.changeToken).not.toBe(untrackedAfter.changeToken);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  });
 });

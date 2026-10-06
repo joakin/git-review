@@ -1,8 +1,7 @@
 import { expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { testGit as git, withTempDirectory } from "../test-support.ts";
+import { mkdir, rename, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import {
   parseDiffResponse,
   parseFileReadResponse,
@@ -15,102 +14,95 @@ import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
 test("status access requires an opened folder and rechecks its approved path", async () => {
-  const rootPath = await mkdtemp(join(tmpdir(), "git-review-api-root-"));
-  const outsidePath = await mkdtemp(join(tmpdir(), "git-review-api-outside-"));
-  try {
-    const projectPath = join(rootPath, "project");
-    await mkdir(projectPath);
-    execFileSync("git", ["init", "-q"], { cwd: projectPath, stdio: "pipe" });
-    const handle = createApiHandler(await approveRoot(rootPath));
-    expect(
-      parseLanguagesResponse(
-        (await (await handle(new Request("http://localhost/api/languages"))).json()) as unknown,
-      ),
-    ).toContainEqual({ id: "c", name: "C" });
-    const unknown = await handle(
-      new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/status"),
-    );
-    expect(unknown.status).toBe(404);
+  await withTempDirectory("git-review-api-root-", async (rootPath) => {
+    await withTempDirectory("git-review-api-outside-", async (outsidePath) => {
+      const projectPath = join(rootPath, "project");
+      await mkdir(projectPath);
+      git(projectPath, "init", "-q");
+      const handle = createApiHandler(await approveRoot(rootPath));
+      expect(
+        parseLanguagesResponse(
+          (await (await handle(new Request("http://localhost/api/languages"))).json()) as unknown,
+        ),
+      ).toContainEqual({ id: "c", name: "C" });
+      const unknown = await handle(
+        new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/status"),
+      );
+      expect(unknown.status).toBe(404);
 
-    const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "project" }),
-      }),
-    );
-    expect(opened.status).toBe(200);
-    const project = parseProjectResponse((await opened.json()) as unknown);
-    const url = `http://localhost/api/projects/${project.id}/status`;
-    const current = await handle(new Request(url));
-    expect(current.status).toBe(200);
-    const cleanStatus = parseStatusResponse((await current.json()) as unknown);
-    expect(cleanStatus.kind).toBe("git");
-    if (cleanStatus.kind !== "git") throw new Error("Expected Git status");
+      const opened = await handle(
+        new Request("http://localhost/api/projects/open", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: "project" }),
+        }),
+      );
+      expect(opened.status).toBe(200);
+      const project = parseProjectResponse((await opened.json()) as unknown);
+      const url = `http://localhost/api/projects/${project.id}/status`;
+      const current = await handle(new Request(url));
+      expect(current.status).toBe(200);
+      const cleanStatus = parseStatusResponse((await current.json()) as unknown);
+      expect(cleanStatus.kind).toBe("git");
+      if (cleanStatus.kind !== "git") throw new Error("Expected Git status");
 
-    await writeFile(join(projectPath, "new.txt"), "first\n");
-    const changedStatus = parseStatusResponse(
-      (await (await handle(new Request(url))).json()) as unknown,
-    );
-    if (changedStatus.kind !== "git") throw new Error("Expected Git status");
-    const diffUrl = new URL(`http://localhost/api/projects/${project.id}/diff`);
-    diffUrl.search = new URLSearchParams({
-      layer: "untracked",
-      path: "new.txt",
-      revision: changedStatus.revision,
-    }).toString();
-    expect(
-      parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown).kind,
-    ).toBe("text");
-    diffUrl.search = new URLSearchParams({
-      layer: "untracked",
-      path: "new.txt",
-      revision: changedStatus.revision,
-      language: "invalid-grammar",
-    }).toString();
-    expect((await handle(new Request(diffUrl))).status).toBe(400);
-    diffUrl.search = new URLSearchParams({
-      layer: "untracked",
-      path: "other.txt",
-      revision: changedStatus.revision,
-    }).toString();
-    expect((await handle(new Request(diffUrl))).status).toBe(404);
-    diffUrl.search = new URLSearchParams({
-      layer: "untracked",
-      path: "new.txt",
-      revision: cleanStatus.revision,
-    }).toString();
-    expect(
-      parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown),
-    ).toEqual({ kind: "stale" });
+      await writeFile(join(projectPath, "new.txt"), "first\n");
+      const changedStatus = parseStatusResponse(
+        (await (await handle(new Request(url))).json()) as unknown,
+      );
+      if (changedStatus.kind !== "git") throw new Error("Expected Git status");
+      const diffUrl = new URL(`http://localhost/api/projects/${project.id}/diff`);
+      diffUrl.search = new URLSearchParams({
+        layer: "untracked",
+        path: "new.txt",
+        revision: changedStatus.revision,
+      }).toString();
+      expect(
+        parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown).kind,
+      ).toBe("text");
+      diffUrl.search = new URLSearchParams({
+        layer: "untracked",
+        path: "new.txt",
+        revision: changedStatus.revision,
+        language: "invalid-grammar",
+      }).toString();
+      expect((await handle(new Request(diffUrl))).status).toBe(400);
+      diffUrl.search = new URLSearchParams({
+        layer: "untracked",
+        path: "other.txt",
+        revision: changedStatus.revision,
+      }).toString();
+      expect((await handle(new Request(diffUrl))).status).toBe(404);
+      diffUrl.search = new URLSearchParams({
+        layer: "untracked",
+        path: "new.txt",
+        revision: cleanStatus.revision,
+      }).toString();
+      expect(
+        parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown),
+      ).toEqual({ kind: "stale" });
 
-    await rename(projectPath, join(rootPath, "moved"));
-    await symlink(outsidePath, projectPath);
-    const escaped = await handle(new Request(url));
-    expect(escaped.status).toBe(403);
-  } finally {
-    await rm(rootPath, { recursive: true, force: true });
-    await rm(outsidePath, { recursive: true, force: true });
-  }
+      await rename(projectPath, join(rootPath, "moved"));
+      await symlink(outsidePath, projectPath);
+      const escaped = await handle(new Request(url));
+      expect(escaped.status).toBe(403);
+    });
+  });
 });
 
 test("configured HTTPS proxy origin is accepted without trusting other origins", async () => {
-  const rootPath = await mkdtemp(join(tmpdir(), "git-review-origin-root-"));
-  try {
+  await withTempDirectory("git-review-origin-root-", async (rootPath) => {
     const handle = createApiHandler(await approveRoot(rootPath), "https://private-host.ts.net");
     const request = (origin: string) =>
       new Request("http://127.0.0.1:39879/api/roots", { headers: { origin } });
     expect((await handle(request("https://private-host.ts.net"))).status).toBe(200);
     expect((await handle(request("http://127.0.0.1:39879"))).status).toBe(200);
     expect((await handle(request("https://other-host.ts.net"))).status).toBe(403);
-  } finally {
-    await rm(rootPath, { recursive: true, force: true });
-  }
+  });
 });
 
 test("file API requires an opened project and serves non-Git working-tree files", async () => {
-  const rootPath = await mkdtemp(join(tmpdir(), "git-review-file-api-"));
-  try {
+  await withTempDirectory("git-review-file-api-", async (rootPath) => {
     await mkdir(join(rootPath, "notes"));
     await writeFile(join(rootPath, "notes", "idea.ts"), "export const idea = 1;\n");
     const handle = createApiHandler(await approveRoot(rootPath));
@@ -142,33 +134,26 @@ test("file API requires an opened project and serves non-Git working-tree files"
     expect(missing.status).toBe(404);
     expect(await missing.json()).toMatchObject({ error: { code: "file_not_found" } });
     expect((await handle(new Request(`${base}/tree?path=..`))).status).toBe(400);
-  } finally {
-    await rm(rootPath, { recursive: true, force: true });
-  }
+  });
 });
 
 test("image previews keep HEAD, index, and working-tree versions separate and gate raw access", async () => {
-  const rootPath = await mkdtemp(join(tmpdir(), "git-review-images-"));
-  try {
+  await withTempDirectory("git-review-images-", async (rootPath) => {
     const projectPath = join(rootPath, "project");
     await mkdir(projectPath);
-    const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd: projectPath, stdio: "pipe" });
-    git("init", "-q");
-    git("config", "user.name", "Review Test");
-    git("config", "user.email", "review@example.test");
+    git(projectPath, "init", "-q");
     const old = '<svg xmlns="http://www.w3.org/2000/svg"><text>old</text></svg>';
     const staged = '<svg xmlns="http://www.w3.org/2000/svg"><text>staged</text></svg>';
     const current =
       '<svg xmlns="http://www.w3.org/2000/svg"><script>parent.attack()</script><text>current</text></svg>';
     await writeFile(join(projectPath, "art.svg"), old);
     await writeFile(join(projectPath, "deleted.svg"), old);
-    git("add", "art.svg", "deleted.svg");
-    git("commit", "-qm", "image");
+    git(projectPath, "add", "art.svg", "deleted.svg");
+    git(projectPath, "commit", "-qm", "image");
     await writeFile(join(projectPath, "art.svg"), staged);
-    git("add", "art.svg");
+    git(projectPath, "add", "art.svg");
     await writeFile(join(projectPath, "art.svg"), current);
-    git("rm", "-q", "deleted.svg");
+    git(projectPath, "rm", "-q", "deleted.svg");
     await writeFile(join(projectPath, "untracked.svg"), current);
     await writeFile(
       join(projectPath, "exported.svg"),
@@ -255,21 +240,14 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
     expect((await handle(new Request(bad))).status).toBe(400);
     await writeFile(join(projectPath, "art.svg"), "<svg>changed</svg>");
     expect((await handle(new Request(`http://localhost${file.resource.url}`))).status).toBe(409);
-  } finally {
-    await rm(rootPath, { recursive: true, force: true });
-  }
+  });
 });
 
 test("audio ranges read the correct Git side and support seeking, HEAD, and stale versions", async () => {
-  const rootPath = await mkdtemp(join(tmpdir(), "git-review-audio-"));
-  try {
+  await withTempDirectory("git-review-audio-", async (rootPath) => {
     const projectPath = join(rootPath, "project");
     await mkdir(projectPath);
-    const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd: projectPath, stdio: "pipe" });
-    git("init", "-q");
-    git("config", "user.name", "Review Test");
-    git("config", "user.email", "review@example.test");
+    git(projectPath, "init", "-q");
     const wav = (marker: number) => {
       const bytes = Buffer.alloc(48);
       bytes.write("RIFF", 0);
@@ -292,10 +270,10 @@ test("audio ranges read the correct Git side and support seeking, HEAD, and stal
     const staged = wav(200);
     const current = wav(300);
     await writeFile(join(projectPath, "sound.wav"), old);
-    git("add", "sound.wav");
-    git("commit", "-qm", "sound");
+    git(projectPath, "add", "sound.wav");
+    git(projectPath, "commit", "-qm", "sound");
     await writeFile(join(projectPath, "sound.wav"), staged);
-    git("add", "sound.wav");
+    git(projectPath, "add", "sound.wav");
     await writeFile(join(projectPath, "sound.wav"), current);
     const handle = createApiHandler(await approveRoot(rootPath));
     const opened = await handle(
@@ -376,7 +354,5 @@ test("audio ranges read the correct Git side and support seeking, HEAD, and stal
     expect(invalidFileRange.headers.get("content-range")).toBe(`bytes */${current.length}`);
     await writeFile(join(projectPath, "sound.wav"), wav(400));
     expect((await handle(new Request(`http://localhost${file.resource.url}`))).status).toBe(409);
-  } finally {
-    await rm(rootPath, { recursive: true, force: true });
-  }
+  });
 });

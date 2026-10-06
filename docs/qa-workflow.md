@@ -120,6 +120,25 @@ permissions and fixture restoration remain local. All feature checks share brows
 screenshot command and loading's private scenario context cleanup retain their own contracts. This
 completes the bounded browser adoption; package commands and the helper interface are unchanged.
 
+## Shared server test fixtures
+
+[test-support.ts](../src/test-support.ts) owns the repeated low-level server-test setup. `testGit`
+runs Git with an explicit working directory and argument array, returns bytes, and supplies fixed
+fixture author/committer names and emails in the child environment. `testGitText` keeps the existing
+UTF-8 decoding and trimming used for object IDs and refs. Subprocess failures propagate to Bun.
+These helpers initialize and mutate only owned test fixtures; production Git reads retain their
+separate [read-only boundary](git-read-boundaries.md).
+
+`withTempDirectory` creates an OS temporary directory with the caller's fixture prefix, awaits the
+scenario, and removes that directory in `finally`. Nest scopes for independent approved/outside
+roots so partial setup also releases the first root. Keep files, commits, repository formats,
+containment attacks, FIFO/stream controls and assertions beside the scenario. Unrelated non-Git
+fixtures can keep their local setup; this extraction introduces no runner or centralized fixture.
+
+Run `bun run typecheck`, `bun run qa:check` and the existing `bun run test` suite when changing
+these callers. The [M13c handoff](maintenance-plan.md#m13c-handoff--2026-10-06) records verification
+of status, diff, history, objects, execution, API, media and Search callers.
+
 ## Repository formatting
 
 The [formatting workflow](formatting-workflow.md) owns formatter configuration, automatic hook

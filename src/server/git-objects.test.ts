@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
-import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testGitText as git, withTempDirectory } from "../test-support.ts";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   readGitContext,
@@ -19,20 +18,17 @@ import {
 
 for (const format of ["sha1", "sha256"] as const) {
   test(`Git context and blobs preserve scoped literal sources and ${format} identities`, async () => {
-    const directory = await mkdtemp(join(tmpdir(), "git-review-objects-"));
-    const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd: directory }).toString("utf8").trim();
-    const folder = "inside space\nñ";
-    const selected = join(directory, folder);
-    const path = "odd [1] #?.txt";
-    try {
+    await withTempDirectory("git-review-objects-", async (directory) => {
+      const folder = "inside space\nñ";
+      const selected = join(directory, folder);
+      const path = "odd [1] #?.txt";
       expect(await readGitContext(directory)).toBeNull();
-      git("init", "-q", `--object-format=${format}`);
+      git(directory, "init", "-q", `--object-format=${format}`);
       await mkdir(selected);
       await writeFile(join(directory, path), "outside\n");
       await writeFile(join(selected, path), "HEAD inside\r\n");
-      git("add", ".");
-      git("-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "base");
+      git(directory, "add", ".");
+      git(directory, "commit", "-qm", "base");
       const context = await readGitContext(selected);
       if (context === null) throw new Error("Missing Git context");
       expect(context).toEqual({ prefix: `${folder}/`, oidLength: format === "sha1" ? 40 : 64 });
@@ -46,7 +42,7 @@ for (const format of ["sha1", "sha256"] as const) {
       expect(await hasGitObject(selected, head, "commit")).toBe(false);
       expect(await hasGitObject(selected, "f".repeat(context.oidLength), "blob")).toBe(false);
       await writeFile(join(selected, path), "INDEX inside\r\n");
-      git("add", ".");
+      git(directory, "add", ".");
       const index = await resolveGitBlob(selected, { kind: "index", path });
       if (index === null) throw new Error("Missing index blob");
       expect(index).not.toBe(head);
@@ -62,8 +58,6 @@ for (const format of ["sha1", "sha256"] as const) {
       expect(repositoryPath(context.prefix, "../../outside.txt")).toBeNull();
       expect(await resolveGitBlob(selected, { kind: "head", path: "missing.txt" })).toBeNull();
       expect(() => readGitBlob(selected, "HEAD", 4096)).toThrow();
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
+    });
   });
 }
