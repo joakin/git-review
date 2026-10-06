@@ -59,66 +59,15 @@ completed check if any were collected and closes the context on either success o
 `assertNoHorizontalOverflow` checks the document with a two-pixel tolerance; feature checks still
 own whether a code pane should scroll or wrap. Browser and context scopes close in `finally`.
 
-The first adopters are `bun qa/check-files.ts`, `bun qa/check-media.ts` and
-`bun qa/check-media-playback.ts`; their arguments and fixture defaults are unchanged. When changing
-this shared owner, type-check and run the affected existing checks against the isolated fixture
-server. Ordinary check output belongs in ignored `qa/.artifacts/`; these checks create no screenshot
-milestones. The [M13a handoff](maintenance-plan.md#m13a-handoff--2026-10-05) records verification
-and the remaining browser/fixture and server-test migrations.
+All feature browser checks use this shared lifetime. The screenshot command retains its own delivery
+contract, and loading's private delayed-response scenarios keep their context and gate cleanup
+local. Keep scenario-specific options, storage seeds, response gates, fixture setup and restoration
+beside each check; release held responses before scoped cleanup. Recorder/transcription and
+clipboard controls in the affected checks are mocked and do not establish physical-device behavior.
 
-The [first M13b batch](maintenance-plan.md#m13b-first-batch-handoff--2026-10-05) adds
-`bun qa/check-search.ts`, `bun qa/check-selected-search.ts` and `bun qa/check-diff.ts` as callers of
-the same interface. These checks retain their existing phone profile, arguments and inventory
-fixture setup; code-pane geometry and feature assertions remain in each script. Run the affected
-existing app flows when changing them.
-
-The [M13b feedback batch](maintenance-plan.md#m13b-feedback-batch-handoff--2026-10-05) adds
-`bun qa/check-feedback.ts`, `bun qa/check-line-action.ts` and `bun qa/check-modals.ts`. Feedback
-retains its saved-state handoff to the clipboard-fallback context. Line actions retain their own
-temporary Git fixture and cleanup. Modals use all four profiles with service workers blocked; dialog
-geometry, focus, dismissal and scroll-lock checks remain local. Their usage and fixture requirements
-are unchanged.
-
-The [M13b project-entry batch](maintenance-plan.md#m13b-project-entry-batch-handoff--2026-10-05)
-adds `bun qa/check-foundation.ts`, `bun qa/check-project-entry.ts` and `bun qa/check-tabs.ts`.
-Foundation retains its flag arguments and saved browser state. Project entry retains its custom
-breakpoint matrix and two fixture servers; the tab check retains default Chrome contexts and its
-delayed-root release guard. Their scenario assertions and setup remain local.
-
-The [M13b navigation batch](maintenance-plan.md#m13b-navigation-batch-handoff--2026-10-05) adds
-`bun qa/check-navigation.ts`, `bun qa/check-history-controls.ts` and `bun qa/check-loading.ts`.
-Navigation retains its compact/sidebar breakpoint checks; history controls retain their custom
-viewport and touch matrix, default journal context and extra-tab scenarios. Loading retains its
-private delayed-response helpers and their local gate cleanup. Run all three existing app checks
-against the inventory/history fixture server when changing these callers.
-
-The [M13b appearance/PWA batch](maintenance-plan.md#m13b-appearancepwa-batch-handoff--2026-10-06)
-adds `bun qa/check-themes.ts`, `bun qa/check-typography.ts` and `bun qa/check-pwa.ts`. Themes retain
-saved-state paths and the default prepaint context. Typography still requires real Google font
-requests and waits for font registration before loading; its separate fallback context blocks both
-Google hosts. PWA retains its download-enabled context and fresh import context through the offline
-check. Their arguments and inventory fixture setup are unchanged.
-
-The
-[M13b voice/live changes/transactions batch](maintenance-plan.md#m13b-voice-live-changes-and-feedback-transactions-handoff--2026-10-06)
-adds `bun qa/check-voice.ts`, `bun qa/check-live-changes.ts` and
-`bun qa/check-feedback-transactions.ts`. Voice and transaction response gates release before scoped
-context cleanup; transaction setup seeds storage and installs controls only on the app origin. Live
-changes keeps four contexts open together, including its custom mobile tablet options and named
-error collection, within the shared browser lifetime. It still owns its temporary Git fixture and
-unique ignored screenshot runs. Recorder/transcription and clipboard controls remain mocked; these
-checks do not establish physical-device behavior. Their arguments and fixture setup are unchanged.
-
-The [final M13b browser batch](maintenance-plan.md#m13b-final-browser-batch-handoff--2026-10-06)
-adds `bun qa/check-git.ts`, `bun qa/check-file-feedback.ts` and `bun qa/check-selected-feedback.ts`.
-They retain their custom viewport/touch matrices, including mobile tablet contexts. Git releases its
-delayed refs gate before scoped cleanup and collects errors from its direct-link tab. File feedback
-closes its seeded context before restoring saved state; its legacy seed runs only on the app origin.
-Fresh backup-import contexts, plain-folder/clean-Git file feedback and desktop Old/New selection
-checks now use the same error collection and cleanup. Feature assertions, native Clipboard API
-permissions and fixture restoration remain local. All feature checks share browser lifetime; the
-screenshot command and loading's private scenario context cleanup retain their own contracts. This
-completes the bounded browser adoption; package commands and the helper interface are unchanged.
+When changing shared support, type-check and run the affected existing app checks against an
+isolated fixture server. Ordinary output belongs in ignored `qa/.artifacts/`; curated screenshots
+require an explicit `qa:capture` run.
 
 ## Shared server test fixtures
 
@@ -136,8 +85,7 @@ containment attacks, FIFO/stream controls and assertions beside the scenario. Un
 fixtures can keep their local setup; this extraction introduces no runner or centralized fixture.
 
 Run `bun run typecheck`, `bun run qa:check` and the existing `bun run test` suite when changing
-these callers. The [M13c handoff](maintenance-plan.md#m13c-handoff--2026-10-06) records verification
-of status, diff, history, objects, execution, API, media and Search callers.
+these callers.
 
 ## Repository formatting
 
@@ -151,8 +99,7 @@ files, unusual names, deletions, and failure rollback without modifying this che
 
 Linked screenshots are historical evidence for their recorded milestone, rather than a live view of
 the current app. Use capture timestamps in manifests and the corresponding behavior/handoff record
-to place them in context. The [M14 curation record](maintenance-plan.md#m14-handoff--2026-10-06)
-retains all linked evidence and removes only confirmed unreferenced sets.
+to place them in context. Preserve linked evidence when curating obsolete captures.
 
 Start the local app, then run:
 
@@ -270,26 +217,13 @@ The 2026-09-29 polish pass has four-size captures of the
 `bun qa/check-foundation.ts` cover navigation after the icon swap; a 320 px Chrome check covers
 overflow in Changes list, Files list, and file content.
 
-The [M05a maintenance record](maintenance-plan.md#m05a-handoff--2026-10-01) verifies obsolete UI/CSS
-removal with four-size [picker](../qa/screenshots/maintenance-m05-obsolete-picker/mobile.png),
+The 2026-10-01 obsolete UI/CSS cleanup retains four-size
+[picker](../qa/screenshots/maintenance-m05-obsolete-picker/mobile.png),
 [expanded Changes](../qa/screenshots/maintenance-m05-obsolete-changes/mobile.png),
 [Changes list](../qa/screenshots/maintenance-m05-obsolete-list/mobile.png), and
-[Settings](../qa/screenshots/maintenance-m05-obsolete-settings/mobile.png) captures. All sixteen
-final images match the pre-cleanup baselines byte for byte. The handoff records
-responsive/navigation/loading/diff checks and an initial navigation timeout that was unisolated at
-that checkpoint. M05b later reproduced the project-opening cancellation path described below.
-
-The [M05b handoff](maintenance-plan.md#m05b-handoff--2026-10-01) records active navigation CSS
-consolidation: 252 exact computed-style/geometry comparisons, including breakpoint and
-reduced-motion states, Search results, controlled disabled Git tabs, and open drawers while
-resizing. Sixteen fresh four-size captures match the committed M05a images byte for byte; their
-comparison copies remain ignored and the curated images above are reused. Strict gates and loading,
-diff, Search, live-change, and a sequential navigation rerun passed. A held project-open response
-followed by browser Back deterministically leaves the picker disabled on both the committed and
-refactored clients: aborting the operation does not clear its opening flag. The later
-[M05c](maintenance-plan.md#m05c-handoff--2026-10-01) correction resets opening and adds the
-route-ownership guard, with deliberate delayed-response regression checks; a successful ordinary run
-alone does not prove cancellation is correct. The CSS gate now checks every client stylesheet.
+[Settings](../qa/screenshots/maintenance-m05-obsolete-settings/mobile.png) milestones. Chrome
+emulation verified visual equivalence through navigation CSS consolidation. Project-opening
+cancellation was corrected separately and is covered by the scenarios below.
 
 `bun qa/check-loading.ts` now invokes [project-opening-check.ts](../qa/project-opening-check.ts):
 native canceled-open → Back → same-folder retry at 320 px and all four standard sizes, success

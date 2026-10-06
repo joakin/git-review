@@ -51,7 +51,6 @@ and line interaction. Working-copy review supplies a single status entry plus it
 capabilities; historical inspection supplies a commit file. The review entry drives both the heading
 and anchor identity. The frame passes that mode directly to [DiffBody](../src/client/DiffBody.tsx);
 fetching and cache ownership stay in their separate callers.
-[M08b](maintenance-plan.md#m08b--diff-card-modes) records the contract and verification.
 
 For staged files, compare `HEAD` to index; for unstaged files, compare index to working tree; for
 untracked files, treat the old side as empty. The
@@ -67,8 +66,6 @@ empty old tree.
 The pure `parseGitPatch` and `diffFromContent` functions return a private text/binary/size-limit
 union. Conflict and stale states belong to working-copy status/filesystem/version boundaries; media
 belongs to its preview boundary. Syntax and word decoration accept and return text only.
-[M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records the narrower internal
-contracts, unchanged limits/fallbacks, and regression evidence.
 
 ## Edge cases
 

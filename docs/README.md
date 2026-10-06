@@ -16,8 +16,8 @@ installation.
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope,
   [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the
   [optional backlog](initial-implementation-plan.md#remaining-roadmap).
-- [Maintenance plan](maintenance-plan.md): review findings, ordered cleanup slices, design
-  decisions, validation, and current review status.
+- [Maintenance plan](maintenance-plan.md): brief current status, remaining work, and the stop
+  boundary. Git preserves implementation and review history.
 - [Engineering conventions](engineering-conventions.md): reusable principles for module boundaries,
   types, state ownership, navigation, transactions, and documentation.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and

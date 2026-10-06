@@ -33,13 +33,12 @@ Preact spans. Plain fallback uses one unstyled token. Shiki's TextMate scopes su
 categories; these are not compiler-resolved semantic symbols.
 
 Files and diff responses use the same private syntax validators in
-[shared/api.ts](../src/shared/api.ts), consolidated by
-[M07](maintenance-plan.md#m07--reuse-syntax-validators). Highlighted language strings retain their
-1–80-character wire bound; plain syntax retains its three reasons. Token arrays allow at most 20,000
-tokens per line and 100,000 across the response. Each domain parser owns the aggregate limit, and
-diff rejects aggregate overflow before validating another batch. Exact reconstruction preserves
-spaces, tabs, Unicode, and CRLF source; diff side, newline, word-span, and hunk checks remain
-separate. The [public-parser tests](../src/shared/api.test.ts) guard these boundaries.
+[shared/api.ts](../src/shared/api.ts). Highlighted language strings retain their 1–80-character wire
+bound; plain syntax retains its three reasons. Token arrays allow at most 20,000 tokens per line and
+100,000 across the response. Each domain parser owns the aggregate limit, and diff rejects aggregate
+overflow before validating another batch. Exact reconstruction preserves spaces, tabs, Unicode, and
+CRLF source; diff side, newline, word-span, and hunk checks remain separate. The
+[public-parser tests](../src/shared/api.test.ts) guard these boundaries.
 
 The server maps Shiki scope stacks to those stable roles in `src/server/syntax.ts`. This mapping
 determines _what kind_ of text a token is, while CSS determines _how it looks_. The palettes are in
@@ -63,8 +62,6 @@ server currently reuses the highlighter and loaded grammars.
 [withDiffSyntax](../src/server/diff-syntax.ts) accepts and returns the canonical text-diff variant.
 Callers handle non-text outcomes before decoration. This contract permits syntax fields to change
 while keeping the result text; it does not promise to preserve a caller's narrower syntax state.
-[M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records the contract and
-no-read/fallback tests.
 
 ## Edge cases and checks
 
@@ -96,12 +93,12 @@ grammar is discouraged. It exposes tokens and grammar scope explanations for cus
 
 ## Maintenance verification — 2026-10-01
 
-[M07](maintenance-plan.md#m07-handoff--2026-10-01) shares the existing syntax validators between
-Files and diff response parsing. Sixteen public-parser tests (89 assertions) pass on both the
-committed pre-refactor validators and the refactor, including exact per-line/aggregate limits and
-source reconstruction. Strict gates, the full 115-test suite, and build pass. Phone working-copy and
-Files browser checks pass highlighting, override persistence, wrapping, and contained scrolling;
-historical Git checks pass at all four standard sizes plus 320 px. The separate review found no
-remaining concern. No new screenshots were generated, all 451 tracked screenshot artifacts remain
-unchanged, and real-device behavior was not reverified. The maintainer accepted the change and
-explicitly approved committing it on 2026-10-01; it is committed as `4eac2ec`.
+M07 shares the existing syntax validators between Files and diff response parsing. Sixteen
+public-parser tests (89 assertions) pass on both the committed pre-refactor validators and the
+refactor, including exact per-line/aggregate limits and source reconstruction. Strict gates, the
+full 115-test suite, and build pass. Phone working-copy and Files browser checks pass highlighting,
+override persistence, wrapping, and contained scrolling; historical Git checks pass at all four
+standard sizes plus 320 px. The separate review found no remaining concern. No new screenshots were
+generated, all 451 tracked screenshot artifacts remain unchanged, and real-device behavior was not
+reverified. The maintainer accepted the change and explicitly approved committing it on 2026-10-01;
+it is committed as `4eac2ec`.

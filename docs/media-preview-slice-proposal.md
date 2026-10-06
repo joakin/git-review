@@ -123,11 +123,10 @@ MiB audio-video limits are acceptable for now. Both checkpoints are implemented.
 
 ## Maintenance verification — 2026-10-01
 
-[M01](maintenance-plan.md#m01--correct-subfolder-staged-media-sources) is accepted and committed as
-`ba62d1d`. The scoped HEAD-path correction has five API regression tests in
-[media-api.test.ts](../src/server/media-api.test.ts), all confirmed to fail before the fix and pass
-afterward. They approve only a repository subfolder and verify both media descriptions and raw bytes
-with/without outside namesakes, including SHA-1/SHA-256, unusual names, image/audio/video,
+M01 is accepted and committed as `ba62d1d`. The scoped HEAD-path correction has five API regression
+tests in [media-api.test.ts](../src/server/media-api.test.ts), all confirmed to fail before the fix
+and pass afterward. They approve only a repository subfolder and verify both media descriptions and
+raw bytes with/without outside namesakes, including SHA-1/SHA-256, unusual names, image/audio/video,
 HEAD/ranges, rejected outside-object versions, and staged rename/deletion. The full suite passes 53
 tests with 945 assertions; strict type checking and the CSS token gate also pass.
 

@@ -85,8 +85,8 @@ whose selection was edited or reattached.
   desktop sizes. Browser emulation does not replace maintainer Android/iOS selection-menu review.
 
 The maintainer accepted the selection extension and joined-control correction on 2026-10-05 and
-explicitly requested their commit. U03 is committed as `7632b4d`. The next maintenance slice is M10;
-its work and review are recorded in the [maintenance plan](maintenance-plan.md).
+explicitly requested their commit. U03 is committed as `7632b4d`. Current maintenance status and
+remaining work are in the [maintenance plan](maintenance-plan.md).
 
 ## Implementation and review handoff — 2026-10-04
 

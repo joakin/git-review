@@ -137,16 +137,13 @@ Pure patch/content parser results name only text, binary, and size-limit outcome
 loading returns non-text outcomes before calling the text-only syntax decorator; it no longer checks
 these validated internal results for impossible stale/conflict states. `parseCommitDiff` still
 rejects both mutable states when validating an unknown HTTP response.
-[M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records the type contracts and
-root/parent, fallback, and response-boundary checks.
 
 Working-copy and commit cards share [the card frame](../src/client/DiffCardFrame.tsx),
 [diff body](../src/client/DiffBody.tsx), word decoration, media presentation, and
 [source syntax boundary](../src/server/diff-syntax.ts). The frame's private review/inspect mode
 couples heading metadata and line interaction: inspect carries the historical file, while review
 carries one working-copy entry and its comment capabilities. Comment creation stays on the
-working-copy variant. [M08b](maintenance-plan.md#m08b--diff-card-modes) records the contract and
-regression checks. [CommitViewer](../src/client/CommitViewer.tsx) owns historical card state, and
+working-copy variant. [CommitViewer](../src/client/CommitViewer.tsx) owns historical card state, and
 [git-history.ts](../src/server/git-history.ts) owns branch/commit interpretation and command
 selection. [Shared Git read boundaries](git-read-boundaries.md) own subprocess execution, repository
 context and bounded blob reads; statistics retain their batch parsers and cache.
@@ -185,10 +182,8 @@ with working-copy diffs. Byte accounting estimates serialized UTF-16 data size; 
 not a total browser-memory measurement.
 
 [ResourceCache](../src/client/resource-cache.ts) owns the common bounded storage and LRU mechanism
-for these caches and the [diff adapter](../src/client/diff-cache.ts).
-[M06](maintenance-plan.md#m06--reuse-the-bounded-cache-implementation) removes the adapter's
-duplicate mechanism; Git snapshot pinning, refresh invalidation, exact commit identities, and the
-shared diff budget remain in their existing domain owners.
+for these caches and the [diff adapter](../src/client/diff-cache.ts). Git snapshot pinning, refresh
+invalidation, exact commit identities, and the shared diff budget remain in their domain owners.
 
 Branch lists stay pinned until Refresh or reload. Each **Load older** action carries the existing
 tip and offset; refreshing starts a new snapshot without changing a selected commit ID. Three

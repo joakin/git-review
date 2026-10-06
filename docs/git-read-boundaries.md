@@ -3,9 +3,8 @@
 Status: M11 accepted and committed as `e9da16a` on 2026-10-05
 
 The server shares subprocess execution, repository context and object access across working-copy
-review, historical inspection and media. The
-[M11 handoff](maintenance-plan.md#m11-handoff--2026-10-05) records verification and review status.
-The public APIs and domain source/version policies retain their existing contracts.
+review, historical inspection and media. The public APIs and domain source/version policies retain
+their existing contracts.
 
 ## Shared ownership
 

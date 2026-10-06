@@ -115,14 +115,13 @@ backgrounding, and the full set of failure cases still need device checks.
 
 ## Maintenance verification — 2026-10-01
 
-[M02](maintenance-plan.md#m02--restore-transcription-api-error-translation) is accepted and
-committed as `cbe97fb`. The endpoint previously returned an unawaited transcription promise from
-inside its `try`, allowing rejected promises to bypass JSON error translation. It now awaits
-delegation at that boundary. Ten [API regression tests](../src/server/transcription-api.test.ts)
-failed before the fix and pass afterward, covering invalid MIME/body/size, independent streamed-byte
-limits, concurrency, cancellation, generic unexpected failures, and availability of the single-job
-slot after failure. These tests use invalid requests and streams, requiring no transcription engines
-or microphone.
+M02 is accepted and committed as `cbe97fb`. The endpoint previously returned an unawaited
+transcription promise from inside its `try`, allowing rejected promises to bypass JSON error
+translation. It now awaits delegation at that boundary. Ten
+[API regression tests](../src/server/transcription-api.test.ts) failed before the fix and pass
+afterward, covering invalid MIME/body/size, independent streamed-byte limits, concurrency,
+cancellation, generic unexpected failures, and availability of the single-job slot after failure.
+These tests use invalid requests and streams, requiring no transcription engines or microphone.
 
 Strict type checking, CSS token validation, and the full suite passed: 63 tests, zero failures,
 1,018 assertions. An isolated real HTTP server returned the expected JSON 415 and 400 errors; both

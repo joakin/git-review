@@ -77,9 +77,7 @@ styling.
 
 [withWordDetails](../src/server/diff-words.ts) accepts and returns the canonical text-diff variant.
 It updates detail fields on parsed rows, so its return contract allows those fields to change rather
-than preserving a narrower `none` refinement.
-[M08c](maintenance-plan.md#m08c--parser-and-decorator-contracts) records this contract; the matching
-algorithm and budgets are unchanged.
+than preserving a narrower `none` refinement. The matching algorithm and budgets are unchanged.
 
 ## Visual and interaction rules
 

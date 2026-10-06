@@ -247,11 +247,10 @@ with one back arrow beside the content title.
 
 ## Maintenance verification — 2026-10-01
 
-[M05a](maintenance-plan.md#m05--remove-obsolete-ui-and-consolidate-layout-css) is accepted and
-committed as `2d6879d`. It removes the unreachable folder-picker “Back to project” control and
-unused ready-panel/icon/footnote styles, sidebar-switch selectors, indent token, and Changes margin
-modifier. Current route, state, pane, and button behavior retain their existing owners and rules;
-M05b now gives that shell a dedicated stylesheet, as recorded below.
+M05a is accepted and committed as `2d6879d`. It removes the unreachable folder-picker “Back to
+project” control and unused ready-panel/icon/footnote styles, sidebar-switch selectors, indent
+token, and Changes margin modifier. Current route, state, pane, and button behavior retain their
+existing owners and rules; M05b now gives that shell a dedicated stylesheet, as recorded below.
 
 Captured and inspected [picker](../qa/screenshots/maintenance-m05-obsolete-picker/mobile.png),
 [expanded Changes](../qa/screenshots/maintenance-m05-obsolete-changes/mobile.png),
@@ -262,39 +261,35 @@ byte for byte, and their manifests report no page-wide overflow. Four affected s
 320 px. Strict type/CSS gates, navigation parser tests, build, loading checks, and touch
 diff/wrap/scroll checks passed. An initial concurrent navigation run timed out returning to the
 picker; both a diagnostic run and an unmodified rerun then passed, including the 899/900 px
-boundary, without code changes. Its timing cause remains unisolated and is recorded in the
-[M05a handoff](maintenance-plan.md#m05a-handoff--2026-10-01). These checks use Chrome emulation;
-real-device gestures were not reverified. The QA server was stopped, and the maintained HTTP/HTTPS
-services serve the rebuilt client.
+boundary, without code changes. M05b later reproduced the cancellation path described below. These
+checks use Chrome emulation; real-device gestures were not reverified. The QA server was stopped,
+and the maintained HTTP/HTTPS services serve the rebuilt client.
 
-[M05b](maintenance-plan.md#m05b-handoff--2026-10-01) is accepted and committed as `1d28fc5`.
-[navigation.css](../src/client/navigation.css) owns header, menu, contextual list/tabs, content
-geometry, route visibility, breakpoints, and reduced motion; component styles remain in
-[styles.css](../src/client/styles.css). The active menu/list width tokens replace superseded
-two-column widths. Computed styles and geometry match committed M05a across 252 recorded states,
-including exact breakpoint widths, reduced motion, Search results, controlled non-Git tab disabling,
-and already-open drawers while resizing. Sixteen fresh four-size PNGs also match the curated images
-above byte for byte; comparison copies stay ignored rather than duplicating milestone assets. Strict
-gates, build, loading, diff, Search, live updates, a sequential navigation rerun, and 320 px checks
-passed.
+M05b is accepted and committed as `1d28fc5`. [navigation.css](../src/client/navigation.css) owns
+header, menu, contextual list/tabs, content geometry, route visibility, breakpoints, and reduced
+motion; component styles remain in [styles.css](../src/client/styles.css). The active menu/list
+width tokens replace superseded two-column widths. Computed styles and geometry match committed M05a
+across 252 recorded states, including exact breakpoint widths, reduced motion, Search results,
+controlled non-Git tab disabling, and already-open drawers while resizing. Sixteen fresh four-size
+PNGs also match the curated images above byte for byte; comparison copies stay ignored rather than
+duplicating milestone assets. Strict gates, build, loading, diff, Search, live updates, a sequential
+navigation rerun, and 320 px checks passed.
 
 The earlier picker timeout now has a deterministic reproduction on both committed M05a and M05b:
 hold project opening, then use browser Back before it completes. The aborted request leaves the
 opening flag set, so the picker stays disabled with “Opening…”. The route-name label appears before
-completed project data and can expose this timing path in ordinary QA.
-[M05c](maintenance-plan.md#m05c--reset-canceled-project-opening) implements the focused reset and
-delayed-response regression, accepted and committed as `b20b514`. M05b leaves that state code
-unchanged, and successful navigation reruns do not eliminate the defect. These checks use Chrome
-emulation; actual iOS/Android behavior was not reverified.
+completed project data and can expose this timing path in ordinary QA. M05c implements the focused
+reset and delayed-response regression, accepted and committed as `b20b514`. M05b leaves that state
+code unchanged, and successful navigation reruns do not eliminate the defect. These checks use
+Chrome emulation; actual iOS/Android behavior was not reverified.
 
-[M05c](maintenance-plan.md#m05c-handoff--2026-10-01) clears the obsolete opening flag when leaving a
-pending open. Success and error completion also require the latest synchronous route to belong to
-that project, closing the interval before effect cleanup aborts the request. The picker returns to
-the same directory with “Open this folder” enabled; a retry can succeed, and abandoned results
-cannot acquire the current project's saved selection. `qa:loading` now calls the focused
-cancellation helper covering native abort/retry at five widths, buffered success during Back, late
-success/error around replacement completion, and normal failure recovery. Existing navigation and
-feedback transaction checks passed. Four-size
+M05c clears the obsolete opening flag when leaving a pending open. Success and error completion also
+require the latest synchronous route to belong to that project, closing the interval before effect
+cleanup aborts the request. The picker returns to the same directory with “Open this folder”
+enabled; a retry can succeed, and abandoned results cannot acquire the current project's saved
+selection. `qa:loading` now calls the focused cancellation helper covering native abort/retry at
+five widths, buffered success during Back, late success/error around replacement completion, and
+normal failure recovery. Existing navigation and feedback transaction checks passed. Four-size
 [recovery captures](../qa/screenshots/maintenance-m05c-opening-recovery/mobile.png) show the picker
 only after a deliberately canceled open and Back; the manifest records no page overflow. The
 maintainer accepted the change and explicitly approved committing it on 2026-10-01; it is committed

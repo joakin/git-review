@@ -57,9 +57,7 @@ outside the app.
 accounting, oversized-value rejection, and eviction. The [diff adapter](../src/client/diff-cache.ts)
 owns its budget, working-copy identity, and stale-result exclusion. The Git browser uses the same
 mechanism with its own identities and budgets; immutable commit diffs share the diff adapter's
-capacity. [M06](maintenance-plan.md#m06--reuse-the-bounded-cache-implementation) removes the
-duplicate mechanism without changing those domain policies. The byte estimate counts serialized
-UTF-16 data, not total browser memory.
+capacity. The byte estimate counts serialized UTF-16 data, not total browser memory.
 
 [The shared diff loader](../src/client/diff-loading.ts) now owns keyed loaded/error state,
 cancellation, retry, and immediate cache reads for working-copy and historical cards. Each card
@@ -67,8 +65,7 @@ adapter supplies its resource key, request, error fallback, and any response pol
 stale handling stays in [DiffCard](../src/client/DiffCard.tsx); immutable commit keys stay in
 [CommitViewer](../src/client/CommitViewer.tsx), and its three-request queue stays in
 [git-api.ts](../src/client/git-api.ts). The loader checks current expansion and identity before
-accepting results, including before effect cleanup aborts a superseded request. The
-[M10 handoff](maintenance-plan.md#m10-handoff--2026-10-05) records the refactor and verification.
+accepting results, including before effect cleanup aborts a superseded request.
 
 The delay is a presentation choice, not a delay before starting requests. Network and parsing errors
 retain their existing messages and retry actions. We avoid retaining results from another project or
@@ -103,24 +100,23 @@ broader device pass still includes iOS, slower network transitions, and installe
 
 ## Maintenance verification — 2026-10-01
 
-[M05c](maintenance-plan.md#m05c-handoff--2026-10-01) is accepted and committed as `b20b514`. It
-resets the picker after canceled project opening and adds a synchronous route-ownership guard to
-both completion branches. The new [project-opening helper](../qa/project-opening-check.ts), invoked
-by `qa:loading`, fails on committed `1d28fc5` after Back; a further success released during
-`popstate` also failed until the route guard was added. Native cancellation/retry now pass at 320 px
-and all four standard viewport sizes. Controlled buffered success/error cases check persisted
-ownership while a replacement is pending and after it completes; a normal opening error still
-permits recovery/retry. Existing loading/cache/scroll, navigation, and feedback transaction checks
-passed, along with strict gates, build, and navigation parser tests. Four-size
+M05c is accepted and committed as `b20b514`. It resets the picker after canceled project opening and
+adds a synchronous route-ownership guard to both completion branches. The new
+[project-opening helper](../qa/project-opening-check.ts), invoked by `qa:loading`, fails on
+committed `1d28fc5` after Back; a further success released during `popstate` also failed until the
+route guard was added. Native cancellation/retry now pass at 320 px and all four standard viewport
+sizes. Controlled buffered success/error cases check persisted ownership while a replacement is
+pending and after it completes; a normal opening error still permits recovery/retry. Existing
+loading/cache/scroll, navigation, and feedback transaction checks passed, along with strict gates,
+build, and navigation parser tests. Four-size
 [recovered picker captures](../qa/screenshots/maintenance-m05c-opening-recovery/mobile.png) were
 taken only after a controlled open → abort → Back sequence and inspected without page overflow.
 These are Chrome checks; real-device interruptions remain unverified.
 
-[M06](maintenance-plan.md#m06-handoff--2026-10-01) is accepted and committed as `737a09b`. The
-shared cache mechanism passes 11 new invariant tests, the full 99-test suite, strict gates, and
-build. Loading QA confirms first-render expanded content/height and Back/Forward scroll reuse, with
-new data after Refresh. Git QA confirms immutable cache reuse and the three-request bound at all
-four standard sizes; live-change QA confirms fresh diffs after accepted Update and manual Refresh
-while preserving card, draft, and reading position. All 451 tracked screenshot-tree files remain
-unchanged; only the ordinary live-change check generated ignored diagnostic captures. Real-device
-behavior was not reverified.
+M06 is accepted and committed as `737a09b`. The shared cache mechanism passes 11 new invariant
+tests, the full 99-test suite, strict gates, and build. Loading QA confirms first-render expanded
+content/height and Back/Forward scroll reuse, with new data after Refresh. Git QA confirms immutable
+cache reuse and the three-request bound at all four standard sizes; live-change QA confirms fresh
+diffs after accepted Update and manual Refresh while preserving card, draft, and reading position.
+All 451 tracked screenshot-tree files remain unchanged; only the ordinary live-change check
+generated ignored diagnostic captures. Real-device behavior was not reverified.

@@ -1,9 +1,10 @@
 # Engineering conventions
 
 Use these principles when designing or changing code. Current user flows and domain contracts belong
-in the [behavior records](README.md#behavior-records); plans, review decisions, and verification
-evidence belong in the [maintenance plan](maintenance-plan.md). Document a rule here when it guides
-future decisions across changes.
+in the [behavior records](README.md#behavior-records); current status and unresolved decisions
+belong in the brief [maintenance plan](maintenance-plan.md). Use Git for implementation and dated
+review history, and the [QA workflow](qa-workflow.md) for verification procedures. Document a rule
+here when it guides future decisions across changes.
 
 ## Code organization and interfaces
 

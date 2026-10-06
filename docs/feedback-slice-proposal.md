@@ -164,21 +164,20 @@ adding another gesture would need a separate proposal.
 
 ## Maintenance verification — 2026-10-01
 
-[M08a](maintenance-plan.md#m08a-handoff--2026-10-01) makes the existing layer restriction explicit
-in `CommentAnchor`: staged, unstaged, and untracked. The status-entry factory retains its conflict
-guard, while the formatter removes unreachable conflict ordering. Five new boundary tests and the
-extended export test verify factory rejection, valid-layer ordering/round-trips, atomic invalid
-draft/history rejection, and backup versions 1–3. Strict gates, the full 120-test suite, build,
-phone feedback QA, and all seven transaction browser scenarios pass. The change is accepted and
-committed as `acf06ca` on 2026-10-01 after explicit approval. No new screenshots or actual device
-clipboard/gesture checks were performed.
+M08a makes the existing layer restriction explicit in `CommentAnchor`: staged, unstaged, and
+untracked. The status-entry factory retains its conflict guard, while the formatter removes
+unreachable conflict ordering. Five new boundary tests and the extended export test verify factory
+rejection, valid-layer ordering/round-trips, atomic invalid draft/history rejection, and backup
+versions 1–3. Strict gates, the full 120-test suite, build, phone feedback QA, and all seven
+transaction browser scenarios pass. The change is accepted and committed as `acf06ca` on 2026-10-01
+after explicit approval. No new screenshots or actual device clipboard/gesture checks were
+performed.
 
-[M03](maintenance-plan.md#m03--own-feedback-check-and-copy-transactions) is accepted and committed
-as `59cadf3`. It adds explicit check/copy ownership, current-store merges, checked manual export,
-exact copied-batch archival, and recovery guards for Undo/history limits. Twenty-five new
-regressions cover delayed requests/clipboard results and saved version-1 invariants. The full suite
-passes 88 tests with 1,155 assertions; strict type checking, CSS token validation, and client build
-also pass.
+M03 is accepted and committed as `59cadf3`. It adds explicit check/copy ownership, current-store
+merges, checked manual export, exact copied-batch archival, and recovery guards for Undo/history
+limits. Twenty-five new regressions cover delayed requests/clipboard results and saved version-1
+invariants. The full suite passes 88 tests with 1,155 assertions; strict type checking, CSS token
+validation, and client build also pass.
 
 The [focused browser check](../qa/check-feedback-transactions.ts) reproduces the original
 overwritten-edit bug with the pre-fix client and passes all seven scenarios with the final client.

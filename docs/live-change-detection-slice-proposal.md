@@ -107,8 +107,7 @@ accepted project. Failed status refresh retains a ready snapshot and the pending
 generation still renews expanded diff requests. Late status results must belong to the current
 project. Refresh position waits for expanded diff bodies to finish loading and is restored only
 within its original Changes destination. App owns navigation and supplies the view/dialog polling
-policy. Maintenance decisions and verification are recorded in
-[M09e](maintenance-plan.md#m09e--working-copy-review-ownership).
+policy.
 
 The [QA workflow](qa-workflow.md#live-change-detection) records the behavior and four viewport
 captures. The remaining human check is the exact placement and reachability of the Update action on
@@ -116,11 +115,10 @@ an actual phone browser.
 
 ## Maintenance verification — 2026-10-01
 
-[M04](maintenance-plan.md#m04--separate-qa-output-from-milestone-captures) is accepted and committed
-as `0e55b07`. The live-change browser check now writes four screenshots and a manifest into a fresh
-ignored `qa/.artifacts/live-changes-runs/run-<suffix>/` directory and prints its path. Repeated runs
-preserve prior diagnostic output and the tracked navigation milestone. Curated captures remain an
-explicit `qa:capture` action with a fresh label.
+M04 is accepted and committed as `0e55b07`. The live-change browser check now writes four
+screenshots and a manifest into a fresh ignored `qa/.artifacts/live-changes-runs/run-<suffix>/`
+directory and prints its path. Repeated runs preserve prior diagnostic output and the tracked
+navigation milestone. Curated captures remain an explicit `qa:capture` action with a fresh label.
 
 Two consecutive runs passed all existing assertions on an isolated fixture server: steady displayed
 code before Update, preserved expanded card/draft/scroll, four-size and 320 px containment,

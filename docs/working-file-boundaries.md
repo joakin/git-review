@@ -4,8 +4,7 @@ Status: M12 accepted and committed as `379d870` on 2026-10-05
 
 [working-files.ts](../src/server/working-files.ts) owns path validation, approved/project
 containment, no-follow inspection, regular-file opening, identity rechecks and bounded-reader
-descriptor lifetime. The [M12 handoff](maintenance-plan.md#m12-handoff--2026-10-05) records review
-and verification. HTTP handlers still revalidate an opened project before calling its readers.
+descriptor lifetime. HTTP handlers revalidate an opened project before calling its readers.
 
 ## Path and identity checks
 
