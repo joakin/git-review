@@ -1,7 +1,7 @@
 # Diff batching and bulk card controls
 
-Status: approach and steps 1–2 (Git and Changes batching) reviewed and approved on 2026-10-06. Step
-3 (bulk controls) is next.
+Status: all three implementation slices completed, reviewed and approved on 2026-10-06. This feature
+follow-up is complete and closed; no further implementation is planned.
 
 The maintainer requested consistent batching for Changes and Git, followed by Expand all and
 Collapse all controls in both views. This is a separate feature follow-up; the maintenance pass
@@ -88,9 +88,10 @@ Keep the individual routes for fallback and independent retries.
    cancellation, retries, route/scroll behavior and persistence; capture and inspect phone, tablet
    portrait, tablet landscape and desktop, including 320 px containment.
 
-Keep each step uncommitted for review. Tests cover observable source correctness, size/work limits,
-partial failure, stale recovery and cancellation. Document measured tradeoffs before accepting the
-batch size; browser checks do not establish real-device latency or touch behavior.
+Each step was kept uncommitted until maintainer review and approval. Tests cover observable source
+correctness, size/work limits, partial failure, stale recovery and cancellation. Document measured
+tradeoffs before accepting the batch size; browser checks do not establish real-device latency or
+touch behavior.
 
 ## Step 1 measurements and review
 
@@ -126,7 +127,7 @@ static gates and the full test suite passed. Git browser QA passed at all four s
 [tablet landscape](../qa/screenshots/git-diff-batching/tablet-landscape.png) and
 [desktop](../qa/screenshots/git-diff-batching/desktop.png) captures were inspected with no page-wide
 overflow. The running HTTP and private HTTPS origins serve the current client and batch endpoint.
-Physical-device latency remains unverified. Step 1 reviewed and approved for commit.
+Physical-device latency remains unverified. Step 1 accepted.
 
 ## Step 2 behavior and review
 
@@ -159,5 +160,28 @@ standard sizes and 320 px. The [phone](../qa/screenshots/changes-batch-stale/mob
 status token on an isolated fixture to show the real batch endpoint's stale recovery state. All four
 were inspected with no page-wide overflow. The running HTTP and private HTTPS origins serve the
 current client and correctly accept current batches and reject stale tokens. Physical-device
-behavior remains unverified. Step 2 reviewed and approved for commit. Next: bulk controls in both
-views.
+behavior remains unverified. Step 2 accepted.
+
+## Step 3 behavior and review
+
+**Expand all** and **Collapse all** now share one presentation beside Wrap/Refresh in both views.
+Changes replaces its expansion choices with the displayed layer/path keys or an empty set in one
+state change, dropping absent-file keys; Git updates only the selected commit's scoped files.
+Actions with no effect are disabled, including empty or unavailable inventories. Individual toggles,
+selected URLs and drafts keep their existing behavior.
+
+Collapse cancels demand through the existing card loader and batch queue; re-expansion reuses
+accepted cached results. Persistence keeps its existing bounds: Changes saves at most 100 open-card
+keys across reloads (all displayed cards can still open in memory), and Git retains at most 64
+commit choices in tab memory. No new caches or API changes were added.
+
+Strict type, formatting and CSS-token gates passed. Loading QA covers bulk cancellation with
+buffered late responses, same-path layers, disabled states, cache reuse, selected URLs, Changes
+reloads and Git choices through Files/commit navigation at 320 px and all four standard sizes.
+Existing Git navigation/media/reading-position checks and the mobile feedback flow also passed; bulk
+toggles preserve the saved draft. The
+[Changes phone](../qa/screenshots/changes-bulk-toolbar/mobile.png) and
+[Git phone](../qa/screenshots/git-bulk-controls/mobile.png) sets include tablet portrait, tablet
+landscape and desktop captures; all eight were inspected with no page-wide overflow and visible 44
+px bulk targets. Both maintained review origins serve the current build. Real-device behavior
+remains unverified. The maintainer reviewed and approved this final slice; work stops here.

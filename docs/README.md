@@ -15,9 +15,9 @@ installation.
   [optional backlog](initial-implementation-plan.md#remaining-roadmap).
 - [Maintenance plan](maintenance-plan.md): completed pass, measurement results, and the stop
   boundary. Git preserves implementation and review history.
-- [Diff batching and bulk card controls](diff-batching-and-bulk-controls-proposal.md): approved
-  shared bounded loading for Changes and Git, followed by Expand all / Collapse all; Git batching
-  accepted in both views; bulk controls are next.
+- [Diff batching and bulk card controls](diff-batching-and-bulk-controls-proposal.md): shared
+  bounded loading and Expand all / Collapse all for Changes and Git; all three slices reviewed,
+  accepted and complete.
 - [Changes line counts](changes-line-counts-proposal.md): bundled file/layer statistics in the
   contextual list and collapsed/expanded headings; implemented and accepted on 2026-10-06.
 - [Engineering conventions](engineering-conventions.md): reusable principles for module boundaries,

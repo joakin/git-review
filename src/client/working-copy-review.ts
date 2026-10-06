@@ -51,6 +51,8 @@ type WorkingCopyReview = {
     notifyStale: (revision: string, changeToken: string, refreshKey: number) => void;
     toggleEntry: (entry: ChangeEntry) => void;
     expandEntry: (entry: ChangeEntry) => void;
+    expandAll: () => void;
+    collapseAll: () => void;
   };
 };
 
@@ -126,6 +128,21 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       const next = new Set(current.expandedKeys);
       if (toggle && next.has(key)) next.delete(key);
       else next.add(key);
+      return { ...current, expandedKeys: next };
+    });
+  }
+
+  function changeAllExpansion(expanded: boolean): void {
+    const project = inputsRef.current.project;
+    if (project === null || !hasCurrentProject(project)) return;
+    update((current) => {
+      if (current.status.kind !== "ready" || current.status.value.kind !== "git") return current;
+      const next = new Set<string>();
+      if (expanded) {
+        for (const entry of current.status.value.entries) {
+          next.add(diffCardKey(entry));
+        }
+      }
       return { ...current, expandedKeys: next };
     });
   }
@@ -377,6 +394,8 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       notifyStale,
       toggleEntry: (entry) => changeExpansion(entry, true),
       expandEntry: (entry) => changeExpansion(entry, false),
+      expandAll: () => changeAllExpansion(true),
+      collapseAll: () => changeAllExpansion(false),
     },
   };
 }

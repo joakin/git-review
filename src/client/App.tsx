@@ -8,6 +8,7 @@ import { folderName } from "./folder-name.ts";
 import type { LoadState } from "./load-state.ts";
 import { FileViewer } from "./FileViewer.tsx";
 import { CommitViewer } from "./CommitViewer.tsx";
+import { GitHeading } from "./GitHeading.tsx";
 import { GitSidebar } from "./GitSidebar.tsx";
 import { useGitBrowser } from "./git-browser.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
@@ -887,31 +888,14 @@ export function App() {
               <div class="project-view">
                 {viewMode === "git" && gitRoute !== null ? (
                   <>
-                    <div class="changes-heading">
-                      <div class="content-heading-title">
-                        <button
-                          class="content-back"
-                          type="button"
-                          aria-label="Open list"
-                          onClick={showList}
-                        >
-                          <Icon name="back" />
-                        </button>
-                        <h2>{gitRoute.target.kind === "commit" ? "Commit" : "Git history"}</h2>
-                      </div>
-                      <div class="changes-actions">
-                        <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>
-                          {wrapCode ? "Wrap: on" : "Wrap: off"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={git.refreshing}
-                          onClick={git.refreshHistory}
-                        >
-                          Refresh
-                        </button>
-                      </div>
-                    </div>
+                    {(gitRoute.target.kind === "list" || git.detail.kind !== "ready") && (
+                      <GitHeading
+                        title={gitRoute.target.kind === "commit" ? "Commit" : "Git history"}
+                        wrap={wrapCode}
+                        refreshing={git.refreshing}
+                        commands={{ back: showList, toggleWrap, refresh: git.refreshHistory }}
+                      />
+                    )}
                     {gitRoute.target.kind === "list" ? (
                       <p class="status-message">
                         {git.refs.kind === "ready" && git.refs.value.kind === "not_git"
@@ -940,6 +924,8 @@ export function App() {
                         detail={git.detail.value}
                         wrap={wrapCode}
                         languages={languages}
+                        refreshing={git.refreshing}
+                        commands={{ back: showList, toggleWrap, refresh: git.refreshHistory }}
                       />
                     )}
                   </>
@@ -1047,6 +1033,8 @@ export function App() {
                       refresh: review.actions.refresh,
                       notifyStale: review.actions.notifyStale,
                       toggleEntry: review.actions.toggleEntry,
+                      expandAll: review.actions.expandAll,
+                      collapseAll: review.actions.collapseAll,
                       comment: feedback.actions.chooseLine,
                     }}
                   />

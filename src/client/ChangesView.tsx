@@ -13,6 +13,7 @@ import { DelayedLoading } from "./DelayedLoading.tsx";
 import { diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { Icon } from "./Icons.tsx";
 import type { LoadState } from "./load-state.ts";
+import { BulkDiffControls } from "./BulkDiffControls.tsx";
 
 type ChangesModel = {
   projectId: string;
@@ -33,6 +34,8 @@ type ChangesCommands = {
   refresh: () => void;
   notifyStale: (revision: string, changeToken: string, refreshKey: number) => void;
   toggleEntry: (entry: ChangeEntry) => void;
+  expandAll: () => void;
+  collapseAll: () => void;
   comment: (anchor: CommentAnchor) => void;
 };
 
@@ -228,6 +231,16 @@ export function ChangesView({
           <h2>Changed files</h2>
         </div>
         <div class="changes-actions">
+          <BulkDiffControls
+            canExpand={
+              gitStatus?.entries.some((entry) => !expandedKeys.has(diffCardKey(entry))) ?? false
+            }
+            canCollapse={
+              gitStatus?.entries.some((entry) => expandedKeys.has(diffCardKey(entry))) ?? false
+            }
+            onExpand={commands.expandAll}
+            onCollapse={commands.collapseAll}
+          />
           <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>
             {wrap ? "Wrap: on" : "Wrap: off"}
           </button>

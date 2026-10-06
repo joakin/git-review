@@ -600,6 +600,14 @@ button:focus-visible {
   border-color: var(--color-accent-border);
   background: var(--color-mint-surface);
 }
+.diff-bulk-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.diff-bulk-controls button {
+  min-height: 44px;
+}
 .changes-heading .changes-update {
   min-height: 44px;
   border-color: var(--color-update-border);

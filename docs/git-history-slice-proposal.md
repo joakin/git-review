@@ -32,8 +32,11 @@ browser at an arbitrary revision remain later work.
 3. Selecting a commit highlights it in the list and opens the content pane. Show its complete
    message with paragraph breaks, followed by the same metadata rows with its full hash and compact
    parent label. Render the message as text. Show every changed file in the selected project scope,
-   with its card expanded initially; the user can collapse individual files. Reuse the current
-   compact code rows, sticky card headings, phone gutter behavior, and Old/New media ordering.
+   with its card expanded initially; individual toggles and **Expand all / Collapse all** affect
+   only this commit's scoped cards. The
+   [bulk controls record](diff-batching-and-bulk-controls-proposal.md) owns their behavior and
+   review evidence. Reuse the current compact code rows, sticky card headings, phone gutter
+   behavior, and Old/New media ordering.
 4. On phones, the four tabs, branch selector, and commit list occupy the list screen. Selecting a
    commit opens the full-width content screen; the existing content-heading back arrow returns to
    the list. Keep the current tablet drawer and desktop side-by-side patterns. No new navigation

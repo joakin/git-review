@@ -3,6 +3,7 @@ import { checkProjectOpeningCancellation } from "./project-opening-check.ts";
 import { checkWorkingCopyOwnership } from "./working-copy-ownership-check.ts";
 import { checkViewStateRecovery } from "./view-state-check.ts";
 import { checkDiffLoading } from "./diff-loading-check.ts";
+import { checkBulkDiffControls } from "./bulk-diff-check.ts";
 import { parseChangeDiffBatchRequest } from "../src/shared/change-diff-batch.ts";
 
 const rawUrl = process.argv[2];
@@ -14,6 +15,7 @@ await withQaBrowser(async (browser) => {
   await checkWorkingCopyOwnership(browser, base);
   await checkViewStateRecovery(browser, base);
   await checkDiffLoading(browser, base);
+  await checkBulkDiffControls(browser, base);
   await withQaContext(browser, qaProfiles.phone, async (context) => {
     const page = await context.newPage();
 

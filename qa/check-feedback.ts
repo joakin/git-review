@@ -41,6 +41,20 @@ await withQaBrowser(async (browser) => {
       await page.getByRole("button", { name: "Save comment" }).click();
       await page.locator(".comment-editor").waitFor({ state: "detached" });
       await page.waitForFunction(() => document.documentElement.style.overflow !== "hidden");
+      const savedDraft = await page.evaluate(() =>
+        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v1:")),
+      );
+      await page.getByRole("button", { name: "Collapse all", exact: true }).click();
+      await page.getByRole("button", { name: "Expand all", exact: true }).click();
+      await card.locator(".diff-code").first().waitFor();
+      const afterBulk = await page.evaluate(() =>
+        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v1:")),
+      );
+      if (JSON.stringify(afterBulk) !== JSON.stringify(savedDraft))
+        throw new Error("Bulk actions changed saved feedback");
+      // Restore this flow's single-card setup before controlled reattachment reads.
+      await page.getByRole("button", { name: "Collapse all", exact: true }).click();
+      await card.locator(".diff-card-toggle").click();
       await card.locator(".diff-row-added").first().tap();
       await card.getByRole("button", { name: /staged added line.*Comment on new line 1/ }).click();
       await page.locator(".comment-editor[open]").waitFor({ state: "visible" });

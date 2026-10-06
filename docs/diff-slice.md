@@ -16,7 +16,10 @@ Later card toggles and Refresh do not repeat that focus. Expanding a card fetche
 the matching validated result is already in the
 [tab-memory cache](loading-and-transition-polish.md). A visible wrap control switches code between
 wrapped lines and horizontal scrolling inside the code pane; the page itself stays within the
-viewport. Wrap preference and open cards survive reload; diff payloads do not.
+viewport. **Expand all** and **Collapse all** apply across the displayed layers without refreshing,
+navigating or changing drafts. The
+[bulk controls record](diff-batching-and-bulk-controls-proposal.md) owns their review evidence and
+persistence bounds. Wrap preference and open cards survive reload; diff payloads do not.
 
 This slice established source rows with diff colors and line numbers. Syntax tokens, line feedback,
 bounded word detail, and media previews are now implemented. Moved-block detection remains optional.

@@ -6,6 +6,8 @@ import { DiffCardFrame } from "./DiffCardFrame.tsx";
 import { useDiffLoading } from "./diff-loading.ts";
 import { useLanguageOverride } from "./language-override.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
+import { BulkDiffControls } from "./BulkDiffControls.tsx";
+import { GitHeading, type GitHeadingCommands } from "./GitHeading.tsx";
 
 const collapsedCommits = new Map<string, Set<string>>();
 
@@ -66,21 +68,24 @@ export function CommitViewer({
   detail,
   wrap,
   languages,
+  refreshing,
+  commands,
 }: {
   project: Project;
   detail: CommitDetail;
   wrap: boolean;
   languages: readonly LanguageOption[];
+  refreshing: boolean;
+  commands: GitHeadingCommands;
 }) {
   const key = `${project.id}:${detail.oid}`;
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => collapsedCommits.get(key) ?? new Set(),
   );
-  function toggle(path: string): void {
+  function changeCollapsed(change: (next: Set<string>) => void): void {
     setCollapsed((current) => {
       const next = new Set(current);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
+      change(next);
       collapsedCommits.delete(key);
       collapsedCommits.set(key, next);
       while (collapsedCommits.size > 64) {
@@ -91,8 +96,31 @@ export function CommitViewer({
       return next;
     });
   }
+  function toggle(path: string): void {
+    changeCollapsed((next) => {
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+    });
+  }
+  const available = detail.comparison.kind !== "missing_parent";
   return (
     <div class="commit-view" data-commit={detail.oid}>
+      <GitHeading title="Commit" wrap={wrap} refreshing={refreshing} commands={commands}>
+        <BulkDiffControls
+          canExpand={available && detail.files.some((file) => collapsed.has(file.path))}
+          canCollapse={available && detail.files.some((file) => !collapsed.has(file.path))}
+          onExpand={() =>
+            changeCollapsed((next) => {
+              for (const file of detail.files) next.delete(file.path);
+            })
+          }
+          onCollapse={() =>
+            changeCollapsed((next) => {
+              for (const file of detail.files) next.add(file.path);
+            })
+          }
+        />
+      </GitHeading>
       <section class="commit-message-card" aria-label="Commit message">
         <pre class="commit-message">{detail.message || "No commit message."}</pre>
         <CommitMeta source={{ kind: "detail", commit: detail }} />
