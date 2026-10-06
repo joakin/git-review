@@ -37,10 +37,23 @@ async function createContext(browser: Browser, first: HeldOutcome | null): Promi
             input instanceof Request ? input.url : input.toString(),
             location.href,
           );
+          const body: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+          const includesTall =
+            typeof body === "object" &&
+            body !== null &&
+            "files" in body &&
+            Array.isArray(body.files) &&
+            body.files.some(
+              (file: unknown) =>
+                typeof file === "object" &&
+                file !== null &&
+                "path" in file &&
+                file.path === "src/tall-review.ts",
+            );
           const isDiff =
             window.workingCopyOwnershipQa.nextDiff &&
-            /^\/api\/projects\/[^/]+\/diff$/u.test(url.pathname) &&
-            url.searchParams.get("path") === "src/tall-review.ts";
+            /^\/api\/projects\/[^/]+\/diffs?$/u.test(url.pathname) &&
+            (url.searchParams.get("path") === "src/tall-review.ts" || includesTall);
           const outcome = isDiff ? "real" : window.workingCopyOwnershipQa.next;
           if (
             !isDiff &&

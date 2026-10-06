@@ -31,6 +31,7 @@ type ChangesCommands = {
   back: () => void;
   toggleWrap: () => void;
   refresh: () => void;
+  notifyStale: (revision: string, changeToken: string, refreshKey: number) => void;
   toggleEntry: (entry: ChangeEntry) => void;
   comment: (anchor: CommentAnchor) => void;
 };
@@ -294,7 +295,13 @@ export function ChangesView({
                         wrap={wrap}
                         languages={languages}
                         onToggle={() => commands.toggleEntry(entry)}
-                        onStale={commands.refresh}
+                        onStale={() =>
+                          commands.notifyStale(
+                            gitStatus.revision,
+                            gitStatus.changeToken,
+                            refreshKey,
+                          )
+                        }
                         onComment={commands.comment}
                         reattachSide={reattachSide}
                         drafts={drafts.filter(

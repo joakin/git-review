@@ -1,7 +1,7 @@
 # Diff batching and bulk card controls
 
-Status: approach and step 1 (shared mechanism and Git integration) approved on 2026-10-06. Step 2
-(Changes batching) is next; step 3 (bulk controls) remains pending.
+Status: approach and steps 1–2 (Git and Changes batching) reviewed and approved on 2026-10-06. Step
+3 (bulk controls) is next.
 
 The maintainer requested consistent batching for Changes and Git, followed by Expand all and
 Collapse all controls in both views. This is a separate feature follow-up; the maintenance pass
@@ -126,5 +126,38 @@ static gates and the full test suite passed. Git browser QA passed at all four s
 [tablet landscape](../qa/screenshots/git-diff-batching/tablet-landscape.png) and
 [desktop](../qa/screenshots/git-diff-batching/desktop.png) captures were inspected with no page-wide
 overflow. The running HTTP and private HTTPS origins serve the current client and batch endpoint.
-Physical-device latency remains unverified. Step 1 reviewed and approved for commit; next: Changes
-batching.
+Physical-device latency remains unverified. Step 1 reviewed and approved for commit.
+
+## Step 2 behavior and review
+
+Changes cards now use the same bounded queue, with source identity including project, `revision`,
+`changeToken` and the client refresh generation. The server reads lightweight status before and
+after each batch; either version changing, or any file returning stale, discards all batch payloads.
+Staged/unstaged versions of one path and separate language choices retain distinct identities.
+Deferred reads send both snapshot tokens to the individual route. Feedback checks retain their
+individual read path, and drafts remain attached to their original anchors.
+
+Stale cards announce **New edits · Update** and explain how to recover; they no longer automatically
+refresh the review. The notice remains until an explicit Update or Refresh accepts another snapshot.
+Repeated stale responses cannot start a refresh loop, and late results from another snapshot or
+refresh generation cannot announce an update for the current review.
+
+Local desktop Chrome measurement used 64 changed TypeScript files with 96 staged/unstaged cards
+open. After a warm-up, medians of two fresh contexts showed first-card time of 0.60 → 0.59 s, all
+cards loaded in 2.53 → 2.15 s, and 96 → 4 diff requests. Both clients used the current server and
+the same styles/other client modules; the baseline used the committed individual card reader. This
+modest local timing gain does not establish remote-network or physical-device performance.
+
+Tests cover layer/language correspondence, partial file errors, media ranges, input bounds, path
+revalidation, stale fallback and recovery. A real Git read gated after the initial status verifies
+that an ordinary edit during the batch invalidates every file while `revision` stays unchanged.
+Loading, live-change, feedback and diff browser checks passed; line-count QA passed at all four
+standard sizes and 320 px. The [phone](../qa/screenshots/changes-batch-stale/mobile.png),
+[tablet portrait](../qa/screenshots/changes-batch-stale/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/changes-batch-stale/tablet-landscape.png) and
+[desktop](../qa/screenshots/changes-batch-stale/desktop.png) captures use a controlled outdated
+status token on an isolated fixture to show the real batch endpoint's stale recovery state. All four
+were inspected with no page-wide overflow. The running HTTP and private HTTPS origins serve the
+current client and correctly accept current batches and reject stale tokens. Physical-device
+behavior remains unverified. Step 2 reviewed and approved for commit. Next: bulk controls in both
+views.

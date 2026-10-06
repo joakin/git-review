@@ -1,5 +1,5 @@
 import type { ChangeEntry, LanguageOption, ReviewChangeEntry } from "../shared/api.ts";
-import { fetchProjectDiff } from "./api.ts";
+import { fetchChangeDiff } from "./change-diff-api.ts";
 import { type CommentAnchor, type DraftComment, type ReviewSide } from "./comments.ts";
 import { DiffCardFrame } from "./DiffCardFrame.tsx";
 import { diffCacheKey } from "./diff-cache.ts";
@@ -62,7 +62,12 @@ export function DiffCard({
   const { current, retry } = useDiffLoading(expanded, {
     key: requestKey,
     read: (signal) =>
-      fetchProjectDiff(projectId, entry.layer, entry.path, revision, effectiveOverride, signal),
+      fetchChangeDiff(
+        projectId,
+        { layer: entry.layer, path: entry.path, language: effectiveOverride },
+        { revision, changeToken, refreshKey },
+        signal,
+      ),
     errorMessage: "Diff could not be loaded",
     onLoaded: (value) => {
       if (value.kind === "stale") onStale();

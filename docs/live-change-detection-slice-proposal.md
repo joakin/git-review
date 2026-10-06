@@ -106,6 +106,12 @@ responses with required per-entry statistics. Background checks use the same sta
 `?mode=check`, returning only Git state and version tokens without collecting statistics. Displayed
 counts stay steady with the code until an explicit update succeeds.
 
+Changes card batches now require both displayed version tokens and check them before and after
+reading. A stale batch shows **New edits · Update** and retains the accepted review until the reader
+applies Update or Refresh. Stale cards do not trigger automatic refresh. The
+[batching record](diff-batching-and-bulk-controls-proposal.md) owns transport and source policy; the
+token remains an ordinary-edit signal rather than an atomic filesystem snapshot.
+
 The [working-copy review owner](../src/client/working-copy-review.ts) keeps the displayed snapshot
 separate from background checks and scopes refresh, card preferences, and reading position to the
 accepted project. Failed status refresh retains a ready snapshot and the pending notice; the manual

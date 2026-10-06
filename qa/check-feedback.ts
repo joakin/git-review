@@ -2,6 +2,11 @@ import type { Route } from "playwright-core";
 import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
 import { validateCommentStore } from "../src/client/comments.ts";
 import { parseDiffResponse } from "../src/shared/api.ts";
+import {
+  parseChangeDiffBatchRequest,
+  changeDiffBatchSource,
+  changeDiffRequestKey,
+} from "../src/shared/change-diff-batch.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-feedback.ts <local app URL>");
@@ -166,6 +171,24 @@ await withQaBrowser(async (browser) => {
         if (params.get("layer") === "staged" && params.get("path") === "src/view.ts")
           await route.fulfill({ json: reattachmentDiff });
         else await route.continue();
+      });
+      await fallbackPage.route("**/api/projects/*/diffs", async (route) => {
+        const request = parseChangeDiffBatchRequest(route.request().postDataJSON() as unknown);
+        if (request.files.every((file) => file.layer === "staged" && file.path === "src/view.ts")) {
+          const id = new URL(route.request().url()).pathname.split("/")[3];
+          if (id === undefined) throw new Error("Missing project identity");
+          await route.fulfill({
+            json: {
+              kind: "ready",
+              source: changeDiffBatchSource(id, request.revision, request.changeToken),
+              results: request.files.map((file) => ({
+                key: changeDiffRequestKey(file),
+                kind: "ready",
+                value: reattachmentDiff,
+              })),
+            },
+          });
+        } else await route.continue();
       });
       await fallbackPage.unroute("**/api/projects/*/status", emptyStatus);
       await fallbackPage.reload({ waitUntil: "load" });

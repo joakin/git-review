@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { appUrl, assertNoHorizontalOverflow, withQaBrowser } from "./browser-support.ts";
 import { parseChangeCheckResponse, parseStatusResponse } from "../src/shared/api.ts";
+import { parseChangeDiffBatchRequest } from "../src/shared/change-diff-batch.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-live-changes.ts <local app URL>");
@@ -297,7 +298,10 @@ try {
     const refetched = phone.page.waitForRequest((request) => {
       const requested = new URL(request.url());
       return (
-        requested.pathname.endsWith("/diff") && requested.searchParams.get("path") === "src/live.ts"
+        requested.pathname.endsWith("/diffs") &&
+        parseChangeDiffBatchRequest(request.postDataJSON() as unknown).files.some(
+          (file) => file.path === "src/live.ts",
+        )
       );
     });
     await phone.page.locator(".changes-update").click();

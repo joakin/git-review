@@ -48,6 +48,7 @@ type WorkingCopyReview = {
     beginProjectOpen: () => void;
     loadProject: (project: Project) => void;
     refresh: () => void;
+    notifyStale: (revision: string, changeToken: string, refreshKey: number) => void;
     toggleEntry: (entry: ChangeEntry) => void;
     expandEntry: (entry: ChangeEntry) => void;
   };
@@ -158,6 +159,24 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
     update((current) => ({ ...current, refreshing: true, refreshKey: current.refreshKey + 1 }));
   }
 
+  function notifyStale(revision: string, changeToken: string, refreshKey: number): void {
+    const current = stateRef.current;
+    const project = inputsRef.current.project;
+    if (
+      project === null ||
+      !hasCurrentProject(project) ||
+      current.refreshing ||
+      current.pendingUpdate ||
+      current.refreshKey !== refreshKey ||
+      current.status.kind !== "ready" ||
+      current.status.value.kind !== "git" ||
+      current.status.value.revision !== revision ||
+      current.status.value.changeToken !== changeToken
+    )
+      return;
+    update((current) => ({ ...current, pendingUpdate: true }));
+  }
+
   const project = inputs.project;
   useEffect(() => {
     if (project === null || stateRef.current.project !== project) return;
@@ -238,7 +257,8 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
         if (!isCurrent() || controller.signal.aborted) return;
         update((current) => ({
           ...current,
-          pendingUpdate: latest.kind !== "git" || latest.changeToken !== displayedToken,
+          pendingUpdate:
+            current.pendingUpdate || latest.kind !== "git" || latest.changeToken !== displayedToken,
           checkError: false,
         }));
         failures = 0;
@@ -354,6 +374,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       beginProjectOpen,
       loadProject,
       refresh,
+      notifyStale,
       toggleEntry: (entry) => changeExpansion(entry, true),
       expandEntry: (entry) => changeExpansion(entry, false),
     },

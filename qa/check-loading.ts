@@ -3,6 +3,7 @@ import { checkProjectOpeningCancellation } from "./project-opening-check.ts";
 import { checkWorkingCopyOwnership } from "./working-copy-ownership-check.ts";
 import { checkViewStateRecovery } from "./view-state-check.ts";
 import { checkDiffLoading } from "./diff-loading-check.ts";
+import { parseChangeDiffBatchRequest } from "../src/shared/change-diff-batch.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-loading.ts <local app URL>");
@@ -168,7 +169,7 @@ await withQaBrowser(async (browser) => {
     const page = await desktop.newPage();
     let diffRequests = 0;
     page.on("request", (request) => {
-      if (new URL(request.url()).pathname.endsWith("/diff")) diffRequests += 1;
+      if (/\/diffs?$/.test(new URL(request.url()).pathname)) diffRequests += 1;
     });
     await page.goto(new URL("/?section=changes&project=inventory-fixture", base).href);
     const card = page.locator(
@@ -209,8 +210,10 @@ await withQaBrowser(async (browser) => {
 
     const refreshedDiff = page.waitForRequest(
       (request) =>
-        new URL(request.url()).pathname.endsWith("/diff") &&
-        new URL(request.url()).searchParams.get("path") === "src/tall-review.ts",
+        new URL(request.url()).pathname.endsWith("/diffs") &&
+        parseChangeDiffBatchRequest(request.postDataJSON() as unknown).files.some(
+          (file) => file.path === "src/tall-review.ts",
+        ),
     );
     await page
       .locator(".changes-actions")

@@ -211,7 +211,11 @@ export function DiffBody({
 
   if (result.kind === "media") return <MediaDiff old={result.old} next={result.new} />;
   if (result.kind === "stale")
-    return <p class="diff-message">The file changed while loading. Refreshing its status…</p>;
+    return (
+      <p class="diff-message">
+        The file changed while loading. Choose Update or Refresh to read the latest edits.
+      </p>
+    );
   if (result.kind === "conflict")
     return (
       <p class="diff-message">

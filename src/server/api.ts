@@ -35,6 +35,7 @@ import {
 import { isGitOid, validGitRef } from "../shared/git.ts";
 import { maxDiffBatchRequestBytes } from "../shared/diff-batch.ts";
 import { readCommitDiffBatch } from "./commit-diff-batch.ts";
+import { readChangeDiffBatch } from "./change-diff-batch.ts";
 
 const maxBodyBytes = 4096;
 
@@ -339,6 +340,19 @@ async function handleApiRequest(
       }
       return Response.json(await readReviewStatus(root, current));
     }
+    const diffBatchRoute = /^\/api\/projects\/([0-9a-f]{20})\/diffs$/.exec(url.pathname);
+    if (diffBatchRoute !== null && request.method === "POST") {
+      onlyQueryKeys(url, []);
+      const id = diffBatchRoute[1];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined)
+        throw new AppError("not_found", 404, "Open this folder before requesting its diffs");
+      const body = await readJsonBody(request, maxDiffBatchRequestBytes);
+      const current = await openProject(root, project.path);
+      if (current.id !== id)
+        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      return await readChangeDiffBatch(root, current, body, request.signal);
+    }
     const diffRoute = /^\/api\/projects\/([0-9a-f]{20})\/diff$/.exec(url.pathname);
     if (diffRoute !== null && request.method === "GET") {
       const id = diffRoute[1];
@@ -348,6 +362,13 @@ async function handleApiRequest(
       const layer = changeLayer(oneQueryValue(url, "layer"));
       const path = oneQueryValue(url, "path");
       const revision = oneQueryValue(url, "revision");
+      const changeTokens = url.searchParams.getAll("changeToken");
+      if (
+        changeTokens.length > 1 ||
+        (changeTokens.length === 1 && !/^[0-9a-f]{20}$/.test(changeTokens[0] ?? ""))
+      )
+        throw new AppError("invalid_request", 400, "Specify one valid change token");
+      const changeToken = changeTokens[0];
       const requestedLanguages = url.searchParams.getAll("language");
       if (requestedLanguages.length > 1)
         throw new AppError("invalid_request", 400, "Specify one language override");
@@ -366,7 +387,11 @@ async function handleApiRequest(
       if (current.id !== id)
         throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
       const status = await readProjectStatus(current.absolutePath);
-      if (status.kind !== "git" || status.revision !== revision)
+      if (
+        status.kind !== "git" ||
+        status.revision !== revision ||
+        (changeToken !== undefined && status.changeToken !== changeToken)
+      )
         return Response.json({ kind: "stale" });
       const entry = status.entries.find((item) => item.layer === layer && item.path === path);
       if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
@@ -375,7 +400,11 @@ async function handleApiRequest(
         (await readProjectDiff(root, current, entry, requestedLanguage));
       const after = await readProjectStatus(current.absolutePath);
       return Response.json(
-        after.kind === "git" && after.revision === revision ? diff : { kind: "stale" },
+        after.kind === "git" &&
+          after.revision === revision &&
+          (changeToken === undefined || after.changeToken === changeToken)
+          ? diff
+          : { kind: "stale" },
       );
     }
     throw new AppError("not_found", 404, "API route was not found");

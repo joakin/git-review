@@ -130,8 +130,10 @@ export async function fetchProjectDiff(
   revision: string,
   language: string | null,
   signal: AbortSignal,
+  changeToken?: string,
 ): Promise<DiffResult> {
   const query = new URLSearchParams({ layer, path, revision });
+  if (changeToken !== undefined) query.set("changeToken", changeToken);
   if (language !== null) query.set("language", language);
   const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, {
     signal,

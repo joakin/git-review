@@ -57,8 +57,27 @@ export async function checkDiffLoading(browser: Browser, base: URL): Promise<voi
               location.href,
             );
             if (url.pathname.endsWith("/status")) window.diffLoadingQa.statuses += 1;
-            if (!url.pathname.endsWith("/diff") || url.searchParams.get("path") !== path)
-              return original(input, init);
+            const body: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+            const batch =
+              typeof body === "object" &&
+              body !== null &&
+              "files" in body &&
+              Array.isArray(body.files)
+                ? body
+                : null;
+            const files = batch?.files;
+            const requested =
+              /\/diffs?$/.test(url.pathname) &&
+              (url.searchParams.get("path") === path ||
+                (Array.isArray(files) &&
+                  files.some(
+                    (file: unknown) =>
+                      typeof file === "object" &&
+                      file !== null &&
+                      "path" in file &&
+                      file.path === path,
+                  )));
+            if (!requested) return original(input, init);
             window.diffLoadingQa.requests += 1;
             const outcome = window.diffLoadingQa.next;
             window.diffLoadingQa.next = null;
@@ -67,10 +86,24 @@ export async function checkDiffLoading(browser: Browser, base: URL): Promise<voi
                 JSON.stringify({ error: { code: "internal_error", message: "Diff retry QA" } }),
                 { status: 503, headers: { "Content-Type": "application/json" } },
               );
-            if (outcome === "stale")
-              return new Response(JSON.stringify({ kind: "stale" }), {
-                headers: { "Content-Type": "application/json" },
-              });
+            if (outcome === "stale") {
+              if (batch === null || !("revision" in batch) || !("changeToken" in batch))
+                throw new Error("Missing stale batch snapshot");
+              return new Response(
+                JSON.stringify({
+                  kind: "stale",
+                  source: JSON.stringify([
+                    "changes",
+                    url.pathname.split("/")[3],
+                    batch.revision,
+                    batch.changeToken,
+                  ]),
+                }),
+                {
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+            }
             if (outcome !== "held") return original(input, init);
             let release = () => {};
             const gate = new Promise<void>((resolve) => {
@@ -118,8 +151,9 @@ export async function checkDiffLoading(browser: Browser, base: URL): Promise<voi
       await picker.selectOption("text");
       await page.waitForFunction(() => window.diffLoadingQa.held[1]?.ready === true);
       await picker.selectOption("cpp");
-      await card.locator(".diff-language-row > span").getByText("cpp", { exact: true }).waitFor();
+      // Release the abandoned buffered batch so the single transport slot can advance.
       await page.evaluate(() => window.diffLoadingQa.held[1]?.release());
+      await card.locator(".diff-language-row > span").getByText("cpp", { exact: true }).waitFor();
       await settle(page);
       if ((await card.locator(".diff-language-row > span").innerText()) !== "cpp")
         throw new Error(`${domain}: superseded language replaced the current payload`);
@@ -144,10 +178,20 @@ export async function checkDiffLoading(browser: Browser, base: URL): Promise<voi
 
       if (domain === "working") {
         const statuses = await page.evaluate(() => {
+          Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            get: () => "hidden",
+          });
+          document.dispatchEvent(new Event("visibilitychange"));
           window.diffLoadingQa.next = "stale";
           return window.diffLoadingQa.statuses;
         });
         await picker.selectOption("python");
+        await page.locator(".changes-update").waitFor({ state: "visible" });
+        await settle(page);
+        if ((await page.evaluate(() => window.diffLoadingQa.statuses)) !== statuses)
+          throw new Error("Stale cards automatically refreshed the displayed snapshot");
+        await page.locator(".changes-update").click();
         await page.waitForFunction(
           (statuses) => window.diffLoadingQa.statuses > statuses,
           statuses,

@@ -1045,6 +1045,7 @@ export function App() {
                       back: showList,
                       toggleWrap,
                       refresh: review.actions.refresh,
+                      notifyStale: review.actions.notifyStale,
                       toggleEntry: review.actions.toggleEntry,
                       comment: feedback.actions.chooseLine,
                     }}

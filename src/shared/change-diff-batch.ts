@@ -1,0 +1,78 @@
+import { parseDiffResponse, type ChangeLayer, type DiffResult } from "./api.ts";
+import {
+  maxDiffBatchFiles,
+  parseDiffBatchFiles,
+  parseDiffBatchResponse,
+  type DiffBatchResponse,
+} from "./diff-batch.ts";
+import { gitPath } from "./git.ts";
+import { expectRecord, expectString } from "./validation.ts";
+
+export type ChangeDiffRequest = { layer: ChangeLayer; path: string; language: string | null };
+export type ChangeDiffBatchRequest = {
+  revision: string;
+  changeToken: string;
+  files: ChangeDiffRequest[];
+};
+type CurrentDiff = Exclude<DiffResult, { kind: "stale" }>;
+export type ChangeDiffBatchResponse =
+  DiffBatchResponse<CurrentDiff> | { kind: "stale"; source: string };
+
+export function changeDiffRequestKey(file: ChangeDiffRequest): string {
+  return JSON.stringify([file.layer, file.path, file.language]);
+}
+
+export function changeDiffBatchSource(id: string, revision: string, changeToken: string): string {
+  return JSON.stringify(["changes", id, revision, changeToken]);
+}
+
+export function parseChangeDiffBatchRequest(value: unknown): ChangeDiffBatchRequest {
+  const outer = expectRecord(value, "change diff batch request");
+  if (Object.keys(outer).some((key) => !["revision", "changeToken", "files"].includes(key)))
+    throw new Error("Unexpected change diff batch field");
+  const revision = expectString(outer["revision"], "revision");
+  const changeToken = expectString(outer["changeToken"], "change token");
+  if (!/^[0-9a-f]{20}$/.test(revision) || !/^[0-9a-f]{20}$/.test(changeToken))
+    throw new Error("Invalid change diff version");
+  const files = parseDiffBatchFiles(
+    { files: outer["files"] },
+    (value): ChangeDiffRequest => {
+      const file = expectRecord(value, "change diff request");
+      if (Object.keys(file).some((key) => !["layer", "path", "language"].includes(key)))
+        throw new Error("Unexpected change diff request field");
+      const layer = file["layer"];
+      if (
+        layer !== "staged" &&
+        layer !== "unstaged" &&
+        layer !== "untracked" &&
+        layer !== "conflict"
+      )
+        throw new Error("Invalid change layer");
+      const language =
+        file["language"] === null ? null : expectString(file["language"], "language");
+      if (language !== null && (language.length === 0 || language.length > 100))
+        throw new Error("Invalid language override");
+      return { layer, path: gitPath(file["path"]), language };
+    },
+    changeDiffRequestKey,
+  );
+  return { revision, changeToken, files };
+}
+
+export function parseChangeDiffBatchResponse(
+  value: unknown,
+  source: string,
+  keys: readonly string[],
+): ChangeDiffBatchResponse {
+  const outer = expectRecord(value, "change diff batch response");
+  if (outer["kind"] === "stale") {
+    if (outer["source"] !== source || keys.length < 1 || keys.length > maxDiffBatchFiles)
+      throw new Error("Stale diff batch does not match its source");
+    return { kind: "stale", source };
+  }
+  return parseDiffBatchResponse(value, source, keys, (value) => {
+    const diff = parseDiffResponse(value);
+    if (diff.kind === "stale") throw new Error("Stale diff must invalidate its whole batch");
+    return diff;
+  });
+}

@@ -62,7 +62,7 @@ try {
           `${name}: staged deletions missing`,
         );
         assert(
-          requests.filter((url) => new URL(url).pathname.endsWith("/diff")).length === 0,
+          requests.filter((url) => /\/diffs?$/.test(new URL(url).pathname)).length === 0,
           `${name}: collapsed counts loaded patches`,
         );
         assert(
@@ -202,6 +202,16 @@ try {
             "Update collapsed an open card",
           );
           await writeFile(fixture, original);
+          // Restoring the fixture changes its metadata token too. Accept that snapshot
+          // before opening another card under the stricter diff source checks.
+          const restored = page.waitForResponse(
+            (response) =>
+              new URL(response.url()).pathname.endsWith("/status") &&
+              new URL(response.url()).search === "",
+          );
+          await page.getByRole("button", { name: "Refresh", exact: true }).click();
+          await restored;
+          await card.locator(".diff-row-added").first().waitFor({ state: "visible" });
         }
         if (name === "narrowPhone") {
           await page.route(
@@ -276,7 +286,7 @@ try {
           return heading !== null && getComputedStyle(heading).borderRadius === "0px";
         });
         const beforeJump = page.url();
-        const diffReads = requests.filter((url) => new URL(url).pathname.endsWith("/diff")).length;
+        const diffReads = requests.filter((url) => /\/diffs?$/.test(new URL(url).pathname)).length;
         const jump = page.getByRole("button", {
           name: "Go to start of untracked changes",
           exact: true,
@@ -305,7 +315,7 @@ try {
         });
         assert(
           page.url() === beforeJump &&
-            requests.filter((url) => new URL(url).pathname.endsWith("/diff")).length ===
+            requests.filter((url) => /\/diffs?$/.test(new URL(url).pathname)).length ===
               diffReads &&
             (await tall.locator(".diff-card-toggle").getAttribute("aria-expanded")) === "true",
           `${name}: section jump changed navigation, expansion or data`,

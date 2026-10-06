@@ -42,9 +42,17 @@ background on the heading.
 
 `GET /api/projects/:id/diff?layer=<layer>&path=<selected-folder-relative-path>&revision=<status-revision>`
 revalidates the opened project and matches the requested layer/path to the current status inventory.
-A stale revision returns a typed stale response so the UI can refresh without attaching a diff to
-the wrong version. The server checks status again after reading the diff to catch changes during the
-request. The client never supplies an old path or arbitrary Git revision.
+A stale revision returns a typed stale response. An optional `changeToken` query also checks
+ordinary edits that leave the Git revision unchanged; the batched card fallback supplies it. The
+server checks status again after reading the diff to catch changes during the request. The client
+never supplies an old path or arbitrary Git revision.
+
+Changes cards use `POST /api/projects/:id/diffs` with both snapshot tokens and a bounded list of
+layer/path/language requests. The server resolves them from one status inventory, then checks both
+tokens again after the batch; any stale file or changed token discards the whole batch. Independent
+file failures retain their own errors. The client shares Git's bounded queue, response accounting
+and fallback mechanism. The [batching record](diff-batching-and-bulk-controls-proposal.md) owns
+limits, source identity and measurements.
 
 The response is a discriminated union: `text` with hunks, `media`, `binary`, `too_large`,
 `conflict`, or `stale`. Each text line has kind (`context`, `added`, or `removed`), old and new line
@@ -83,10 +91,11 @@ belongs to its preview boundary. Syntax and word decoration accept and return te
   empty files need explicit representations.
 - Binary files, symlinks, submodules, conflicts, and files beyond the text limit must not be decoded
   as ordinary UTF-8 code.
-- If the repository changes between status and diff requests, return stale and keep the open-card
-  state while refreshing. Tab-memory scroll restoration and one-time URL target focus are documented
-  in the [loading record](loading-and-transition-polish.md); arbitrary scroll positions are not
-  persisted across reload.
+- If the repository changes between status and diff requests, return stale, retain open-card choices
+  and announce **New edits · Update**. The reader explicitly applies Update or Refresh; stale cards
+  do not start automatic refresh loops. Tab-memory scroll restoration and one-time URL target focus
+  are documented in the [loading record](loading-and-transition-polish.md); arbitrary scroll
+  positions are not persisted across reload.
 - On phone, use one-column inline rows with touch-sized expand controls. Long code lines scroll
   inside the card when wrapping is off.
 
