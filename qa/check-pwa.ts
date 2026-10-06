@@ -84,7 +84,7 @@ await withQaBrowser(async (browser) => {
       throw new Error("Export omitted the review record");
     if (
       !("version" in backup) ||
-      backup.version !== 5 ||
+      backup.version !== 6 ||
       !("codeTypography" in backup) ||
       typeof backup.codeTypography !== "object" ||
       backup.codeTypography === null ||

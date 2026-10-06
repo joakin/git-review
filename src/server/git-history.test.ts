@@ -11,7 +11,7 @@ import {
   readGitHistory,
   readGitRefs,
 } from "./git-history.ts";
-import { approveRoot, openProject } from "./paths.ts";
+import { approveRoot, resolveProject } from "./paths.ts";
 
 function commit(cwd: string, message: string): string {
   git(cwd, "add", ".");
@@ -37,7 +37,7 @@ test("commit inspection reads immutable full messages, root/parent diffs and fil
     const second = commit(directory, "Second");
     await rm(join(directory, "value.ts"));
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const refs = await readGitRefs(project);
     expect(refs.kind === "git" && refs.head).toEqual({
       kind: "branch",
@@ -90,7 +90,7 @@ test("historical binary and oversized content keep their variants for root and p
     await writeFile(join(directory, "large.txt"), "b".repeat(1024 * 1024 + 1));
     const second = commit(directory, "Replace non-text content");
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     for (const oid of [first, second]) {
       const detail = await readCommit(project, oid);
       expect(await readCommitDiff(project, detail, file(detail, "binary.dat"), null)).toEqual({
@@ -108,7 +108,7 @@ test("branches, detached/unborn states, pagination snapshots, merges and empty c
   await withTempDirectory("git-review-history-list-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     expect(await readGitRefs(project)).toEqual({
       kind: "git",
       head: { kind: "unborn", ref: "refs/heads/main" },
@@ -184,12 +184,15 @@ test("project-subfolder history confines both sides, including renames across it
     git(directory, "mv", "outside.txt", "inside/inbound.txt");
     git(directory, "mv", "inside/outbound.txt", "outbound.txt");
     const oid = commit(directory, "Cross boundary");
-    const repository = await openProject(await approveRoot(directory), "");
+    const repository = await resolveProject(
+      await approveRoot(directory),
+      (await approveRoot(directory)).realPath,
+    );
     const wholeCommit = await readCommit(repository, oid);
     expect(wholeCommit.scope).toBe("");
     expect(wholeCommit.files.map((file) => file.kind)).toEqual(["renamed", "renamed"]);
     const root = await approveRoot(join(directory, "inside"));
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const detail = await readCommit(project, oid);
     expect(detail.scope).toBe("inside");
     expect(detail.files.map((file) => [file.path, file.kind])).toEqual([
@@ -221,7 +224,7 @@ test("shallow missing parents recover after fetching and messages respect the ex
     const clone = join(directory, "clone");
     git(directory, "clone", "-q", "--depth=1", `file://${directory}`, clone);
     const root = await approveRoot(clone);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const detail = await readCommit(project, oid);
     expect(detail.parents).toEqual([base]);
     expect(detail.comparison).toEqual({ kind: "missing_parent", oid: base });
@@ -237,12 +240,18 @@ test("shallow missing parents recover after fetching and messages respect the ex
     expect(recovered.stats).toEqual({ kind: "ready", added: 1, deleted: 1, binaryFiles: 0 });
     expect(await readCommit(project, oid)).toEqual(recovered);
     git(directory, "commit", "--allow-empty", "-qm", "x".repeat(65_537));
-    const original = await openProject(await approveRoot(directory), "");
+    const original = await resolveProject(
+      await approveRoot(directory),
+      (await approveRoot(directory)).realPath,
+    );
     await expect(readCommit(original, git(directory, "rev-parse", "HEAD"))).rejects.toThrow(
       "64 KiB",
     );
     await expect(readCommit(original, "a".repeat(40))).rejects.toThrow("no longer available");
-    const folder = await openProject(await approveRoot(tmpdir()), "");
+    const folder = await resolveProject(
+      await approveRoot(tmpdir()),
+      (await approveRoot(tmpdir())).realPath,
+    );
     expect(await readGitRefs(folder)).toEqual({ kind: "not_git" });
   });
 });
@@ -254,7 +263,10 @@ test("cached commit details recheck missing commit and parent objects and recove
     const parent = commit(directory, "Base");
     await writeFile(join(directory, "value.txt"), "changed\n");
     const oid = commit(directory, "Changed");
-    const project = await openProject(await approveRoot(directory), "");
+    const project = await resolveProject(
+      await approveRoot(directory),
+      (await approveRoot(directory)).realPath,
+    );
     const detail = await readCommit(project, oid);
     expect(await readCommit(project, oid)).toEqual(detail);
 
@@ -302,7 +314,10 @@ test("commit line totals agree across history and detail for text, binary, renam
     const second = commit(directory, "Edited stats");
     await rm(join(directory, "value.txt"));
     const deleted = commit(directory, "Deleted text");
-    const project = await openProject(await approveRoot(directory), "");
+    const project = await resolveProject(
+      await approveRoot(directory),
+      (await approveRoot(directory)).realPath,
+    );
     const history = await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" });
     for (const [oid, stats] of [
       [first, { kind: "ready", added: 5, deleted: 0, binaryFiles: 1 }],
@@ -336,7 +351,10 @@ test("statistics limits preserve readable history instead of fabricating zero to
     await writeFile(message, "Large body\n\n" + "x".repeat(8 * 1024 * 1024));
     const oid = git(directory, "commit-tree", "HEAD^{tree}", "-p", base, "-F", message);
     git(directory, "update-ref", "refs/heads/main", oid);
-    const project = await openProject(await approveRoot(directory), "");
+    const project = await resolveProject(
+      await approveRoot(directory),
+      (await approveRoot(directory)).realPath,
+    );
     const history = await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" });
     expect(history.commits[0]?.subject).toBe("Large body");
     expect(history.commits[0]?.stats).toEqual({ kind: "unavailable", reason: "limit" });

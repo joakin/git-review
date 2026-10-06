@@ -1,3 +1,4 @@
+import { projectLookupResponse } from "./browser-support.ts";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { type Locator, type Page } from "playwright-core";
@@ -23,16 +24,10 @@ const first = "export const repeated = 'again' + 'again' + '🦊';";
 const long = `const long = '${"read code with me; ".repeat(12)}';`;
 const original = `${first}\n\tconst spanning = repeated + 1;\n${long}\n   \nlast`;
 const project = parseProjectResponse(
-  await responseBody(
-    await fetch(`${origin}/api/projects/open`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ path: "inventory-fixture" }),
-    }),
-  ),
+  await responseBody(await projectLookupResponse(origin, "inventory-fixture")),
 );
-const key = `git-review:comments:v1:${project.id}`;
-const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.path, file: path })}`;
+const key = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`;
+const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const previous = await readFile(location, "utf8").catch((error: unknown) => {
   if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
   throw error;
@@ -82,7 +77,7 @@ async function readStore(page: Page): Promise<CommentStore> {
     (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
     key,
   );
-  const store = validateCommentStore(raw, project.id);
+  const store = validateCommentStore(raw, project.absolutePath);
   if (store === null) throw new Error("Invalid selection store");
   return store;
 }
@@ -321,7 +316,7 @@ try {
 
           await writeFile(location, original);
           await page.goto(
-            `${origin}/?${new URLSearchParams({ section: "search", project: project.path, q: "again", file: path, line: "1" })}`,
+            `${origin}/?${new URLSearchParams({ section: "search", project: project.relativePath, q: "again", file: path, line: "1" })}`,
           );
           await code.waitFor({ state: "visible" });
           await range(code, second, second + 5);
@@ -353,7 +348,7 @@ try {
             const raw: unknown = JSON.parse(bytes.toString("utf8"));
             const backup = parseReviewBackup(raw, resolve("qa/.artifacts"));
             assert(
-              backup.version === 5 &&
+              backup.version === 6 &&
                 JSON.stringify(backup.comments[0]) === JSON.stringify(beforeExport),
               "Backup omitted selections",
             );
@@ -407,7 +402,7 @@ try {
     await withQaContext(browser, qaProfiles.desktop, async (context) => {
       const page = await context.newPage();
       await page.goto(
-        `${origin}/?${new URLSearchParams({ section: "changes", project: project.path })}`,
+        `${origin}/?${new URLSearchParams({ section: "changes", project: project.relativePath })}`,
       );
       const card = page.locator('.diff-card[data-layer="unstaged"][data-path="src/view.ts"]');
       await card.locator(".diff-card-toggle").click();

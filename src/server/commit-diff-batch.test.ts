@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../shared/project-path.ts";
+import { projectRequestUrl } from "../test-support.ts";
 import { expect, test } from "bun:test";
 import { mkdir, rename, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -41,15 +43,16 @@ test("commit batches match individual source reads, isolate file errors and reva
       const oid = git(repo, "rev-parse", "HEAD");
       const handle = createApiHandler(await approveRoot(directory));
       const opened = await handle(
-        new Request("http://localhost/api/projects/open", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path: "repo" }),
-        }),
+        new Request(
+          "http://localhost" + projectApiUrl("", (await approveRoot(directory)).realPath + "/repo"),
+        ),
       );
       const project = parseProjectResponse((await opened.json()) as unknown);
-      const base = `http://localhost/api/projects/${project.id}/git/commits/${oid}`;
-      const post = (body: unknown, url = `${base}/diffs`) =>
+      const base = `http://localhost/api/project/git/commits/${oid}`;
+      const post = (
+        body: unknown,
+        url = projectRequestUrl(`${base}/diffs`, project.absolutePath),
+      ) =>
         handle(
           new Request(url, {
             method: "POST",
@@ -68,7 +71,7 @@ test("commit batches match individual source reads, isolate file errors and reva
       expect(response.status).toBe(200);
       const batch = parseDiffBatchResponse(
         (await response.json()) as unknown,
-        commitDiffBatchSource(project.id, oid),
+        commitDiffBatchSource(project.absolutePath, oid),
         files.map(commitDiffRequestKey),
         parseCommitDiff,
       );
@@ -78,10 +81,14 @@ test("commit batches match individual source reads, isolate file errors and reva
           expect(item).toMatchObject({ kind: "error", status: 404 });
           continue;
         }
-        const query = new URLSearchParams({ path: file.path });
+        const query = new URLSearchParams({ projectPath: project.absolutePath, path: file.path });
         if (file.language !== null) query.set("language", file.language);
         const single = parseCommitDiff(
-          (await (await handle(new Request(`${base}/diff?${query}`))).json()) as unknown,
+          (await (
+            await handle(
+              new Request(projectRequestUrl(`${base}/diff?${query}`, project.absolutePath)),
+            )
+          ).json()) as unknown,
         );
         expect(item?.kind).toBe("ready");
         if (item?.kind === "ready") expect(item.value).toEqual(single);
@@ -114,7 +121,10 @@ test("commit batches match individual source reads, isolate file errors and reva
         },
       ])
         expect((await post(body)).status).toBe(400);
-      expect((await post({ files }, `${base}/diffs?extra=1`)).status).toBe(400);
+      expect(
+        (await post({ files }, projectRequestUrl(`${base}/diffs?extra=1`, project.absolutePath)))
+          .status,
+      ).toBe(400);
       expect(
         (await post({ files: [], padding: "x".repeat(maxDiffBatchRequestBytes) })).status,
       ).toBe(413);
@@ -144,11 +154,9 @@ test("commit batch subfolder scope and shallow-parent recovery match individual 
     git(directory, "clone", "-q", "--depth=1", `file://${repo}`, clone);
     const handle = createApiHandler(await approveRoot(clone));
     const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "inside" }),
-      }),
+      new Request(
+        "http://localhost" + projectApiUrl("", (await approveRoot(clone)).realPath + "/inside"),
+      ),
     );
     const project = parseProjectResponse((await opened.json()) as unknown);
     const files = [
@@ -157,11 +165,17 @@ test("commit batch subfolder scope and shallow-parent recovery match individual 
     ];
     const post = () =>
       handle(
-        new Request(`http://localhost/api/projects/${project.id}/git/commits/${oid}/diffs`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ files }),
-        }),
+        new Request(
+          projectRequestUrl(
+            `http://localhost/api/project/git/commits/${oid}/diffs`,
+            project.absolutePath,
+          ),
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ files }),
+          },
+        ),
       );
     expect((await post()).status).toBe(409);
     git(clone, "fetch", "-q", "--unshallow");
@@ -169,7 +183,7 @@ test("commit batch subfolder scope and shallow-parent recovery match individual 
     expect(response.status).toBe(200);
     const batch = parseDiffBatchResponse(
       (await response.json()) as unknown,
-      commitDiffBatchSource(project.id, oid),
+      commitDiffBatchSource(project.absolutePath, oid),
       files.map(commitDiffRequestKey),
       parseCommitDiff,
     );

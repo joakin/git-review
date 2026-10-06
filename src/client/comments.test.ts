@@ -143,15 +143,15 @@ describe("review feedback", () => {
       return { ...original, anchor: { ...original.anchor, layer } };
     });
     const store = {
-      ...emptyCommentStore("project"),
+      ...emptyCommentStore("/repo/project"),
       drafts,
       history: [
         { id: "copy", copiedAt: 2, text: formatFeedback("/repo", drafts), comments: drafts },
       ],
     };
     const persisted: unknown = JSON.parse(JSON.stringify(store));
-    expect(validateCommentStore(persisted, "project")).toEqual(store);
-    expect(parseCommentStore(persisted, "project")).toEqual(store);
+    expect(validateCommentStore(persisted, "/repo/project")).toEqual(store);
+    expect(parseCommentStore(persisted, "/repo/project")).toEqual(store);
   });
 
   test("invalid layers in drafts or history reject the whole persisted store", () => {
@@ -160,9 +160,9 @@ describe("review feedback", () => {
     for (const layer of ["conflict", "unknown", null]) {
       const invalid = { ...original, anchor: { ...original.anchor, layer } };
       const stores = [
-        { ...emptyCommentStore("project"), drafts: [valid, invalid] },
+        { ...emptyCommentStore("/repo/project"), drafts: [valid, invalid] },
         {
-          ...emptyCommentStore("project"),
+          ...emptyCommentStore("/repo/project"),
           drafts: [valid],
           history: [
             { id: "copy", copiedAt: 2, text: "Previous feedback", comments: [valid, invalid] },
@@ -170,21 +170,24 @@ describe("review feedback", () => {
         },
       ];
       for (const store of stores) {
-        expect(validateCommentStore(store, "project")).toBeNull();
-        expect(parseCommentStore(store, "project")).toEqual(emptyCommentStore("project"));
+        expect(validateCommentStore(store, "/repo/project")).toBeNull();
+        expect(parseCommentStore(store, "/repo/project")).toEqual(
+          emptyCommentStore("/repo/project"),
+        );
       }
     }
   });
 
   test("storage rejects malformed and oversized records instead of importing partial state", () => {
-    const store = { ...emptyCommentStore("project"), drafts: [draft("one", "old", 1)] };
-    expect(parseCommentStore(store, "project").drafts).toHaveLength(1);
+    const store = { ...emptyCommentStore("/repo/project"), drafts: [draft("one", "old", 1)] };
+    expect(parseCommentStore(store, "/repo/project").drafts).toHaveLength(1);
     expect(
-      parseCommentStore({ ...store, drafts: [{ ...store.drafts[0], body: " " }] }, "project")
+      parseCommentStore({ ...store, drafts: [{ ...store.drafts[0], body: " " }] }, "/repo/project")
         .drafts,
     ).toHaveLength(0);
     expect(
-      parseCommentStore({ ...store, drafts: Array(201).fill(store.drafts[0]) }, "project").drafts,
+      parseCommentStore({ ...store, drafts: Array(201).fill(store.drafts[0]) }, "/repo/project")
+        .drafts,
     ).toHaveLength(0);
     expect(parseCommentStore(store, "other").drafts).toHaveLength(0);
   });
@@ -192,7 +195,7 @@ describe("review feedback", () => {
   test("a successful copy snapshots only current comments and keeps outdated drafts", () => {
     const current = draft("one", "old", 1);
     const outdated = { ...draft("two", "new", 2), state: "outdated" as const };
-    const store = { ...emptyCommentStore("project"), drafts: [current, outdated] };
+    const store = { ...emptyCommentStore("/repo/project"), drafts: [current, outdated] };
     const copied = recordSuccessfulCopy(
       store,
       snapshotFeedback("/repo", store, store),
@@ -209,27 +212,31 @@ describe("review feedback", () => {
     const deleted = draft("deleted", "new", 2);
     const reattached = draft("reattached", "new", 2);
     const checked: CheckedComments = {
-      projectId: "project",
+      projectPath: "/repo/project",
       drafts: [original, deleted, reattached].map((item) => ({ ...item, state: "outdated" })),
     };
     const edited = { ...original, body: "New body", updatedAt: 2 };
     const moved = { ...reattached, anchor: { ...reattached.anchor, line: 3 }, updatedAt: 2 };
     const added = draft("added", "old", 1);
     const history = [{ id: "history", copiedAt: 2, text: "Previous copy", comments: [original] }];
-    const store = { ...emptyCommentStore("project"), drafts: [edited, moved, added], history };
+    const store = {
+      ...emptyCommentStore("/repo/project"),
+      drafts: [edited, moved, added],
+      history,
+    };
     const merged = mergeCheckedComments(store, checked);
     expect(merged.drafts).toEqual([{ ...edited, state: "outdated" }, moved, added]);
     expect(merged.history).toEqual(history);
-    expect(mergeCheckedComments(store, { ...checked, projectId: "other" })).toBe(store);
+    expect(mergeCheckedComments(store, { ...checked, projectPath: "other" })).toBe(store);
   });
 
   test("copy snapshots include only checked anchors and isolate the exported values", () => {
     const original = draft("one", "old", 1);
     const moved = draft("moved", "new", 2);
     const added = draft("added", "new", 2);
-    const checked: CheckedComments = { projectId: "project", drafts: [original, moved] };
+    const checked: CheckedComments = { projectPath: "/repo/project", drafts: [original, moved] };
     const store = {
-      ...emptyCommentStore("project"),
+      ...emptyCommentStore("/repo/project"),
       drafts: [
         { ...original, body: "Latest body" },
         { ...moved, anchor: { ...moved.anchor, line: 7 } },
@@ -245,12 +252,12 @@ describe("review feedback", () => {
     first.anchor.sourceText = "Later source";
     expect(snapshot.drafts[0]?.body).toBe("Latest body");
     expect(snapshot.drafts[0]?.anchor.sourceText).toBe("old");
-    expect(snapshotFeedback("/repo", store, { ...checked, projectId: "other" }).text).toBe("");
+    expect(snapshotFeedback("/repo", store, { ...checked, projectPath: "other" }).text).toBe("");
   });
 
   test("copy removes only the full exported version and retains every changed anchor field", () => {
     const original = draft("one", "old", 1);
-    const initial = { ...emptyCommentStore("project"), drafts: [original] };
+    const initial = { ...emptyCommentStore("/repo/project"), drafts: [original] };
     const snapshot = snapshotFeedback("/repo", initial, initial);
     const changedAnchors: CommentAnchor[] = [
       { ...original.anchor, layer: "staged" },
@@ -281,7 +288,7 @@ describe("review feedback", () => {
   test("copy appends to current history with its bound and preserves version-two reload", () => {
     const original = draft("one", "old", 1);
     const store = {
-      ...emptyCommentStore("project"),
+      ...emptyCommentStore("/repo/project"),
       drafts: [original],
       history: Array.from({ length: 20 }, (_, index) => ({
         id: `history-${index}`,
@@ -301,20 +308,20 @@ describe("review feedback", () => {
       "latest",
       ...store.history.slice(0, 19).map((item) => item.id),
     ]);
-    expect(parseCommentStore(JSON.parse(JSON.stringify(copied)) as unknown, "project")).toEqual(
-      copied,
-    );
+    expect(
+      parseCommentStore(JSON.parse(JSON.stringify(copied)) as unknown, "/repo/project"),
+    ).toEqual(copied);
   });
 
   test("the history text boundary accepts its limit and refuses overflow without clearing drafts", () => {
-    const store = { ...emptyCommentStore("project"), drafts: [draft("one", "old", 1)] };
+    const store = { ...emptyCommentStore("/repo/project"), drafts: [draft("one", "old", 1)] };
     const snapshot = snapshotFeedback("/repo", store, store);
     const bounded = { ...snapshot, text: "x".repeat(maxFeedbackLength) };
     const copied = recordSuccessfulCopy(store, bounded, 2, "copy");
     expect(copied.drafts).toEqual([]);
-    expect(parseCommentStore(JSON.parse(JSON.stringify(copied)) as unknown, "project")).toEqual(
-      copied,
-    );
+    expect(
+      parseCommentStore(JSON.parse(JSON.stringify(copied)) as unknown, "/repo/project"),
+    ).toEqual(copied);
     expect(recordSuccessfulCopy(store, { ...bounded, text: `${bounded.text}x` }, 2, "copy")).toBe(
       store,
     );
@@ -326,7 +333,7 @@ describe("review feedback", () => {
     const missing = draft("missing", "new", 2);
     const olderEntry = { id: "older", copiedAt: 1, text: "Older copy", comments: [original] };
     const store = {
-      ...emptyCommentStore("project"),
+      ...emptyCommentStore("/repo/project"),
       drafts: [newer],
       history: [
         { id: "last-copy", copiedAt: 2, text: "Last copy", comments: [original, missing] },
@@ -343,7 +350,7 @@ describe("review feedback", () => {
   test("Undo refuses an oversized restore atomically and remains available after space is freed", () => {
     const missing = [draft("restore-one", "old", 1), draft("restore-two", "new", 2)];
     const store = {
-      ...emptyCommentStore("project"),
+      ...emptyCommentStore("/repo/project"),
       drafts: Array.from({ length: maxDrafts - 1 }, (_, index) =>
         draft(`present-${index}`, "old", 1),
       ),
@@ -356,8 +363,8 @@ describe("review feedback", () => {
     expect(restored.drafts).toHaveLength(maxDrafts);
     expect(restored.drafts.slice(-2)).toEqual(missing);
     expect(restored.history).toEqual([]);
-    expect(parseCommentStore(JSON.parse(JSON.stringify(restored)) as unknown, "project")).toEqual(
-      restored,
-    );
+    expect(
+      parseCommentStore(JSON.parse(JSON.stringify(restored)) as unknown, "/repo/project"),
+    ).toEqual(restored);
   });
 });

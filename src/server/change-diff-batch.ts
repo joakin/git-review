@@ -30,7 +30,7 @@ export async function readChangeDiffBatch(
   } catch {
     throw new AppError("invalid_request", 400, "Invalid change diff batch");
   }
-  const source = changeDiffBatchSource(project.id, request.revision, request.changeToken);
+  const source = changeDiffBatchSource(project.absolutePath, request.revision, request.changeToken);
   const stale = () =>
     Response.json({ kind: "stale", source }, { headers: { "cache-control": "no-store" } });
   if (signal.aborted) return new Response(null, { status: 499 });

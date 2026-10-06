@@ -12,7 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { approveRoot, openProject } from "./paths.ts";
+import { approveRoot, resolveProject } from "./paths.ts";
 import { workingVersion } from "./image-types.ts";
 import { audioVideoResponse } from "./media-stream.ts";
 import {
@@ -32,7 +32,7 @@ test("streaming ownership closes checked descriptors after completion, HEAD, inv
   try {
     await mkdir(join(base, "project"));
     const root = await approveRoot(base);
-    const project = await openProject(root, "project");
+    const project = await resolveProject(root, root.realPath + "/project");
     const bytes = Buffer.alloc(128 * 1024, 42);
     const path = "sound.wav";
     const absolutePath = join(project.absolutePath, path);
@@ -84,7 +84,7 @@ test("checked reads preserve literal names and bytes and close on success or con
   try {
     await mkdir(join(base, "project", "src\\literal"), { recursive: true });
     const root = await approveRoot(base);
-    const project = await openProject(root, "project");
+    const project = await resolveProject(root, root.realPath + "/project");
     const path = "src\\literal/odd\\name.txt";
     const bytes = Buffer.from("first\r\nsecond\r\n");
     await writeFile(join(project.absolutePath, path), bytes);
@@ -132,7 +132,7 @@ test("checked paths reject traversal and intermediate links, and classify links 
     await symlink(join(base, "project", "src"), join(base, "project", "internal"));
     execFileSync("mkfifo", [join(base, "project", "pipe")]);
     const root = await approveRoot(base);
-    const project = await openProject(root, "project");
+    const project = await resolveProject(root, root.realPath + "/project");
     expect((await checkedProjectPath(root, project, "final.txt")).kind).toBe("symlink");
     expect((await checkedProjectPath(root, project, "pipe")).kind).toBe("other");
     for (const path of ["final.txt", "pipe", "src", ""])
@@ -181,7 +181,7 @@ for (const change of [
     try {
       await mkdir(join(base, "project", "src"), { recursive: true });
       const root = await approveRoot(base);
-      const project = await openProject(root, "project");
+      const project = await resolveProject(root, root.realPath + "/project");
       const path = "src/odd\\name.txt";
       const absolutePath = join(project.absolutePath, path);
       await writeFile(absolutePath, "original\r\n");

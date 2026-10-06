@@ -29,7 +29,7 @@ export async function readCommitDiffBatch(
   if (detail.comparison.kind === "missing_parent")
     throw new AppError("not_found", 409, "The parent of this commit is missing from local history");
   return readDiffBatch(
-    commitDiffBatchSource(project.id, detail.oid),
+    commitDiffBatchSource(project.absolutePath, detail.oid),
     files,
     commitDiffRequestKey,
     async (request) => {

@@ -1,3 +1,4 @@
+import { isProjectPath } from "../shared/project-path.ts";
 import { commentStoragePrefix, validateCommentStore, type CommentStore } from "./comments.ts";
 import {
   appearanceStorageKey,
@@ -24,10 +25,9 @@ import { isRecord } from "../shared/validation.ts";
 export const maxBackupBytes = 25 * 1024 * 1024;
 const maxProjects = 32;
 const maxLanguages = 1000;
-const projectIdPattern = /^[0-9a-f]{20}$/;
 
-type SavedCards = { projectId: string; keys: string[] };
-type SavedLanguage = { projectId: string; path: string; language: string };
+type SavedCards = { projectPath: string; keys: string[] };
+type SavedLanguage = { projectPath: string; path: string; language: string };
 
 type ReviewBackupData = {
   rootPath: string;
@@ -37,14 +37,18 @@ type ReviewBackupData = {
   openCards: SavedCards[];
   languages: SavedLanguage[];
 };
-export type ReviewBackup =
-  | (ReviewBackupData & { version: 1 })
-  | (ReviewBackupData & { version: 2; codeTypography: CodeTypography })
-  | (ReviewBackupData & {
-      version: 3 | 4 | 5;
-      codeTypography: CodeTypography;
-      appearance: Appearance;
-    });
+export type ReviewBackup = ReviewBackupData & {
+  version: 6;
+  codeTypography: CodeTypography;
+  appearance: Appearance;
+};
+
+function projectInRoot(value: unknown, rootPath: string): value is string {
+  return (
+    isProjectPath(value) &&
+    (value === rootPath || value.startsWith(rootPath === "/" ? "/" : `${rootPath}/`))
+  );
+}
 
 function safePath(value: unknown): value is string {
   if (
@@ -62,8 +66,8 @@ function safePath(value: unknown): value is string {
   }
 }
 
-function uniqueProjectId(value: unknown, seen: Set<string>): value is string {
-  if (typeof value !== "string" || !projectIdPattern.test(value) || seen.has(value)) return false;
+function uniqueProjectPath(value: unknown, seen: Set<string>, rootPath: string): value is string {
+  if (!projectInRoot(value, rootPath) || seen.has(value)) return false;
   seen.add(value);
   return true;
 }
@@ -71,19 +75,15 @@ function uniqueProjectId(value: unknown, seen: Set<string>): value is string {
 export function parseReviewBackup(value: unknown, rootPath: string): ReviewBackup {
   if (
     !isRecord(value) ||
-    (value["version"] !== 1 &&
-      value["version"] !== 2 &&
-      value["version"] !== 3 &&
-      value["version"] !== 4 &&
-      value["version"] !== 5) ||
+    value["version"] !== 6 ||
+    !isProjectPath(rootPath) ||
     value["rootPath"] !== rootPath
   )
     throw new Error("This backup belongs to a different host root or uses an unsupported format.");
-  const version = value["version"];
-  const typography = version === 1 ? null : validateCodeTypography(value["codeTypography"]);
-  if (version !== 1 && typography === null) throw new Error("Backup code typography is invalid.");
-  const appearance = version >= 3 ? validateAppearance(value["appearance"]) : null;
-  if (version >= 3 && appearance === null) throw new Error("Backup appearance is invalid.");
+  const typography = validateCodeTypography(value["codeTypography"]);
+  if (typography === null) throw new Error("Backup code typography is invalid.");
+  const appearance = validateAppearance(value["appearance"]);
+  if (appearance === null) throw new Error("Backup appearance is invalid.");
   const workspace = validateSavedWorkspace(value["workspace"], rootPath);
   if (workspace === null || typeof value["wrap"] !== "boolean")
     throw new Error("Backup preferences are invalid.");
@@ -111,14 +111,9 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   const comments: CommentStore[] = [];
   const commentIds = new Set<string>();
   for (const item of rawComments) {
-    if (!isRecord(item) || !uniqueProjectId(item["projectId"], commentIds))
+    if (!isRecord(item) || !uniqueProjectPath(item["projectPath"], commentIds, rootPath))
       throw new Error("Backup contains an invalid or duplicate project comment record.");
-    if (
-      (version <= 3 && item["version"] !== 1) ||
-      (version === 4 && item["version"] !== 1 && item["version"] !== 2)
-    )
-      throw new Error("Backup contains invalid comments or copy history.");
-    const store = validateCommentStore(item, item["projectId"]);
+    const store = validateCommentStore(item, item["projectPath"]);
     if (store === null) throw new Error("Backup contains invalid comments or copy history.");
     comments.push(store);
   }
@@ -126,12 +121,12 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   const openCards: SavedCards[] = [];
   const cardIds = new Set<string>();
   for (const item of rawCards) {
-    if (!isRecord(item) || !uniqueProjectId(item["projectId"], cardIds))
+    if (!isRecord(item) || !uniqueProjectPath(item["projectPath"], cardIds, rootPath))
       throw new Error("Backup contains an invalid or duplicate open-card record.");
     const keys = validateOpenCards({ version: 1, keys: item["keys"] });
     if (keys === null || !Array.isArray(item["keys"]) || item["keys"].length !== keys.length)
       throw new Error("Backup contains invalid open-card state.");
-    openCards.push({ projectId: item["projectId"], keys });
+    openCards.push({ projectPath: item["projectPath"], keys });
   }
 
   const languages: SavedLanguage[] = [];
@@ -139,30 +134,35 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   for (const item of rawLanguages) {
     if (
       !isRecord(item) ||
-      typeof item["projectId"] !== "string" ||
-      !projectIdPattern.test(item["projectId"]) ||
+      typeof item["projectPath"] !== "string" ||
+      !projectInRoot(item["projectPath"], rootPath) ||
       !safePath(item["path"]) ||
       !isLanguageOverride(item["language"])
     ) {
       throw new Error("Backup contains an invalid language override.");
     }
-    const identity = `${item["projectId"]}:${encodeURIComponent(item["path"])}`;
+    const identity = JSON.stringify([item["projectPath"], item["path"]]);
     if (languageKeys.has(identity))
       throw new Error("Backup contains duplicate language overrides.");
     languageKeys.add(identity);
     languages.push({
-      projectId: item["projectId"],
+      projectPath: item["projectPath"],
       path: item["path"],
       language: item["language"],
     });
   }
 
-  const data = { rootPath, workspace, wrap: value["wrap"], comments, openCards, languages };
-  if (value["version"] === 1) return { version: 1, ...data };
-  if (typography === null) throw new Error("Backup code typography is invalid.");
-  if (version === 2) return { version: 2, ...data, codeTypography: typography };
-  if (appearance === null) throw new Error("Backup appearance is invalid.");
-  return { version, ...data, codeTypography: typography, appearance };
+  return {
+    version: 6,
+    rootPath,
+    workspace,
+    wrap: value["wrap"],
+    comments,
+    openCards,
+    languages,
+    codeTypography: typography,
+    appearance,
+  };
 }
 
 export function createReviewBackup(rootPath: string): ReviewBackup {
@@ -176,39 +176,42 @@ export function createReviewBackup(rootPath: string): ReviewBackup {
     const value = localStorage.getItem(key);
     if (value === null) continue;
     if (key.startsWith(commentStoragePrefix)) {
-      const projectId = key.slice(commentStoragePrefix.length);
-      if (!projectIdPattern.test(projectId))
+      const projectPath = decodeURIComponent(key.slice(commentStoragePrefix.length));
+      if (!isProjectPath(projectPath))
         throw new Error("Stored comment key is invalid; export stopped.");
-      const store = validateCommentStore(JSON.parse(value) as unknown, projectId);
+      if (!projectInRoot(projectPath, rootPath)) continue;
+      const store = validateCommentStore(JSON.parse(value) as unknown, projectPath);
       if (store === null)
-        throw new Error(`Stored comments for ${projectId} are invalid; export stopped.`);
+        throw new Error(`Stored comments for ${projectPath} are invalid; export stopped.`);
       comments.push(store);
     } else if (key.startsWith(openCardsStoragePrefix)) {
-      const projectId = key.slice(openCardsStoragePrefix.length);
-      if (!projectIdPattern.test(projectId))
+      const projectPath = decodeURIComponent(key.slice(openCardsStoragePrefix.length));
+      if (!isProjectPath(projectPath))
         throw new Error("Stored open-card key is invalid; export stopped.");
+      if (!projectInRoot(projectPath, rootPath)) continue;
       const keys = validateOpenCards(JSON.parse(value) as unknown);
       if (keys === null)
-        throw new Error(`Stored open cards for ${projectId} are invalid; export stopped.`);
-      openCards.push({ projectId, keys });
+        throw new Error(`Stored open cards for ${projectPath} are invalid; export stopped.`);
+      openCards.push({ projectPath, keys });
     } else if (key.startsWith(languageStoragePrefix)) {
-      const match = /^([0-9a-f]{20}):(.*)$/.exec(key.slice(languageStoragePrefix.length));
-      if (
-        match === null ||
-        match[1] === undefined ||
-        match[2] === undefined ||
-        !isLanguageOverride(value)
-      )
+      const match = /^([^:]+):(.*)$/.exec(key.slice(languageStoragePrefix.length));
+      if (match === null || match[1] === undefined || match[2] === undefined)
         throw new Error("Stored language override is invalid; export stopped.");
+      const projectPath = decodeURIComponent(match[1]);
+      if (!isProjectPath(projectPath))
+        throw new Error("Stored language project is invalid; export stopped.");
+      if (!projectInRoot(projectPath, rootPath)) continue;
       const path = decodeURIComponent(match[2]);
       if (!safePath(path))
         throw new Error("Stored language override path is invalid; export stopped.");
-      languages.push({ projectId: match[1], path, language: value });
+      if (!isLanguageOverride(value))
+        throw new Error("Stored language override is invalid; export stopped.");
+      languages.push({ projectPath, path, language: value });
     }
   }
   const backup = parseReviewBackup(
     {
-      version: 5,
+      version: 6,
       rootPath,
       workspace,
       wrap: readWrapPreference(),
@@ -230,20 +233,21 @@ export function applyReviewBackup(backup: ReviewBackup): void {
     [workspaceStorageKey, JSON.stringify(backup.workspace)],
     [wrapStorageKey, JSON.stringify(backup.wrap)],
   ]);
-  if (backup.version !== 1)
-    writes.set(codeTypographyStorageKey, JSON.stringify(backup.codeTypography));
-  if (backup.version !== 1 && backup.version !== 2)
-    writes.set(appearanceStorageKey, JSON.stringify(backup.appearance));
+  writes.set(codeTypographyStorageKey, JSON.stringify(backup.codeTypography));
+  writes.set(appearanceStorageKey, JSON.stringify(backup.appearance));
   for (const store of backup.comments)
-    writes.set(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store));
+    writes.set(
+      `${commentStoragePrefix}${encodeURIComponent(store.projectPath)}`,
+      JSON.stringify(store),
+    );
   for (const cards of backup.openCards)
     writes.set(
-      `${openCardsStoragePrefix}${cards.projectId}`,
+      `${openCardsStoragePrefix}${encodeURIComponent(cards.projectPath)}`,
       JSON.stringify({ version: 1, keys: cards.keys }),
     );
   for (const language of backup.languages)
     writes.set(
-      `${languageStoragePrefix}${language.projectId}:${encodeURIComponent(language.path)}`,
+      `${languageStoragePrefix}${encodeURIComponent(language.projectPath)}:${encodeURIComponent(language.path)}`,
       language.language,
     );
 

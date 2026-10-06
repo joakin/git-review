@@ -99,7 +99,7 @@ export async function inspectWorkingImage(
     return {
       kind: "ready",
       version,
-      resource: fileImageResource(project.id, path, version, mimeType, metadata.size),
+      resource: fileImageResource(project.absolutePath, path, version, mimeType, metadata.size),
     };
   });
 }
@@ -156,7 +156,7 @@ export async function inspectWorkingAudioVideo(
       kind: "ready",
       version,
       resource: fileAudioVideoResource(
-        project.id,
+        project.absolutePath,
         opened.path,
         version,
         type,

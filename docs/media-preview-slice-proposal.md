@@ -1,5 +1,10 @@
 # Native media previews in Files and change cards
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: approved by the maintainer and implemented. Image and audio/video checkpoints passed local
 and private HTTPS browser QA. Additional real-phone playback and raw-tab checks remain unverified
 [optional future work](initial-implementation-plan.md#remaining-roadmap).
@@ -33,9 +38,9 @@ change reviewable while delivering the requested media types in one planned slic
   versioned raw URL. A diff result has explicit Old and New states (`ready`, `absent`, or
   `unavailable`) so a deletion is distinct from a failed read. Text diffs keep their existing route;
   media bytes do not enter JSON.
-- The narrow raw routes are `GET/HEAD /api/projects/:id/raw/file?path=…&version=…` and
-  `GET/HEAD /api/projects/:id/raw/diff?layer=…&path=…&revision=…&side=old|new&version=…`. The server
-  generates these URLs from validated results. Each raw request revalidates the opened project,
+- The narrow raw routes are `GET/HEAD /api/project/raw/file?path=…&version=…` and
+  `GET/HEAD /api/project/raw/diff?layer=…&path=…&revision=…&side=old|new&version=…`. The server
+  generates these URLs from validated results. Each raw request resolves the absolute project path,
   approved root, project-relative path, file kind, layer/side, and version. There is no generic
   static-directory mapping for host files.
 - Read worktree bytes through [shared checked file access](working-file-boundaries.md), from an

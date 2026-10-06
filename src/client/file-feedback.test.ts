@@ -21,9 +21,8 @@ import {
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
 
 const project: Project = {
-  id: "aaaaaaaaaaaaaaaaaaaa",
   name: "Project",
-  path: "project",
+  relativePath: "project",
   absolutePath: "/repo/project",
 };
 function file(
@@ -78,7 +77,7 @@ function harness(
   drafts: DraftComment[],
   overrides: Partial<Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchFile" | "writeText">> = {},
 ) {
-  let store: CommentStore = { ...emptyCommentStore(project.id), drafts };
+  let store: CommentStore = { ...emptyCommentStore(project.absolutePath), drafts };
   let state: FeedbackState = { check: { kind: "idle" }, copy: { kind: "idle" } };
   const written: string[] = [];
   const engine = new FeedbackTransactions({
@@ -144,32 +143,10 @@ test("file anchors handle first, blank and last lines, exact neighbors, path and
   expect(fileAnchorMatches(source, diffDraft.anchor)).toBe(false);
 });
 
-test("version-one migration preserves all draft and history fields and the exact copied text", () => {
-  if (diffDraft.anchor.kind !== "diff") throw new Error("Expected diff fixture");
-  const { kind: _kind, ...legacyAnchor } = diffDraft.anchor;
-  const { subject: _subject, ...legacyFields } = diffDraft;
-  const legacyDraft = { ...legacyFields, anchor: legacyAnchor };
-  const text = "Previously copied text\nwith its original whitespace  ";
-  const raw = {
-    version: 1,
-    projectId: project.id,
-    drafts: [legacyDraft],
-    history: [{ id: "copy", copiedAt: 12, text, comments: [legacyDraft] }],
-  };
-  expect(validateCommentStore(raw, project.id)).toEqual({
-    version: 3,
-    projectId: project.id,
-    drafts: [diffDraft],
-    history: [{ id: "copy", copiedAt: 12, text, comments: [diffDraft] }],
-  });
-  expect(validateCommentStore({ ...raw, drafts: [draft()] }, project.id)).toBeNull();
-  expect(validateCommentStore({ ...raw, drafts: [diffDraft] }, project.id)).toBeNull();
-});
-
 test("expanded stores reject malformed, ambiguous and unsupported anchors atomically", () => {
   const original = draft();
-  const store = { ...emptyCommentStore(project.id), drafts: [original] };
-  expect(validateCommentStore(store, project.id)).toEqual(store);
+  const store = { ...emptyCommentStore(project.absolutePath), drafts: [original] };
+  expect(validateCommentStore(store, project.absolutePath)).toEqual(store);
   const invalid = [
     { ...original.anchor, kind: "future" },
     { ...original.anchor, source: "commit" },
@@ -187,7 +164,7 @@ test("expanded stores reject malformed, ambiguous and unsupported anchors atomic
     expect(
       validateCommentStore(
         { ...store, drafts: [original, { ...original, id: "bad", anchor }] },
-        project.id,
+        project.absolutePath,
       ),
     ).toBeNull();
     expect(
@@ -198,18 +175,18 @@ test("expanded stores reject malformed, ambiguous and unsupported anchors atomic
             { id: "copy", copiedAt: 12, text: "copy", comments: [{ ...original, anchor }] },
           ],
         },
-        project.id,
+        project.absolutePath,
       ),
     ).toBeNull();
   }
-  expect(validateCommentStore({ ...store, version: 4 }, project.id)).toBeNull();
+  expect(validateCommentStore({ ...store, version: 3 }, project.absolutePath)).toBeNull();
 });
 
 test("mixed export separates working-tree feedback, sorts duplicate anchors deterministically and preserves Undo", () => {
   const first = draft("a");
   const second = draft("b");
   const store = {
-    ...emptyCommentStore(project.id),
+    ...emptyCommentStore(project.absolutePath),
     drafts: [second, diffDraft, first, { ...draft("outdated"), state: "outdated" as const }],
   };
   const text = formatFeedback(project.absolutePath, store.drafts);
@@ -239,7 +216,7 @@ test("mixed export separates working-tree feedback, sorts duplicate anchors dete
     mergeCheckedComments(
       { ...store, drafts: [diffDraft] },
       {
-        projectId: project.id,
+        projectPath: project.absolutePath,
         drafts: [
           { id: diffDraft.id, anchor: first.anchor, subject: first.subject, state: "outdated" },
         ],
@@ -248,16 +225,16 @@ test("mixed export separates working-tree feedback, sorts duplicate anchors dete
   ).toEqual([diffDraft]);
 });
 
-test("backup version five round-trips mixed stores and legacy versions cannot carry file anchors", () => {
+test("backup six round-trips mixed stores and rejects obsolete formats", () => {
   const store = {
-    ...emptyCommentStore(project.id),
+    ...emptyCommentStore(project.absolutePath),
     drafts: [diffDraft, draft()],
     history: [{ id: "copy", copiedAt: 12, text: "Old copy text", comments: [draft("history")] }],
   };
   const backup = {
-    version: 5,
+    version: 6,
     rootPath: "/repo",
-    workspace: { version: 3, rootPath: "/repo", recentPaths: ["project"] },
+    workspace: { version: 4, rootPath: "/repo", recentPaths: ["project"] },
     wrap: true,
     comments: [store],
     openCards: [],
@@ -268,21 +245,21 @@ test("backup version five round-trips mixed stores and legacy versions cannot ca
   const parsed = parseReviewBackup(backup, "/repo");
   expect(parsed.comments).toEqual([store]);
   expect(parseReviewBackup(JSON.parse(JSON.stringify(parsed)) as unknown, "/repo")).toEqual(parsed);
-  for (const version of [1, 2, 3, 4]) {
-    expect(() => parseReviewBackup({ ...backup, version }, "/repo")).toThrow("invalid comments");
+  for (const version of [1, 2, 3, 4, 5]) {
+    expect(() => parseReviewBackup({ ...backup, version }, "/repo")).toThrow("unsupported format");
     expect(() =>
       parseReviewBackup({ ...backup, version, comments: [{ ...store, version: 1 }] }, "/repo"),
-    ).toThrow("invalid comments");
+    ).toThrow("unsupported format");
   }
   expect(() => parseReviewBackup(backup, "/other")).toThrow("different host root");
-  expect(() => parseReviewBackup({ ...backup, version: 6 }, "/repo")).toThrow("unsupported format");
+  expect(() => parseReviewBackup({ ...backup, version: 7 }, "/repo")).toThrow("unsupported format");
 });
 
 test("file-only check and copy read each path once using plain text without Git", async () => {
   const calls: string[] = [];
   const h = harness([draft("one"), draft("duplicate"), draft("blank", 1)], {
     fetchFile: async (id, path, language, signal) => {
-      expect(id).toBe(project.id);
+      expect(id).toBe(project.absolutePath);
       expect(language).toBe("text");
       expect(signal.aborted).toBe(false);
       calls.push(path);
@@ -342,7 +319,8 @@ test("API errors preserve their code and read failures retain all drafts until a
   ).rejects.toMatchObject({ code: "file_not_found", status: 404 });
   for (const error of [
     new Error("Offline"),
-    new ApiRequestError("Open project again", "not_found", 404),
+    new ApiRequestError("Project missing", "project_not_found", 404),
+    new ApiRequestError("Project changed", "project_changed", 409),
     new ApiRequestError("Denied", "forbidden", 403),
     new ApiRequestError("Server failed", "internal_error", 500),
   ]) {
@@ -412,7 +390,7 @@ test("source changes after preview are rechecked on copy and cancellation reject
   late.store = emptyCommentStore("another");
   release(source);
   await checking;
-  expect(late.store.projectId).toBe("another");
+  expect(late.store.projectPath).toBe("another");
   expect(late.store.drafts).toEqual([]);
   expect(late.state.check.kind).toBe("idle");
 });

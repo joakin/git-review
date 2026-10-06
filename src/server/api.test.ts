@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../shared/project-path.ts";
+import { projectRequestUrl } from "../test-support.ts";
 import { expect, test } from "bun:test";
 import { testGit as git, withTempDirectory } from "../test-support.ts";
 import { mkdir, rename, symlink, writeFile } from "node:fs/promises";
@@ -14,7 +16,7 @@ import {
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
 
-test("status access requires an opened folder and rechecks its approved path", async () => {
+test("status access accepts a project path and rechecks its approved path", async () => {
   await withTempDirectory("git-review-api-root-", async (rootPath) => {
     await withTempDirectory("git-review-api-outside-", async (outsidePath) => {
       const projectPath = join(rootPath, "project");
@@ -26,22 +28,19 @@ test("status access requires an opened folder and rechecks its approved path", a
           (await (await handle(new Request("http://localhost/api/languages"))).json()) as unknown,
         ),
       ).toContainEqual({ id: "c", name: "C" });
-      const unknown = await handle(
-        new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/status"),
-      );
-      expect(unknown.status).toBe(404);
+      const unknown = await handle(new Request("http://localhost/api/project/status"));
+      expect(unknown.status).toBe(400);
 
       const opened = await handle(
-        new Request("http://localhost/api/projects/open", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path: "project" }),
-        }),
+        new Request(
+          "http://localhost" +
+            projectApiUrl("", (await approveRoot(rootPath)).realPath + "/project"),
+        ),
       );
       expect(opened.status).toBe(200);
       const project = parseProjectResponse((await opened.json()) as unknown);
-      const url = `http://localhost/api/projects/${project.id}/status`;
-      const current = await handle(new Request(url));
+      const url = `http://localhost/api/project/status`;
+      const current = await handle(new Request(projectRequestUrl(url, project.absolutePath)));
       expect(current.status).toBe(200);
       const cleanStatus = parseStatusResponse((await current.json()) as unknown);
       expect(cleanStatus.kind).toBe("git");
@@ -49,17 +48,27 @@ test("status access requires an opened folder and rechecks its approved path", a
 
       await writeFile(join(projectPath, "new.txt"), "first\n");
       const changedStatus = parseStatusResponse(
-        (await (await handle(new Request(url))).json()) as unknown,
+        (await (
+          await handle(new Request(projectRequestUrl(url, project.absolutePath)))
+        ).json()) as unknown,
       );
       if (changedStatus.kind !== "git") throw new Error("Expected Git status");
       expect(changedStatus.entries[0]?.stats).toEqual({ kind: "text", added: 1, deleted: 0 });
-      const checkBody: unknown = await (await handle(new Request(`${url}?mode=check`))).json();
+      const checkBody: unknown = await (
+        await handle(new Request(projectRequestUrl(`${url}?mode=check`, project.absolutePath)))
+      ).json();
       expect(checkBody).toEqual(parseChangeCheckResponse(changedStatus));
       expect(() => parseStatusResponse(checkBody)).toThrow();
       for (const query of ["mode=unknown", "mode=check&mode=check", "other=value", "mode="])
-        expect((await handle(new Request(`${url}?${query}`))).status).toBe(400);
-      const diffUrl = new URL(`http://localhost/api/projects/${project.id}/diff`);
+        expect(
+          (await handle(new Request(projectRequestUrl(`${url}?${query}`, project.absolutePath))))
+            .status,
+        ).toBe(400);
+      const diffUrl = new URL(
+        projectRequestUrl(`http://localhost/api/project/diff`, project.absolutePath),
+      );
       diffUrl.search = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer: "untracked",
         path: "new.txt",
         revision: changedStatus.revision,
@@ -68,6 +77,7 @@ test("status access requires an opened folder and rechecks its approved path", a
         parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown).kind,
       ).toBe("text");
       diffUrl.search = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer: "untracked",
         path: "new.txt",
         revision: changedStatus.revision,
@@ -75,12 +85,14 @@ test("status access requires an opened folder and rechecks its approved path", a
       }).toString();
       expect((await handle(new Request(diffUrl))).status).toBe(400);
       diffUrl.search = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer: "untracked",
         path: "other.txt",
         revision: changedStatus.revision,
       }).toString();
       expect((await handle(new Request(diffUrl))).status).toBe(404);
       diffUrl.search = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer: "untracked",
         path: "new.txt",
         revision: cleanStatus.revision,
@@ -91,7 +103,7 @@ test("status access requires an opened folder and rechecks its approved path", a
 
       await rename(projectPath, join(rootPath, "moved"));
       await symlink(outsidePath, projectPath);
-      const escaped = await handle(new Request(url));
+      const escaped = await handle(new Request(projectRequestUrl(url, project.absolutePath)));
       expect(escaped.status).toBe(403);
     });
   });
@@ -108,39 +120,54 @@ test("configured HTTPS proxy origin is accepted without trusting other origins",
   });
 });
 
-test("file API requires an opened project and serves non-Git working-tree files", async () => {
+test("file API accepts a project path and serves non-Git working-tree files", async () => {
   await withTempDirectory("git-review-file-api-", async (rootPath) => {
     await mkdir(join(rootPath, "notes"));
     await writeFile(join(rootPath, "notes", "idea.ts"), "export const idea = 1;\n");
     const handle = createApiHandler(await approveRoot(rootPath));
-    const unknown = await handle(
-      new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/tree?path="),
-    );
-    expect(unknown.status).toBe(404);
+    const unknown = await handle(new Request("http://localhost/api/project/tree?path="));
+    expect(unknown.status).toBe(400);
     const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "notes" }),
-      }),
+      new Request(
+        "http://localhost" + projectApiUrl("", (await approveRoot(rootPath)).realPath + "/notes"),
+      ),
     );
     const project = parseProjectResponse((await opened.json()) as unknown);
-    const base = `http://localhost/api/projects/${project.id}`;
+    const base = `http://localhost/api/project`;
     const tree = parseFileTreeResponse(
-      (await (await handle(new Request(`${base}/tree?path=`))).json()) as unknown,
+      (await (
+        await handle(new Request(projectRequestUrl(`${base}/tree?path=`, project.absolutePath)))
+      ).json()) as unknown,
     );
     expect(tree.entries).toEqual([{ name: "idea.ts", path: "idea.ts", kind: "file" }]);
-    expect((await handle(new Request(`${base}/file?path=idea.ts`))).status).toBe(400);
+    expect(
+      (
+        await handle(
+          new Request(projectRequestUrl(`${base}/file?path=idea.ts`, project.absolutePath)),
+        )
+      ).status,
+    ).toBe(400);
     const file = parseFileReadResponse(
       (await (
-        await handle(new Request(`${base}/file?path=idea.ts&source=worktree`))
+        await handle(
+          new Request(
+            projectRequestUrl(`${base}/file?path=idea.ts&source=worktree`, project.absolutePath),
+          ),
+        )
       ).json()) as unknown,
     );
     expect(file.kind).toBe("text");
-    const missing = await handle(new Request(`${base}/file?path=missing.txt&source=worktree`));
+    const missing = await handle(
+      new Request(
+        projectRequestUrl(`${base}/file?path=missing.txt&source=worktree`, project.absolutePath),
+      ),
+    );
     expect(missing.status).toBe(404);
     expect(await missing.json()).toMatchObject({ error: { code: "file_not_found" } });
-    expect((await handle(new Request(`${base}/tree?path=..`))).status).toBe(400);
+    expect(
+      (await handle(new Request(projectRequestUrl(`${base}/tree?path=..`, project.absolutePath))))
+        .status,
+    ).toBe(400);
   });
 });
 
@@ -168,16 +195,16 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
     );
     const handle = createApiHandler(await approveRoot(rootPath));
     const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "project" }),
-      }),
+      new Request(
+        "http://localhost" + projectApiUrl("", (await approveRoot(rootPath)).realPath + "/project"),
+      ),
     );
     const project = parseProjectResponse((await opened.json()) as unknown);
-    const base = `http://localhost/api/projects/${project.id}`;
+    const base = `http://localhost/api/project`;
     const status = parseStatusResponse(
-      (await (await handle(new Request(`${base}/status`))).json()) as unknown,
+      (await (
+        await handle(new Request(projectRequestUrl(`${base}/status`, project.absolutePath)))
+      ).json()) as unknown,
     );
     if (status.kind !== "git") throw new Error("Expected Git status");
     const rawText = async (url: string) => {
@@ -192,13 +219,18 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
       ["staged", old, staged],
       ["unstaged", staged, current],
     ] as const) {
-      const url = new URL(`${base}/diff`);
+      const url = new URL(projectRequestUrl(`${base}/diff`, project.absolutePath));
       url.search = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer,
         path: "art.svg",
         revision: status.revision,
       }).toString();
-      const diff = parseDiffResponse((await (await handle(new Request(url))).json()) as unknown);
+      const diff = parseDiffResponse(
+        (await (
+          await handle(new Request(projectRequestUrl(url, project.absolutePath)))
+        ).json()) as unknown,
+      );
       if (diff.kind !== "media" || diff.old.kind !== "ready" || diff.new.kind !== "ready")
         throw new Error(`Expected ${layer} image sides`);
       expect(await rawText(diff.old.resource.url)).toBe(before);
@@ -212,7 +244,11 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
     }
     const file = parseFileReadResponse(
       (await (
-        await handle(new Request(`${base}/file?path=art.svg&source=worktree`))
+        await handle(
+          new Request(
+            projectRequestUrl(`${base}/file?path=art.svg&source=worktree`, project.absolutePath),
+          ),
+        )
       ).json()) as unknown,
     );
     if (file.kind !== "media") throw new Error("Expected current image");
@@ -220,7 +256,14 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
     expect(
       parseFileReadResponse(
         (await (
-          await handle(new Request(`${base}/file?path=exported.svg&source=worktree`))
+          await handle(
+            new Request(
+              projectRequestUrl(
+                `${base}/file?path=exported.svg&source=worktree`,
+                project.absolutePath,
+              ),
+            ),
+          )
         ).json()) as unknown,
       ).kind,
     ).toBe("media");
@@ -228,9 +271,18 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
       ["staged", "deleted.svg", "old"],
       ["untracked", "untracked.svg", "new"],
     ] as const) {
-      const url = new URL(`${base}/diff`);
-      url.search = new URLSearchParams({ layer, path, revision: status.revision }).toString();
-      const diff = parseDiffResponse((await (await handle(new Request(url))).json()) as unknown);
+      const url = new URL(projectRequestUrl(`${base}/diff`, project.absolutePath));
+      url.search = new URLSearchParams({
+        projectPath: project.absolutePath,
+        layer,
+        path,
+        revision: status.revision,
+      }).toString();
+      const diff = parseDiffResponse(
+        (await (
+          await handle(new Request(projectRequestUrl(url, project.absolutePath)))
+        ).json()) as unknown,
+      );
       if (diff.kind !== "media") throw new Error(`Expected ${layer} media`);
       expect(diff[expectedSide].kind).toBe("ready");
       expect(diff[expectedSide === "old" ? "new" : "old"].kind).toBe("absent");
@@ -284,29 +336,34 @@ test("audio ranges read the correct Git side and support seeking, HEAD, and stal
     await writeFile(join(projectPath, "sound.wav"), current);
     const handle = createApiHandler(await approveRoot(rootPath));
     const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "project" }),
-      }),
+      new Request(
+        "http://localhost" + projectApiUrl("", (await approveRoot(rootPath)).realPath + "/project"),
+      ),
     );
     const project = parseProjectResponse((await opened.json()) as unknown);
-    const base = `http://localhost/api/projects/${project.id}`;
+    const base = `http://localhost/api/project`;
     const status = parseStatusResponse(
-      (await (await handle(new Request(`${base}/status`))).json()) as unknown,
+      (await (
+        await handle(new Request(projectRequestUrl(`${base}/status`, project.absolutePath)))
+      ).json()) as unknown,
     );
     if (status.kind !== "git") throw new Error("Expected Git status");
     for (const [layer, before, after] of [
       ["staged", old, staged],
       ["unstaged", staged, current],
     ] as const) {
-      const url = new URL(`${base}/diff`);
+      const url = new URL(projectRequestUrl(`${base}/diff`, project.absolutePath));
       url.search = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer,
         path: "sound.wav",
         revision: status.revision,
       }).toString();
-      const diff = parseDiffResponse((await (await handle(new Request(url))).json()) as unknown);
+      const diff = parseDiffResponse(
+        (await (
+          await handle(new Request(projectRequestUrl(url, project.absolutePath)))
+        ).json()) as unknown,
+      );
       if (diff.kind !== "media" || diff.old.kind !== "ready" || diff.new.kind !== "ready")
         throw new Error(`Expected ${layer} audio sides`);
       for (const [side, expected] of [
@@ -338,7 +395,11 @@ test("audio ranges read the correct Git side and support seeking, HEAD, and stal
     }
     const file = parseFileReadResponse(
       (await (
-        await handle(new Request(`${base}/file?path=sound.wav&source=worktree`))
+        await handle(
+          new Request(
+            projectRequestUrl(`${base}/file?path=sound.wav&source=worktree`, project.absolutePath),
+          ),
+        )
       ).json()) as unknown,
     );
     if (file.kind !== "media") throw new Error("Expected audio in Files");

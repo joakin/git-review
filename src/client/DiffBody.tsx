@@ -13,7 +13,7 @@ import { decorateDiffTokens } from "./diff-detail.ts";
 export type DiffInteraction =
   | {
       kind: "review";
-      projectId: string;
+      projectPath: string;
       entry: ChangeEntry;
       onComment: (anchor: DiffCommentAnchor) => void;
       drafts: readonly DraftComment[];
@@ -126,7 +126,7 @@ function HunkRows({
           <SelectableCode
             className="diff-code"
             resource={resource}
-            projectId={interaction.kind === "review" ? interaction.projectId : null}
+            projectPath={interaction.kind === "review" ? interaction.projectPath : null}
             text={line.text}
             anchor={
               interaction.kind === "review"

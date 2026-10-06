@@ -8,7 +8,7 @@ import {
 } from "./diff-cache.ts";
 
 const identity: DiffCacheIdentity = {
-  projectId: "cache-test",
+  projectPath: "cache-test",
   layer: "staged",
   path: "src/a | ?#\nü.ts",
   revision: "revision-a",
@@ -21,7 +21,7 @@ const ready: DiffResult = { kind: "binary", reason: "binary" };
 describe("diff cache adapter", () => {
   test("each resource, version, refresh and language field separates identities", () => {
     const changes: Partial<DiffCacheIdentity>[] = [
-      { projectId: "other-project" },
+      { projectPath: "other-project" },
       { layer: "unstaged" },
       { path: "other.ts" },
       { revision: "revision-b" },
@@ -32,8 +32,8 @@ describe("diff cache adapter", () => {
     const key = diffCacheKey(identity);
     expect(diffCacheKey({ ...identity })).toBe(key);
     for (const change of changes) expect(diffCacheKey({ ...identity, ...change })).not.toBe(key);
-    expect(diffCacheKey({ ...identity, projectId: "a|b", path: "c" })).not.toBe(
-      diffCacheKey({ ...identity, projectId: "a", path: "b|c" }),
+    expect(diffCacheKey({ ...identity, projectPath: "a|b", path: "c" })).not.toBe(
+      diffCacheKey({ ...identity, projectPath: "a", path: "b|c" }),
     );
   });
 
@@ -53,7 +53,7 @@ describe("diff cache adapter", () => {
         ? diffCacheKey({ ...identity, path: `entry-${index}` })
         : JSON.stringify([
             "commit",
-            identity.projectId,
+            identity.projectPath,
             `commit-${index}`,
             "empty",
             "file.ts",

@@ -3,12 +3,12 @@ import type { LanguageOption } from "../shared/api.ts";
 import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
 
 export function useLanguageOverride(
-  projectId: string,
+  projectPath: string,
   path: string,
   languages: readonly LanguageOption[],
 ) {
   const [override, setOverride] = useState<string | null>(() =>
-    readLanguageOverride(projectId, path),
+    readLanguageOverride(projectPath, path),
   );
   const effectiveOverride =
     override === null ||
@@ -22,7 +22,7 @@ export function useLanguageOverride(
     effectiveOverride,
     changeLanguage: (value: string | null) => {
       setOverride(value);
-      saveLanguageOverride(projectId, path, value);
+      saveLanguageOverride(projectPath, path, value);
     },
   };
 }

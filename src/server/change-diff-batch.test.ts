@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../shared/project-path.ts";
+import { projectRequestUrl } from "../test-support.ts";
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { chmod, mkdir, rename, symlink, writeFile } from "node:fs/promises";
@@ -51,17 +53,20 @@ test("change batches match individual layers, languages and media while isolatin
       const project = parseProjectResponse(
         (await (
           await handle(
-            new Request("http://localhost/api/projects/open", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ path: "repo" }),
-            }),
+            new Request(
+              "http://localhost" +
+                projectApiUrl("", (await approveRoot(directory)).realPath + "/repo"),
+            ),
           )
         ).json()) as unknown,
       );
-      const base = `http://localhost/api/projects/${project.id}`;
+      const base = `http://localhost/api/project`;
       const status = parseChangeCheckResponse(
-        (await (await handle(new Request(`${base}/status?mode=check`))).json()) as unknown,
+        (await (
+          await handle(
+            new Request(projectRequestUrl(`${base}/status?mode=check`, project.absolutePath)),
+          )
+        ).json()) as unknown,
       );
       if (status.kind !== "git") throw new Error("Expected Git snapshot");
       const files: ChangeDiffRequest[] = [
@@ -74,7 +79,10 @@ test("change batches match individual layers, languages and media while isolatin
         { layer: "unstaged", path: "missing.txt", language: null },
       ];
       const body = { revision: status.revision, changeToken: status.changeToken, files };
-      const post = (value: unknown, url = `${base}/diffs`) =>
+      const post = (
+        value: unknown,
+        url = projectRequestUrl(`${base}/diffs`, project.absolutePath),
+      ) =>
         handle(
           new Request(url, {
             method: "POST",
@@ -86,7 +94,7 @@ test("change batches match individual layers, languages and media while isolatin
       expect(response.status).toBe(200);
       const batch = parseChangeDiffBatchResponse(
         (await response.json()) as unknown,
-        changeDiffBatchSource(project.id, status.revision, status.changeToken),
+        changeDiffBatchSource(project.absolutePath, status.revision, status.changeToken),
         files.map(changeDiffRequestKey),
       );
       if (batch.kind !== "ready") throw new Error("Expected current batch");
@@ -97,6 +105,7 @@ test("change batches match individual layers, languages and media while isolatin
           continue;
         }
         const query = new URLSearchParams({
+          projectPath: project.absolutePath,
           layer: file.layer,
           path: file.path,
           revision: status.revision,
@@ -104,7 +113,11 @@ test("change batches match individual layers, languages and media while isolatin
         });
         if (file.language !== null) query.set("language", file.language);
         const single = parseDiffResponse(
-          (await (await handle(new Request(`${base}/diff?${query}`))).json()) as unknown,
+          (await (
+            await handle(
+              new Request(projectRequestUrl(`${base}/diff?${query}`, project.absolutePath)),
+            )
+          ).json()) as unknown,
         );
         if (single.kind === "stale") throw new Error("Individual read unexpectedly became stale");
         expect(result?.kind).toBe("ready");
@@ -142,31 +155,52 @@ test("change batches match individual layers, languages and media while isolatin
         { ...body, files: [{ layer: "unstaged", path, language: "invalid-language" }] },
       ])
         expect((await post(invalid)).status).toBe(400);
-      expect((await post(body, `${base}/diffs?extra=1`)).status).toBe(400);
+      expect(
+        (await post(body, projectRequestUrl(`${base}/diffs?extra=1`, project.absolutePath))).status,
+      ).toBe(400);
       expect((await post({ padding: "x".repeat(maxDiffBatchRequestBytes) })).status).toBe(413);
       await writeFile(join(repo, path), "export const value = 'edited again';\n");
       const newer = parseChangeCheckResponse(
-        (await (await handle(new Request(`${base}/status?mode=check`))).json()) as unknown,
+        (await (
+          await handle(
+            new Request(projectRequestUrl(`${base}/status?mode=check`, project.absolutePath)),
+          )
+        ).json()) as unknown,
       );
       if (newer.kind !== "git") throw new Error("Expected edited snapshot");
       expect(newer.revision).toBe(status.revision);
       expect(newer.changeToken).not.toBe(status.changeToken);
       expect(await (await post(body)).json()).toEqual({
         kind: "stale",
-        source: changeDiffBatchSource(project.id, status.revision, status.changeToken),
+        source: changeDiffBatchSource(project.absolutePath, status.revision, status.changeToken),
       });
       const staleSingle = new URLSearchParams({
+        projectPath: project.absolutePath,
         layer: "unstaged",
         path,
         revision: status.revision,
         changeToken: status.changeToken,
       });
-      expect(await (await handle(new Request(`${base}/diff?${staleSingle}`))).json()).toEqual({
+      expect(
+        await (
+          await handle(
+            new Request(projectRequestUrl(`${base}/diff?${staleSingle}`, project.absolutePath)),
+          )
+        ).json(),
+      ).toEqual({
         kind: "stale",
       });
       expect(
-        (await handle(new Request(`${base}/diff?${staleSingle}&changeToken=${status.changeToken}`)))
-          .status,
+        (
+          await handle(
+            new Request(
+              projectRequestUrl(
+                `${base}/diff?${staleSingle}&changeToken=${status.changeToken}`,
+                project.absolutePath,
+              ),
+            ),
+          )
+        ).status,
       ).toBe(400);
       expect((await post({ ...body, changeToken: newer.changeToken })).status).toBe(200);
       await rename(repo, join(directory, "moved"));
@@ -191,19 +225,17 @@ test("an edit after batch work starts invalidates every file and recovers on a n
     const handle = createApiHandler(root);
     const project = parseProjectResponse(
       (await (
-        await handle(
-          new Request("http://localhost/api/projects/open", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ path: "repo" }),
-          }),
-        )
+        await handle(new Request("http://localhost" + projectApiUrl("", root.realPath + "/repo")))
       ).json()) as unknown,
     );
-    const base = `http://localhost/api/projects/${project.id}`;
+    const base = `http://localhost/api/project`;
     const snapshot = async () =>
       parseChangeCheckResponse(
-        (await (await handle(new Request(`${base}/status?mode=check`))).json()) as unknown,
+        (await (
+          await handle(
+            new Request(projectRequestUrl(`${base}/status?mode=check`, project.absolutePath)),
+          )
+        ).json()) as unknown,
       );
     const before = await snapshot();
     if (before.kind !== "git") throw new Error("Expected Git snapshot");
@@ -214,7 +246,7 @@ test("an edit after batch work starts invalidates every file and recovers on a n
     }));
     const post = (revision: string, changeToken: string) =>
       handle(
-        new Request(`${base}/diffs`, {
+        new Request(projectRequestUrl(`${base}/diffs`, project.absolutePath), {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ revision, changeToken, files }),
@@ -243,7 +275,7 @@ test("an edit after batch work starts invalidates every file and recovers on a n
       await writeFile(gate, "");
       expect(await (await pending).json()).toEqual({
         kind: "stale",
-        source: changeDiffBatchSource(project.id, before.revision, before.changeToken),
+        source: changeDiffBatchSource(project.absolutePath, before.revision, before.changeToken),
       });
       const after = await snapshot();
       if (after.kind !== "git") throw new Error("Expected edited snapshot");
@@ -251,7 +283,7 @@ test("an edit after batch work starts invalidates every file and recovers on a n
       expect(after.changeToken).not.toBe(before.changeToken);
       const current = parseChangeDiffBatchResponse(
         (await (await post(after.revision, after.changeToken)).json()) as unknown,
-        changeDiffBatchSource(project.id, after.revision, after.changeToken),
+        changeDiffBatchSource(project.absolutePath, after.revision, after.changeToken),
         files.map(changeDiffRequestKey),
       );
       if (current.kind !== "ready") throw new Error("Expected recovery");

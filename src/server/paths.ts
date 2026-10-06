@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
 import { realpath, readdir, stat } from "node:fs/promises";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 import type { DirectoryListing, Project, RootInfo, ApiErrorCode } from "../shared/api.ts";
 import { hasErrorCode } from "../shared/validation.ts";
+import { isProjectPath } from "../shared/project-path.ts";
 
 export class AppError extends Error {
   constructor(
@@ -18,6 +18,47 @@ export type ApprovedRoot = {
   realPath: string;
   info: RootInfo;
 };
+
+/** Resolve each request independently; selection alone may canonicalize an allowed alias. */
+export async function resolveProject(
+  root: ApprovedRoot,
+  rawPath: unknown,
+  canonicalOnly = true,
+): Promise<Project> {
+  if (!isProjectPath(rawPath))
+    throw new AppError("invalid_request", 400, "Specify a canonical absolute project path");
+  if (!isWithinRoot(root.realPath, rawPath))
+    throw new AppError("forbidden", 403, "Project is outside the approved root");
+  let absolutePath: string;
+  try {
+    absolutePath = await realpath(rawPath);
+    if (!isWithinRoot(root.realPath, absolutePath))
+      throw new AppError("forbidden", 403, "Project is outside the approved root");
+    if (!(await stat(absolutePath)).isDirectory())
+      throw new AppError("project_not_found", 404, "Project folder was not found");
+  } catch (error: unknown) {
+    if (hasErrorCode(error, "ENOENT") || hasErrorCode(error, "ENOTDIR"))
+      throw new AppError("project_not_found", 404, "Project folder was not found");
+    if (
+      hasErrorCode(error, "EACCES") ||
+      hasErrorCode(error, "EPERM") ||
+      hasErrorCode(error, "ELOOP")
+    )
+      throw new AppError("forbidden", 403, "Project folder cannot be accessed");
+    throw error;
+  }
+  if (canonicalOnly && absolutePath !== rawPath)
+    throw new AppError(
+      "project_changed",
+      409,
+      "Project folder location has changed. Choose it again.",
+    );
+  return {
+    name: basename(absolutePath) || absolutePath,
+    relativePath: relative(root.realPath, absolutePath).split(sep).join("/"),
+    absolutePath,
+  };
+}
 
 export async function approveRoot(input: string): Promise<ApprovedRoot> {
   const realPath = await realpath(resolve(input));
@@ -94,14 +135,4 @@ export async function listDirectory(
   const parentPath =
     directory.path === "" ? null : lastSlash === -1 ? "" : directory.path.slice(0, lastSlash);
   return { path: directory.path, parentPath, entries };
-}
-
-export async function openProject(root: ApprovedRoot, rawPath: unknown): Promise<Project> {
-  const directory = await resolveDirectory(root, rawPath);
-  return {
-    id: createHash("sha256").update(directory.realPath).digest("hex").slice(0, 20),
-    name: basename(directory.realPath) || directory.realPath,
-    path: directory.path,
-    absolutePath: directory.realPath,
-  };
 }

@@ -10,7 +10,7 @@ import {
 import { testGit as git, testGitText, withTempDirectory } from "../test-support.ts";
 import { parseChangeStats, readReviewSnapshot, readReviewStatus } from "./change-stats.ts";
 import { readProjectDiff } from "./git-diff.ts";
-import { approveRoot, openProject } from "./paths.ts";
+import { approveRoot, resolveProject } from "./paths.ts";
 
 function stats(status: ProjectStatus, layer: string, path: string): ChangeLineStats {
   if (status.kind !== "git") throw new Error("Expected Git status");
@@ -63,7 +63,7 @@ test("bundled counts match staged, unstaged and untracked cards while preserving
     await writeFile(join(directory, "many-lines.txt"), "x\n".repeat(20_001));
     await symlink("/etc/passwd", join(directory, "outside-link"));
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const status = parseStatusResponse(await readReviewStatus(root, project));
     expect(stats(status, "staged", "both.txt")).toEqual({ kind: "text", added: 2, deleted: 1 });
     expect(stats(status, "unstaged", "both.txt")).toEqual({ kind: "text", added: 2, deleted: 1 });
@@ -118,7 +118,7 @@ test("scoped renames and approved-root boundaries preserve the inventory's card 
     git(directory, "mv", "sub/leave.txt", "outgoing.txt");
     git(directory, "mv", "sub/old.txt", "sub/renamed.txt");
     const root = await approveRoot(directory);
-    const project = await openProject(root, "sub");
+    const project = await resolveProject(root, root.realPath + "/sub");
     expect(stats(await readReviewStatus(root, project), "staged", "incoming.txt")).toEqual({
       kind: "text",
       added: 2,
@@ -137,7 +137,7 @@ test("scoped renames and approved-root boundaries preserve the inventory's card 
     const narrowRoot = await approveRoot(join(directory, "sub"));
     expect(
       stats(
-        await readReviewStatus(narrowRoot, await openProject(narrowRoot, "")),
+        await readReviewStatus(narrowRoot, await resolveProject(narrowRoot, narrowRoot.realPath)),
         "staged",
         "incoming.txt",
       ),
@@ -148,7 +148,7 @@ test("scoped renames and approved-root boundaries preserve the inventory's card 
 test("unborn repositories, SHA-256 objects, and conflicts retain explicit statistics", async () => {
   await withTempDirectory("git-review-unborn-stats-", async (directory) => {
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     expect(await readReviewStatus(root, project)).toEqual({ kind: "not_git" });
     git(directory, "init", "-q", "--object-format=sha256", "-b", "main");
     await writeFile(join(directory, "first.txt"), "first\nlast");
@@ -199,7 +199,9 @@ test("unreadable source files preserve the inventory with explicit unavailable c
     await chmod(untracked, 0);
     try {
       const root = await approveRoot(directory);
-      const status = parseStatusResponse(await readReviewStatus(root, await openProject(root, "")));
+      const status = parseStatusResponse(
+        await readReviewStatus(root, await resolveProject(root, root.realPath)),
+      );
       expect(stats(status, "unstaged", "tracked.txt")).toEqual({
         kind: "unavailable",
         reason: "read_error",
@@ -221,7 +223,7 @@ test("an aggregate untracked read limit preserves known counts and labels the re
     for (let index = 0; index < 9; index += 1)
       await writeFile(join(directory, `file-${index}.txt`), "x".repeat(1024 * 1024 - 1));
     const root = await approveRoot(directory);
-    const status = await readReviewStatus(root, await openProject(root, ""));
+    const status = await readReviewStatus(root, await resolveProject(root, root.realPath));
     for (let index = 0; index < 8; index += 1)
       expect(stats(status, "untracked", `file-${index}.txt`)).toEqual({
         kind: "text",

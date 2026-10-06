@@ -5,10 +5,10 @@ Status: implemented, approved by the maintainer on 2026-09-29, and committed as 
 ## Finding
 
 This finding describes the behavior before the live-change slice approved on 2026-09-29. The
-original Changes view read `GET /api/projects/:id/status` when a project opened or the user pressed
-Refresh. Its `revision` was a hash of Git porcelain v2 status output. In a temporary repository,
-editing an already modified tracked file and editing an existing untracked file each left that
-revision unchanged. The file list was unchanged even though both diffs had new content.
+original Changes view read `GET /api/project/status?projectPath=…` when a project opened or the user
+pressed Refresh. Its `revision` was a hash of Git porcelain v2 status output. In a temporary
+repository, editing an already modified tracked file and editing an existing untracked file each
+left that revision unchanged. The file list was unchanged even though both diffs had new content.
 [Git's porcelain v2 format](https://git-scm.com/docs/git-status#_porcelain_format_version_2)
 includes index object IDs and state codes but no working-tree content ID for those entries. Polling
 only that revision would therefore have missed the edits this slice now reveals.

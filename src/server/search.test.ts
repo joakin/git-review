@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../shared/project-path.ts";
+import { projectRequestUrl } from "../test-support.ts";
 import { expect, test } from "bun:test";
 import { testGit as git, withTempDirectory } from "../test-support.ts";
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
@@ -21,18 +23,33 @@ test("search uses literal text and respects project, ignore, and link boundaries
       await symlink(join(outsidePath, "outside.txt"), join(projectPath, "linked.txt"));
       const handle = createApiHandler(await approveRoot(rootPath));
       const opened = await handle(
-        new Request("http://localhost/api/projects/open", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path: "project" }),
-        }),
+        new Request(
+          "http://localhost" +
+            projectApiUrl("", (await approveRoot(rootPath)).realPath + "/project"),
+        ),
       );
       const project = parseProjectResponse((await opened.json()) as unknown);
-      const endpoint = `http://localhost/api/projects/${project.id}/search`;
-      expect((await handle(new Request(endpoint))).status).toBe(400);
-      expect((await handle(new Request(`${endpoint}?query=x&query=y`))).status).toBe(400);
-      expect((await handle(new Request(`${endpoint}?query=%0A`))).status).toBe(400);
-      const response = await handle(new Request(`${endpoint}?query=-word`));
+      const endpoint = `http://localhost/api/project/search`;
+      expect(
+        (await handle(new Request(projectRequestUrl(endpoint, project.absolutePath)))).status,
+      ).toBe(400);
+      expect(
+        (
+          await handle(
+            new Request(projectRequestUrl(`${endpoint}?query=x&query=y`, project.absolutePath)),
+          )
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await handle(
+            new Request(projectRequestUrl(`${endpoint}?query=%0A`, project.absolutePath)),
+          )
+        ).status,
+      ).toBe(400);
+      const response = await handle(
+        new Request(projectRequestUrl(`${endpoint}?query=-word`, project.absolutePath)),
+      );
       expect(response.status).toBe(200);
       const results = parseSearchResponse((await response.json()) as unknown);
       expect(results.query).toBe("-word");
@@ -47,12 +64,22 @@ test("search uses literal text and respects project, ignore, and link boundaries
         { path: "source.ts", line: 2 },
       ]);
       const none = parseSearchResponse(
-        (await (await handle(new Request(`${endpoint}?query=absent-symbol`))).json()) as unknown,
+        (await (
+          await handle(
+            new Request(projectRequestUrl(`${endpoint}?query=absent-symbol`, project.absolutePath)),
+          )
+        ).json()) as unknown,
       );
       expect(none.matches).toEqual([]);
       await rm(projectPath, { recursive: true, force: true });
       await symlink(outsidePath, projectPath);
-      expect((await handle(new Request(`${endpoint}?query=-word`))).status).toBe(403);
+      expect(
+        (
+          await handle(
+            new Request(projectRequestUrl(`${endpoint}?query=-word`, project.absolutePath)),
+          )
+        ).status,
+      ).toBe(403);
     });
   });
 });
@@ -65,15 +92,13 @@ test("search reports incomplete results when the match limit is reached", async 
     );
     const handle = createApiHandler(await approveRoot(rootPath));
     const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "" }),
-      }),
+      new Request("http://localhost" + projectApiUrl("", (await approveRoot(rootPath)).realPath)),
     );
     const project = parseProjectResponse((await opened.json()) as unknown);
     const response = await handle(
-      new Request(`http://localhost/api/projects/${project.id}/search?query=needle`),
+      new Request(
+        projectRequestUrl(`http://localhost/api/project/search?query=needle`, project.absolutePath),
+      ),
     );
     expect(response.status).toBe(200);
     const results = parseSearchResponse((await response.json()) as unknown);

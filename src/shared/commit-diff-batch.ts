@@ -8,8 +8,8 @@ export function commitDiffRequestKey(file: CommitDiffRequest): string {
   return JSON.stringify([file.path, file.language]);
 }
 
-export function commitDiffBatchSource(projectId: string, oid: string): string {
-  return JSON.stringify(["git", projectId, oid]);
+export function commitDiffBatchSource(projectPath: string, oid: string): string {
+  return JSON.stringify(["git", projectPath, oid]);
 }
 
 export function parseCommitDiffBatchRequest(value: unknown): CommitDiffRequest[] {

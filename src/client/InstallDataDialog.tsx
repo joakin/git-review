@@ -33,12 +33,12 @@ export function InstallDataDialog({
   const standalone = window.matchMedia("(display-mode: standalone)").matches;
   const replacedDrafts =
     preview?.comments.reduce(
-      (count, store) => count + readCommentStore(store.projectId).drafts.length,
+      (count, store) => count + readCommentStore(store.projectPath).drafts.length,
       0,
     ) ?? 0;
   const replacedHistory =
     preview?.comments.reduce(
-      (count, store) => count + readCommentStore(store.projectId).history.length,
+      (count, store) => count + readCommentStore(store.projectPath).history.length,
       0,
     ) ?? 0;
 
@@ -185,14 +185,8 @@ export function InstallDataDialog({
                 {replacedDrafts + replacedHistory > 0
                   ? `, including ${replacedDrafts} existing draft${replacedDrafts === 1 ? "" : "s"} and ${replacedHistory} history entr${replacedHistory === 1 ? "y" : "ies"}`
                   : ""}
-                .{" "}
-                {preview.version === 1
-                  ? "Your current code typography stays as it is."
-                  : "Code typography will use the backup's choice."}{" "}
-                {preview.version === 3 || preview.version === 4
-                  ? "Appearance will use the backup's choice."
-                  : "Your current appearance stays as it is."}{" "}
-                Other projects remain here. Your active tab stays on its current folder.
+                . Code typography and appearance will use the backup's choices. Other projects
+                remain here. Your active tab stays on its current folder.
               </p>
               <button type="button" onClick={importData}>
                 Import and replace matching data

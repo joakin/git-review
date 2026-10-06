@@ -40,10 +40,10 @@ function visibleViewport(): Box {
   };
 }
 
-function readSelection(projectId: string): SelectedCode | null {
+function readSelection(projectPath: string): SelectedCode | null {
   const selection = document.getSelection();
   if (selection === null || selection.isCollapsed || selection.rangeCount !== 1) return null;
-  return selectedCode(selection.getRangeAt(0), projectId);
+  return selectedCode(selection.getRangeAt(0), projectPath);
 }
 
 function positionSelection(selected: SelectedCode): SelectionAction | null {
@@ -117,12 +117,12 @@ function sameAction(first: SelectionAction | null, second: SelectionAction | nul
 }
 
 export function CodeSelectionActions({
-  projectId,
+  projectPath,
   onSearch,
   onComment,
   wrap,
 }: {
-  projectId: string;
+  projectPath: string;
   onSearch: (text: string) => void;
   onComment: (target: CommentTarget) => void;
   wrap: boolean;
@@ -140,14 +140,14 @@ export function CodeSelectionActions({
       if (frame !== 0) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        const native = readSelection(projectId);
+        const native = readSelection(projectPath);
         const held =
           holdRef.current && (document.getSelection()?.isCollapsed ?? true)
             ? (actionRef.current?.selected ?? null)
             : null;
         const selected = native ?? held;
         const next =
-          selected !== null && selectionIsCurrent(selected, projectId)
+          selected !== null && selectionIsCurrent(selected, projectPath)
             ? positionSelection(selected)
             : null;
         actionRef.current = next;
@@ -174,7 +174,7 @@ export function CodeSelectionActions({
     };
     const unsubscribe = onCodeSourceChange(() => {
       const captured = actionRef.current?.selected;
-      if (captured !== undefined && !selectionIsCurrent(captured, projectId)) {
+      if (captured !== undefined && !selectionIsCurrent(captured, projectPath)) {
         holdRef.current = false;
         document.getSelection()?.removeAllRanges();
         actionRef.current = null;
@@ -204,7 +204,7 @@ export function CodeSelectionActions({
       window.visualViewport?.removeEventListener("scroll", update);
       window.visualViewport?.removeEventListener("resize", update);
     };
-  }, [projectId]);
+  }, [projectPath]);
 
   useEffect(() => {
     updateRef.current();
@@ -212,7 +212,7 @@ export function CodeSelectionActions({
 
   const invoke = (kind: "search" | "comment") => {
     const captured = actionRef.current?.selected ?? null;
-    const native = readSelection(projectId);
+    const native = readSelection(projectPath);
     const selected =
       native ??
       (holdRef.current && (document.getSelection()?.isCollapsed ?? true) ? captured : null);
@@ -222,7 +222,7 @@ export function CodeSelectionActions({
       selected.source === captured.source &&
       selected.start === captured.start &&
       selected.end === captured.end &&
-      selectionIsCurrent(selected, projectId) &&
+      selectionIsCurrent(selected, projectPath) &&
       positionSelection(selected) !== null;
     holdRef.current = false;
     document.getSelection()?.removeAllRanges();

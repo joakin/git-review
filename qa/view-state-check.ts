@@ -22,8 +22,7 @@ export async function checkViewStateRecovery(browser: Browser, base: URL): Promi
     const treeFailure = "Controlled Files directory failure";
     await page.route(
       (url) =>
-        /^\/api\/projects\/[^/]+\/tree$/u.test(url.pathname) &&
-        url.searchParams.get("path") === "src",
+        /^\/api\/project\/tree$/u.test(url.pathname) && url.searchParams.get("path") === "src",
       async (route) => {
         treeReads += 1;
         if (treeReads === 1)
@@ -69,8 +68,7 @@ export async function checkViewStateRecovery(browser: Browser, base: URL): Promi
     // the fixture's contents or inventing an unavailable directory.
     const emptyTree: FileTree = { path: "", parentPath: null, entries: [] };
     await page.route(
-      (url) =>
-        /^\/api\/projects\/[^/]+\/tree$/u.test(url.pathname) && url.searchParams.get("path") === "",
+      (url) => /^\/api\/project\/tree$/u.test(url.pathname) && url.searchParams.get("path") === "",
       async (route) => {
         await route.fulfill({ status: 200, json: emptyTree });
       },

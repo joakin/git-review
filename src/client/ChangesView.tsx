@@ -16,7 +16,7 @@ import type { LoadState } from "./load-state.ts";
 import { BulkDiffControls } from "./BulkDiffControls.tsx";
 
 type ChangesModel = {
-  projectId: string;
+  projectPath: string;
   status: LoadState<ProjectStatus>;
   refreshing: boolean;
   pendingUpdate: boolean;
@@ -208,7 +208,7 @@ export function ChangesView({
   commands: ChangesCommands;
 }) {
   const {
-    projectId,
+    projectPath,
     status,
     refreshing,
     pendingUpdate,
@@ -298,9 +298,9 @@ export function ChangesView({
                   ) : (
                     group.map((entry) => (
                       <DiffCard
-                        key={`${projectId}:${diffCardKey(entry)}`}
+                        key={JSON.stringify([projectPath, diffCardKey(entry)])}
                         entry={entry}
-                        projectId={projectId}
+                        projectPath={projectPath}
                         revision={gitStatus.revision}
                         changeToken={gitStatus.changeToken}
                         refreshKey={refreshKey}

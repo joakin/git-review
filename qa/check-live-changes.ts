@@ -218,7 +218,7 @@ try {
 
     let activeChecks = 0;
     let maximumChecks = 0;
-    await phone.page.route("**/api/projects/*/status**", async (route) => {
+    await phone.page.route("**/api/project/status**", async (route) => {
       activeChecks += 1;
       maximumChecks = Math.max(maximumChecks, activeChecks);
       await new Promise((finish) => setTimeout(finish, 300));
@@ -239,7 +239,7 @@ try {
       .waitFor({ state: "visible", timeout: 4_000 });
     if (maximumChecks !== 1 || !(await phone.card.textContent())?.includes('message = "third"'))
       throw new Error("Polling requests overlapped or a check failure replaced the review");
-    await phone.page.unroute("**/api/projects/*/status**");
+    await phone.page.unroute("**/api/project/status**");
     await phone.page.getByRole("button", { name: "Refresh", exact: true }).click();
     await phone.page
       .getByRole("status")
@@ -250,7 +250,7 @@ try {
     // Keep the worktree unchanged during failure: a manual generation still refetches diffs,
     // while a controlled pending token exercises retention of the displayed status snapshot.
     let failUpdate = false;
-    await phone.page.route("**/api/projects/*/status**", async (route) => {
+    await phone.page.route("**/api/project/status**", async (route) => {
       if (failUpdate) {
         await route.fulfill({
           status: 503,
@@ -289,7 +289,7 @@ try {
     const preferences = await phone.page.evaluate(() =>
       JSON.stringify(
         Object.keys(localStorage)
-          .filter((key) => key.startsWith("git-review:open-cards:v1:"))
+          .filter((key) => key.startsWith("git-review:open-cards:v2:"))
           .sort()
           .map((key) => [key, localStorage.getItem(key)]),
       ),
@@ -327,7 +327,7 @@ try {
     const retainedPreferences = await phone.page.evaluate(() =>
       JSON.stringify(
         Object.keys(localStorage)
-          .filter((key) => key.startsWith("git-review:open-cards:v1:"))
+          .filter((key) => key.startsWith("git-review:open-cards:v2:"))
           .sort()
           .map((key) => [key, localStorage.getItem(key)]),
       ),
@@ -340,7 +340,7 @@ try {
       !(await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).isVisible())
     )
       throw new Error("Failed Update collapsed a card or lost the draft");
-    await phone.page.unroute("**/api/projects/*/status**");
+    await phone.page.unroute("**/api/project/status**");
     await writeFile(source, content("recovered"));
     await phone.page.locator(".changes-update").click();
     await phone.card.getByText('export const message = "recovered";').waitFor({ state: "visible" });

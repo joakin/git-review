@@ -42,13 +42,13 @@ await withQaBrowser(async (browser) => {
       await page.locator(".comment-editor").waitFor({ state: "detached" });
       await page.waitForFunction(() => document.documentElement.style.overflow !== "hidden");
       const savedDraft = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v1:")),
+        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v2:")),
       );
       await page.getByRole("button", { name: "Collapse all", exact: true }).click();
       await page.getByRole("button", { name: "Expand all", exact: true }).click();
       await card.locator(".diff-code").first().waitFor();
       const afterBulk = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v1:")),
+        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v2:")),
       );
       if (JSON.stringify(afterBulk) !== JSON.stringify(savedDraft))
         throw new Error("Bulk actions changed saved feedback");
@@ -75,7 +75,7 @@ await withQaBrowser(async (browser) => {
         throw new Error(`Incorrect feedback preview: ${preview}`);
       await context.storageState({ path: "qa/.artifacts/feedback-storage.json" });
       const activeSession = await page.evaluate(() =>
-        sessionStorage.getItem("git-review:active-project:v1"),
+        sessionStorage.getItem("git-review:active-project:v2"),
       );
       if (activeSession === null) throw new Error("Expected an active project in this tab");
       await copy.click();
@@ -97,7 +97,7 @@ await withQaBrowser(async (browser) => {
       await fallback.addInitScript(
         ({ origin, activeSession }) => {
           if (location.origin === origin)
-            sessionStorage.setItem("git-review:active-project:v1", activeSession);
+            sessionStorage.setItem("git-review:active-project:v2", activeSession);
         },
         { origin: base.origin, activeSession },
       );
@@ -128,7 +128,7 @@ await withQaBrowser(async (browser) => {
           }),
         });
       };
-      await fallbackPage.route("**/api/projects/*/status", emptyStatus);
+      await fallbackPage.route("**/api/project/status?*", emptyStatus);
       await fallbackPage.getByRole("button", { name: "Feedback 1" }).click();
       await fallbackPage
         .getByText("Line changed or disappeared.", { exact: false })
@@ -139,7 +139,7 @@ await withQaBrowser(async (browser) => {
         throw new Error("Outdated feedback remained selectable for export");
 
       const storedKey = await fallbackPage.evaluate(() =>
-        Object.keys(localStorage).find((key) => key.startsWith("git-review:comments:v1:")),
+        Object.keys(localStorage).find((key) => key.startsWith("git-review:comments:v2:")),
       );
       if (storedKey === undefined) throw new Error("Missing persisted review for reattachment");
       const commentKey: string = storedKey;
@@ -150,7 +150,7 @@ await withQaBrowser(async (browser) => {
         );
         const store = validateCommentStore(
           value,
-          commentKey.slice("git-review:comments:v1:".length),
+          decodeURIComponent(commentKey.slice("git-review:comments:v2:".length)),
         );
         if (store === null) throw new Error("Reattachment produced an invalid persisted review");
         return store;
@@ -180,17 +180,17 @@ await withQaBrowser(async (browser) => {
           },
         ],
       });
-      await fallbackPage.route("**/api/projects/*/diff?*", async (route) => {
+      await fallbackPage.route("**/api/project/diff?*", async (route) => {
         const params = new URL(route.request().url()).searchParams;
         if (params.get("layer") === "staged" && params.get("path") === "src/view.ts")
           await route.fulfill({ json: reattachmentDiff });
         else await route.continue();
       });
-      await fallbackPage.route("**/api/projects/*/diffs", async (route) => {
+      await fallbackPage.route("**/api/project/diffs?*", async (route) => {
         const request = parseChangeDiffBatchRequest(route.request().postDataJSON() as unknown);
         if (request.files.every((file) => file.layer === "staged" && file.path === "src/view.ts")) {
-          const id = new URL(route.request().url()).pathname.split("/")[3];
-          if (id === undefined) throw new Error("Missing project identity");
+          const id = new URL(route.request().url()).searchParams.get("projectPath");
+          if (id === null) throw new Error("Missing project identity");
           await route.fulfill({
             json: {
               kind: "ready",
@@ -204,7 +204,7 @@ await withQaBrowser(async (browser) => {
           });
         } else await route.continue();
       });
-      await fallbackPage.unroute("**/api/projects/*/status", emptyStatus);
+      await fallbackPage.unroute("**/api/project/status?*", emptyStatus);
       await fallbackPage.reload({ waitUntil: "load" });
       await fallbackPage.getByRole("button", { name: "Feedback 1", exact: true }).click();
       await fallbackPage.getByRole("button", { name: "Reattach to line", exact: true }).click();
@@ -246,12 +246,12 @@ await withQaBrowser(async (browser) => {
         throw new Error("Checked export did not use the reattached removed-row anchor");
 
       await fallbackPage.getByRole("button", { name: "Close feedback", exact: true }).click();
-      await fallbackPage.route("**/api/projects/*/status", emptyStatus);
+      await fallbackPage.route("**/api/project/status?*", emptyStatus);
       await fallbackPage.getByRole("button", { name: "Feedback 1", exact: true }).click();
       await fallbackPage
         .getByRole("button", { name: "Reattach to line", exact: true })
         .waitFor({ state: "visible" });
-      await fallbackPage.unroute("**/api/projects/*/status", emptyStatus);
+      await fallbackPage.unroute("**/api/project/status?*", emptyStatus);
       await fallbackPage.getByRole("button", { name: "Reattach to line", exact: true }).click();
       await fallbackCard.locator(".diff-row-context .diff-code").tap();
       await fallbackCard.getByRole("button", { name: /Comment on old line 1/ }).click();

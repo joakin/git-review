@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../src/shared/project-path.ts";
+import { projectLookupResponse } from "./browser-support.ts";
 import { writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { type Page } from "playwright-core";
@@ -23,22 +25,22 @@ const path = "src/feedback notes β.txt";
 const location = resolve("qa/.artifacts/inventory-fixture", path);
 const original = "const lesson = 'source';\r\n\r\nconst answer = 42;\r\n// last line\r\n";
 const project = parseProjectResponse(
-  await responseBody(
-    await fetch(`${origin}/api/projects/open`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ path: "inventory-fixture" }),
-    }),
-  ),
+  await responseBody(await projectLookupResponse(origin, "inventory-fixture")),
 );
 const status = parseStatusResponse(
-  await responseBody(await fetch(`${origin}/api/projects/${project.id}/status`)),
+  await responseBody(await fetch(origin + projectApiUrl("/status", project.absolutePath))),
 );
 if (status.kind !== "git") throw new Error("Expected Git fixture");
 const diff = parseDiffResponse(
   await responseBody(
     await fetch(
-      `${origin}/api/projects/${project.id}/diff?${new URLSearchParams({ layer: "staged", path: "src/view.ts", revision: status.revision, language: "text" })}`,
+      origin +
+        projectApiUrl("/diff", project.absolutePath, {
+          layer: "staged",
+          path: "src/view.ts",
+          revision: status.revision,
+          language: "text",
+        }),
     ),
   ),
 );
@@ -51,30 +53,30 @@ const anchor = anchorForLine(
   "new",
 );
 if (anchor === null) throw new Error("Missing diff anchor");
-const { kind: _kind, ...legacyAnchor } = anchor;
-const legacyDraft = {
-  id: "legacy",
-  anchor: legacyAnchor,
+const savedDraft = {
+  id: "saved",
+  anchor,
+  subject: { kind: "line" },
   body: "Existing diff feedback",
   createdAt: 1,
   updatedAt: 1,
   state: "current",
 };
 const seed = {
-  version: 1,
-  projectId: project.id,
-  drafts: [legacyDraft],
+  version: 4,
+  projectPath: project.absolutePath,
+  drafts: [savedDraft],
   history: [
     {
       id: "old-copy",
       copiedAt: 2,
       text: "Previously copied text stays exact.\n  ",
-      comments: [legacyDraft],
+      comments: [savedDraft],
     },
   ],
 };
-const key = `git-review:comments:v1:${project.id}`;
-const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.path, file: path })}`;
+const key = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`;
+const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const views = [
   { width: 320, height: 740, touch: true },
   { width: 390, height: 844, touch: true },
@@ -90,7 +92,7 @@ async function readStore(page: Page): Promise<CommentStore> {
     (storageKey) => JSON.parse(localStorage.getItem(storageKey) ?? "null") as unknown,
     key,
   );
-  const store = validateCommentStore(raw, project.id);
+  const store = validateCommentStore(raw, project.absolutePath);
   if (store === null) throw new Error("Invalid saved comments");
   return store;
 }
@@ -162,20 +164,17 @@ try {
           (await page.locator(".file-code-row").count()) === 4,
           "CRLF created extra file lines",
         );
-        const migrated: unknown = await page.evaluate(
+        const saved: unknown = await page.evaluate(
           (storageKey) => JSON.parse(localStorage.getItem(storageKey) ?? "null") as unknown,
           key,
         );
         assert(
-          typeof migrated === "object" &&
-            migrated !== null &&
-            "version" in migrated &&
-            migrated.version === 3,
-          "Legacy store did not migrate in place",
+          typeof saved === "object" && saved !== null && "version" in saved && saved.version === 4,
+          "Current store did not load",
         );
         assert(
           (await readStore(page)).history[0]?.text === seed.history[0]?.text,
-          "Migration rewrote old history text",
+          "Loading rewrote saved history text",
         );
         await comment(page, 1, "Explain the lesson source.", view.touch);
         // Keyboard-accessible direct line button also works on a blank line.
@@ -232,7 +231,7 @@ try {
           await closePreview(p);
           // Search and Files share working-tree anchor identity and marker count.
           await p.goto(
-            `${origin}/?${new URLSearchParams({ section: "search", project: project.path, q: "lesson", file: path, line: "1" })}`,
+            `${origin}/?${new URLSearchParams({ section: "search", project: project.relativePath, q: "lesson", file: path, line: "1" })}`,
             { waitUntil: "load" },
           );
           await p
@@ -276,7 +275,7 @@ try {
               resolve("qa/.artifacts"),
             );
             assert(
-              backup.version === 5 &&
+              backup.version === 6 &&
                 backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "file") === true &&
                 backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "diff") === true,
               "Export omitted mixed comment sources",
@@ -392,7 +391,7 @@ try {
             await preview(p);
             await closePreview(p);
             const beforeFailure = await readStore(p);
-            await p.route("**/api/projects/*/file?*", async (route) => {
+            await p.route("**/api/project/file?*", async (route) => {
               await route.fulfill({
                 status: 403,
                 json: { error: { code: "forbidden", message: "Test read denied" } },
@@ -408,7 +407,7 @@ try {
               !(await p.getByRole("button", { name: "Copy feedback", exact: true }).isEnabled()),
               "Read failure allowed copy",
             );
-            await p.unroute("**/api/projects/*/file?*");
+            await p.unroute("**/api/project/file?*");
             await p.getByRole("button", { name: "Retry", exact: true }).click();
             await p.locator("#review-export-text").waitFor({ state: "visible" });
             await closePreview(p);
@@ -426,7 +425,7 @@ try {
         },
       );
       console.log(
-        `File feedback, migration, reload, mixed preview/copy/Undo, Search identity, selection and containment passed at ${view.width}px`,
+        `File feedback, current storage, reload, mixed preview/copy/Undo, Search identity, selection and containment passed at ${view.width}px`,
       );
     }
     // Real unchanged Git and non-Git text require no status call for their file-only feedback.
@@ -448,7 +447,7 @@ try {
           await p.locator('.file-code-row[data-line="1"]').waitFor({ state: "visible" });
           await comment(p, 1, `Read ${projectPath} without a diff.`, true);
           let statusRequests = 0;
-          await p.route("**/api/projects/*/status", async (route) => {
+          await p.route("**/api/project/status?*", async (route) => {
             statusRequests += 1;
             await route.abort();
           });

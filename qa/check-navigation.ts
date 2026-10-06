@@ -54,6 +54,12 @@ async function waitForSelectedDiffFocus(page: Page): Promise<void> {
 
 async function checkChangesCardFocus(page: Page): Promise<void> {
   await page.goto(new URL("/?section=changes&project=inventory-fixture&target=list", base).href);
+  // Earlier scenarios in this context may have persisted this card as expanded.
+  await page.evaluate(() => {
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith("git-review:open-cards:v2:")) localStorage.removeItem(key);
+  });
+  await page.reload();
   await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();
   const selected = page.locator('main .diff-card[data-layer="staged"][data-path="src/view.ts"]');
   await selected.locator(".diff-row").first().waitFor({ state: "visible" });

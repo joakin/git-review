@@ -26,7 +26,7 @@ test("one stale batch delivers stale to every requested layer", async () => {
         });
         return Response.json({
           kind: "stale",
-          source: changeDiffBatchSource("project", request.revision, request.changeToken),
+          source: changeDiffBatchSource("/repo/project", request.revision, request.changeToken),
         });
       },
       { preconnect: globalThis.fetch.preconnect },
@@ -36,7 +36,7 @@ test("one stale batch delivers stale to every requested layer", async () => {
     expect(
       await Promise.all(
         files.map((file) =>
-          fetchChangeDiff("project", file, snapshot, new AbortController().signal),
+          fetchChangeDiff("/repo/project", file, snapshot, new AbortController().signal),
         ),
       ),
     ).toEqual([{ kind: "stale" }, { kind: "stale" }]);
@@ -64,12 +64,13 @@ test("deferred Changes reads keep both snapshot tokens on the individual fallbac
         if (url.pathname.endsWith("/diffs"))
           return Response.json({
             kind: "ready",
-            source: changeDiffBatchSource("project", snapshot.revision, snapshot.changeToken),
+            source: changeDiffBatchSource("/repo/project", snapshot.revision, snapshot.changeToken),
             results: [{ key: changeDiffRequestKey(file), kind: "deferred" }],
           });
         fallback = true;
-        expect(url.pathname).toBe("/api/projects/project/diff");
+        expect(url.pathname).toBe("/api/project/diff");
         expect(Object.fromEntries(url.searchParams)).toEqual({
+          projectPath: "/repo/project",
           layer: file.layer,
           path: file.path,
           language: file.language,
@@ -83,7 +84,9 @@ test("deferred Changes reads keep both snapshot tokens on the individual fallbac
     ),
   );
   try {
-    expect(await fetchChangeDiff("project", file, snapshot, new AbortController().signal)).toEqual({
+    expect(
+      await fetchChangeDiff("/repo/project", file, snapshot, new AbortController().signal),
+    ).toEqual({
       kind: "stale",
     });
     expect(fallback).toBe(true);

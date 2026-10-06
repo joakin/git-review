@@ -22,8 +22,12 @@ export function changeDiffRequestKey(file: ChangeDiffRequest): string {
   return JSON.stringify([file.layer, file.path, file.language]);
 }
 
-export function changeDiffBatchSource(id: string, revision: string, changeToken: string): string {
-  return JSON.stringify(["changes", id, revision, changeToken]);
+export function changeDiffBatchSource(
+  projectPath: string,
+  revision: string,
+  changeToken: string,
+): string {
+  return JSON.stringify(["changes", projectPath, revision, changeToken]);
 }
 
 export function parseChangeDiffBatchRequest(value: unknown): ChangeDiffBatchRequest {

@@ -69,7 +69,7 @@ await withQaBrowser(async (browser) => {
     await page
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });
-    await page.route("**/api/projects/*/file?*", (route) =>
+    await page.route("**/api/project/file?*", (route) =>
       route.fulfill({
         status: 404,
         contentType: "application/json",

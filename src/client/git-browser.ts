@@ -28,11 +28,13 @@ function state<T>(
 }
 
 export function useGitBrowser(project: Project | null, route: GitRoute | null) {
-  const id = route === null ? null : (project?.id ?? null);
+  const projectPath = route === null ? null : (project?.absolutePath ?? null);
   const ref = route?.ref ?? null;
   const oid = route?.target.kind === "commit" ? route.target.oid : null;
-  const historyKey = id === null || ref === null ? null : JSON.stringify([id, ref]);
-  const commitKey = id === null || oid === null ? null : JSON.stringify([id, oid]);
+  const historyKey =
+    projectPath === null || ref === null ? null : JSON.stringify([projectPath, ref]);
+  const commitKey =
+    projectPath === null || oid === null ? null : JSON.stringify([projectPath, oid]);
   const [refsLoad, setRefs] = useState<{ key: string; state: GitLoad<GitRefs> } | null>(null);
   const [historyLoad, setHistory] = useState<{
     key: string;
@@ -46,11 +48,15 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
   const [paging, setPaging] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [pageRequest, setPageRequest] = useState<{
-    id: string;
+    projectPath: string;
     key: string;
     snapshot: GitHistorySnapshot;
   } | null>(null);
-  const refs = state(id, refsLoad, id === null ? null : refsCache.read(id));
+  const refs = state(
+    projectPath,
+    refsLoad,
+    projectPath === null ? null : refsCache.read(projectPath),
+  );
   const history = state(
     historyKey,
     historyLoad,
@@ -69,39 +75,39 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     !refs.value.branches.some((branch) => branch.ref === ref);
 
   useEffect(() => {
-    if (id === null || refsCache.read(id) !== null) return;
+    if (projectPath === null || refsCache.read(projectPath) !== null) return;
     const controller = new AbortController();
     setRefs((current) =>
-      current?.key === id && current.state.kind === "ready"
+      current?.key === projectPath && current.state.kind === "ready"
         ? current
-        : { key: id, state: { kind: "loading" } },
+        : { key: projectPath, state: { kind: "loading" } },
     );
-    fetchGitRefs(id, controller.signal).then(
+    fetchGitRefs(projectPath, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
-        refsCache.remember(id, value);
-        setRefs({ key: id, state: { kind: "ready", value } });
+        refsCache.remember(projectPath, value);
+        setRefs({ key: projectPath, state: { kind: "ready", value } });
       },
       (error: unknown) => {
         if (!controller.signal.aborted) {
           setRefs((current) =>
-            current?.key === id && current.state.kind === "ready"
+            current?.key === projectPath && current.state.kind === "ready"
               ? current
-              : { key: id, state: { kind: "error", message: message(error) } },
+              : { key: projectPath, state: { kind: "error", message: message(error) } },
           );
           setPageError(message(error));
         }
       },
     );
     return () => controller.abort();
-  }, [id, refresh]);
+  }, [projectPath, refresh]);
 
   useEffect(() => {
     setPageError(null);
     setPaging(false);
     setPageRequest(null);
     if (
-      id === null ||
+      projectPath === null ||
       ref === null ||
       historyKey === null ||
       unborn ||
@@ -117,7 +123,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
         ? current
         : { key: historyKey, state: { kind: "loading" } },
     );
-    fetchGitHistory(id, { kind: "ref", ref }, controller.signal).then(
+    fetchGitHistory(projectPath, { kind: "ref", ref }, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
         historyCache.remember(historyKey, value);
@@ -136,14 +142,19 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       },
     );
     return () => controller.abort();
-  }, [id, ref, historyKey, unborn, refresh]);
+  }, [projectPath, ref, historyKey, unborn, refresh]);
 
   useEffect(() => {
-    if (id === null || oid === null || commitKey === null || commitCache.read(commitKey) !== null)
+    if (
+      projectPath === null ||
+      oid === null ||
+      commitKey === null ||
+      commitCache.read(commitKey) !== null
+    )
       return;
     const controller = new AbortController();
     setCommit({ key: commitKey, state: { kind: "loading" } });
-    fetchCommit(id, oid, controller.signal).then(
+    fetchCommit(projectPath, oid, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
         commitCache.remember(commitKey, value);
@@ -155,10 +166,15 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       },
     );
     return () => controller.abort();
-  }, [id, oid, commitKey, refresh]);
+  }, [projectPath, oid, commitKey, refresh]);
 
   useEffect(() => {
-    if (pageRequest === null || pageRequest.id !== id || pageRequest.key !== historyKey) return;
+    if (
+      pageRequest === null ||
+      pageRequest.projectPath !== projectPath ||
+      pageRequest.key !== historyKey
+    )
+      return;
     const controller = new AbortController();
     const snapshot = pageRequest.snapshot;
     const offset = snapshot.nextOffset;
@@ -166,7 +182,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     setPaging(true);
     setPageError(null);
     fetchGitHistory(
-      pageRequest.id,
+      pageRequest.projectPath,
       { kind: "page", tip: snapshot.tip, offset },
       controller.signal,
     ).then(
@@ -196,11 +212,11 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     );
     return () => controller.abort();
     // Only an explicit Load older action starts another page; list updates don't.
-  }, [pageRequest, id, historyKey]);
+  }, [pageRequest, projectPath, historyKey]);
 
   function refreshHistory(): void {
-    if (id === null) return;
-    refsCache.remove(id);
+    if (projectPath === null) return;
+    refsCache.remove(projectPath);
     if (historyKey !== null) historyCache.remove(historyKey);
     setPageRequest(null);
     setRefresh((value) => value + 1);
@@ -219,13 +235,13 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       if (
         !paging &&
         !refreshing &&
-        id !== null &&
+        projectPath !== null &&
         historyKey !== null &&
         history.kind === "ready" &&
         history.value.nextOffset !== null
       ) {
         setPaging(true);
-        setPageRequest({ id, key: historyKey, snapshot: history.value });
+        setPageRequest({ projectPath, key: historyKey, snapshot: history.value });
       }
     },
     retryCommit: () => setRefresh((value) => value + 1),

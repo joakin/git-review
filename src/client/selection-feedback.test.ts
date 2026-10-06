@@ -13,7 +13,7 @@ import {
 } from "./comments.ts";
 import { parseReviewBackup } from "./backup.ts";
 
-const projectId = "aaaaaaaaaaaaaaaaaaaa";
+const projectPath = "/repo/project";
 const text = "\tfoo + foo + '🦊'; ";
 const anchor = {
   kind: "file",
@@ -38,7 +38,7 @@ function fragment(start = 7, end = 10): DraftComment {
   };
 }
 function store(draft = fragment()): CommentStore {
-  return { ...emptyCommentStore(projectId), drafts: [draft] };
+  return { ...emptyCommentStore(projectPath), drafts: [draft] };
 }
 
 test("selection subjects preserve exact repeated occurrences, spaces, tabs and Unicode boundaries", () => {
@@ -80,7 +80,7 @@ test("selection subjects preserve exact repeated occurrences, spaces, tabs and U
 test("stored selections validate their text, offsets and variant atomically in drafts and history", () => {
   const original = fragment();
   const valid = store(original);
-  expect(validateCommentStore(valid, projectId)).toEqual(valid);
+  expect(validateCommentStore(valid, projectPath)).toEqual(valid);
   for (const subject of [
     null,
     { kind: "line", text: "foo" },
@@ -89,37 +89,15 @@ test("stored selections validate their text, offsets and variant atomically in d
     { kind: "future" },
   ]) {
     const invalid = { ...original, subject };
-    expect(validateCommentStore({ ...valid, drafts: [invalid] }, projectId)).toBeNull();
+    expect(validateCommentStore({ ...valid, drafts: [invalid] }, projectPath)).toBeNull();
     expect(
       validateCommentStore(
         { ...valid, history: [{ id: "copy", copiedAt: 2, text: "Archived", comments: [invalid] }] },
-        projectId,
+        projectPath,
       ),
     ).toBeNull();
   }
-  expect(validateCommentStore({ ...valid, version: 2 }, projectId)).toBeNull();
-});
-
-test("versions one and two migrate line subjects while retaining exact archived text", () => {
-  const { subject: _subject, ...fields } = fragment();
-  const diffAnchor = { ...anchor, kind: "diff", layer: "unstaged", side: "new" };
-  const { source: _source, kind: _kind, ...legacyAnchor } = diffAnchor;
-  for (const version of [1, 2]) {
-    const draft = { ...fields, anchor: version === 1 ? legacyAnchor : anchor };
-    const raw = {
-      version,
-      projectId,
-      drafts: [draft],
-      history: [{ id: "copy", copiedAt: 2, text: "Old text\n  untouched  ", comments: [draft] }],
-    };
-    const migrated = validateCommentStore(raw, projectId);
-    expect(migrated?.version).toBe(3);
-    expect(migrated?.drafts[0]?.subject).toEqual({ kind: "line" });
-    expect(migrated?.history[0]?.comments[0]?.subject).toEqual({ kind: "line" });
-    expect(migrated?.history[0]?.text).toBe(raw.history[0]?.text);
-    expect(migrated?.drafts[0]?.id).toBe(fields.id);
-    expect(migrated?.drafts[0]?.updatedAt).toBe(fields.updatedAt);
-  }
+  expect(validateCommentStore({ ...valid, version: 2 }, projectPath)).toBeNull();
 });
 
 test("selection export quotes the full source and exact fragment with its occurrence positions", () => {
@@ -135,7 +113,7 @@ test("selection export quotes the full source and exact fragment with its occurr
 test("late checks and copy do not validate or clear a reattached selection sharing the same line", () => {
   const original = fragment();
   const changed = fragment(1, 4);
-  const checked = { projectId, drafts: [original] };
+  const checked = { projectPath, drafts: [original] };
   expect(
     mergeCheckedComments(store(changed), {
       ...checked,
@@ -152,11 +130,11 @@ test("late checks and copy do not validate or clear a reattached selection shari
   expect(undoSuccessfulCopy(archived, "copy").drafts).toEqual([original]);
 });
 
-test("backup five retains selections and backup four migrates its mixed line stores", () => {
+test("backup six retains selections and rejects obsolete formats", () => {
   const backup = {
-    version: 5,
+    version: 6,
     rootPath: "/repo",
-    workspace: { version: 3, rootPath: "/repo", recentPaths: [] },
+    workspace: { version: 4, rootPath: "/repo", recentPaths: [] },
     wrap: true,
     codeTypography: { version: 1, fontFamily: "system", fontSize: 14 },
     appearance: { version: 1, appTheme: "system", codeTheme: "light" },
@@ -165,11 +143,5 @@ test("backup five retains selections and backup four migrates its mixed line sto
     languages: [],
   };
   expect(parseReviewBackup(backup, "/repo").comments).toEqual([store()]);
-  expect(() => parseReviewBackup({ ...backup, version: 4 }, "/repo")).toThrow("invalid comments");
-  const { subject: _subject, ...line } = fragment();
-  const legacy = { ...store(), version: 2, drafts: [line] };
-  expect(
-    parseReviewBackup({ ...backup, version: 4, comments: [legacy] }, "/repo").comments[0]?.drafts[0]
-      ?.subject,
-  ).toEqual({ kind: "line" });
+  expect(() => parseReviewBackup({ ...backup, version: 5 }, "/repo")).toThrow("unsupported format");
 });

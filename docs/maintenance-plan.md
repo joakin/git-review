@@ -9,7 +9,8 @@ Updated: 2026-10-06
 This bounded pass fixes review defects, removes obsolete material, and gives repeated mechanisms and
 state lifetimes clear owners. Stop after M15 is reviewed and closed; do not pick further work from
 the [optional backlog](initial-implementation-plan.md#remaining-roadmap). The separately agreed
-[stateless project access](stateless-project-access-plan.md) remains deferred.
+[stateless project access](stateless-project-access-plan.md) is now being implemented in its own
+work plan.
 
 Follow [AGENTS.md](../AGENTS.md), [engineering conventions](engineering-conventions.md), and the
 [QA workflow](qa-workflow.md). Keep each new slice uncommitted until the maintainer approves it.

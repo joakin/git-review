@@ -1,5 +1,10 @@
 # Line counts in Changes
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: implemented, reviewed and approved for commit by the maintainer on 2026-10-06.
 
 The maintainer requested added/deleted line counts for uncommitted changes in both the contextual
@@ -87,8 +92,8 @@ fresh budgets.
 The existing read-only status resource has two response modes:
 
 ```text
-GET /api/projects/:id/status
-GET /api/projects/:id/status?mode=check
+GET /api/project/status
+GET /api/project/status?mode=check
 ```
 
 The default response is the complete review inventory, with required statistics on every entry.

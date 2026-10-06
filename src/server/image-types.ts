@@ -1,3 +1,4 @@
+import { projectApiUrl } from "../shared/project-path.ts";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import type { ChangeLayer, MediaResource } from "../shared/api.ts";
@@ -64,23 +65,22 @@ export function workingVersion(metadata: Stats): string {
 }
 
 export function fileImageResource(
-  projectId: string,
+  projectPath: string,
   path: string,
   version: string,
   mimeType: string,
   byteLength: number,
 ): MediaResource {
-  const query = new URLSearchParams({ path, version });
   return {
     kind: "image",
     mimeType,
     byteLength,
-    url: `/api/projects/${projectId}/raw/file?${query}`,
+    url: projectApiUrl("/raw/file", projectPath, { path, version }),
   };
 }
 
 export function diffImageResource(
-  projectId: string,
+  projectPath: string,
   layer: ChangeLayer,
   path: string,
   revision: string,
@@ -89,11 +89,10 @@ export function diffImageResource(
   mimeType: string,
   byteLength: number,
 ): MediaResource {
-  const query = new URLSearchParams({ layer, path, revision, side, version });
   return {
     kind: "image",
     mimeType,
     byteLength,
-    url: `/api/projects/${projectId}/raw/diff?${query}`,
+    url: projectApiUrl("/raw/diff", projectPath, { layer, path, revision, side, version }),
   };
 }

@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import { selectionSubject, type CommentAnchor, type CommentTarget } from "./comments.ts";
 
-type CodeSource = { projectId: string | null; text: string; anchor: CommentAnchor | null };
+type CodeSource = { projectPath: string | null; text: string; anchor: CommentAnchor | null };
 const sources = new WeakMap<HTMLElement, CodeSource>();
 const listeners = new Set<() => void>();
 function notify(): void {
@@ -17,14 +17,14 @@ export function onCodeSourceChange(listener: () => void): () => void {
 
 /** Registration belongs to the rendered snapshot, including its diff side. */
 export function SelectableCode({
-  projectId,
+  projectPath,
   resource,
   anchor,
   text,
   className,
   children,
 }: {
-  projectId: string | null;
+  projectPath: string | null;
   resource: object;
   anchor: CommentAnchor | null;
   text: string;
@@ -33,9 +33,9 @@ export function SelectableCode({
 }) {
   const ref = useRef<HTMLElement>(null);
   const source = useMemo<CodeSource>(
-    () => ({ projectId, text, anchor }),
+    () => ({ projectPath, text, anchor }),
     [
-      projectId,
+      projectPath,
       resource,
       text,
       anchor?.kind,
@@ -49,7 +49,7 @@ export function SelectableCode({
   );
   useLayoutEffect(() => {
     const element = ref.current;
-    if (element === null || source.projectId === null) return;
+    if (element === null || source.projectPath === null) return;
     sources.set(element, source);
     notify();
     return () => {
@@ -74,7 +74,7 @@ export type SelectedCode = {
   target: CommentTarget | null;
 };
 
-export function selectedCode(range: Range, projectId: string): SelectedCode | null {
+export function selectedCode(range: Range, projectPath: string): SelectedCode | null {
   const element =
     range.startContainer instanceof Element
       ? range.startContainer
@@ -83,7 +83,7 @@ export function selectedCode(range: Range, projectId: string): SelectedCode | nu
   if (!(code instanceof HTMLElement) || !code.contains(range.endContainer) || !code.isConnected)
     return null;
   const source = sources.get(code);
-  if (source === undefined || source.projectId !== projectId || code.closest("dialog") !== null)
+  if (source === undefined || source.projectPath !== projectPath || code.closest("dialog") !== null)
     return null;
   const prefix = document.createRange();
   prefix.selectNodeContents(code);
@@ -105,8 +105,8 @@ export function selectedCode(range: Range, projectId: string): SelectedCode | nu
   return { code, source, range: range.cloneRange(), start, end, text, target };
 }
 
-export function selectionIsCurrent(selected: SelectedCode, projectId: string): boolean {
-  const fresh = selectedCode(selected.range, projectId);
+export function selectionIsCurrent(selected: SelectedCode, projectPath: string): boolean {
+  const fresh = selectedCode(selected.range, projectPath);
   return (
     fresh !== null &&
     fresh.start === selected.start &&
@@ -114,7 +114,7 @@ export function selectionIsCurrent(selected: SelectedCode, projectId: string): b
     fresh.text === selected.text &&
     selected.code.isConnected &&
     sources.get(selected.code) === selected.source &&
-    selected.source.projectId === projectId &&
+    selected.source.projectPath === projectPath &&
     selected.code.getClientRects().length > 0 &&
     document.querySelector("dialog[open]") === null
   );

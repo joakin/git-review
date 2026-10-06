@@ -1,6 +1,5 @@
 import type { ApprovedRoot } from "./paths.ts";
-import { AppError, listDirectory, openProject } from "./paths.ts";
-import { isRecord } from "../shared/validation.ts";
+import { AppError, listDirectory, resolveProject } from "./paths.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { readReviewStatus } from "./change-stats.ts";
 import { readProjectDiff } from "./git-diff.ts";
@@ -24,7 +23,7 @@ import { audioVideoResponse } from "./media-stream.ts";
 import { imageMimeType } from "./image-types.ts";
 import { searchProject } from "./search.ts";
 import { createTranscriptionHandler } from "./transcription.ts";
-import type { ChangeLayer, Project } from "../shared/api.ts";
+import type { ChangeLayer } from "../shared/api.ts";
 import {
   commitFile,
   readCommit,
@@ -99,8 +98,8 @@ function changeLayer(value: string): ChangeLayer {
 function onlyQueryKeys(url: URL, allowed: readonly string[]): void {
   const seen = new Set<string>();
   for (const [key] of url.searchParams) {
-    if (!allowed.includes(key) || seen.has(key))
-      throw new AppError("invalid_request", 400, "Invalid or repeated Git query field");
+    if (!(key === "projectPath" || allowed.includes(key)) || seen.has(key))
+      throw new AppError("invalid_request", 400, "Invalid or repeated query field");
     seen.add(key);
   }
 }
@@ -116,15 +115,13 @@ export function createApiHandler(
   root: ApprovedRoot,
   publicOrigin: string | null = null,
 ): (request: Request) => Promise<Response> {
-  const openProjects = new Map<string, Project>();
   const transcribe = createTranscriptionHandler();
-  return (request) => handleApiRequest(request, root, openProjects, publicOrigin, transcribe);
+  return (request) => handleApiRequest(request, root, publicOrigin, transcribe);
 }
 
 async function handleApiRequest(
   request: Request,
   root: ApprovedRoot,
-  openProjects: Map<string, Project>,
   publicOrigin: string | null,
   transcribe: (request: Request) => Promise<Response>,
 ): Promise<Response> {
@@ -149,49 +146,34 @@ async function handleApiRequest(
       const listing = await listDirectory(root, paths[0]);
       return Response.json(listing);
     }
-    if (url.pathname === "/api/projects/open" && request.method === "POST") {
-      const body = await readJsonBody(request);
-      if (!isRecord(body) || !("path" in body)) {
-        throw new AppError("invalid_request", 400, "Expected a folder path");
-      }
-      const project = await openProject(root, body["path"]);
-      openProjects.set(project.id, project);
-      return Response.json({ project });
+    if (url.pathname === "/api/project" && request.method === "GET") {
+      onlyQueryKeys(url, []);
+      return Response.json({
+        project: await resolveProject(root, oneQueryValue(url, "projectPath"), false),
+      });
     }
-    const gitBatchRoute =
-      /^\/api\/projects\/([0-9a-f]{20})\/git\/commits\/([0-9a-f]{40}|[0-9a-f]{64})\/diffs$/.exec(
-        url.pathname,
-      );
+    const gitBatchRoute = /^\/api\/project\/git\/commits\/([0-9a-f]{40}|[0-9a-f]{64})\/diffs$/.exec(
+      url.pathname,
+    );
     if (gitBatchRoute !== null && request.method === "POST") {
       onlyQueryKeys(url, []);
-      const id = gitBatchRoute[1];
-      const oid = gitBatchRoute[2];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined || oid === undefined)
-        throw new AppError("not_found", 404, "Open this folder before browsing its Git history");
+      const oid = gitBatchRoute[1];
+      if (oid === undefined) throw new AppError("invalid_request", 400, "Specify a commit ID");
       const body = await readJsonBody(request, maxDiffBatchRequestBytes);
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
       return await readCommitDiffBatch(current, oid, body, request.signal);
     }
     const gitRoute =
-      /^\/api\/projects\/([0-9a-f]{20})\/git\/(refs|log|commits\/((?:[0-9a-f]{40}|[0-9a-f]{64}))(\/diff)?)$/.exec(
+      /^\/api\/project\/git\/(refs|log|commits\/((?:[0-9a-f]{40}|[0-9a-f]{64}))(\/diff)?)$/.exec(
         url.pathname,
       );
     if (gitRoute !== null && request.method === "GET") {
-      const id = gitRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before browsing its Git history");
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
-      if (gitRoute[2] === "refs") {
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
+      if (gitRoute[1] === "refs") {
         onlyQueryKeys(url, []);
         return Response.json(await readGitRefs(current));
       }
-      if (gitRoute[2] === "log") {
+      if (gitRoute[1] === "log") {
         onlyQueryKeys(url, ["ref", "tip", "offset"]);
         if (url.searchParams.has("ref")) {
           const ref = oneQueryValue(url, "ref");
@@ -211,34 +193,26 @@ async function handleApiRequest(
           await readGitHistory(current, { kind: "page", tip, offset: Number(offset) }),
         );
       }
-      const oid = gitRoute[3];
+      const oid = gitRoute[2];
       if (oid === undefined) throw new AppError("invalid_request", 400, "Specify a commit ID");
-      onlyQueryKeys(url, gitRoute[4] === undefined ? [] : ["path", "language"]);
-      const language = gitRoute[4] === undefined ? null : requestedLanguage(url);
+      onlyQueryKeys(url, gitRoute[3] === undefined ? [] : ["path", "language"]);
+      const language = gitRoute[3] === undefined ? null : requestedLanguage(url);
       const detail = await readCommit(current, oid);
-      if (gitRoute[4] === undefined) return Response.json(detail);
+      if (gitRoute[3] === undefined) return Response.json(detail);
       const file = commitFile(detail, oneQueryValue(url, "path"));
       return Response.json(
         (await describeCommitMedia(current, detail, file)) ??
           (await readCommitDiff(current, detail, file, language)),
       );
     }
-    const rawRoute = /^\/api\/projects\/([0-9a-f]{20})\/raw\/(file|diff|commit)$/.exec(
-      url.pathname,
-    );
+    const rawRoute = /^\/api\/project\/raw\/(file|diff|commit)$/.exec(url.pathname);
     if (rawRoute !== null && (request.method === "GET" || request.method === "HEAD")) {
-      const id = rawRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before viewing its media");
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
       const path = oneQueryValue(url, "path");
       const version = oneQueryValue(url, "version");
       if (!/^(?:[0-9a-f]{20}|[0-9a-f]{40,64})$/.test(version))
         throw new AppError("invalid_request", 400, "Invalid media version");
-      if (rawRoute[2] === "commit") {
+      if (rawRoute[1] === "commit") {
         onlyQueryKeys(url, ["path", "version", "commit", "side"]);
         const side = oneQueryValue(url, "side");
         if (side !== "old" && side !== "new")
@@ -246,7 +220,8 @@ async function handleApiRequest(
         const detail = await readCommit(current, oneQueryValue(url, "commit"));
         return await commitMediaResponse(request, current, commitFile(detail, path), side, version);
       }
-      if (rawRoute[2] === "file") {
+      if (rawRoute[1] === "file") {
+        onlyQueryKeys(url, ["path", "version"]);
         if (imageMimeType(path) !== null) {
           const image = await readWorkingImageBytes(root, current, path, version);
           return imageResponse(image.bytes, image.mimeType, path, request.method === "HEAD");
@@ -259,6 +234,7 @@ async function handleApiRequest(
           path: media.path,
         });
       }
+      onlyQueryKeys(url, ["path", "version", "layer", "revision", "side"]);
       const layer = changeLayer(oneQueryValue(url, "layer"));
       const revision = oneQueryValue(url, "revision");
       const side = oneQueryValue(url, "side");
@@ -280,29 +256,19 @@ async function handleApiRequest(
       const image = await readDiffImageBytes(root, current, entry, side, version);
       return imageResponse(image.bytes, image.mimeType, image.path, request.method === "HEAD");
     }
-    const searchRoute = /^\/api\/projects\/([0-9a-f]{20})\/search$/.exec(url.pathname);
+    const searchRoute = /^\/api\/project\/search$/.exec(url.pathname);
     if (searchRoute !== null && request.method === "GET") {
-      const id = searchRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before searching its files");
+      onlyQueryKeys(url, ["query"]);
       const query = oneQueryValue(url, "query");
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
       return Response.json(await searchProject(current, query, request.signal));
     }
-    const fileRoute = /^\/api\/projects\/([0-9a-f]{20})\/(tree|file)$/.exec(url.pathname);
+    const fileRoute = /^\/api\/project\/(tree|file)$/.exec(url.pathname);
     if (fileRoute !== null && request.method === "GET") {
-      const id = fileRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before browsing its files");
+      onlyQueryKeys(url, fileRoute[1] === "tree" ? ["path"] : ["path", "source", "language"]);
       const path = oneQueryValue(url, "path");
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
-      if (fileRoute[2] === "tree") return Response.json(await readProjectTree(root, current, path));
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
+      if (fileRoute[1] === "tree") return Response.json(await readProjectTree(root, current, path));
       if (oneQueryValue(url, "source") !== "worktree")
         throw new AppError("invalid_request", 400, "Only working-tree files are available");
       const requestedLanguages = url.searchParams.getAll("language");
@@ -313,19 +279,13 @@ async function handleApiRequest(
         throw new AppError("invalid_request", 400, "Invalid language override");
       return Response.json(await readProjectFile(root, current, path, requestedLanguage));
     }
-    const statusRoute = /^\/api\/projects\/([0-9a-f]{20})\/status$/.exec(url.pathname);
+    const statusRoute = /^\/api\/project\/status$/.exec(url.pathname);
     if (statusRoute !== null && request.method === "GET") {
       onlyQueryKeys(url, ["mode"]);
       const modes = url.searchParams.getAll("mode");
       if (modes.length > 1 || (modes.length === 1 && modes[0] !== "check"))
         throw new AppError("invalid_request", 400, "Specify one valid status mode");
-      const id = statusRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before requesting its status");
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
       if (modes[0] === "check") {
         const status = await readProjectStatus(current.absolutePath);
         return Response.json(
@@ -340,25 +300,16 @@ async function handleApiRequest(
       }
       return Response.json(await readReviewStatus(root, current));
     }
-    const diffBatchRoute = /^\/api\/projects\/([0-9a-f]{20})\/diffs$/.exec(url.pathname);
+    const diffBatchRoute = /^\/api\/project\/diffs$/.exec(url.pathname);
     if (diffBatchRoute !== null && request.method === "POST") {
       onlyQueryKeys(url, []);
-      const id = diffBatchRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before requesting its diffs");
       const body = await readJsonBody(request, maxDiffBatchRequestBytes);
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
       return await readChangeDiffBatch(root, current, body, request.signal);
     }
-    const diffRoute = /^\/api\/projects\/([0-9a-f]{20})\/diff$/.exec(url.pathname);
+    const diffRoute = /^\/api\/project\/diff$/.exec(url.pathname);
     if (diffRoute !== null && request.method === "GET") {
-      const id = diffRoute[1];
-      const project = id === undefined ? undefined : openProjects.get(id);
-      if (project === undefined)
-        throw new AppError("not_found", 404, "Open this folder before requesting its diff");
+      onlyQueryKeys(url, ["layer", "path", "revision", "changeToken", "language"]);
       const layer = changeLayer(oneQueryValue(url, "layer"));
       const path = oneQueryValue(url, "path");
       const revision = oneQueryValue(url, "revision");
@@ -383,9 +334,7 @@ async function handleApiRequest(
       ) {
         throw new AppError("invalid_request", 400, "Invalid diff request");
       }
-      const current = await openProject(root, project.path);
-      if (current.id !== id)
-        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
       const status = await readProjectStatus(current.absolutePath);
       if (
         status.kind !== "git" ||

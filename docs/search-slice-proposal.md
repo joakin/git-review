@@ -1,5 +1,10 @@
 # Working-tree search
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: working-tree Search and the
 [selected-code Search shortcut](selected-code-search-slice-proposal.md) are implemented. The
 maintainer confirmed the shortcut works on their phone; iOS selection behavior remains unverified.
@@ -45,12 +50,12 @@ list. It does not add Git history or index browsing.
 
 ## API and data shape
 
-- `GET /api/projects/:id/search?query=<literal>` returns `{ query, matches, truncated }`, where each
+- `GET /api/project/search?query=<literal>` returns `{ query, matches, truncated }`, where each
   match is `{ path, line, excerpt }` with a project-relative path and a positive working-tree line
   number. No repository-wide file contents are sent to the browser.
-- Require an opened project ID and revalidate its approved root on every request. Accept a trimmed,
-  nonempty query of at most 128 characters without NUL or line breaks. Search is case sensitive
-  fixed text in this checkpoint; a later control could add case or whole-word options.
+- Resolve the supplied absolute project path under the approved root on every request. Accept a
+  trimmed, nonempty query of at most 128 characters without NUL or line breaks. Search is case
+  sensitive fixed text in this checkpoint; a later control could add case or whole-word options.
 - Run `rg --json --no-config --hidden -g '!.git/' -F -n --max-filesize 1M -e <query> .` with an
   argument array, no shell, and the validated project directory as `cwd`. `-e` keeps queries
   beginning with `-` safe. Do not add `--follow` or `--no-ignore`. This covers Git and non-Git

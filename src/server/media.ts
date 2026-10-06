@@ -1,3 +1,4 @@
+import { projectApiUrl } from "../shared/project-path.ts";
 import { basename } from "node:path";
 import type { ChangeEntry, DiffResult, MediaSide, Project } from "../shared/api.ts";
 import type { CommitDetail, CommitFileChange, CommitFileSide, CommitDiff } from "../shared/git.ts";
@@ -121,7 +122,7 @@ async function describeSide(
             kind: "ready",
             path,
             resource: diffAudioVideoResource(
-              project.id,
+              project.absolutePath,
               entry.layer,
               entry.path,
               revision,
@@ -148,7 +149,7 @@ async function describeSide(
       kind: "ready",
       path,
       resource: diffAudioVideoResource(
-        project.id,
+        project.absolutePath,
         entry.layer,
         entry.path,
         revision,
@@ -167,7 +168,7 @@ async function describeSide(
           kind: "ready",
           path,
           resource: diffImageResource(
-            project.id,
+            project.absolutePath,
             entry.layer,
             entry.path,
             revision,
@@ -194,7 +195,7 @@ async function describeSide(
     kind: "ready",
     path,
     resource: diffImageResource(
-      project.id,
+      project.absolutePath,
       entry.layer,
       entry.path,
       revision,
@@ -304,8 +305,13 @@ async function describeCommitSide(
 ): Promise<MediaSide> {
   const source = commitSource(file[side]);
   if (source.kind === "absent") return source;
-  const query = (version: string) =>
-    new URLSearchParams({ commit: detail.oid, path: file.path, side, version });
+  const rawUrl = (version: string) =>
+    projectApiUrl("/raw/commit", project.absolutePath, {
+      commit: detail.oid,
+      path: file.path,
+      side,
+      version,
+    });
   const imageMime = imageMimeType(source.path);
   if (imageMime !== null) {
     const info = await gitImageInfo(project, source);
@@ -318,7 +324,7 @@ async function describeCommitSide(
         kind: "image",
         mimeType: info.mimeType,
         byteLength: info.byteLength,
-        url: `/api/projects/${project.id}/raw/commit?${query(info.oid)}`,
+        url: rawUrl(info.oid),
       },
     };
   }
@@ -333,7 +339,7 @@ async function describeCommitSide(
     resource: {
       ...type,
       byteLength: info.byteLength,
-      url: `/api/projects/${project.id}/raw/commit?${query(info.oid)}`,
+      url: rawUrl(info.oid),
     },
   };
 }

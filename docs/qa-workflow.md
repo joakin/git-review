@@ -313,8 +313,8 @@ verify those on real Android and iOS devices.
 
 Run `bun qa/check-typography.ts http://127.0.0.1:3000/` against the inventory fixture to check phone
 Settings access before project selection, live preview, diff and Files fonts, scroll restoration,
-320 px containment at 20 px, reload, and cross-tab updates. `bun qa/check-pwa.ts` checks version 3
-backup export/import of typography and appearance alongside drafts.
+320 px containment at 20 px, reload, and cross-tab updates. `bun qa/check-pwa.ts` checks current
+version 6 backup export/import of typography and appearance alongside drafts.
 [Settings](../qa/screenshots/font-list-20-settings-review/mobile.png) and
 [larger diff text](../qa/screenshots/code-typography-diff-review/mobile.png) have four-size
 captures. Font availability and comfortable reading should also be judged on actual devices.
@@ -338,8 +338,8 @@ the inventory fixture present. It checks app/code independence in the Settings p
 diffs, the Files and feedback palettes, 320 px fit, reload, cross-tab sync including malformed
 values and cleared storage, System preference changes, independent appearance/typography resets,
 unavailable storage, and saved-theme application before the main browser app loads.
-`bun qa/check-pwa.ts` checks version 3 backup export/import of a dark app and light code while
-retaining drafts and typography.
+`bun qa/check-pwa.ts` checks current version 6 backup export/import of a dark app and light code
+while retaining drafts and typography.
 [Dark Settings](../qa/screenshots/theme-dark-settings-review/mobile.png),
 [dark app with dark code](../qa/screenshots/theme-dark-app-dark-code-review/mobile.png),
 [dark app with light code](../qa/screenshots/theme-dark-app-light-code-review/mobile.png), and
@@ -565,3 +565,12 @@ special test source metadata. Saved browser states support action/editor/preview
 milestones. Existing `bun qa/check-selected-search.ts` covers page/horizontal scrolling and invalid
 cross-row selection; `bun qa/check-file-feedback.ts` covers legacy whole-line flows and source-kind
 reattachment guards.
+
+## Stateless project access
+
+Run `bun qa/check-stateless-projects.ts` after `bun run build`. It creates a temporary fixture root
+and an ephemeral localhost port, starts and restarts only its own backend, leaves saved drafts and
+an editor open, and checks Changes, Files, Search, Git, raw media, checked clipboard copy and
+transport-failure retry without a new metadata lookup or page reload. It cleans up its processes and
+fixture in `finally`. `check-tabs.ts` verifies scoped deletion of obsolete data and preservation of
+unrelated storage; feedback and PWA checks exercise the new path-based formats and v6 backups.

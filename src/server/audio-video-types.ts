@@ -1,3 +1,4 @@
+import { projectApiUrl } from "../shared/project-path.ts";
 import type { ChangeLayer, MediaResource } from "../shared/api.ts";
 
 export const maxAudioVideoBytes = 200 * 1024 * 1024;
@@ -51,18 +52,21 @@ export function validAudioVideoHeader(bytes: Uint8Array, mimeType: string): bool
 }
 
 export function fileAudioVideoResource(
-  projectId: string,
+  projectPath: string,
   path: string,
   version: string,
   type: AudioVideoType,
   byteLength: number,
 ): MediaResource {
-  const query = new URLSearchParams({ path, version });
-  return { ...type, byteLength, url: `/api/projects/${projectId}/raw/file?${query}` };
+  return {
+    ...type,
+    byteLength,
+    url: projectApiUrl("/raw/file", projectPath, { path, version }),
+  };
 }
 
 export function diffAudioVideoResource(
-  projectId: string,
+  projectPath: string,
   layer: ChangeLayer,
   path: string,
   revision: string,
@@ -71,6 +75,9 @@ export function diffAudioVideoResource(
   type: AudioVideoType,
   byteLength: number,
 ): MediaResource {
-  const query = new URLSearchParams({ layer, path, revision, side, version });
-  return { ...type, byteLength, url: `/api/projects/${projectId}/raw/diff?${query}` };
+  return {
+    ...type,
+    byteLength,
+    url: projectApiUrl("/raw/diff", projectPath, { layer, path, revision, side, version }),
+  };
 }

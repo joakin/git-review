@@ -47,7 +47,7 @@ try {
         page.setDefaultTimeout(10_000);
         const requests: string[] = [];
         page.on("request", (request) => {
-          if (new URL(request.url()).pathname.includes("/api/projects/"))
+          if (new URL(request.url()).pathname.includes("/api/project/"))
             requests.push(request.url());
         });
         await page.goto(new URL("/?section=changes&project=line-counts-fixture", base).href);
@@ -215,7 +215,7 @@ try {
         }
         if (name === "narrowPhone") {
           await page.route(
-            (url) => url.pathname.endsWith("/status") && url.search === "",
+            (url) => url.pathname.endsWith("/status") && !url.searchParams.has("mode"),
             async (route) => {
               const response = await route.fetch();
               const snapshot = parseStatusResponse(await response.json());

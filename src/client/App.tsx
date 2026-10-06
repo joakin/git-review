@@ -126,6 +126,13 @@ export function App() {
       feedback.actions.beginProjectOpen();
     },
     onOpened: (project) => {
+      const current = routeRef.current;
+      if (
+        current !== null &&
+        current.section !== "projects" &&
+        current.projectPath !== project.relativePath
+      )
+        navigate({ ...current, projectPath: project.relativePath }, "replace");
       feedback.actions.loadProject(project);
       review.actions.loadProject(project);
     },
@@ -137,10 +144,10 @@ export function App() {
       : root.kind === "error"
         ? root.message
         : null;
-  const treeKey = project === null ? null : `${project.id}\0${treePath}`;
+  const treeKey = project === null ? null : `${project.absolutePath}\0${treePath}`;
   const tree =
     treeKey !== null && treeLoad?.key === treeKey ? treeLoad.state : ({ kind: "loading" } as const);
-  const searchKey = project === null ? null : `${project.id}\0${submittedQuery ?? ""}`;
+  const searchKey = project === null ? null : `${project.absolutePath}\0${submittedQuery ?? ""}`;
   const searchState =
     searchKey === null
       ? ({ kind: "idle" } as const)
@@ -160,14 +167,14 @@ export function App() {
         setFileRefresh((value) => value + 1);
         navigate({
           section: "files",
-          projectPath: project.path,
+          projectPath: project.relativePath,
           directory: parentDirectory(anchor.path),
           target: { kind: "file", path: anchor.path, line: anchor.line },
         });
       } else
         navigate({
           section: "changes",
-          projectPath: project.path,
+          projectPath: project.relativePath,
           target: { kind: "file", layer: anchor.layer, path: anchor.path },
         });
     },
@@ -183,9 +190,14 @@ export function App() {
     onNotice: setNotice,
     onNonGit: (project) => {
       const current = routeRef.current;
-      if (current?.section === "changes" && current.projectPath === project.path)
+      if (current?.section === "changes" && current.projectPath === project.relativePath)
         navigate(
-          { section: "files", projectPath: project.path, directory: "", target: { kind: "list" } },
+          {
+            section: "files",
+            projectPath: project.relativePath,
+            directory: "",
+            target: { kind: "list" },
+          },
           "replace",
         );
     },
@@ -195,7 +207,7 @@ export function App() {
   useEffect(() => {
     if (project === null || gitRoute === null) return;
     if (gitRoute.ref !== null) {
-      lastGitRefs.current.set(project.id, gitRoute.ref);
+      lastGitRefs.current.set(project.absolutePath, gitRoute.ref);
       return;
     }
     if (git.refs.kind !== "ready" || git.refs.value.kind !== "git") return;
@@ -311,7 +323,7 @@ export function App() {
       route?.section !== "changes" ||
       route.target.kind !== "file" ||
       focusedChangesRoute.current === route ||
-      project?.path !== route.projectPath ||
+      project?.relativePath !== route.projectPath ||
       status.kind !== "ready" ||
       status.value.kind !== "git"
     )
@@ -369,13 +381,13 @@ export function App() {
   useEffect(() => {
     if (project === null || viewMode !== "files") return;
     const controller = new AbortController();
-    const key = `${project.id}\0${treePath}`;
+    const key = `${project.absolutePath}\0${treePath}`;
     setTreeLoad((current) =>
       current?.key === key && current.state.kind === "ready"
         ? current
         : { key, state: { kind: "loading" } },
     );
-    fetchProjectTree(project.id, treePath, controller.signal).then(
+    fetchProjectTree(project.absolutePath, treePath, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setTreeLoad({ key, state: { kind: "ready", value } });
       },
@@ -390,13 +402,13 @@ export function App() {
   useEffect(() => {
     if (project === null || submittedQuery === null) return;
     const controller = new AbortController();
-    const key = `${project.id}\0${submittedQuery}`;
+    const key = `${project.absolutePath}\0${submittedQuery}`;
     setSearchLoad((current) =>
       current?.key === key && current.state.kind === "ready"
         ? current
         : { key, state: { kind: "loading" } },
     );
-    fetchProjectSearch(project.id, submittedQuery, controller.signal).then(
+    fetchProjectSearch(project.absolutePath, submittedQuery, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setSearchLoad({ key, state: { kind: "ready", value } });
       },
@@ -429,7 +441,7 @@ export function App() {
     if (project === null) return;
     navigate({
       section: "changes",
-      projectPath: project.path,
+      projectPath: project.relativePath,
       target: { kind: "file", layer: entry.layer, path: entry.path },
     });
   }
@@ -447,27 +459,27 @@ export function App() {
     if (mode === "changes")
       navigate({
         section: "changes",
-        projectPath: project.path,
+        projectPath: project.relativePath,
         target: { kind: window.matchMedia("(max-width: 600px)").matches ? "list" : "all" },
       });
     else if (mode === "files")
       navigate({
         section: "files",
-        projectPath: project.path,
+        projectPath: project.relativePath,
         directory: "",
         target: { kind: "list" },
       });
     else if (mode === "git")
       navigate({
         section: "git",
-        projectPath: project.path,
-        ref: lastGitRefs.current.get(project.id) ?? null,
+        projectPath: project.relativePath,
+        ref: lastGitRefs.current.get(project.absolutePath) ?? null,
         target: { kind: "list" },
       });
     else
       navigate({
         section: "search",
-        projectPath: project.path,
+        projectPath: project.relativePath,
         query: lastSubmittedQuery,
         target: { kind: "results" },
       });
@@ -475,7 +487,7 @@ export function App() {
 
   function openSettings(): void {
     if (!settingsOpen) settingsBackRoute.current = route;
-    navigate({ section: "settings", projectPath: project?.path ?? null });
+    navigate({ section: "settings", projectPath: project?.relativePath ?? null });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -486,7 +498,7 @@ export function App() {
     navigate(
       project === null
         ? { section: "projects", directory: "" }
-        : { section: "changes", projectPath: project.path, target: { kind: "all" } },
+        : { section: "changes", projectPath: project.relativePath, target: { kind: "all" } },
       "replace",
     );
   }
@@ -508,7 +520,7 @@ export function App() {
     else if (project !== null)
       navigate({
         section: "search",
-        projectPath: project.path,
+        projectPath: project.relativePath,
         query,
         target: { kind: "results" },
       });
@@ -520,14 +532,19 @@ export function App() {
     setLastSubmittedQuery(query);
     if (query === submittedQuery && route?.section === "search" && route.target.kind === "results")
       setSearchRefresh((value) => value + 1);
-    navigate({ section: "search", projectPath: project.path, query, target: { kind: "results" } });
+    navigate({
+      section: "search",
+      projectPath: project.relativePath,
+      query,
+      target: { kind: "results" },
+    });
   }
 
   function openSearchMatch(match: SearchMatch, query: string): void {
     if (project === null) return;
     navigate({
       section: "search",
-      projectPath: project.path,
+      projectPath: project.relativePath,
       query,
       target: { kind: "file", path: match.path, line: match.line },
     });
@@ -771,7 +788,7 @@ export function App() {
               onParent={() =>
                 navigate({
                   section: "files",
-                  projectPath: project.path,
+                  projectPath: project.relativePath,
                   directory: parentDirectory(treePath),
                   target: { kind: "list" },
                 })
@@ -780,14 +797,14 @@ export function App() {
                 if (entry.kind === "directory")
                   navigate({
                     section: "files",
-                    projectPath: project.path,
+                    projectPath: project.relativePath,
                     directory: entry.path,
                     target: { kind: "list" },
                   });
                 else
                   navigate({
                     section: "files",
-                    projectPath: project.path,
+                    projectPath: project.relativePath,
                     directory: treePath,
                     target: { kind: "file", path: entry.path, line: null },
                   });
@@ -799,7 +816,11 @@ export function App() {
               status={status}
               onSelect={selectEntry}
               onReviewAll={() =>
-                navigate({ section: "changes", projectPath: project.path, target: { kind: "all" } })
+                navigate({
+                  section: "changes",
+                  projectPath: project.relativePath,
+                  target: { kind: "all" },
+                })
               }
             />
           ) : listSection !== "projects" && project === null ? (
@@ -919,7 +940,7 @@ export function App() {
                       </div>
                     ) : (
                       <CommitViewer
-                        key={`${project.id}:${git.detail.value.oid}`}
+                        key={JSON.stringify([project.absolutePath, git.detail.value.oid])}
                         project={project}
                         detail={git.detail.value}
                         wrap={wrapCode}
@@ -955,8 +976,8 @@ export function App() {
                           <span>{selectedFile}</span>
                         </div>
                         <FileViewer
-                          key={`${project.id}:${selectedFile}`}
-                          projectId={project.id}
+                          key={JSON.stringify([project.absolutePath, selectedFile])}
+                          projectPath={project.absolutePath}
                           path={selectedFile}
                           wrap={wrapCode}
                           languages={languages}
@@ -1004,8 +1025,8 @@ export function App() {
                       </p>
                     ) : (
                       <FileViewer
-                        key={`${project.id}:${selectedFile}`}
-                        projectId={project.id}
+                        key={JSON.stringify([project.absolutePath, selectedFile])}
+                        projectPath={project.absolutePath}
                         path={selectedFile}
                         wrap={wrapCode}
                         languages={languages}
@@ -1019,7 +1040,7 @@ export function App() {
                 ) : (
                   <ChangesView
                     model={{
-                      projectId: project.id,
+                      projectPath: project.absolutePath,
                       ...review.model,
                       wrap: wrapCode,
                       languages,
@@ -1091,8 +1112,8 @@ export function App() {
           viewMode === "files" ||
           (viewMode === "search" && selectedFile !== null)) && (
           <CodeSelectionActions
-            key={route === null ? project.id : routeUrl(route)}
-            projectId={project.id}
+            key={route === null ? project.absolutePath : routeUrl(route)}
+            projectPath={project.absolutePath}
             onSearch={searchSelectedCode}
             onComment={feedback.actions.chooseSelection}
             wrap={wrapCode}

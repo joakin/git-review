@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../shared/project-path.ts";
+import { projectRequestUrl } from "../test-support.ts";
 import { expect, test } from "bun:test";
 import { testGitText as git, withTempDirectory } from "../test-support.ts";
 import { chmod, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
@@ -41,20 +43,16 @@ test("Git APIs validate destinations and serve source-correct committed text and
       );
       await rm(join(repo, "value.ts"));
       const handle = createApiHandler(await approveRoot(directory));
-      expect(
-        (await handle(new Request("http://localhost/api/projects/aaaaaaaaaaaaaaaaaaaa/git/refs")))
-          .status,
-      ).toBe(404);
+      expect((await handle(new Request("http://localhost/api/project/git/refs"))).status).toBe(400);
       const opened = await handle(
-        new Request("http://localhost/api/projects/open", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path: "repo" }),
-        }),
+        new Request(
+          "http://localhost" + projectApiUrl("", (await approveRoot(directory)).realPath + "/repo"),
+        ),
       );
       const project = parseProjectResponse((await opened.json()) as unknown);
-      const base = `http://localhost/api/projects/${project.id}`;
-      const get = (path: string) => handle(new Request(base + path));
+      const base = `http://localhost/api/project`;
+      const get = (path: string) =>
+        handle(new Request(projectRequestUrl(base + path, project.absolutePath)));
       expect(parseGitRefs((await (await get("/git/refs")).json()) as unknown).kind).toBe("git");
       expect(
         parseGitHistory((await (await get("/git/log?ref=refs/heads/main")).json()) as unknown)
@@ -141,16 +139,14 @@ test("SHA-256 repositories preserve complete IDs throughout Git inspection", asy
     git(directory, "commit", "-qm", "First");
     const handle = createApiHandler(await approveRoot(directory));
     const opened = await handle(
-      new Request("http://localhost/api/projects/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ path: "" }),
-      }),
+      new Request("http://localhost" + projectApiUrl("", (await approveRoot(directory)).realPath)),
     );
     const project = parseProjectResponse((await opened.json()) as unknown);
     const oid = git(directory, "rev-parse", "HEAD");
     const response = await handle(
-      new Request(`http://localhost/api/projects/${project.id}/git/commits/${oid}`),
+      new Request(
+        projectRequestUrl(`http://localhost/api/project/git/commits/${oid}`, project.absolutePath),
+      ),
     );
     const detail = parseCommitDetail((await response.json()) as unknown);
     expect(detail.oid.length).toBe(64);

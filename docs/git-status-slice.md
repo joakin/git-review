@@ -1,5 +1,10 @@
 # Git change inventory
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: implemented and committed. [Diff cards](diff-slice.md),
 [media previews](media-preview-slice-proposal.md), and
 [live change detection](live-change-detection-slice-proposal.md) build on this inventory.
@@ -24,10 +29,10 @@ focus; toggling a card remains a separate review action.
 
 ## Data and API
 
-`GET /api/projects/:id/status` is available after `POST /api/projects/open` has registered the
-folder in the current server session. Reload restores the saved path by opening it again. A status
-request revalidates the folder against the approved root before invoking Git. Unknown or stale IDs
-return 404.
+`GET /api/project/status?projectPath=…` resolves the canonical absolute path independently on every
+request. It checks directory existence and approved-root containment before invoking Git. No
+selection lookup or registration is a prerequisite; server restart recovery needs only a normal
+retry. Missing and changed project locations have distinct project errors.
 
 The response is one of:
 
@@ -54,7 +59,7 @@ The response is one of:
 ```
 
 Opening Changes and explicit Refresh/Update receive metadata and statistics together. Background
-polling uses `GET /api/projects/:id/status?mode=check` and receives only `kind`, `revision` and
+polling uses `GET /api/project/status?mode=check` and receives only `kind`, `revision` and
 `changeToken`, without entries or statistics work. Internal diff/media checks also retain
 lightweight inventory reads. [The line-count record](changes-line-counts-proposal.md) defines
 exceptional states, per-layer comparisons, bounded reads and snapshot consistency.

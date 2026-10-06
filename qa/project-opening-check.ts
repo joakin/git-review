@@ -45,7 +45,7 @@ async function selectedStorage(page: Page): Promise<string> {
     (key) =>
       JSON.stringify({
         workspace: localStorage.getItem(key),
-        active: sessionStorage.getItem("git-review:active-project:v1"),
+        active: sessionStorage.getItem("git-review:active-project:v2"),
       }),
     workspaceStorageKey,
   );
@@ -90,15 +90,15 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       let opens = 0;
-      await page.route("**/api/projects/open", async (route) => {
+      await page.route("**/api/project?*", async (route) => {
         opens += 1;
         if (opens === 1) await gate;
         await route.continue();
       });
       await page.goto(pickerUrl);
       await pickerReady(page, pickerUrl);
-      const opening = page.waitForRequest((request) =>
-        request.url().endsWith("/api/projects/open"),
+      const opening = page.waitForRequest(
+        (request) => new URL(request.url()).pathname === "/api/project",
       );
       await page.locator(".open-button").click();
       const abandoned = await opening;
@@ -157,7 +157,8 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
           configurable: true,
           value: async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
             const url = input instanceof Request ? input.url : input.toString();
-            if (!url.endsWith("/api/projects/open")) return originalFetch(input, init);
+            if (new URL(url, window.location.origin).pathname !== "/api/project")
+              return originalFetch(input, init);
             let release = () => {};
             const gate = new Promise<void>((resolve) => {
               release = resolve;
@@ -292,7 +293,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
       "The initial project was not accepted and persisted",
     );
     let opens = 0;
-    await page.route("**/api/projects/open", async (route) => {
+    await page.route("**/api/project?*", async (route) => {
       opens += 1;
       if (opens === 1)
         await route.fulfill({
@@ -328,7 +329,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
     const recovered = await page.evaluate(
       (key) => ({
         active: JSON.parse(
-          sessionStorage.getItem("git-review:active-project:v1") ?? "null",
+          sessionStorage.getItem("git-review:active-project:v2") ?? "null",
         ) as unknown,
         workspace: JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
       }),

@@ -10,7 +10,7 @@ import {
 } from "../shared/api.ts";
 import { parseGitPatch, readProjectDiff } from "./git-diff.ts";
 import { readProjectStatus } from "./git-status.ts";
-import { approveRoot, openProject } from "./paths.ts";
+import { approveRoot, resolveProject } from "./paths.ts";
 import { readProjectFile } from "./project-files.ts";
 
 function changed(status: ProjectInventory, layer: ChangeEntry["layer"], path: string): ChangeEntry {
@@ -33,7 +33,7 @@ test("working-file consumers preserve CRLF anchors and literal names while class
     await writeFile(join(directory, "large.txt"), "x".repeat(1024 * 1024 + 1));
     await writeFile(join(directory, "invalid.txt"), Buffer.from([0xff]));
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const status = await readProjectStatus(project.absolutePath);
     const entry = changed(status, "untracked", path);
     const diff = textDiff(await readProjectDiff(root, project, entry));
@@ -97,7 +97,7 @@ test("diffs show each Git layer's content and preserve line anchors", async () =
     await symlink("both.ts", join(directory, "link.ts"));
 
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const status = await readProjectStatus(project.absolutePath);
     const staged = textDiff(
       await readProjectDiff(root, project, changed(status, "staged", "both.ts")),
@@ -186,7 +186,7 @@ test("staged content in a repository without a first commit is an addition", asy
     await writeFile(join(directory, "first.txt"), "first\n");
     git(directory, "add", "first.txt");
     const root = await approveRoot(directory);
-    const project = await openProject(root, "");
+    const project = await resolveProject(root, root.realPath);
     const status = await readProjectStatus(project.absolutePath);
     const diff = textDiff(
       await readProjectDiff(root, project, changed(status, "staged", "first.txt")),

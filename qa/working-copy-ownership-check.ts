@@ -52,13 +52,10 @@ async function createContext(browser: Browser, first: HeldOutcome | null): Promi
             );
           const isDiff =
             window.workingCopyOwnershipQa.nextDiff &&
-            /^\/api\/projects\/[^/]+\/diffs?$/u.test(url.pathname) &&
+            /^\/api\/project\/diffs?$/u.test(url.pathname) &&
             (url.searchParams.get("path") === "src/tall-review.ts" || includesTall);
           const outcome = isDiff ? "real" : window.workingCopyOwnershipQa.next;
-          if (
-            !isDiff &&
-            (!/^\/api\/projects\/[^/]+\/status$/u.test(url.pathname) || outcome === null)
-          )
+          if (!isDiff && (!/^\/api\/project\/status$/u.test(url.pathname) || outcome === null))
             return originalFetch(input, init);
           if (isDiff) window.workingCopyOwnershipQa.nextDiff = false;
           else window.workingCopyOwnershipQa.next = null;

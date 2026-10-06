@@ -1,14 +1,13 @@
 import { isRecord } from "../shared/validation.ts";
 import { isCodeFontFamily, type CodeFontFamily } from "./code-fonts.ts";
 
-export const workspaceStorageKey = "git-review:workspace:v3";
-const legacyKey = "git-review:workspace:v2";
-const activeProjectKey = "git-review:active-project:v1";
+export const workspaceStorageKey = "git-review:workspace:v4";
+const activeProjectKey = "git-review:active-project:v2";
 export const wrapStorageKey = "git-review:wrap:v1";
 export const codeTypographyStorageKey = "git-review:code-typography:v1";
 export const appearanceStorageKey = "git-review:appearance:v1";
-export const openCardsStoragePrefix = "git-review:open-cards:v1:";
-export const languageStoragePrefix = "git-review:language:v1:";
+export const openCardsStoragePrefix = "git-review:open-cards:v2:";
+export const languageStoragePrefix = "git-review:language:v2:";
 const maxRecent = 8;
 const maxOpenCards = 100;
 
@@ -91,13 +90,13 @@ export function saveCodeTypography(value: CodeTypography): void {
 }
 
 export type SavedWorkspace = {
-  version: 3;
+  version: 4;
   rootPath: string;
   recentPaths: string[];
 };
 
 export function emptyWorkspace(rootPath: string): SavedWorkspace {
-  return { version: 3, rootPath, recentPaths: [] };
+  return { version: 4, rootPath, recentPaths: [] };
 }
 
 function validPath(value: unknown): value is string {
@@ -106,12 +105,12 @@ function validPath(value: unknown): value is string {
 
 export function validateSavedWorkspace(value: unknown, rootPath: string): SavedWorkspace | null {
   if (!isRecord(value)) return null;
-  if (value["version"] !== 3) return null;
+  if (value["version"] !== 4) return null;
   if (value["rootPath"] !== rootPath) return null;
   const recentPaths = value["recentPaths"];
   if (!Array.isArray(recentPaths) || !recentPaths.every(validPath)) return null;
   return {
-    version: 3,
+    version: 4,
     rootPath,
     recentPaths: [...new Set(recentPaths)].slice(0, maxRecent),
   };
@@ -122,36 +121,40 @@ export function parseSavedWorkspace(value: unknown, rootPath: string): SavedWork
 }
 
 export function parseActiveProject(value: unknown, rootPath: string): string | null {
-  if (!isRecord(value) || value["version"] !== 1 || value["rootPath"] !== rootPath) return null;
+  if (!isRecord(value) || value["version"] !== 2 || value["rootPath"] !== rootPath) return null;
   return validPath(value["activePath"]) ? value["activePath"] : null;
 }
 
-export function parseLegacyWorkspace(
-  value: unknown,
-  rootPath: string,
-): { activePath: string | null; recentPaths: string[] } | null {
-  if (!isRecord(value) || value["version"] !== 2 || value["rootPath"] !== rootPath) return null;
-  const activePath = value["activePath"];
-  const recentPaths = value["recentPaths"];
-  if (!(activePath === null || validPath(activePath))) return null;
-  if (!Array.isArray(recentPaths) || !recentPaths.every(validPath)) return null;
-  return { activePath, recentPaths: [...new Set(recentPaths)].slice(0, maxRecent) };
+/** Explicitly retired project data; no values are read or migrated. */
+export function discardObsoleteProjectData(): void {
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (
+        key !== null &&
+        (key === "git-review:workspace:v2" ||
+          key === "git-review:workspace:v3" ||
+          ["git-review:comments:v1:", "git-review:open-cards:v1:", "git-review:language:v1:"].some(
+            (prefix) => key.startsWith(prefix),
+          ))
+      )
+        keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+    sessionStorage.removeItem("git-review:active-project:v1");
+  } catch {
+    // Storage denial leaves the new in-memory session usable.
+  }
 }
 
 export function readSavedWorkspace(rootPath: string): SavedWorkspace {
+  discardObsoleteProjectData();
   try {
     const raw = localStorage.getItem(workspaceStorageKey);
-    if (raw !== null) return parseSavedWorkspace(JSON.parse(raw) as unknown, rootPath);
-    const legacyRaw = localStorage.getItem(legacyKey);
-    if (legacyRaw === null) return emptyWorkspace(rootPath);
-    const legacy = parseLegacyWorkspace(JSON.parse(legacyRaw) as unknown, rootPath);
-    if (legacy === null) return emptyWorkspace(rootPath);
-    const migrated: SavedWorkspace = { version: 3, rootPath, recentPaths: legacy.recentPaths };
-    localStorage.setItem(workspaceStorageKey, JSON.stringify(migrated));
-    if (legacy.activePath !== null && readActiveProject(rootPath) === null)
-      saveActiveProject(rootPath, legacy.activePath);
-    localStorage.removeItem(legacyKey);
-    return migrated;
+    return raw === null
+      ? emptyWorkspace(rootPath)
+      : parseSavedWorkspace(JSON.parse(raw) as unknown, rootPath);
   } catch {
     return emptyWorkspace(rootPath);
   }
@@ -172,7 +175,7 @@ export function saveActiveProject(rootPath: string, activePath: string | null): 
     else if (validPath(activePath))
       sessionStorage.setItem(
         activeProjectKey,
-        JSON.stringify({ version: 1, rootPath, activePath }),
+        JSON.stringify({ version: 2, rootPath, activePath }),
       );
   } catch {
     // Selection remains usable in memory when session storage is unavailable.
@@ -189,7 +192,7 @@ export function saveWorkspace(value: SavedWorkspace): void {
 
 export function withSelectedPath(current: SavedWorkspace, path: string): SavedWorkspace {
   return {
-    version: 3,
+    version: 4,
     rootPath: current.rootPath,
     recentPaths: [path, ...current.recentPaths.filter((previous) => previous !== path)].slice(
       0,
@@ -241,19 +244,19 @@ export function parseOpenCards(value: unknown): string[] {
   return validateOpenCards(value) ?? [];
 }
 
-export function readOpenCards(projectId: string): Set<string> {
+export function readOpenCards(projectPath: string): Set<string> {
   try {
-    const raw = localStorage.getItem(`${openCardsStoragePrefix}${projectId}`);
+    const raw = localStorage.getItem(`${openCardsStoragePrefix}${encodeURIComponent(projectPath)}`);
     return new Set(raw === null ? [] : parseOpenCards(JSON.parse(raw) as unknown));
   } catch {
     return new Set();
   }
 }
 
-export function saveOpenCards(projectId: string, keys: ReadonlySet<string>): void {
+export function saveOpenCards(projectPath: string, keys: ReadonlySet<string>): void {
   try {
     localStorage.setItem(
-      `${openCardsStoragePrefix}${projectId}`,
+      `${openCardsStoragePrefix}${encodeURIComponent(projectPath)}`,
       JSON.stringify({ version: 1, keys: [...keys].slice(0, maxOpenCards) }),
     );
   } catch {
@@ -261,10 +264,10 @@ export function saveOpenCards(projectId: string, keys: ReadonlySet<string>): voi
   }
 }
 
-export function readLanguageOverride(projectId: string, path: string): string | null {
+export function readLanguageOverride(projectPath: string, path: string): string | null {
   try {
     const value = localStorage.getItem(
-      `${languageStoragePrefix}${projectId}:${encodeURIComponent(path)}`,
+      `${languageStoragePrefix}${encodeURIComponent(projectPath)}:${encodeURIComponent(path)}`,
     );
     return value !== null && isLanguageOverride(value) ? value : null;
   } catch {
@@ -273,12 +276,12 @@ export function readLanguageOverride(projectId: string, path: string): string | 
 }
 
 export function saveLanguageOverride(
-  projectId: string,
+  projectPath: string,
   path: string,
   language: string | null,
 ): void {
   try {
-    const storageKey = `${languageStoragePrefix}${projectId}:${encodeURIComponent(path)}`;
+    const storageKey = `${languageStoragePrefix}${encodeURIComponent(projectPath)}:${encodeURIComponent(path)}`;
     if (language === null) localStorage.removeItem(storageKey);
     else localStorage.setItem(storageKey, language);
   } catch {

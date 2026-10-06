@@ -1,3 +1,4 @@
+import { projectApiUrl } from "../shared/project-path.ts";
 import {
   parseCommitDetail,
   parseCommitDiff,
@@ -19,25 +20,34 @@ import { parseDiffBatchResponse } from "../shared/diff-batch.ts";
 import { DiffBatchQueue, type DiffBatchSource } from "./diff-batch-queue.ts";
 import { diffBatchResponseBody } from "./diff-batch-response.ts";
 
-export async function fetchGitRefs(id: string, signal: AbortSignal): Promise<GitRefs> {
+export async function fetchGitRefs(projectPath: string, signal: AbortSignal): Promise<GitRefs> {
   return parseGitRefs(
-    await responseBody(await fetch(`/api/projects/${id}/git/refs`, { signal, cache: "no-store" })),
+    await responseBody(
+      await fetch(projectApiUrl("/git/refs", projectPath), { signal, cache: "no-store" }),
+    ),
   );
 }
 
 export async function fetchGitHistory(
-  id: string,
+  projectPath: string,
   request: GitLogRequest,
   signal: AbortSignal,
 ): Promise<GitHistoryPage> {
-  const query = new URLSearchParams(
-    request.kind === "ref"
-      ? { ref: request.ref }
-      : { tip: request.tip, offset: String(request.offset) },
-  );
   const result = parseGitHistory(
     await responseBody(
-      await fetch(`/api/projects/${id}/git/log?${query}`, { signal, cache: "no-store" }),
+      await fetch(
+        projectApiUrl(
+          "/git/log",
+          projectPath,
+          request.kind === "ref"
+            ? { ref: request.ref }
+            : { tip: request.tip, offset: String(request.offset) },
+        ),
+        {
+          signal,
+          cache: "no-store",
+        },
+      ),
     ),
   );
   if (
@@ -50,12 +60,12 @@ export async function fetchGitHistory(
 }
 
 export async function fetchCommit(
-  id: string,
+  projectPath: string,
   oid: string,
   signal: AbortSignal,
 ): Promise<CommitDetail> {
   const result = parseCommitDetail(
-    await responseBody(await fetch(`/api/projects/${id}/git/commits/${oid}`, { signal })),
+    await responseBody(await fetch(projectApiUrl(`/git/commits/${oid}`, projectPath), { signal })),
   );
   if (result.oid !== oid) throw new Error("Commit response does not match its destination");
   return result;
@@ -64,34 +74,44 @@ export async function fetchCommit(
 const commitDiffs = new DiffBatchQueue<CommitDiffRequest, CommitDiff>(commitDiffRequestKey);
 
 export async function fetchCommitDiff(
-  id: string,
+  projectPath: string,
   oid: string,
   path: string,
   language: string | null,
   signal: AbortSignal,
 ): Promise<CommitDiff> {
-  const base = `/api/projects/${id}/git/commits/${oid}`;
+  const resource = `/git/commits/${oid}`;
   const source: DiffBatchSource<CommitDiffRequest, CommitDiff> = {
-    key: commitDiffBatchSource(id, oid),
+    key: commitDiffBatchSource(projectPath, oid),
     encode: (files) => JSON.stringify({ files }),
     read: async (body, files, signal) =>
       parseDiffBatchResponse(
         await diffBatchResponseBody(
-          await fetch(`${base}/diffs`, {
+          await fetch(projectApiUrl(`${resource}/diffs`, projectPath), {
             method: "POST",
             headers: { "content-type": "application/json" },
             body,
             signal,
           }),
         ),
-        commitDiffBatchSource(id, oid),
+        commitDiffBatchSource(projectPath, oid),
         files.map(commitDiffRequestKey),
         parseCommitDiff,
       ),
     readSingle: async (file, signal) => {
-      const query = new URLSearchParams({ path: file.path });
-      if (file.language !== null) query.set("language", file.language);
-      return parseCommitDiff(await responseBody(await fetch(`${base}/diff?${query}`, { signal })));
+      return parseCommitDiff(
+        await responseBody(
+          await fetch(
+            projectApiUrl(`${resource}/diff`, projectPath, {
+              path: file.path,
+              ...(file.language === null ? {} : { language: file.language }),
+            }),
+            {
+              signal,
+            },
+          ),
+        ),
+      );
     },
   };
   return commitDiffs.read(source, { path, language }, signal);

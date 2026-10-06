@@ -20,7 +20,7 @@ type FileState =
   | { kind: "error"; message: string };
 
 export function FileViewer({
-  projectId,
+  projectPath,
   path,
   wrap,
   languages,
@@ -29,7 +29,7 @@ export function FileViewer({
   drafts,
   onComment,
 }: {
-  projectId: string;
+  projectPath: string;
   path: string;
   drafts: readonly DraftComment[];
   onComment: (anchor: CommentAnchor) => void;
@@ -40,7 +40,7 @@ export function FileViewer({
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
-    projectId,
+    projectPath,
     path,
     languages,
   );
@@ -50,7 +50,7 @@ export function FileViewer({
   useEffect(() => {
     const controller = new AbortController();
     setState((current) => (current.kind === "ready" ? current : { kind: "loading" }));
-    fetchProjectFile(projectId, path, effectiveOverride, controller.signal).then(
+    fetchProjectFile(projectPath, path, effectiveOverride, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setState({ kind: "ready", value });
       },
@@ -63,7 +63,7 @@ export function FileViewer({
       },
     );
     return () => controller.abort();
-  }, [projectId, path, effectiveOverride, refreshKey, retry]);
+  }, [projectPath, path, effectiveOverride, refreshKey, retry]);
 
   const result = state.kind === "ready" ? state.value : null;
   const targetMatches =
@@ -145,7 +145,7 @@ export function FileViewer({
           <p class="diff-message">This file is empty.</p>
         ) : (
           <FileLines
-            projectId={projectId}
+            projectPath={projectPath}
             result={result}
             wrap={wrap}
             drafts={drafts}
@@ -167,14 +167,14 @@ type FileLineAction = {
 };
 
 function FileLines({
-  projectId,
+  projectPath,
   result,
   wrap,
   drafts,
   onComment,
   targetLine,
 }: {
-  projectId: string;
+  projectPath: string;
   result: Extract<FileReadResult, { kind: "text" }>;
   wrap: boolean;
   drafts: readonly DraftComment[];
@@ -226,7 +226,7 @@ function FileLines({
                 </button>
                 <SelectableCode
                   className="file-code-line"
-                  projectId={projectId}
+                  projectPath={projectPath}
                   resource={result}
                   anchor={anchor}
                   text={line.text}

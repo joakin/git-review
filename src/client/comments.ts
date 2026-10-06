@@ -1,3 +1,4 @@
+import { isProjectPath } from "../shared/project-path.ts";
 import type { ChangeLayer, DiffHunk, DiffResult, FileLine, FileReadResult } from "../shared/api.ts";
 import { isRecord } from "../shared/validation.ts";
 
@@ -36,18 +37,18 @@ export type FeedbackHistory = {
   comments: DraftComment[];
 };
 export type CommentStore = {
-  version: 3;
-  projectId: string;
+  version: 4;
+  projectPath: string;
   drafts: DraftComment[];
   history: FeedbackHistory[];
 };
 export type CheckedComments = {
-  projectId: string;
+  projectPath: string;
   drafts: Pick<DraftComment, "id" | "anchor" | "subject" | "state">[];
 };
-export type FeedbackSnapshot = { projectId: string; text: string; drafts: DraftComment[] };
+export type FeedbackSnapshot = { projectPath: string; text: string; drafts: DraftComment[] };
 
-export const commentStoragePrefix = "git-review:comments:v1:";
+export const commentStoragePrefix = "git-review:comments:v2:";
 export const maxBodyLength = 5000;
 export const maxDrafts = 200;
 export const maxFeedbackLength = 250_000;
@@ -58,15 +59,15 @@ export function newLocalId(): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function emptyCommentStore(projectId: string): CommentStore {
-  return { version: 3, projectId, drafts: [], history: [] };
+export function emptyCommentStore(projectPath: string): CommentStore {
+  return { version: 4, projectPath, drafts: [], history: [] };
 }
 
 function validText(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length <= max && !value.includes("\0");
 }
 
-function parseAnchor(value: unknown, version: 1 | 2 | 3): CommentAnchor | null {
+function parseAnchor(value: unknown): CommentAnchor | null {
   if (!isRecord(value)) return null;
   const { path, line, sourceText, before, after } = value;
   if (!validText(path, 4096) || path.length === 0 || !validText(sourceText, 20_000)) return null;
@@ -77,7 +78,7 @@ function parseAnchor(value: unknown, version: 1 | 2 | 3): CommentAnchor | null {
   )
     return null;
   const context = { path, line, sourceText, before, after };
-  if (version !== 1 && value["kind"] === "file") {
+  if (value["kind"] === "file") {
     if (
       value["source"] !== "worktree" ||
       "layer" in value ||
@@ -95,12 +96,7 @@ function parseAnchor(value: unknown, version: 1 | 2 | 3): CommentAnchor | null {
     }
     return { kind: "file", source: "worktree", ...context };
   }
-  if (
-    (version === 1 && "kind" in value) ||
-    (version !== 1 && value["kind"] !== "diff") ||
-    "source" in value
-  )
-    return null;
+  if (value["kind"] !== "diff" || "source" in value) return null;
   const { layer, side } = value;
   if (layer !== "staged" && layer !== "unstaged" && layer !== "untracked") return null;
   if (side !== "old" && side !== "new") return null;
@@ -148,10 +144,10 @@ function parseSubject(value: unknown, source: string): CommentSubject | null {
   return subject?.kind === "selection" && subject.text === value["text"] ? subject : null;
 }
 
-function parseDraft(value: unknown, version: 1 | 2 | 3): DraftComment | null {
+function parseDraft(value: unknown): DraftComment | null {
   if (!isRecord(value)) return null;
   const { id, body, createdAt, updatedAt, state } = value;
-  const anchor = parseAnchor(value["anchor"], version);
+  const anchor = parseAnchor(value["anchor"]);
   if (
     anchor === null ||
     !validText(id, 100) ||
@@ -170,24 +166,19 @@ function parseDraft(value: unknown, version: 1 | 2 | 3): DraftComment | null {
   )
     return null;
   if (state !== "current" && state !== "outdated") return null;
-  const subject =
-    version === 3
-      ? parseSubject(value["subject"], anchor.sourceText)
-      : "subject" in value
-        ? null
-        : ({ kind: "line" } as const);
+  const subject = parseSubject(value["subject"], anchor.sourceText);
   if (subject === null) return null;
   return { id, anchor, subject, body, createdAt, updatedAt, state };
 }
 
-export function validateCommentStore(value: unknown, projectId: string): CommentStore | null {
+export function validateCommentStore(value: unknown, projectPath: string): CommentStore | null {
   if (
     !isRecord(value) ||
-    (value["version"] !== 1 && value["version"] !== 2 && value["version"] !== 3) ||
-    value["projectId"] !== projectId
+    value["version"] !== 4 ||
+    !isProjectPath(projectPath) ||
+    value["projectPath"] !== projectPath
   )
     return null;
-  const version = value["version"];
   if (
     !Array.isArray(value["drafts"]) ||
     value["drafts"].length > maxDrafts ||
@@ -198,7 +189,7 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
   const drafts: DraftComment[] = [];
   const ids = new Set<string>();
   for (const item of value["drafts"]) {
-    const draft = parseDraft(item, version);
+    const draft = parseDraft(item);
     if (draft === null || ids.has(draft.id)) return null;
     ids.add(draft.id);
     drafts.push(draft);
@@ -219,36 +210,38 @@ export function validateCommentStore(value: unknown, projectId: string): Comment
       return null;
     const comments: DraftComment[] = [];
     for (const raw of item["comments"]) {
-      const comment = parseDraft(raw, version);
+      const comment = parseDraft(raw);
       if (comment === null || comment.state !== "current") return null;
       comments.push(comment);
     }
     history.push({ id: item["id"], copiedAt: item["copiedAt"], text: item["text"], comments });
   }
-  return { version: 3, projectId, drafts, history };
+  return { version: 4, projectPath, drafts, history };
 }
 
-export function parseCommentStore(value: unknown, projectId: string): CommentStore {
-  return validateCommentStore(value, projectId) ?? emptyCommentStore(projectId);
+export function parseCommentStore(value: unknown, projectPath: string): CommentStore {
+  return validateCommentStore(value, projectPath) ?? emptyCommentStore(projectPath);
 }
 
-export function readCommentStore(projectId: string): CommentStore {
+export function readCommentStore(projectPath: string): CommentStore {
   try {
-    const raw = localStorage.getItem(`${commentStoragePrefix}${projectId}`);
-    if (raw === null) return emptyCommentStore(projectId);
+    const raw = localStorage.getItem(`${commentStoragePrefix}${encodeURIComponent(projectPath)}`);
+    if (raw === null) return emptyCommentStore(projectPath);
     const value: unknown = JSON.parse(raw);
-    const store = validateCommentStore(value, projectId);
-    if (store === null) return emptyCommentStore(projectId);
-    if (isRecord(value) && value["version"] !== 3) saveCommentStore(store);
+    const store = validateCommentStore(value, projectPath);
+    if (store === null) return emptyCommentStore(projectPath);
     return store;
   } catch {
-    return emptyCommentStore(projectId);
+    return emptyCommentStore(projectPath);
   }
 }
 
 export function saveCommentStore(store: CommentStore): void {
   try {
-    localStorage.setItem(`${commentStoragePrefix}${store.projectId}`, JSON.stringify(store));
+    localStorage.setItem(
+      `${commentStoragePrefix}${encodeURIComponent(store.projectPath)}`,
+      JSON.stringify(store),
+    );
   } catch {
     /* Storage denial does not stop the current review session. */
   }
@@ -406,7 +399,7 @@ export function sameSubject(first: CommentSubject, second: CommentSubject): bool
 }
 
 export function mergeCheckedComments(store: CommentStore, checked: CheckedComments): CommentStore {
-  if (store.projectId !== checked.projectId) return store;
+  if (store.projectPath !== checked.projectPath) return store;
   const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
   return {
     ...store,
@@ -428,7 +421,7 @@ export function snapshotFeedback(
 ): FeedbackSnapshot {
   const byId = new Map(checked.drafts.map((draft) => [draft.id, draft]));
   const drafts =
-    store.projectId !== checked.projectId
+    store.projectPath !== checked.projectPath
       ? []
       : store.drafts
           .filter((draft) => {
@@ -445,7 +438,7 @@ export function snapshotFeedback(
             anchor: { ...draft.anchor },
             subject: { ...draft.subject },
           }));
-  return { projectId: store.projectId, text: formatFeedback(projectPath, drafts), drafts };
+  return { projectPath: store.projectPath, text: formatFeedback(projectPath, drafts), drafts };
 }
 
 export function recordSuccessfulCopy(
@@ -455,7 +448,7 @@ export function recordSuccessfulCopy(
   id: string,
 ): CommentStore {
   if (
-    store.projectId !== snapshot.projectId ||
+    store.projectPath !== snapshot.projectPath ||
     snapshot.drafts.length === 0 ||
     snapshot.text.length === 0 ||
     snapshot.text.length > maxFeedbackLength

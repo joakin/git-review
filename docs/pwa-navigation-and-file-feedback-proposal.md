@@ -1,5 +1,10 @@
 # PWA navigation, phone project entry, and file feedback
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: U01 accepted and committed as `df92a53`; U02 accepted and committed as `b9aeee3`; formatting
 accepted and committed as `fa927ac`; U03 accepted and committed as `7632b4d`
 
@@ -174,8 +179,8 @@ anchors; file markers count file anchors. Reattachment keeps the comment's sourc
 
 Opening Feedback or copying rechecks each source using existing bounded read APIs. Diff drafts use
 the current status/diff checks. File drafts reread each commented working-tree file once through
-`GET /api/projects/:id/file?source=worktree`, using plain text for checking. A batch containing only
-file drafts does not depend on Git status. The same line number, exact source text, and neighboring
+`GET /api/project/file?source=worktree`, using plain text for checking. A batch containing only file
+drafts does not depend on Git status. The same line number, exact source text, and neighboring
 context must match. Changed or missing lines become outdated and require explicit reattachment. Read
 failures retain the draft and show a clear recovery state; no unavailable line enters the export. A
 later edit elsewhere in the file need not invalidate an unchanged anchor.

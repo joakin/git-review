@@ -1,5 +1,10 @@
 # Diff batching and bulk card controls
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: all three implementation slices completed, reviewed and approved on 2026-10-06. This feature
 follow-up is complete and closed; no further implementation is planned.
 
@@ -62,10 +67,10 @@ the existing domain readers:
 Use parallel read-only POST resources under today's project API:
 
 ```text
-POST /api/projects/:id/git/commits/:oid/diffs
+POST /api/project/git/commits/:oid/diffs
 { files: [{ path, language }] }
 
-POST /api/projects/:id/diffs
+POST /api/project/diffs
 { revision, changeToken, files: [{ layer, path, language }] }
 ```
 

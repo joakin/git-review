@@ -55,11 +55,11 @@ await withQaBrowser(async (browser) => {
     )
       throw new Error("Bare / did not restore each tab's own project route");
     const state = await first.evaluate(() => ({
-      shared: localStorage.getItem("git-review:workspace:v3"),
-      first: sessionStorage.getItem("git-review:active-project:v1"),
+      shared: localStorage.getItem("git-review:workspace:v4"),
+      first: sessionStorage.getItem("git-review:active-project:v2"),
     }));
     const secondActive = await second.evaluate(() =>
-      sessionStorage.getItem("git-review:active-project:v1"),
+      sessionStorage.getItem("git-review:active-project:v2"),
     );
     if (
       state.shared === null ||
@@ -78,8 +78,8 @@ await withQaBrowser(async (browser) => {
     await first.evaluate(
       (approvedRoot) =>
         sessionStorage.setItem(
-          "git-review:active-project:v1",
-          JSON.stringify({ version: 1, rootPath: approvedRoot, activePath: "other-project" }),
+          "git-review:active-project:v2",
+          JSON.stringify({ version: 2, rootPath: approvedRoot, activePath: "other-project" }),
         ),
       rootPath,
     );
@@ -89,7 +89,7 @@ await withQaBrowser(async (browser) => {
       .getByText("inventory-fixture", { exact: true })
       .waitFor();
     const selected: unknown = await first.evaluate(
-      () => JSON.parse(sessionStorage.getItem("git-review:active-project:v1") ?? "null") as unknown,
+      () => JSON.parse(sessionStorage.getItem("git-review:active-project:v2") ?? "null") as unknown,
     );
     if (
       new URL(first.url()).searchParams.get("project") !== "inventory-fixture" ||
@@ -97,7 +97,7 @@ await withQaBrowser(async (browser) => {
     )
       throw new Error("An explicit project link did not win over the conflicting tab selection");
     if (
-      (await second.evaluate(() => sessionStorage.getItem("git-review:active-project:v1"))) !==
+      (await second.evaluate(() => sessionStorage.getItem("git-review:active-project:v2"))) !==
       secondActive
     )
       throw new Error("The explicit link changed another tab's selection");
@@ -113,9 +113,9 @@ await withQaBrowser(async (browser) => {
         await pending.addInitScript(
           (approvedRoot) =>
             sessionStorage.setItem(
-              "git-review:active-project:v1",
+              "git-review:active-project:v2",
               JSON.stringify({
-                version: 1,
+                version: 2,
                 rootPath: approvedRoot,
                 activePath: "inventory-fixture",
               }),
@@ -124,7 +124,7 @@ await withQaBrowser(async (browser) => {
         );
         let opens = 0;
         pending.on("request", (request) => {
-          if (new URL(request.url()).pathname === "/api/projects/open") opens += 1;
+          if (new URL(request.url()).pathname === "/api/project") opens += 1;
         });
         await pending.route("**/api/roots", async (route) => {
           await rootGate;
@@ -153,42 +153,51 @@ await withQaBrowser(async (browser) => {
       }
     });
 
-    await withQaContext(browser, {}, async (migration) => {
-      migration.setDefaultTimeout(10_000);
-      const migrated = await migration.newPage();
-      await migrated.addInitScript((approvedRoot) => {
-        if (
-          localStorage.getItem("git-review:workspace:v3") === null &&
-          localStorage.getItem("git-review:workspace:v2") === null
-        )
-          localStorage.setItem(
-            "git-review:workspace:v2",
-            JSON.stringify({
-              version: 2,
-              rootPath: approvedRoot,
-              activePath: "inventory-fixture",
-              recentPaths: ["inventory-fixture"],
-            }),
-          );
+    await withQaContext(browser, {}, async (context) => {
+      context.setDefaultTimeout(10_000);
+      const page = await context.newPage();
+      await context.addInitScript((approvedRoot) => {
+        if (sessionStorage.getItem("qa:seeded") !== null) return;
+        sessionStorage.setItem("qa:seeded", "true");
+        localStorage.setItem(
+          "git-review:workspace:v3",
+          JSON.stringify({
+            version: 3,
+            rootPath: approvedRoot,
+            recentPaths: ["inventory-fixture"],
+          }),
+        );
+        sessionStorage.setItem(
+          "git-review:active-project:v1",
+          JSON.stringify({
+            version: 1,
+            rootPath: approvedRoot,
+            activePath: "inventory-fixture",
+          }),
+        );
+        localStorage.setItem("git-review:comments:v1:obsolete", "old review data");
+        localStorage.setItem("unrelated", "keep");
       }, rootPath);
-      await migrated.goto(startUrl);
-      await migrated
-        .locator(".sidebar-project-title")
-        .getByText("inventory-fixture", { exact: true })
-        .waitFor();
-      const legacy = await migrated.evaluate(() => localStorage.getItem("git-review:workspace:v2"));
-      if (legacy !== null) throw new Error("Legacy shared selection was not retired");
-      await migrated.goto(startUrl);
-      await migrated
-        .locator(".sidebar-project-title")
-        .getByText("inventory-fixture", { exact: true })
-        .waitFor();
-      const fresh = await migration.newPage();
-      await fresh.goto(startUrl);
-      await fresh.locator(".welcome h1").waitFor();
+      await page.goto(startUrl);
+      await page.locator(".welcome h1").waitFor();
+      const state = await page.evaluate(() => ({
+        oldWorkspace: localStorage.getItem("git-review:workspace:v3"),
+        oldComments: localStorage.getItem("git-review:comments:v1:obsolete"),
+        oldSession: sessionStorage.getItem("git-review:active-project:v1"),
+        unrelated: localStorage.getItem("unrelated"),
+      }));
+      if (
+        state.oldWorkspace !== null ||
+        state.oldComments !== null ||
+        state.oldSession !== null ||
+        state.unrelated !== "keep"
+      )
+        throw new Error("Obsolete project data was not discarded with a scoped reset");
+      await page.reload();
+      await page.locator(".welcome h1").waitFor();
     });
   });
   console.log(
-    "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, and deterministic legacy selection migration passed.",
+    "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, and scoped obsolete-data reset passed.",
   );
 });

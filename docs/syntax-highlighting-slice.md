@@ -1,5 +1,10 @@
 # Syntax highlighting in diff cards
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: initial delivery implemented and committed. The M07 validator cleanup is accepted and
 committed as `4eac2ec`; its maintenance verification is recorded below.
 [Theme selection](theme-settings-slice-proposal.md) and
@@ -45,7 +50,7 @@ determines _what kind_ of text a token is, while CSS determines _how it looks_. 
 `design-tokens.css`. An unknown scope maps to `plain`. The frontend theme selector swaps token
 variables without changing the API.
 
-`GET /api/projects/:id/diff` keeps its stale-revision contract and accepts an optional validated
+`GET /api/project/diff` keeps its stale-revision contract and accepts an optional validated
 `language` override: a Shiki bundled language ID or `text`. `GET /api/languages` returns bundled IDs
 and display names for the picker. The browser stores only its chosen ID. The server verifies it
 against the installed bundle.

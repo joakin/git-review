@@ -14,14 +14,12 @@ import {
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
 
 const project: Project = {
-  id: "project",
-  path: "project",
+  relativePath: "project",
   name: "Project",
   absolutePath: "/repo/project",
 };
 const otherProject: Project = {
-  id: "other",
-  path: "other",
+  relativePath: "other",
   name: "Other",
   absolutePath: "/repo/other",
 };
@@ -106,7 +104,7 @@ function harness(
   drafts: DraftComment[] = [draft("one")],
   overrides: Partial<Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchFile" | "writeText">> = {},
 ) {
-  let current: CommentStore | null = { ...emptyCommentStore(project.id), drafts };
+  let current: CommentStore | null = { ...emptyCommentStore(project.absolutePath), drafts };
   const states: FeedbackState[] = [];
   const copied: Parameters<Ports["onCopied"]>[0][] = [];
   const written: string[] = [];
@@ -321,13 +319,13 @@ describe("owned feedback transactions", () => {
   }
 
   for (const destination of [project, otherProject]) {
-    test(`cancel and return to ${destination.id} ignores late check results`, async () => {
+    test(`cancel and return to ${destination.absolutePath} ignores late check results`, async () => {
       const latest = deferred<ProjectStatus>();
       const h = harness([draft("one")], { fetchStatus: async () => latest.promise });
       const pending = h.transactions.check(project);
       h.transactions.cancel();
       h.clearStore();
-      h.store = { ...emptyCommentStore(destination.id), drafts: [draft("new-session")] };
+      h.store = { ...emptyCommentStore(destination.absolutePath), drafts: [draft("new-session")] };
       const current = h.store;
       latest.resolve(status);
       await pending;
@@ -378,7 +376,7 @@ describe("owned feedback transactions", () => {
       await clipboard.started.promise;
       h.transactions.cancel();
       h.clearStore();
-      h.store = { ...emptyCommentStore(project.id), drafts: [draft("new-session")] };
+      h.store = { ...emptyCommentStore(project.absolutePath), drafts: [draft("new-session")] };
       const current = h.store;
       await h.transactions.copy(project);
       await h.transactions.copyHistory(project, "Blocked history copy");
@@ -408,7 +406,7 @@ describe("owned feedback transactions", () => {
     await h.transactions.copy(project);
     await h.transactions.copyHistory(project, "Blocked history");
     h.transactions.cancel();
-    h.store = { ...emptyCommentStore(otherProject.id), drafts: [draft("other")] };
+    h.store = { ...emptyCommentStore(otherProject.absolutePath), drafts: [draft("other")] };
     await h.transactions.check(otherProject);
     await h.transactions.copy(otherProject);
     await h.transactions.copyHistory(otherProject, "Blocked other history");
@@ -430,14 +428,14 @@ describe("owned feedback transactions", () => {
     const h = harness([draft("one")], {
       writeText: clipboard.writeText,
       fetchStatus: async (id) => {
-        if (id === otherProject.id) throw new Error("New project's check failed");
+        if (id === otherProject.absolutePath) throw new Error("New project's check failed");
         return status;
       },
     });
     const pending = h.transactions.copy(project);
     await clipboard.started.promise;
     h.transactions.cancel();
-    h.store = { ...emptyCommentStore(otherProject.id), drafts: [draft("other")] };
+    h.store = { ...emptyCommentStore(otherProject.absolutePath), drafts: [draft("other")] };
     await h.transactions.check(otherProject);
     clipboard.completion.reject(new Error("Canceled old write failed"));
     await pending;
@@ -485,9 +483,9 @@ describe("owned feedback transactions", () => {
     expect(h.copied).toEqual([]);
     expect(h.store.drafts).toEqual(largeDrafts);
     expect(h.store.history).toEqual([]);
-    expect(parseCommentStore(JSON.parse(JSON.stringify(h.store)) as unknown, project.id)).toEqual(
-      h.store,
-    );
+    expect(
+      parseCommentStore(JSON.parse(JSON.stringify(h.store)) as unknown, project.absolutePath),
+    ).toEqual(h.store);
     const checked = h.state.check;
     if (checked.kind !== "ready")
       throw new Error("Expected checked manual feedback to remain available");
@@ -502,9 +500,9 @@ describe("owned feedback transactions", () => {
     expect(h.store.drafts).toEqual([]);
     expect(h.store.history[0]?.comments).toEqual(smallerDrafts);
     expect(h.store.history[0]?.text).toBe(h.written[0]);
-    expect(parseCommentStore(JSON.parse(JSON.stringify(h.store)) as unknown, project.id)).toEqual(
-      h.store,
-    );
+    expect(
+      parseCommentStore(JSON.parse(JSON.stringify(h.store)) as unknown, project.absolutePath),
+    ).toEqual(h.store);
   });
 
   test("stale diff and check failures do not write or archive feedback", async () => {

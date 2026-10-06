@@ -183,7 +183,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function loadProject(project: Project): void {
-    updateSession(() => ({ ...emptySession, store: readCommentStore(project.id) }));
+    updateSession(() => ({ ...emptySession, store: readCommentStore(project.absolutePath) }));
   }
 
   function chooseLine(anchor: CommentAnchor): void {
@@ -191,7 +191,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function chooseSelection({ anchor, subject }: CommentTarget): void {
-    if (sessionRef.current.store?.projectId !== inputsRef.current.project?.id) return;
+    if (sessionRef.current.store?.projectPath !== inputsRef.current.project?.absolutePath) return;
     const id = sessionRef.current.reattachId;
     if (id !== null) {
       const draft = currentDraft(id);
@@ -264,7 +264,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
 
   function currentDraft(id: string): DraftComment | null {
     const store = sessionRef.current.store;
-    return store !== null && store.projectId === inputsRef.current.project?.id
+    return store !== null && store.projectPath === inputsRef.current.project?.absolutePath
       ? (store.drafts.find((draft) => draft.id === id) ?? null)
       : null;
   }
@@ -317,7 +317,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
     inputsRef.current.onNotice("Copied comments restored to your draft.");
   }
 
-  const store = session.store?.projectId === inputs.project?.id ? session.store : null;
+  const store = session.store?.projectPath === inputs.project?.absolutePath ? session.store : null;
   return {
     model: {
       drafts: store?.drafts ?? [],

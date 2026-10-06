@@ -2,7 +2,7 @@ import type { ChangeLayer, DiffResult } from "../shared/api.ts";
 import { ResourceCache } from "../shared/resource-cache.ts";
 
 export type DiffCacheIdentity = {
-  projectId: string;
+  projectPath: string;
   layer: ChangeLayer;
   path: string;
   revision: string;
@@ -17,7 +17,7 @@ const results = new ResourceCache<DiffResult>(maxCacheEntries, maxCacheBytes);
 
 export function diffCacheKey(identity: DiffCacheIdentity): string {
   return JSON.stringify([
-    identity.projectId,
+    identity.projectPath,
     identity.layer,
     identity.path,
     identity.revision,

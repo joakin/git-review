@@ -1,5 +1,10 @@
 # Expandable diff cards
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: implemented and committed. [Syntax highlighting](syntax-highlighting-slice.md),
 [line comments](feedback-slice-proposal.md), [word detail](diff-fidelity-slice-proposal.md), and
 [media previews](media-preview-slice-proposal.md) extend this slice.
@@ -43,14 +48,14 @@ background on the heading.
 
 ## Data and API
 
-`GET /api/projects/:id/diff?layer=<layer>&path=<selected-folder-relative-path>&revision=<status-revision>`
-revalidates the opened project and matches the requested layer/path to the current status inventory.
-A stale revision returns a typed stale response. An optional `changeToken` query also checks
-ordinary edits that leave the Git revision unchanged; the batched card fallback supplies it. The
-server checks status again after reading the diff to catch changes during the request. The client
-never supplies an old path or arbitrary Git revision.
+`GET /api/project/diff?layer=<layer>&path=<selected-folder-relative-path>&revision=<status-revision>`
+resolves the absolute project path and matches the requested layer/path to the current status
+inventory. A stale revision returns a typed stale response. An optional `changeToken` query also
+checks ordinary edits that leave the Git revision unchanged; the batched card fallback supplies it.
+The server checks status again after reading the diff to catch changes during the request. The
+client never supplies an old path or arbitrary Git revision.
 
-Changes cards use `POST /api/projects/:id/diffs` with both snapshot tokens and a bounded list of
+Changes cards use `POST /api/project/diffs` with both snapshot tokens and a bounded list of
 layer/path/language requests. The server resolves them from one status inventory, then checks both
 tokens again after the batch; any stale file or changed token discards the whole batch. Independent
 file failures retain their own errors. The client shares Git's bounded queue, response accounting

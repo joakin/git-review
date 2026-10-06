@@ -1,3 +1,5 @@
+import { projectApiUrl } from "../src/shared/project-path.ts";
+import { projectLookupResponse } from "./browser-support.ts";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Page, Route } from "playwright-core";
@@ -27,22 +29,21 @@ const origin = appUrl(rawUrl).origin;
 await mkdir(resolve("qa/.artifacts/other-project"), { recursive: true });
 const root = parseRootResponse(await responseBody(await fetch(`${origin}/api/roots`)));
 const project = parseProjectResponse(
-  await responseBody(
-    await fetch(`${origin}/api/projects/open`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ path: "inventory-fixture" }),
-    }),
-  ),
+  await responseBody(await projectLookupResponse(origin, "inventory-fixture")),
 );
 const status = parseStatusResponse(
-  await responseBody(await fetch(`${origin}/api/projects/${project.id}/status`)),
+  await responseBody(await fetch(origin + projectApiUrl("/status", project.absolutePath))),
 );
 if (status.kind !== "git") throw new Error("The inventory fixture must be a Git project");
 const diff = parseDiffResponse(
   await responseBody(
     await fetch(
-      `${origin}/api/projects/${project.id}/diff?${new URLSearchParams({ layer: "staged", path: "src/view.ts", revision: status.revision })}`,
+      origin +
+        projectApiUrl("/diff", project.absolutePath, {
+          layer: "staged",
+          path: "src/view.ts",
+          revision: status.revision,
+        }),
     ),
   ),
 );
@@ -67,15 +68,16 @@ const draft: DraftComment = {
   state: "current",
 };
 const seed: CommentStore = {
-  version: 3,
-  projectId: project.id,
+  version: 4,
+  projectPath: project.absolutePath,
   drafts: [draft],
   history: [{ id: "previous-copy", copiedAt: 1, text: "Previous feedback", comments: [draft] }],
 };
-if (validateCommentStore(seed, project.id) === null) throw new Error("Invalid regression seed");
-const storageKey = `git-review:comments:v1:${project.id}`;
+if (validateCommentStore(seed, project.absolutePath) === null)
+  throw new Error("Invalid regression seed");
+const storageKey = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`;
 // Files keeps the changes view's background status polling out of held-request scenarios.
-const reviewUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.path, file: anchor.path })}`;
+const reviewUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: anchor.path })}`;
 
 declare global {
   interface Window {
@@ -101,9 +103,9 @@ function deferred() {
 async function readStore(page: Page, target: Project = project): Promise<CommentStore> {
   const raw: unknown = await page.evaluate(
     (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
-    `git-review:comments:v1:${target.id}`,
+    `git-review:comments:v2:${encodeURIComponent(target.absolutePath)}`,
   );
-  const store = validateCommentStore(raw, target.id);
+  const store = validateCommentStore(raw, target.absolutePath);
   if (store === null) throw new Error("Persisted comments became invalid");
   return store;
 }
@@ -186,8 +188,8 @@ await withQaBrowser(async (browser) => {
               if (localStorage.getItem(key) === null)
                 localStorage.setItem(key, JSON.stringify(store));
               sessionStorage.setItem(
-                "git-review:active-project:v1",
-                JSON.stringify({ version: 1, rootPath, activePath: projectPath }),
+                "git-review:active-project:v2",
+                JSON.stringify({ version: 2, rootPath, activePath: projectPath }),
               );
               window.feedbackQa = { calls: [], pending: [], requests: 0 };
               const originalFetch = window.fetch.bind(window);
@@ -230,7 +232,7 @@ await withQaBrowser(async (browser) => {
               key: storageKey,
               store: seed,
               rootPath: root.path,
-              projectPath: project.path,
+              projectPath: project.relativePath,
               appOrigin: origin,
             },
           );
@@ -271,10 +273,7 @@ await withQaBrowser(async (browser) => {
                 done.resolve();
               }
             };
-            await page.route(
-              `**/api/projects/${project.id}/${kind}${kind === "diff" ? "?*" : ""}`,
-              handler,
-            );
+            await page.route(`**/api/project/${kind}?*`, handler);
             await page.getByRole("button", { name: "Check lines", exact: true }).click();
             await Promise.race([
               entered.promise,
@@ -283,10 +282,7 @@ await withQaBrowser(async (browser) => {
             return async () => {
               release.resolve();
               await done.promise;
-              await page.unroute(
-                `**/api/projects/${project.id}/${kind}${kind === "diff" ? "?*" : ""}`,
-                handler,
-              );
+              await page.unroute(`**/api/project/${kind}?*`, handler);
               await networkSettled(page);
             };
           }
@@ -444,33 +440,29 @@ await withQaBrowser(async (browser) => {
     "project switching preserves the clipboard lease and isolates both review stores",
     async (page) => {
       const other = parseProjectResponse(
-        await responseBody(
-          await fetch(`${origin}/api/projects/open`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ path: "other-project" }),
-          }),
-        ),
+        await responseBody(await projectLookupResponse(origin, "other-project")),
       );
       const otherSeed: CommentStore = {
-        version: 3,
-        projectId: other.id,
+        version: 4,
+        projectPath: other.absolutePath,
         drafts: [{ ...draft, id: "other-draft", body: "Other project draft" }],
         history: [],
       };
-      assert(validateCommentStore(otherSeed, other.id) !== null, "Invalid second-project seed");
+      assert(
+        validateCommentStore(otherSeed, other.absolutePath) !== null,
+        "Invalid second-project seed",
+      );
       await page.evaluate(
         (store) =>
-          localStorage.setItem(`git-review:comments:v1:${store.projectId}`, JSON.stringify(store)),
+          localStorage.setItem(
+            `git-review:comments:v2:${encodeURIComponent(store.projectPath)}`,
+            JSON.stringify(store),
+          ),
         otherSeed,
       );
       // This empty picker fixture uses controlled Git responses; its project identity and SPA transition stay real.
-      await page.route(`**/api/projects/${other.id}/status`, (route) =>
-        route.fulfill({ json: status }),
-      );
-      await page.route(`**/api/projects/${other.id}/diff?*`, (route) =>
-        route.fulfill({ json: diff }),
-      );
+      await page.route("**/api/project/status?*", (route) => route.fulfill({ json: status }));
+      await page.route("**/api/project/diff?*", (route) => route.fulfill({ json: diff }));
       await openFeedback(page);
       await ready(page);
       await page.getByRole("button", { name: "Copy feedback", exact: true }).click();
@@ -506,7 +498,7 @@ await withQaBrowser(async (browser) => {
       );
       assert(
         JSON.stringify(await readStore(page, other)) ===
-          JSON.stringify(validateCommentStore(otherSeed, other.id)),
+          JSON.stringify(validateCommentStore(otherSeed, other.absolutePath)),
         "The old clipboard result changed the second project's review",
       );
       await page.getByRole("button", { name: "Copy feedback", exact: true }).click();

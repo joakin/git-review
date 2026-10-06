@@ -122,12 +122,12 @@ type SearchTarget = { kind: "results" } | { kind: "file"; path: string; line: nu
 type GitTarget = { kind: "list" } | { kind: "commit"; oid: string };
 ```
 
-The URL stores a **root-relative project path**, because the server's current project ID is
-registered only in memory. A direct link or reload first calls the existing project-open endpoint,
-which revalidates the approved root and returns a fresh ID, then loads the requested content. File
-paths remain project-relative. No repository path becomes a server filesystem write. No new backend
-endpoint is required for the first URL checkpoint. The server still validates every project, file,
-and search request independently.
+The URL stores a **root-relative project path** for navigation. A direct link or reload resolves
+that destination against the current approved root through `GET /api/project?projectPath=…` to
+obtain canonical metadata. Resource requests carry the resulting absolute path and validate it
+independently. Metadata lookup is not registration and is not repeated for restart recovery. File
+paths remain project-relative. No repository path becomes a server filesystem write. See the
+[stateless project contract](stateless-project-access-plan.md).
 
 Keep only navigable state in the URL. Search typing before submission, list filters, open cards,
 scroll positions, comment drafts, and preferences remain transient or in their current browser

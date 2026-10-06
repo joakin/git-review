@@ -74,8 +74,8 @@ export class FeedbackTransactions {
     return { generation: this.generation, signal: this.request.signal };
   }
 
-  private owns(generation: number, projectId: string): boolean {
-    return generation === this.generation && this.ports.readStore()?.projectId === projectId;
+  private owns(generation: number, projectPath: string): boolean {
+    return generation === this.generation && this.ports.readStore()?.projectPath === projectPath;
   }
 
   private async checkSnapshot(
@@ -85,7 +85,7 @@ export class FeedbackTransactions {
     const diffDrafts = snapshot.drafts.filter((draft) => draft.anchor.kind === "diff");
     const results = new Map<string, Awaited<ReturnType<typeof fetchProjectDiff>>>();
     if (diffDrafts.length > 0) {
-      const latest = await this.ports.fetchStatus(snapshot.projectId, signal);
+      const latest = await this.ports.fetchStatus(snapshot.projectPath, signal);
       signal.throwIfAborted();
       if (latest.kind === "git")
         for (const draft of diffDrafts) {
@@ -100,7 +100,7 @@ export class FeedbackTransactions {
           )
             continue;
           const result = await this.ports.fetchDiff(
-            snapshot.projectId,
+            snapshot.projectPath,
             anchor.layer,
             anchor.path,
             latest.revision,
@@ -118,7 +118,7 @@ export class FeedbackTransactions {
       if (draft.anchor.kind !== "file" || files.has(draft.anchor.path)) continue;
       try {
         const result = await this.ports.fetchFile(
-          snapshot.projectId,
+          snapshot.projectPath,
           draft.anchor.path,
           "text",
           signal,
@@ -140,7 +140,7 @@ export class FeedbackTransactions {
       }
     }
     return {
-      projectId: snapshot.projectId,
+      projectPath: snapshot.projectPath,
       drafts: snapshot.drafts.map((draft) => {
         const anchor = draft.anchor;
         let current = false;
@@ -164,19 +164,19 @@ export class FeedbackTransactions {
   async check(project: Project): Promise<void> {
     if (this.clipboardLease?.generation === this.generation) return;
     const snapshot = this.ports.readStore();
-    if (snapshot?.projectId !== project.id) return;
+    if (snapshot?.projectPath !== project.absolutePath) return;
     const token = this.beginCheck();
     // A canceled write from a previous destination may still own the clipboard.
     if (this.clipboardLease !== null) this.copyState = { kind: "copying" };
     this.publish();
     try {
       const checked = await this.checkSnapshot(snapshot, token.signal);
-      if (!this.owns(token.generation, project.id)) return;
+      if (!this.owns(token.generation, project.absolutePath)) return;
       this.ports.updateStore((current) => mergeCheckedComments(current, checked));
       this.checkState = { kind: "ready", checked };
       this.publish();
     } catch (error: unknown) {
-      if (!this.owns(token.generation, project.id)) return;
+      if (!this.owns(token.generation, project.absolutePath)) return;
       this.checkState = { kind: "error", message: message(error) };
       this.publish();
     }
@@ -185,7 +185,7 @@ export class FeedbackTransactions {
   async copy(project: Project): Promise<void> {
     if (this.clipboardLease !== null) return;
     const initial = this.ports.readStore();
-    if (initial?.projectId !== project.id) return;
+    if (initial?.projectPath !== project.absolutePath) return;
     const token = this.beginCheck();
     this.clipboardLease = { generation: token.generation };
     this.copyState = { kind: "copying" };
@@ -193,7 +193,7 @@ export class FeedbackTransactions {
     let phase: "check" | "copy" = "check";
     try {
       const checked = await this.checkSnapshot(initial, token.signal);
-      if (!this.owns(token.generation, project.id)) return;
+      if (!this.owns(token.generation, project.absolutePath)) return;
       const current = this.ports.updateStore((store) => mergeCheckedComments(store, checked));
       if (current === null) return;
       this.checkState = { kind: "ready", checked };
@@ -207,12 +207,12 @@ export class FeedbackTransactions {
         );
       this.publish();
       await this.ports.writeText(snapshot.text);
-      if (!this.owns(token.generation, project.id)) return;
+      if (!this.owns(token.generation, project.absolutePath)) return;
       const id = newLocalId();
       this.ports.updateStore((store) => recordSuccessfulCopy(store, snapshot, Date.now(), id));
       this.ports.onCopied({ kind: "feedback", id });
     } catch (error: unknown) {
-      if (!this.owns(token.generation, project.id)) return;
+      if (!this.owns(token.generation, project.absolutePath)) return;
       if (phase === "check") this.checkState = { kind: "error", message: message(error) };
       else this.copyState = { kind: "error", message: message(error) };
     } finally {
@@ -223,16 +223,20 @@ export class FeedbackTransactions {
   }
 
   async copyHistory(project: Project, text: string): Promise<void> {
-    if (this.clipboardLease !== null || this.ports.readStore()?.projectId !== project.id) return;
+    if (
+      this.clipboardLease !== null ||
+      this.ports.readStore()?.projectPath !== project.absolutePath
+    )
+      return;
     const generation = this.generation;
     this.clipboardLease = { generation };
     this.copyState = { kind: "copying" };
     this.publish();
     try {
       await this.ports.writeText(text);
-      if (this.owns(generation, project.id)) this.ports.onCopied({ kind: "history" });
+      if (this.owns(generation, project.absolutePath)) this.ports.onCopied({ kind: "history" });
     } catch (error: unknown) {
-      if (this.owns(generation, project.id))
+      if (this.owns(generation, project.absolutePath))
         this.copyState = { kind: "error", message: message(error) };
     } finally {
       this.clipboardLease = null;

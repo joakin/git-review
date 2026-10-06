@@ -1,5 +1,9 @@
 # App and code theme settings
 
+Current backups use version 6 only. Earlier backup formats and migrations recorded here are
+superseded by the [stateless project cutover](stateless-project-access-plan.md); preferences retain
+their current standalone storage formats.
+
 Status: implemented, reviewed, and committed on 2026-09-29.
 
 ## Why this slice
@@ -90,10 +94,10 @@ browser checks for actual palette application. Avoid tests that merely assert CS
 The maintainer approved Light / Dark / System for the app and Match app / Light / Dark for code.
 Both palettes are implemented entirely in frontend CSS tokens. The app updates the browser theme
 color, and a prepaint script applies saved choices before the main UI loads. Local-data backups now
-use version 3 and keep version 1 and 2 imports compatible. Browser QA checks actual diff, Files,
-Settings, and feedback surfaces; system changes, cross-tab sync, 320 px width, the prepaint
-sequence, and backup export/import. The four-size captures are listed in the
-[QA workflow](qa-workflow.md#theme-settings).
+used version 3 with earlier imports at that checkpoint; current backups accept version 6 only.
+Browser QA checks actual diff, Files, Settings, and feedback surfaces; system changes, cross-tab
+sync, 320 px width, the prepaint sequence, and backup export/import. The four-size captures are
+listed in the [QA workflow](qa-workflow.md#theme-settings).
 
 The reviewer should judge comfort and contrast on a real phone, especially syntax over added/removed
 and changed-word backgrounds. Named color schemes remain a possible later extension. The installed

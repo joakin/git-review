@@ -392,7 +392,7 @@ await withQaBrowser(async (browser) => {
             )
               throw new Error("Root commit metadata was mislabeled");
             const longAuthor = "A very long author name with spaces and anunbrokenpart".repeat(3);
-            await direct.route(/\/git\/commits\/[0-9a-f]+$/, async (route) => {
+            await direct.route(/\/git\/commits\/[0-9a-f]+(?:\?|$)/, async (route) => {
               const response = await route.fetch();
               const commit = parseCommitDetail((await response.json()) as unknown);
               await route.fulfill({

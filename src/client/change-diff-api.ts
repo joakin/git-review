@@ -1,3 +1,4 @@
+import { projectApiUrl } from "../shared/project-path.ts";
 import type { DiffResult } from "../shared/api.ts";
 import {
   changeDiffBatchSource,
@@ -13,20 +14,20 @@ import type { DiffBatchResult } from "../shared/diff-batch.ts";
 const changes = new DiffBatchQueue<ChangeDiffRequest, DiffResult>(changeDiffRequestKey);
 
 export async function fetchChangeDiff(
-  id: string,
+  projectPath: string,
   file: ChangeDiffRequest,
   snapshot: { revision: string; changeToken: string; refreshKey: number },
   signal: AbortSignal,
 ): Promise<DiffResult> {
   const { revision, changeToken, refreshKey } = snapshot;
-  const source = changeDiffBatchSource(id, revision, changeToken);
+  const source = changeDiffBatchSource(projectPath, revision, changeToken);
   const adapter: DiffBatchSource<ChangeDiffRequest, DiffResult> = {
     key: JSON.stringify([source, refreshKey]),
     encode: (files) => JSON.stringify({ revision, changeToken, files }),
     read: async (body, files, signal) => {
       const response = parseChangeDiffBatchResponse(
         await diffBatchResponseBody(
-          await fetch(`/api/projects/${encodeURIComponent(id)}/diffs`, {
+          await fetch(projectApiUrl("/diffs", projectPath), {
             method: "POST",
             headers: { "content-type": "application/json" },
             body,
@@ -50,7 +51,15 @@ export async function fetchChangeDiff(
           };
     },
     readSingle: (file, signal) =>
-      fetchProjectDiff(id, file.layer, file.path, revision, file.language, signal, changeToken),
+      fetchProjectDiff(
+        projectPath,
+        file.layer,
+        file.path,
+        revision,
+        file.language,
+        signal,
+        changeToken,
+      ),
   };
   return changes.read(adapter, file, signal);
 }

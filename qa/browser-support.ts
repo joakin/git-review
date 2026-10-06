@@ -5,6 +5,20 @@ import {
   type BrowserContextOptions,
   type Page,
 } from "playwright-core";
+import { parseRootResponse } from "../src/shared/api.ts";
+import { projectApiUrl } from "../src/shared/project-path.ts";
+import { responseBody } from "../src/client/api.ts";
+
+/** Selection lookup is only fixture discovery; resource requests need no registration. */
+export async function projectLookupResponse(
+  origin: string,
+  relativePath: string,
+): Promise<Response> {
+  const root = parseRootResponse(await responseBody(await fetch(`${origin}/api/roots`)));
+  const absolutePath =
+    relativePath === "" ? root.path : `${root.path === "/" ? "" : root.path}/${relativePath}`;
+  return await fetch(origin + projectApiUrl("", absolutePath));
+}
 
 export const qaProfiles = {
   phone: {

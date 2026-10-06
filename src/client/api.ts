@@ -1,3 +1,4 @@
+import { projectApiUrl } from "../shared/project-path.ts";
 import {
   parseApiError,
   parseDirectoryResponse,
@@ -65,42 +66,46 @@ export async function fetchDirectory(path: string, signal: AbortSignal): Promise
 }
 
 export async function fetchProjectTree(
-  id: string,
+  projectPath: string,
   path: string,
   signal: AbortSignal,
 ): Promise<FileTree> {
-  const query = new URLSearchParams({ path });
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/tree?${query}`, { signal });
+  const response = await fetch(projectApiUrl("/tree", projectPath, { path }), {
+    signal,
+  });
   return parseFileTreeResponse(await responseBody(response));
 }
 
 export async function fetchProjectFile(
-  id: string,
+  projectPath: string,
   path: string,
   language: string | null,
   signal: AbortSignal,
 ): Promise<FileReadResult> {
-  const query = new URLSearchParams({ path, source: "worktree" });
-  if (language !== null) query.set("language", language);
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/file?${query}`, {
-    signal,
-    cache: "no-store",
-  });
+  const response = await fetch(
+    projectApiUrl("/file", projectPath, {
+      path,
+      source: "worktree",
+      ...(language === null ? {} : { language }),
+    }),
+    {
+      signal,
+      cache: "no-store",
+    },
+  );
   return parseFileReadResponse(await responseBody(response));
 }
 
-export async function openProject(path: string, signal: AbortSignal): Promise<Project> {
-  const response = await fetch("/api/projects/open", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path }),
-    signal,
-  });
+export async function lookupProject(projectPath: string, signal: AbortSignal): Promise<Project> {
+  const response = await fetch(projectApiUrl("", projectPath), { signal, cache: "no-store" });
   return parseProjectResponse(await responseBody(response));
 }
 
-export async function fetchProjectStatus(id: string, signal: AbortSignal): Promise<ProjectStatus> {
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status`, {
+export async function fetchProjectStatus(
+  projectPath: string,
+  signal: AbortSignal,
+): Promise<ProjectStatus> {
+  const response = await fetch(projectApiUrl("/status", projectPath), {
     signal,
     cache: "no-store",
   });
@@ -108,10 +113,10 @@ export async function fetchProjectStatus(id: string, signal: AbortSignal): Promi
 }
 
 export async function fetchProjectChangeCheck(
-  id: string,
+  projectPath: string,
   signal: AbortSignal,
 ): Promise<ProjectChangeCheck> {
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status?mode=check`, {
+  const response = await fetch(projectApiUrl("/status", projectPath, { mode: "check" }), {
     signal,
     cache: "no-store",
   });
@@ -124,7 +129,7 @@ export async function fetchLanguages(signal: AbortSignal): Promise<LanguageOptio
 }
 
 export async function fetchProjectDiff(
-  id: string,
+  projectPath: string,
   layer: ChangeLayer,
   path: string,
   revision: string,
@@ -132,23 +137,28 @@ export async function fetchProjectDiff(
   signal: AbortSignal,
   changeToken?: string,
 ): Promise<DiffResult> {
-  const query = new URLSearchParams({ layer, path, revision });
-  if (changeToken !== undefined) query.set("changeToken", changeToken);
-  if (language !== null) query.set("language", language);
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/diff?${query}`, {
-    signal,
-    cache: "no-store",
-  });
+  const response = await fetch(
+    projectApiUrl("/diff", projectPath, {
+      layer,
+      path,
+      revision,
+      ...(changeToken === undefined ? {} : { changeToken }),
+      ...(language === null ? {} : { language }),
+    }),
+    {
+      signal,
+      cache: "no-store",
+    },
+  );
   return parseDiffResponse(await responseBody(response));
 }
 
 export async function fetchProjectSearch(
-  id: string,
+  projectPath: string,
   query: string,
   signal: AbortSignal,
 ): Promise<SearchResponse> {
-  const search = new URLSearchParams({ query });
-  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/search?${search}`, {
+  const response = await fetch(projectApiUrl("/search", projectPath, { query }), {
     signal,
   });
   return parseSearchResponse(await responseBody(response));

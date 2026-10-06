@@ -1,5 +1,10 @@
 # Git tab: branches and commit inspection
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: implemented, reviewed, and committed as `22de40e` on 2026-09-30. The
 [initial implementation stage is closed](initial-implementation-plan.md#stage-closure--2026-09-30);
 broader Git features are optional future work.
@@ -119,17 +124,17 @@ the card metadata; links and submodules are named states and are not followed.
 
 ## Server/API and internal data
 
-Implemented routes, all under an opened and revalidated project:
+Implemented routes, all with an independently validated absolute project path:
 
-| Endpoint                                                                | Result                                                                                                          |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `GET /api/projects/:id/git/refs`                                        | Git/non-Git state, checked-out branch or detached/unborn HEAD state, and local/remote branch refs with tip IDs. |
-| `GET /api/projects/:id/git/log?ref=<full-ref-or-HEAD>`                  | First bounded page, resolved immutable tip, commit summaries, and next-page state.                              |
-| `GET /api/projects/:id/git/log?tip=<object-id>&offset=<number>`         | Another page from the same history snapshot. Reject mixed ref/tip inputs.                                       |
-| `GET /api/projects/:id/git/commits/:oid`                                | Full message, author/date, parents, comparison-base variant, line totals, and changed-file inventory.           |
-| `GET /api/projects/:id/git/commits/:oid/diff?path=<path>&language=<id>` | One file's parsed patch, semantic syntax/word data, or explicit media/binary/limit state.                       |
-| `POST /api/projects/:id/git/commits/:oid/diffs`                         | Bounded batch of those file results, with source/file identities and independent errors or deferred results.    |
-| `GET/HEAD /api/projects/:id/raw/commit?...`                             | Version-checked Old/New media from that commit comparison, with the existing range and raw-link behavior.       |
+| Endpoint                                                           | Result                                                                                                          |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `GET /api/project/git/refs`                                        | Git/non-Git state, checked-out branch or detached/unborn HEAD state, and local/remote branch refs with tip IDs. |
+| `GET /api/project/git/log?ref=<full-ref-or-HEAD>`                  | First bounded page, resolved immutable tip, commit summaries, and next-page state.                              |
+| `GET /api/project/git/log?tip=<object-id>&offset=<number>`         | Another page from the same history snapshot. Reject mixed ref/tip inputs.                                       |
+| `GET /api/project/git/commits/:oid`                                | Full message, author/date, parents, comparison-base variant, line totals, and changed-file inventory.           |
+| `GET /api/project/git/commits/:oid/diff?path=<path>&language=<id>` | One file's parsed patch, semantic syntax/word data, or explicit media/binary/limit state.                       |
+| `POST /api/project/git/commits/:oid/diffs`                         | Bounded batch of those file results, with source/file identities and independent errors or deferred results.    |
+| `GET/HEAD /api/project/raw/commit?...`                             | Version-checked Old/New media from that commit comparison, with the existing range and raw-link behavior.       |
 
 The [shared Git boundary](../src/shared/git.ts) uses purpose-built types: `GitHead` variants for
 branch/detached/unborn; a `GitHistoryPage` carrying its tip and nullable next offset; `CommitDetail`
@@ -237,8 +242,8 @@ Changes without losing drafts or review position. No Git writes are part of this
   detached/unborn HEAD, remote aliases, renames and unusual paths, source fidelity after disk
   changes/deletion, mode changes, subfolder confinement, missing shallow parents, limits, and
   SHA-256 object IDs.
-- API checks cover unopened projects and revalidated roots, malformed requests, immutable Old/New
-  SVG bytes, raw-link version checks, CSP restrictions, and audio HEAD/range responses.
+- API checks cover missing project paths and revalidated roots, malformed requests, immutable
+  Old/New SVG bytes, raw-link version checks, CSP restrictions, and audio HEAD/range responses.
 - `bun run qa:git` passes in Chrome at 390, 820, 1180, and 1440 px, with an extra 320 px fit check.
   It exercises branches, pagination, full messages, all five fixture cards, inspection line
   information, Old/New image loading and raw links, wrapping and contained horizontal scrolling,

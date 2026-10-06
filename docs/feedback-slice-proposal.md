@@ -35,9 +35,9 @@ and Search.
 ## Data and boundaries
 
 No comment-writing server API is needed. Drafts and bounded history live in versioned browser
-`localStorage` under the opened project ID; state is local to each browser/device. Parse stored data
-as unknown at the boundary and discard invalid records. Keep the domain parser with the comment
-model and reuse generic helpers from `src/shared/validation.ts`.
+`localStorage` under the canonical absolute project path; state is local to each browser/device.
+Parse stored data as unknown at the boundary and discard invalid records. Keep the domain parser
+with the comment model and reuse generic helpers from `src/shared/validation.ts`.
 
 The [shared modal hook](../src/client/modal.ts) owns dialog presentation and dismissal, while the
 [feedback owner](../src/client/review-feedback.ts) saves non-empty editor text on close. Closing
@@ -76,17 +76,16 @@ Only a resolved clipboard write counts as a successful copy for history. The exp
 pure function so behavior tests can cover ordering, escaping, and stale exclusion.
 
 The [feedback transaction owner](../src/client/feedback-transactions.ts) keeps checks and clipboard
-operations in tab memory. Stored comments use version 3 at the existing `git-review:comments:v1:`
-key. Valid legacy version-1/2 stores migrate in place after validation, including history anchors;
-copied history text remains exact. Backup export uses version 5, while versions 1–4 remain
-importable with their validated original comment models. The
-[selection follow-up](selected-code-feedback-proposal.md) adds precise line/selection subjects;
-legacy comments migrate to line subjects. A check merges validity only into still-existing drafts
-with matching full anchors and subjects, preserving newer bodies, additions, deletions,
-reattachments, and history. The successful check carries its checked ID/anchor/subject set into both
-the selectable preview and the automatic copy snapshot. Drafts added or restored during a check need
-another check before entering that export. Copy always checks again and snapshots the latest saved
-bodies belonging to the checked anchors.
+operations in tab memory. Stored comments use version 4 at `git-review:comments:v2:` followed by the
+URI-encoded canonical absolute project path. Backup export/import uses version 6 with absolute
+project ownership. Old project data is discarded; obsolete comment and backup readers have been
+removed without migration. New copied history text remains exact. The
+[selection follow-up](selected-code-feedback-proposal.md) defines precise line/selection subjects. A
+check merges validity only into still-existing drafts with matching full anchors and subjects,
+preserving newer bodies, additions, deletions, reattachments, and history. The successful check
+carries its checked ID/anchor/subject set into both the selectable preview and the automatic copy
+snapshot. Drafts added or restored during a check need another check before entering that export.
+Copy always checks again and snapshots the latest saved bodies belonging to the checked anchors.
 
 While a clipboard write is pending, show **Copying feedback…** and disable further feedback/history
 writes. Check/copy cancellation happens synchronously on navigation and before opening an existing

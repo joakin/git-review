@@ -1,3 +1,4 @@
+import { isProjectPath } from "./project-path.ts";
 import { validateChangeGroupTotals } from "./change-line-stats.ts";
 
 export type RootInfo = {
@@ -42,9 +43,8 @@ export type SearchMatch = { path: string; line: number; excerpt: string };
 export type SearchResponse = { query: string; matches: SearchMatch[]; truncated: boolean };
 
 export type Project = {
-  id: string;
   name: string;
-  path: string;
+  relativePath: string;
   absolutePath: string;
 };
 
@@ -125,7 +125,13 @@ export type DiffResult =
   | { kind: "stale" };
 
 export type ApiErrorCode =
-  "invalid_request" | "forbidden" | "not_found" | "file_not_found" | "internal_error";
+  | "invalid_request"
+  | "forbidden"
+  | "not_found"
+  | "file_not_found"
+  | "project_not_found"
+  | "project_changed"
+  | "internal_error";
 
 export type ApiError = {
   code: ApiErrorCode;
@@ -277,11 +283,15 @@ function parseMediaResource(value: unknown): MediaResource {
   if (byteLength === 0 || byteLength > (kind === "image" ? 25 : 200) * 1024 * 1024)
     throw new Error("Expected bounded media bytes");
   const url = expectString(raw["url"], "media URL");
-  if (
-    !/^\/api\/projects\/[0-9a-f]{20}\/raw\/(file|diff|commit)\?/.test(url) ||
-    /[\r\n\\]/.test(url)
-  )
+  if (!/^\/api\/project\/raw\/(file|diff|commit)\?/.test(url) || /[\r\n\\]/.test(url))
     throw new Error("Expected a project media URL");
+  const parsedUrl = new URL(url, "http://localhost");
+  if (
+    parsedUrl.hash !== "" ||
+    parsedUrl.searchParams.getAll("projectPath").length !== 1 ||
+    !isProjectPath(parsedUrl.searchParams.get("projectPath"))
+  )
+    throw new Error("Expected an absolute project path in the media URL");
   return { kind, mimeType, byteLength, url };
 }
 
@@ -361,13 +371,12 @@ export function parseSearchResponse(value: unknown): SearchResponse {
 export function parseProjectResponse(value: unknown): Project {
   const outer = expectRecord(value, "server response");
   const project = expectRecord(outer["project"], "project");
-  const id = expectString(project["id"], "project.id");
-  if (!/^[0-9a-f]{20}$/.test(id)) throw new Error("Expected a valid project ID");
+  const absolutePath = project["absolutePath"];
+  if (!isProjectPath(absolutePath)) throw new Error("Expected an absolute project path");
   return {
-    id,
     name: expectString(project["name"], "project.name"),
-    path: expectString(project["path"], "project.path"),
-    absolutePath: expectString(project["absolutePath"], "project.absolutePath"),
+    relativePath: expectProjectPath(project["relativePath"], "project.relativePath", true),
+    absolutePath,
   };
 }
 
@@ -652,6 +661,8 @@ export function parseApiError(value: unknown): ApiError | null {
         code === "forbidden" ||
         code === "not_found" ||
         code === "file_not_found" ||
+        code === "project_not_found" ||
+        code === "project_changed" ||
         code === "internal_error") &&
       typeof message === "string"
     ) {

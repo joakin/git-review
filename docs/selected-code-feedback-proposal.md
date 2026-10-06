@@ -61,12 +61,12 @@ Opening the editor clears native selection and dismisses the tooltip. No source 
 needed to open the editor, and no repository-writing API is added; preview/copy retain U03's fresh
 read checks.
 
-Add the subject to drafts and archived comments. Increment the comment-store format and backup
-format; migrate legacy comments to `{ kind: "line" }` while preserving IDs, bodies, timestamps,
-source anchors and exact copied history text. Keep import of supported earlier backups, including
-U03's mixed v4 model. New selection comments export their source line and a clearly quoted selected
-fragment. Successful-copy identity includes the subject so a pending copy cannot clear a comment
-whose selection was edited or reattached.
+Drafts and archived comments include an explicit line/selection subject. Current comment stores use
+version 4 and backups use version 6 under canonical absolute project ownership. Earlier formats and
+migrations were retired by the [stateless cutover](stateless-project-access-plan.md). New selection
+comments export their source line and a clearly quoted selected fragment. Successful-copy identity
+includes the subject so a pending copy cannot clear a comment whose selection was edited or
+reattached.
 
 ## Edge cases and review
 
@@ -98,12 +98,13 @@ range. Both buttons have 44 px hit areas. The action follows scrolling and viewp
 navigation/Feedback/reattachment controls, and clears on outside pointer input, source replacement,
 navigation, Escape, or editor opening. Tooltip focus may retain the validated range.
 
-[Comments](../src/client/comments.ts) store a line or selection subject in version 3 at the existing
-storage key. Versions 1 and 2 migrate to line subjects; archived copied text stays exact. Backup
-export uses version 5 and accepts earlier versions 1–4 with their original comment formats. Import
-preserves fragment positions and text. Selection export includes the full source line plus a quoted
-fragment and one-based, inclusive UTF-16 columns. Checks and copy snapshots include subject
-identity; a reattachment during a pending check/write cannot validate or clear the newer fragment.
+[Comments](../src/client/comments.ts) store a line or selection subject in version 4 under the
+URI-encoded absolute project path in `git-review:comments:v2:`. Backup version 6 preserves fragment
+positions and text. Old formats are unsupported and old local project data is discarded without
+migration; see the [stateless cutover](stateless-project-access-plan.md). Selection export includes
+the full source line plus a quoted fragment and one-based, inclusive UTF-16 columns. Checks and copy
+snapshots include subject identity; a reattachment during a pending check/write cannot validate or
+clear the newer fragment.
 
 The editor and feedback preview highlight the fragment inside its full source quote and label the
 subject as Selection. Existing line markers count both subjects. Selection reattachment requires a

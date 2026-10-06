@@ -24,7 +24,7 @@ await withQaBrowser(async (browser) => {
     const path = await link.getAttribute("href");
     if (
       path === null ||
-      !path.startsWith("/api/projects/") ||
+      !path.startsWith("/api/project/") ||
       (await link.getAttribute("target")) !== "_blank" ||
       (await link.getAttribute("rel")) !== "noopener"
     )

@@ -34,3 +34,9 @@ export async function withTempDirectory<T>(
     await rm(directory, { recursive: true, force: true });
   }
 }
+
+export function projectRequestUrl(url: string | URL, projectPath: string): string {
+  const value = new URL(url);
+  value.searchParams.set("projectPath", projectPath);
+  return value.href;
+}

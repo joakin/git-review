@@ -9,8 +9,8 @@ Browser checks and four-size captures are ready.
 The former active project lived beside recent folders in one `localStorage` record, so a selection
 affected what other tabs restored. The implementation moved that fallback to per-tab
 `sessionStorage`; explicit URLs now take precedence through the
-[navigation model](navigation-and-url-history-slice-proposal.md). The server accepts multiple opened
-project IDs and has no global active project.
+[navigation model](navigation-and-url-history-slice-proposal.md). The server resolves each absolute
+project path independently and has no selected-project registry.
 
 The original phone address used HTTP on port 39878. The installed app now uses private HTTPS on port
 8443, leaving port 443 free for another app. The [run instructions](../README.md#install-on-a-phone)
@@ -36,20 +36,20 @@ private HTTPS proxy to the loopback backend.
 ### State and API shape
 
 The [project/session owner](../src/client/project-session.ts) owns connection, restoration, and
-accepted-selection persistence. URL changes stay with App, and the storage module owns formats and
-migration.
+accepted-selection persistence. URL changes stay with App, and the storage module owns current
+formats and the deliberate old-project-data reset.
 
-- `localStorage`: versioned `{ rootPath, recentPaths }` record, plus existing project-keyed
-  comments/history, wrap, open cards, and language overrides.
-- `sessionStorage`: versioned `{ rootPath, activePath }` record for the current tab. Validate types,
-  size, and approved-root identity before use; still call `POST /api/projects/open` so the server
-  revalidates the path.
-- Keep the existing `POST /api/projects/open`, status, and diff APIs. The server's project map is
-  keyed by project ID and has no global active-project pointer.
-- Migrate `git-review:workspace:v2` once: preserve bounded recent paths and copy its active path
-  into the migrating tab's session record, then retire the shared active-path field. A tab opened
-  after migration starts at the picker. A duplicated tab may initially copy its source tab's
-  `sessionStorage`, but the copies then diverge.
+- `localStorage`: workspace v4 stores `{ rootPath, recentPaths }` using root-relative navigation
+  paths. Comments v4, open cards and language overrides use new namespaces keyed by URI-encoded
+  canonical absolute project paths. Global wrap, appearance and typography retain their formats.
+- `sessionStorage`: active-project v2 stores `{ version: 2, rootPath, activePath }` for this tab;
+  `activePath` is root-relative navigation metadata. Validate it against the current root.
+- `GET /api/project?projectPath=…` resolves selection metadata. All resource requests independently
+  validate the canonical path; a server restart needs no new lookup.
+- Obsolete project/session/recents/comments/history/cards/languages are discarded without migration.
+  Backup export/import accepts only v6. Dated compatibility evidence below describes earlier
+  releases and is superseded by the [stateless cutover](stateless-project-access-plan.md). A
+  duplicated tab may initially copy its source tab's session storage, then the copies diverge.
   [HTML session storage behavior](https://html.spec.whatwg.org/multipage/webstorage.html)
 
 ### Edge cases and checks
@@ -95,9 +95,9 @@ migration.
   install-prompt behavior has varied; verify on an Android device.
   [Chrome install criteria update](https://developer.chrome.com/blog/update-install-criteria)
 - Serve manifest, icons, service worker, and offline page with correct MIME types and cache headers.
-  Update the restrictive CSP only for resources actually needed. Check that
-  `POST /api/projects/open` still passes the same-origin check behind HTTPS termination; trust only
-  the configured local proxy/public origin, not arbitrary forwarded headers.
+  Update the restrictive CSP only for resources actually needed. Check that Project metadata GET
+  passes the same-origin check behind HTTPS termination; trust only the configured local
+  proxy/public origin, not arbitrary forwarded headers.
 - Configure **Tailscale Serve**, not Funnel, to expose the Bun app only inside the tailnet over
   HTTPS. Serve proxies to loopback, so the host must provide a loopback listener. Keep the existing
   HTTP address available during the transition for data export, then decide whether to retire it.

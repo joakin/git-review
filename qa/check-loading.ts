@@ -25,14 +25,14 @@ await withQaBrowser(async (browser) => {
     });
     let openCount = 0;
     const countOpenRequests = (): number => openCount;
-    await page.route("**/api/projects/open", async (route) => {
+    await page.route("**/api/project?*", async (route) => {
       openCount += 1;
       if (openCount === 1) await openGate;
       await route.continue();
     });
 
-    const openingRequest = page.waitForRequest((request) =>
-      request.url().endsWith("/api/projects/open"),
+    const openingRequest = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === "/api/project",
     );
     await page.goto(new URL("/?section=changes&project=inventory-fixture&target=list", base).href);
     await openingRequest;

@@ -94,7 +94,7 @@ export async function checkDiffLoading(browser: Browser, base: URL): Promise<voi
                   kind: "stale",
                   source: JSON.stringify([
                     "changes",
-                    url.pathname.split("/")[3],
+                    url.searchParams.get("projectPath"),
                     batch.revision,
                     batch.changeToken,
                   ]),

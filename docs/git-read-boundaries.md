@@ -33,9 +33,10 @@ retain the existing no-textconv HEAD/index commands and byte budgets.
 
 ## Domain ownership
 
-HTTP handlers still revalidate an opened project against its approved root before invoking Git.
-Callers choose fixed read commands; there is no endpoint accepting arbitrary subprocess arguments.
-The runner is a transport boundary, while each domain owns its command selection and parsing:
+HTTP handlers still resolve the supplied canonical project path against its approved root before
+invoking Git. Callers choose fixed read commands; there is no endpoint accepting arbitrary
+subprocess arguments. The runner is a transport boundary, while each domain owns its command
+selection and parsing:
 
 - [Status](../src/server/git-status.ts) parses porcelain and computes revision/change tokens.
 - [Diffs](../src/server/git-diff.ts) parse patches and preserve source text, syntax fallback,

@@ -1,46 +1,67 @@
 import { expect, test } from "bun:test";
 import {
+  discardObsoleteProjectData,
+  readSavedWorkspace,
   parseActiveProject,
-  parseLegacyWorkspace,
   parseOpenCards,
   parseSavedWorkspace,
   parseWrapPreference,
   withSelectedPath,
 } from "./storage.ts";
+import { withTestStorage } from "./storage-test-support.ts";
+
+test("obsolete project data is discarded without reading it or clearing unrelated settings", () => {
+  withTestStorage((local, session) => {
+    const obsolete = [
+      "git-review:workspace:v2",
+      "git-review:workspace:v3",
+      "git-review:comments:v1:hash",
+      "git-review:open-cards:v1:hash",
+      "git-review:language:v1:hash:file",
+    ];
+    for (const key of obsolete) local.setItem(key, "malformed old value");
+    session.setItem("git-review:active-project:v1", "old tab");
+    local.setItem("unrelated", "keep");
+    local.setItem("git-review:appearance:v1", "keep appearance");
+    local.setItem("git-review:comments:v2:%2Froot%2Fnew", "keep new data");
+    session.setItem("git-review:active-project:v2", "keep new tab");
+    const get = local.getItem;
+    local.getItem = (key) => {
+      if (obsolete.includes(key)) throw new Error("Must not read old data");
+      return get(key);
+    };
+    expect(readSavedWorkspace("/root")).toEqual({ version: 4, rootPath: "/root", recentPaths: [] });
+    expect(obsolete.every((key) => get(key) === null)).toBe(true);
+    expect(session.getItem("git-review:active-project:v1")).toBeNull();
+    expect(local.getItem("unrelated")).toBe("keep");
+    expect(local.getItem("git-review:appearance:v1")).toBe("keep appearance");
+    expect(local.getItem("git-review:comments:v2:%2Froot%2Fnew")).toBe("keep new data");
+    expect(session.getItem("git-review:active-project:v2")).toBe("keep new tab");
+    local.removeItem = () => {
+      throw new Error("Storage denied");
+    };
+    expect(() => discardObsoleteProjectData()).not.toThrow();
+  });
+});
 
 test("invalid stored workspace and session data cannot become an active folder", () => {
   const rootPath = "/approved/root";
   expect(
-    parseSavedWorkspace({ version: 3, rootPath, recentPaths: ["safe", 42] }, rootPath).recentPaths,
+    parseSavedWorkspace({ version: 4, rootPath, recentPaths: ["safe", 42] }, rootPath).recentPaths,
   ).toEqual([]);
   expect(
     parseSavedWorkspace({ version: 2, rootPath, activePath: "src", recentPaths: ["src"] }, rootPath)
       .recentPaths,
   ).toEqual([]);
   expect(
-    parseSavedWorkspace({ version: 3, rootPath, recentPaths: ["src"] }, "/different/root")
+    parseSavedWorkspace({ version: 4, rootPath, recentPaths: ["src"] }, "/different/root")
       .recentPaths,
   ).toEqual([]);
-  expect(parseActiveProject({ version: 1, rootPath, activePath: "src" }, rootPath)).toBe("src");
-  expect(parseActiveProject({ version: 1, rootPath, activePath: 42 }, rootPath)).toBeNull();
+  expect(parseActiveProject({ version: 2, rootPath, activePath: "src" }, rootPath)).toBe("src");
+  expect(parseActiveProject({ version: 2, rootPath, activePath: 42 }, rootPath)).toBeNull();
   expect(
-    parseActiveProject({ version: 1, rootPath, activePath: "src" }, "/different/root"),
+    parseActiveProject({ version: 2, rootPath, activePath: "src" }, "/different/root"),
   ).toBeNull();
-  expect(
-    parseLegacyWorkspace({ version: 2, rootPath, activePath: 42, recentPaths: ["src"] }, rootPath),
-  ).toBeNull();
-  expect(
-    parseLegacyWorkspace(
-      { version: 2, rootPath, activePath: "src", recentPaths: ["safe", 42] },
-      rootPath,
-    ),
-  ).toBeNull();
-  expect(
-    parseLegacyWorkspace(
-      { version: 2, rootPath, activePath: "src", recentPaths: ["src"] },
-      rootPath,
-    ),
-  ).toEqual({ activePath: "src", recentPaths: ["src"] });
 });
 
 test("only a saved boolean can change the default code wrapping", () => {
@@ -63,7 +84,7 @@ test("selecting a folder moves it to the front and bounds recent history", () =>
   const rootPath = "/approved/root";
   const current = parseSavedWorkspace(
     {
-      version: 3,
+      version: 4,
       rootPath,
       recentPaths: ["one", "two", "three", "four", "five", "six", "seven", "eight"],
     },

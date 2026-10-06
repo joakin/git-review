@@ -16,17 +16,17 @@ as `737a09b`. Their verification is recorded below.
 - Navigating to another project, host directory, project directory, or submitted Search query never
   paints data from the previous destination while the new request starts. Request results are
   associated with their project/path/query, and aborted requests cannot replace the current view.
-- Returning to a project already opened in this tab reuses its validated project handle and visible
-  data. Explicitly opening that folder from the picker renews the handle, which also provides
-  recovery after a server restart. Switching to a different project sends one open request. A status
-  read still refreshes Git changes; the existing content stays visible during that read.
+- Returning to a project already opened in this tab reuses its resolved canonical project metadata
+  and visible data. Explicitly opening that folder from the picker renews the handle, which also
+  provides recovery after a server restart. Switching to a different project sends one open request.
+  A status read still refreshes Git changes; the existing content stays visible during that read.
 - A refresh of a loaded file or list keeps its current content on screen until the replacement
   arrives. A newly selected file or directory starts with an empty content area and shows delayed
   feedback only if the wait is noticeable.
 - The [working-copy review owner](../src/client/working-copy-review.ts) accepts status results only
-  for the current project handle and route scope. A non-Git result redirects only the current
-  Changes destination; completing a refresh after navigation cannot restore its reading position in
-  another view.
+  for the current canonical project path and route scope. A non-Git result redirects only the
+  current Changes destination; completing a refresh after navigation cannot restore its reading
+  position in another view.
 - The project picker does not appear as an interim screen while an explicit project link opens. If
   opening fails, the error and recovery action appear in that project's screen.
 - Expanded diff results survive Changes → Files/Search → Changes and browser Back/Forward within the

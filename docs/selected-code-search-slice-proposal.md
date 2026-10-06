@@ -1,5 +1,10 @@
 # Selected code text → Search
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: implemented and committed as part of `da9ba46`. The server-side working-tree Search was
 already implemented; this adds the entry point from code. The maintainer confirmed the action works
 on their phone. Additional iOS selection checks remain unverified
@@ -28,8 +33,8 @@ returns to earlier destinations.
 
 ## Data and implementation boundary
 
-- No new server endpoint or query shape. Reuse `GET /api/projects/:id/search?query=...` and its
-  current 1–128 character, single-line validation.
+- No new server endpoint or query shape. Reuse `GET /api/project/search?query=...` and its current
+  1–128 character, single-line validation.
 - Add one client-side selection reader shared by diff and file code. It inspects the browser
   `Selection`/`Range`, accepts a non-collapsed range whose start and end belong to the same
   `.diff-code` or `.file-code-line`, and retains the exact Range and registered source snapshot.

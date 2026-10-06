@@ -334,20 +334,25 @@ LAN pairing and certificate setup are not implemented.
 
 ## Server/API outline
 
-| Endpoint                                                                                | Purpose                                                                                                             |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/roots`, `GET /api/directories`                                                | Browse permitted host folders.                                                                                      |
-| `POST /api/projects/open`                                                               | Resolve a selected folder to a stable project ID.                                                                   |
-| `GET /api/projects/:id/status`                                                          | Return Git layer groups, a status revision, and a metadata-based change token.                                      |
-| `GET /api/projects/:id/diff`                                                            | Return one file/layer's parsed hunks and highlighted lines.                                                         |
-| `GET /api/projects/:id/git/refs`, `GET /api/projects/:id/git/log`                       | Read local/remote branches and bounded history pages pinned to a tip.                                               |
-| `GET /api/projects/:id/git/commits/:oid`, `GET /api/projects/:id/git/commits/:oid/diff` | Read full commit metadata, comparison inventory, and per-file historical diffs.                                     |
-| `GET /api/languages`                                                                    | Return Shiki's bundled language IDs and display names for overrides.                                                |
-| `GET /api/projects/:id/tree`, `GET /api/projects/:id/file`                              | Browse working-tree paths and read bounded current files.                                                           |
-| `GET/HEAD /api/projects/:id/raw/file`, `GET/HEAD /api/projects/:id/raw/diff`            | Serve version-checked image/audio/video bytes from the correct worktree or Git side, including bounded byte ranges. |
-| `GET/HEAD /api/projects/:id/raw/commit`                                                 | Serve version-checked historical Old/New media from the exact comparison blobs.                                     |
-| `GET /api/projects/:id/search`                                                          | Return bounded server-side search matches.                                                                          |
-| `POST /api/transcriptions`                                                              | Transcribe one bounded audio clip locally over the private, same-origin HTTPS service.                              |
+All project resources require a canonical absolute `projectPath` query field. Each request resolves
+it independently under the approved root. See the
+[stateless cutover](stateless-project-access-plan.md) for current identity, storage and restart
+behavior.
+
+| Endpoint                                                                      | Purpose                                                                                                             |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/roots`, `GET /api/directories`                                      | Browse permitted host folders.                                                                                      |
+| `GET /api/project?projectPath=…`                                              | Resolve selection metadata for a canonical absolute project path.                                                   |
+| `GET /api/project/status`                                                     | Return Git layer groups, a status revision, and a metadata-based change token.                                      |
+| `GET /api/project/diff`                                                       | Return one file/layer's parsed hunks and highlighted lines.                                                         |
+| `GET /api/project/git/refs`, `GET /api/project/git/log`                       | Read local/remote branches and bounded history pages pinned to a tip.                                               |
+| `GET /api/project/git/commits/:oid`, `GET /api/project/git/commits/:oid/diff` | Read full commit metadata, comparison inventory, and per-file historical diffs.                                     |
+| `GET /api/languages`                                                          | Return Shiki's bundled language IDs and display names for overrides.                                                |
+| `GET /api/project/tree`, `GET /api/project/file`                              | Browse working-tree paths and read bounded current files.                                                           |
+| `GET/HEAD /api/project/raw/file`, `GET/HEAD /api/project/raw/diff`            | Serve version-checked image/audio/video bytes from the correct worktree or Git side, including bounded byte ranges. |
+| `GET/HEAD /api/project/raw/commit`                                            | Serve version-checked historical Old/New media from the exact comparison blobs.                                     |
+| `GET /api/project/search`                                                     | Return bounded server-side search matches.                                                                          |
+| `POST /api/transcriptions`                                                    | Transcribe one bounded audio clip locally over the private, same-origin HTTPS service.                              |
 
 Use a small shared TypeScript schema for responses and validate all untrusted inputs at runtime.
 Resolve paths beneath configured roots after symlinks, prevent traversal, and pass Git/FFmpeg/Handy

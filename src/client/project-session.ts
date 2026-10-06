@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project, RootInfo } from "../shared/api.ts";
-import { fetchRoot, openProject } from "./api.ts";
+import { fetchRoot, lookupProject } from "./api.ts";
 import { parseNavigationSearch } from "./navigation.ts";
 import {
   emptyWorkspace,
@@ -21,7 +21,7 @@ type ProjectOpening =
 type SessionState = {
   root: HostRoot;
   workspace: SavedWorkspace;
-  opened: Project | null;
+  resolved: Project | null;
   opening: ProjectOpening;
 };
 type ProjectSession = {
@@ -48,14 +48,14 @@ function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong";
 }
 
-/** Owns root connection, accepted project handles, and root-scoped persistence. */
+/** Owns root connection, resolved project metadata, and root-scoped persistence. */
 export function useProjectSession(inputs: SessionInputs): ProjectSession {
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
   const [session, setSession] = useState<SessionState>(() => ({
     root: { kind: "loading" },
     workspace: emptyWorkspace(""),
-    opened: null,
+    resolved: null,
     opening: { kind: "idle" },
   }));
   const sessionRef = useRef(session);
@@ -81,9 +81,12 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
       return;
     }
     inputsRef.current.onNotice(null);
-    // Explicit selection renews a handle retained while the picker hid it.
-    if (inputsRef.current.readCurrentProjectPath() !== path && current.opened?.path === path)
-      updateSession((value) => ({ ...value, opened: null }));
+    // Explicit selection resolves metadata again after returning through the picker.
+    if (
+      inputsRef.current.readCurrentProjectPath() !== path &&
+      current.resolved?.relativePath === path
+    )
+      updateSession((value) => ({ ...value, resolved: null }));
     inputsRef.current.onSelectProject(path);
   }
 
@@ -116,7 +119,11 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
   const root = session.root;
   useEffect(() => {
     const path = inputs.projectPath;
-    if (root.kind !== "ready" || path === null || sessionRef.current.opened?.path === path) {
+    if (
+      root.kind !== "ready" ||
+      path === null ||
+      sessionRef.current.resolved?.relativePath === path
+    ) {
       updateSession((current) =>
         current.opening.kind === "opening" ? { ...current, opening: { kind: "idle" } } : current,
       );
@@ -124,7 +131,11 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
     }
     const controller = new AbortController();
     openRequest.current = controller;
-    updateSession((current) => ({ ...current, opened: null, opening: { kind: "opening", path } }));
+    updateSession((current) => ({
+      ...current,
+      resolved: null,
+      opening: { kind: "opening", path },
+    }));
     inputsRef.current.onOpening();
     // App updates its route ref synchronously, before effect cleanup can abort.
     const isCurrentOpen = (): boolean =>
@@ -132,18 +143,21 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
       openRequest.current === controller &&
       sessionRef.current.root === root &&
       inputsRef.current.readCurrentProjectPath() === path;
-    openProject(path, controller.signal).then(
+    lookupProject(
+      path === "" ? root.value.path : `${root.value.path === "/" ? "" : root.value.path}/${path}`,
+      controller.signal,
+    ).then(
       (selected) => {
         if (!isCurrentOpen()) return;
-        updateSession((current) => ({ ...current, opened: selected }));
+        updateSession((current) => ({ ...current, resolved: selected }));
         inputsRef.current.onOpened(selected);
-        saveActiveProject(root.value.path, selected.path);
+        saveActiveProject(root.value.path, selected.relativePath);
         const current = sessionRef.current;
         const scoped =
           current.workspace.rootPath === root.value.path
             ? current.workspace
             : emptyWorkspace(root.value.path);
-        const workspace = withSelectedPath(scoped, selected.path);
+        const workspace = withSelectedPath(scoped, selected.relativePath);
         saveWorkspace(workspace);
         updateSession((value) => ({ ...value, workspace, opening: { kind: "idle" } }));
       },
@@ -164,7 +178,7 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
   return {
     model: {
       root,
-      project: session.opened?.path === inputs.projectPath ? session.opened : null,
+      project: session.resolved?.relativePath === inputs.projectPath ? session.resolved : null,
       opening: session.opening.kind === "opening",
       openError:
         session.opening.kind === "error"

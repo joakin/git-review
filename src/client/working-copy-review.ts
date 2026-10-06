@@ -105,7 +105,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       refreshing: false,
       pendingUpdate: false,
       checkError: false,
-      expandedKeys: readOpenCards(project.id),
+      expandedKeys: readOpenCards(project.absolutePath),
     }));
   }
 
@@ -115,7 +115,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       stateRef.current.project === project &&
       inputsRef.current.project === project &&
       route !== null &&
-      routeProjectPath(route) === project.path
+      routeProjectPath(route) === project.relativePath
     );
   }
 
@@ -206,7 +206,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       statusRequest.current === controller &&
       stateRef.current.refreshKey === generation &&
       hasCurrentProject(project);
-    fetchProjectStatus(project.id, controller.signal).then(
+    fetchProjectStatus(project.absolutePath, controller.signal).then(
       (value) => {
         if (!isCurrent()) return;
         update((current) => ({
@@ -270,7 +270,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       const controller = new AbortController();
       request = controller;
       try {
-        const latest = await fetchProjectChangeCheck(project.id, controller.signal);
+        const latest = await fetchProjectChangeCheck(project.absolutePath, controller.signal);
         if (!isCurrent() || controller.signal.aborted) return;
         update((current) => ({
           ...current,
@@ -374,7 +374,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
 
   useEffect(() => {
     if (project !== null && state.project === project)
-      saveOpenCards(project.id, state.expandedKeys);
+      saveOpenCards(project.absolutePath, state.expandedKeys);
   }, [project, state.project, state.expandedKeys]);
 
   const current = project !== null && state.project === project;

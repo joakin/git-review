@@ -1,5 +1,10 @@
 # Files browser: first readable file slice
 
+Current project access uses a canonical absolute `projectPath` query field on every project
+resource, including batch and raw-media routes. No registration is required. See the
+[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
+Dated implementation and compatibility checkpoints below remain historical evidence.
+
 Status: original Files slice implemented and committed after maintainer review; U03 line-feedback
 extension accepted and committed as `7632b4d`.
 
@@ -31,22 +36,21 @@ desktop. Search results reuse the same file viewer, and
 
 ## API and state shape
 
-- `GET /api/projects/:id/tree?path=<project-relative directory>` returns
-  `{ path, parentPath, entries }`; each entry has `{ name, path, kind }` with `kind` equal to
-  `directory`, `file`, `symlink`, or `other`. Entries are sorted and bounded. The root path is `""`.
-- `GET /api/projects/:id/file?path=<project-relative file>&source=worktree` returns a discriminated
+- `GET /api/project/tree?path=<project-relative directory>` returns `{ path, parentPath, entries }`;
+  each entry has `{ name, path, kind }` with `kind` equal to `directory`, `file`, `symlink`, or
+  `other`. Entries are sorted and bounded. The root path is `""`.
+- `GET /api/project/file?path=<project-relative file>&source=worktree` returns a discriminated
   result: `text` with `path`, byte length, `syntax`, and numbered `{ text, tokens }` lines; `media`
   with a version-checked raw resource; or `binary`, `too_large`, `symlink`, or `unsupported` with
   byte length. A language override uses the bundled-language list and project/path local preference.
   A missing file returns HTTP 404 with `file_not_found`; project-handle failures retain `not_found`,
   and denied or transient reads remain errors. Feedback can mark a deleted file outdated without
   treating an offline host as deleted content.
-- Both routes require an opened project ID, revalidate that project under the approved root, parse
-  each path at the [shared working-file boundary](working-file-boundaries.md), and confine reads to
-  the selected project's real directory as well as the approved root. Do not follow symlinks in this
-  first slice. Read only regular files. Use no shell for subprocesses. Bounded reads recheck file
-  and parent identities before returning, and the shared scope closes descriptors on success or
-  failure.
+- Both routes resolve the supplied absolute project path under the approved root, parse each path at
+  the [shared working-file boundary](working-file-boundaries.md), and confine reads to the selected
+  project's real directory as well as the approved root. Do not follow symlinks in this first slice.
+  Read only regular files. Use no shell for subprocesses. Bounded reads recheck file and parent
+  identities before returning, and the shared scope closes descriptors on success or failure.
 - Bound text reads to 1 MiB and 20,000 lines. Media has separate byte limits in its
   [behavior record](media-preview-slice-proposal.md). Detect NUL bytes and invalid UTF-8 before
   syntax highlighting. Return semantic token roles; the client applies its own theme. Parse every

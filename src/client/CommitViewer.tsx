@@ -12,7 +12,7 @@ import { GitHeading, type GitHeadingCommands } from "./GitHeading.tsx";
 const collapsedCommits = new Map<string, Set<string>>();
 
 function CommitCard({
-  projectId,
+  projectPath,
   detail,
   file,
   expanded,
@@ -20,7 +20,7 @@ function CommitCard({
   wrap,
   languages,
 }: {
-  projectId: string;
+  projectPath: string;
   detail: CommitDetail;
   file: CommitFileChange;
   expanded: boolean;
@@ -29,13 +29,13 @@ function CommitCard({
   languages: readonly LanguageOption[];
 }) {
   const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
-    projectId,
+    projectPath,
     file.path,
     languages,
   );
   const key = JSON.stringify([
     "commit",
-    projectId,
+    projectPath,
     detail.oid,
     detail.comparison.kind === "empty" ? "empty" : detail.comparison.oid,
     file.path,
@@ -43,7 +43,8 @@ function CommitCard({
   ]);
   const { current, retry } = useDiffLoading(expanded, {
     key,
-    read: (signal) => fetchCommitDiff(projectId, detail.oid, file.path, effectiveOverride, signal),
+    read: (signal) =>
+      fetchCommitDiff(projectPath, detail.oid, file.path, effectiveOverride, signal),
     errorMessage: "Commit diff could not be loaded",
   });
   return (
@@ -78,7 +79,7 @@ export function CommitViewer({
   refreshing: boolean;
   commands: GitHeadingCommands;
 }) {
-  const key = `${project.id}:${detail.oid}`;
+  const key = JSON.stringify([project.absolutePath, detail.oid]);
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => collapsedCommits.get(key) ?? new Set(),
   );
@@ -138,7 +139,7 @@ export function CommitViewer({
           {detail.files.map((file) => (
             <CommitCard
               key={file.path}
-              projectId={project.id}
+              projectPath={project.absolutePath}
               detail={detail}
               file={file}
               expanded={!collapsed.has(file.path)}

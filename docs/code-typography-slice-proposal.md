@@ -1,5 +1,9 @@
 # Code typography settings slice
 
+Current backups use version 6 only. Earlier backup formats and migrations recorded here are
+superseded by the [stateless project cutover](stateless-project-access-plan.md); preferences retain
+their current standalone storage formats.
+
 Status: implemented and committed. Theme controls are complete in the
 [theme settings slice](theme-settings-slice-proposal.md).
 
@@ -27,10 +31,10 @@ the defaults. Storage failure leaves the current page usable. Changes in another
 current tab.
 
 This slice introduced version 2 backups with required typography settings. The later
-[theme settings slice](theme-settings-slice-proposal.md) moves exports to version 3 and keeps
-version 1 and 2 imports available. Invalid typography rejects the import before any writes. The
-server continues to return semantic syntax roles; CSS design tokens and frontend settings supply the
-visual style.
+[theme settings slice](theme-settings-slice-proposal.md) introduced version 3 exports and earlier
+imports; those formats have since been retired. Invalid typography rejects the import before any
+writes. The server continues to return semantic syntax roles; CSS design tokens and frontend
+settings supply the visual style.
 
 ## Edge cases and checks
 

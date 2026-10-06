@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { approveRoot, openProject } from "./paths.ts";
+import { approveRoot, resolveProject } from "./paths.ts";
 import { readProjectFile, readProjectTree } from "./project-files.ts";
 
 test("working-tree browsing stays in a non-Git project and never follows links", async () => {
@@ -20,7 +20,7 @@ test("working-tree browsing stays in a non-Git project and never follows links",
     await symlink(join(base, "sibling"), join(base, "project", "external"));
     await symlink(join(base, "project", "src"), join(base, "project", "linked-src"));
     const root = await approveRoot(base);
-    const project = await openProject(root, "project");
+    const project = await resolveProject(root, root.realPath + "/project");
 
     const tree = await readProjectTree(root, project, "");
     expect(tree.entries.map((entry) => [entry.name, entry.kind])).toEqual([
@@ -66,7 +66,7 @@ test("file reader classifies binary, oversized, empty, and disappeared files", a
   try {
     await mkdir(join(base, "project"));
     const root = await approveRoot(base);
-    const project = await openProject(root, "project");
+    const project = await resolveProject(root, root.realPath + "/project");
     await writeFile(join(project.absolutePath, "nul.dat"), Buffer.from([65, 0, 66]));
     await writeFile(join(project.absolutePath, "invalid.dat"), Buffer.from([0xff]));
     await writeFile(join(project.absolutePath, "large.txt"), "x".repeat(1024 * 1024 + 1));

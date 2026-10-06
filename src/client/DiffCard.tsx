@@ -8,7 +8,7 @@ import { useLanguageOverride } from "./language-override.ts";
 
 type DiffCardProps = {
   entry: ReviewChangeEntry;
-  projectId: string;
+  projectPath: string;
   revision: string;
   changeToken: string;
   refreshKey: number;
@@ -32,7 +32,7 @@ export function diffCardId(entry: ChangeEntry): string {
 
 export function DiffCard({
   entry,
-  projectId,
+  projectPath,
   revision,
   changeToken,
   refreshKey,
@@ -46,12 +46,12 @@ export function DiffCard({
   reattachSide,
 }: DiffCardProps) {
   const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
-    projectId,
+    projectPath,
     entry.path,
     languages,
   );
   const requestKey = diffCacheKey({
-    projectId,
+    projectPath,
     layer: entry.layer,
     path: entry.path,
     revision,
@@ -63,7 +63,7 @@ export function DiffCard({
     key: requestKey,
     read: (signal) =>
       fetchChangeDiff(
-        projectId,
+        projectPath,
         { layer: entry.layer, path: entry.path, language: effectiveOverride },
         { revision, changeToken, refreshKey },
         signal,
@@ -76,7 +76,7 @@ export function DiffCard({
 
   return (
     <DiffCardFrame
-      mode={{ kind: "review", projectId, entry, onComment, drafts, reattachSide }}
+      mode={{ kind: "review", projectPath, entry, onComment, drafts, reattachSide }}
       id={diffCardId(entry)}
       expanded={expanded}
       onToggle={onToggle}
