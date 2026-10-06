@@ -149,6 +149,11 @@ files, unusual names, deletions, and failure rollback without modifying this che
 
 ## Screenshot command
 
+Linked screenshots are historical evidence for their recorded milestone, rather than a live view of
+the current app. Use capture timestamps in manifests and the corresponding behavior/handoff record
+to place them in context. The [M14 curation record](maintenance-plan.md#m14-handoff--2026-10-06)
+retains all linked evidence and removes only confirmed unreferenced sets.
+
 Start the local app, then run:
 
 ```sh
@@ -228,16 +233,16 @@ and rejection cases. The
 [Files list](../qa/screenshots/navigation-files-final-review/mobile.png),
 [Search results](../qa/screenshots/navigation-search-results-review/mobile.png), and
 [Search file view](../qa/screenshots/navigation-search-file-final-review/mobile.png) each have
-four-size captures. The
+four-size captures from the 2026-09-29 navigation milestone. The
 [live-change capture](../qa/screenshots/navigation-live-update-review/mobile.png) checks the update
-action with the new shell. The
+action in that navigation shell. The
 [live HTTPS project](../qa/screenshots/navigation-live-project-review/mobile.png) and
-[direct file link](../qa/screenshots/navigation-live-file-review/mobile.png) captures check this
-repository through the installed origin.
+[direct file link](../qa/screenshots/navigation-live-file-review/mobile.png) captures record this
+repository through the installed origin at that milestone.
 
-The hierarchy refinement places project identity and tabs in the contextual list, removes repeated
-host/project headings, and moves Install & local data into Settings. Its four-size captures show
-[Changes](../qa/screenshots/navigation-hierarchy-changes-review/mobile.png), the
+The 2026-09-29 hierarchy refinement placed project identity and tabs in the contextual list, removed
+repeated host/project headings, and moved Install & local data into Settings. Its four-size captures
+show [Changes](../qa/screenshots/navigation-hierarchy-changes-review/mobile.png), the
 [Files list](../qa/screenshots/navigation-hierarchy-files-list-review/mobile.png),
 [Search](../qa/screenshots/navigation-hierarchy-search-review/mobile.png),
 [Settings](../qa/screenshots/navigation-hierarchy-settings-review/mobile.png), and
@@ -250,14 +255,14 @@ only with the list, the tablet drawer, the 899/900 px boundary, root Files bread
 actions at 320 px; `bun qa/check-pwa.ts` opens the backup dialog from Settings. The selected-code QA
 uses a short viewport to test the docked action after the main header was removed.
 
-The shared content-heading alignment was checked in loaded
+The shared content-heading alignment was checked on 2026-09-29 in loaded
 [Changes](../qa/screenshots/nav-heading-changes-final/mobile.png),
 [Files](../qa/screenshots/nav-heading-files-final/mobile.png), and
 [Search result](../qa/screenshots/nav-heading-search-final-review/mobile.png) captures at phone,
-tablet portrait, tablet landscape, and desktop sizes. The title has no extra top margin and shares
-the vertical center of its row with the back and action buttons.
+tablet portrait, tablet landscape, and desktop sizes. At that milestone, the title had no extra top
+margin and shared the vertical center of its row with the back and action buttons.
 
-The following polish pass has four-size captures of the
+The 2026-09-29 polish pass has four-size captures of the
 [rounded phone Changes list](../qa/screenshots/navigation-polish-changes-list/mobile.png),
 [folder browser and breadcrumb](../qa/screenshots/navigation-polish-folder-list/mobile.png), and
 [file view with one visible path](../qa/screenshots/navigation-polish-file-view/mobile.png).
@@ -427,8 +432,11 @@ milestone explicitly. The [phone](../qa/screenshots/navigation-live-update-revie
 [tablet portrait](../qa/screenshots/navigation-live-update-review/tablet-portrait.png),
 [tablet landscape](../qa/screenshots/navigation-live-update-review/tablet-landscape.png), and
 [desktop](../qa/screenshots/navigation-live-update-review/desktop.png) links preserve the reviewed
-navigation milestone; routine runs no longer rewrite them. Inspect the action's reachability on real
-phone browsers as well as in emulation.
+historical navigation milestone; routine runs no longer rewrite them. Its legacy
+[manifest](../qa/screenshots/navigation-live-update-review/manifest.json) records the URL, fixture
+and state, without a capture timestamp, viewport metrics or overflow results. All four images are
+retained as recorded evidence; those missing fields are not reconstructed. Inspect the action's
+reachability on real phone browsers as well as in emulation.
 
 Run `bun qa/check-voice.ts http://127.0.0.1:3000/` against the inventory fixture to check transcript
 insertion at a saved caret, selected-range replacement, failure and Retry with the original clip,

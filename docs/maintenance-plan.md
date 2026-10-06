@@ -1,7 +1,6 @@
 # Maintenance plan after the prototype review
 
-Status: M01–M12, M13a, M13b and QA command cleanup accepted and committed; M13c accepted and
-approved for commit; M14–M15 pending
+Status: M01–M14 and QA command cleanup accepted; M14 commit approved; M15 pending
 
 Created: 2026-09-30
 
@@ -107,9 +106,11 @@ The voice/live changes/transactions batch adopts it for those three related chec
 as `382e148`. The final M13b browser batch adopts it for Git, file feedback and selected feedback,
 and is committed as `6341acd`. Its bounded caller audit completes M13b. M13c shares low-level Git
 execution, fixture author identity and temporary-directory cleanup across the server tests; it is
-accepted and approved for commit on 2026-10-06. M14–M15 remain pending. The sequence keeps
-independently risky changes in separate review steps; M15 starts with measurement before any
-optimization.
+committed as `5225616`. M14 removes the confirmed unreferenced screenshot shortlist and clarifies
+historical evidence; the maintainer accepted it and approved its commit on 2026-10-06. Before M15,
+the maintainer requested pruning this plan's duplicate execution history. M15 remains pending and
+starts with measurement before any optimization. The sequence keeps independently risky changes in
+separate review steps.
 
 The maintainer subsequently requested
 [PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
@@ -755,11 +756,11 @@ extraction. Document any changed QA invocation in the workflow and package scrip
   contexts; it is committed as `382e148`. The final batch adopts it for Git, file feedback and
   selected feedback, and is committed as `6341acd`. Its bounded caller audit completes M13b without
   adding helper APIs or QA infrastructure. Keep each feature's interactions and assertions local.
-- **M13c — Low-level test support:** accepted and approved for commit on 2026-10-06. Shared fixture
-  support owns Git command execution, fixed author/committer identity, byte/text output and scoped
-  temporary-root cleanup. Nine server test files use it, including Search's one-off initialization.
-  Scenario-specific files, commits, subprocess controls and assertions remain beside their tests.
-  The existing full test suite and strict gates validate the extraction.
+- **M13c — Low-level test support:** accepted and committed as `5225616` on 2026-10-06. Shared
+  fixture support owns Git command execution, fixed author/committer identity, byte/text output and
+  scoped temporary-root cleanup. Nine server test files use it, including Search's one-off
+  initialization. Scenario-specific files, commits, subprocess controls and assertions remain beside
+  their tests. The existing full test suite and strict gates validate the extraction.
 
 The final M13b caller audit finds no feature check that launches Chrome directly. Shared browser
 support owns those launches; the screenshot command retains its separate delivery contract.
@@ -771,11 +772,11 @@ outside this item.
 
 ## M14 — Curate artifacts and clarify historical records
 
-The review found 82 tracked screenshot sets (328 PNGs plus manifests), about 43.7 MiB. Thirteen
-unreferenced sets total 65 files/about 7.4 MiB. Representative inspected images show earlier layouts
-superseded by accepted navigation or hidden-phone-gutter behavior.
+The original 2026-09-30 review found 82 tracked screenshot sets (328 PNGs plus manifests), about
+43.7 MiB. Thirteen unreferenced sets total 65 files/about 7.4 MiB. Representative inspected images
+show earlier layouts superseded by accepted navigation or hidden-phone-gutter behavior.
 
-**Prune/archive shortlist:**
+**Confirmed obsolete sets, removed and accepted on 2026-10-06:**
 
 - `foundation-picker`, `foundation-selected`, `foundation-drawer`
 - `design-tokens-picker`, `design-tokens-selected`, `design-tokens-drawer`
@@ -784,18 +785,20 @@ superseded by accepted navigation or hidden-phone-gutter behavior.
 - `diff-compact-wrap-on`, `diff-compact-scroll-right`
 - `live-change-update-review`
 
-Recheck references before removing the shortlist. Git preserves the old files; retain one early
-overview if the maintainer finds that history useful. The other 69 sets have current or historical
-evidence links and need deliberate evidence/link changes before removal. Retain useful new
-maintenance captures under fresh labels.
+The 2026-10-06 tracked-reference audit confirms these names appear only in this removal record; none
+has an evidence path link. Removing exactly their 65 files reduces checked-out artifacts by
+7,802,171 bytes (7.44 MiB); Git retains the historical files. The inventory had grown to 114 sets
+before curation. All 101 linked sets remain: the 69 retained from the original review and 32 newer
+usability/maintenance milestones, totaling 404 PNGs and 101 manifests, plus `.gitkeep`. Their
+contents are unchanged. Removing linked evidence would require a separate evidence/link decision.
+The [handoff](#m14-handoff--2026-10-06) records the audit and preservation checks.
 
 No confidently obsolete whole documentation record, dependency, runtime icon, or server module was
-found. Keep existing proposal filenames and links unless an actual navigation problem warrants a
-move. Clarify the original finding in
-[live-change detection](live-change-detection-slice-proposal.md) with historical wording, and label
-older “current shell” screenshots in the [QA workflow](qa-workflow.md) as dated milestones. If a new
-doc subfolder becomes useful, move files and repair all relative links in a separate reviewable
-step.
+found. Existing proposal filenames and links are retained. The original finding in
+[live-change detection](live-change-detection-slice-proposal.md) now describes the pre-slice
+behavior; the [QA workflow](qa-workflow.md) labels 2026-09-29 navigation-shell screenshots as
+historical milestones and explains the retained minimal live-update manifest. No documentation
+reorganization is needed for this slice.
 
 Ignored `dist/`, `node_modules/`, and `qa/.artifacts/` are separate from tracked cleanup. The
 artifacts directory includes service plists, logs, saved browser state and voice fixtures as well as
@@ -2174,6 +2177,47 @@ maintainer approved the two-command cleanup on 2026-10-05.
   or physical-device check was performed for this test-support-only extraction. The separate
   stateless-project planning changes remain outside this slice.
 - **Review/next step:** the maintainer accepted M13c and explicitly requested its commit and
-  continuation on 2026-10-06. Continue with M14's confirmed-obsolete screenshot curation and
-  historical-record clarification. M15 then starts with performance measurement. Stop once the
-  bounded maintenance plan is complete.
+  continuation on 2026-10-06. M13c is committed as `5225616`. Continue with M14's confirmed-obsolete
+  screenshot curation and historical-record clarification. M15 then starts with performance
+  measurement. Stop once the bounded maintenance plan is complete.
+
+## M14 handoff — 2026-10-06
+
+- **Alignment:** the maintainer accepted M13c and requested its commit and continuation. This slice
+  implements the existing screenshot shortlist and historical-wording corrections. M13c is committed
+  as `5225616`.
+- **Removed artifacts:** the
+  [13-set inventory](#m14--curate-artifacts-and-clarify-historical-records) contains six early
+  foundation/design-token sets, six superseded diff-card/density/compact sets, and the first
+  live-change update set. A tracked-text scan finds only the maintenance removal-list mentions, with
+  zero evidence path references. Exactly 52 PNGs and 13 manifests are removed, totaling 7,802,171
+  bytes (7.44 MiB) from the checkout. Each directory contained only its five tracked files; no
+  untracked output was removed. Earlier files remain recoverable from Git history.
+- **Retained evidence:** all 101 path-linked sets remain, including the 69 retained sets from the
+  original review and 32 subsequent usability/maintenance milestones. Their 404 PNGs and 101
+  manifests, plus `.gitkeep`, match the pre-curation SHA-256 inventory byte for byte. All manifests
+  parse and point to the four standard image files, except the intentionally preserved legacy
+  [navigation live-update manifest](../qa/screenshots/navigation-live-update-review/manifest.json),
+  which records only URL, fixture and state. Its four images remain; missing capture timestamps,
+  viewport metrics and overflow results are not reconstructed.
+- **Historical records:** [live-change detection](live-change-detection-slice-proposal.md#finding)
+  now identifies its original status/revision finding as pre-slice behavior. The
+  [QA workflow](qa-workflow.md#screenshot-command) explains screenshot provenance, dates the
+  September 29 navigation/hierarchy/alignment/polish milestones, and describes the minimal legacy
+  manifest. Existing document names, anchors and evidence links are retained.
+- **Verification:** six existing representative images were inspected: early phone picker, tablet
+  drawer, desktop compact diff, first phone Update action, retained navigation Update action, and a
+  newer maintenance tablet Changes list. The removed images show the older header/navigation and
+  layout stages; the linked stages remain as historical evidence. Structural/CRC checks pass for all
+  404 retained PNGs. Retained hashes, remaining manifests, local Markdown targets and anchors,
+  formatter and whitespace checks pass. The audit inventory stays in ignored
+  `qa/.artifacts/m14-capture-audit.json`.
+- **Delivery and limits:** changes are confined to artifact removal and three documentation records.
+  Runtime source, client assets, test/QA scripts, maintained services and local service
+  configuration are unchanged. No new screenshots, browser flows, code tests or physical-device
+  checks were run for this artifact/documentation slice. Ignored service plists, voice fixtures,
+  saved browser state, run outputs, dependencies and built assets were not pruned. Separate
+  stateless-project planning changes remain outside this slice.
+- **Review/next step:** the maintainer accepted M14 and explicitly approved its commit on
+  2026-10-06. Commit this reviewed slice, then prune this plan's duplicated history before starting
+  M15's measurement. M15 remains the final maintenance item; stop when the bounded plan is complete.
