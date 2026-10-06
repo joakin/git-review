@@ -36,16 +36,9 @@ await withTempDirectory("git-review-restart-qa-", async (directory) => {
   );
   git(projectPath, "add", "value.ts");
 
-  async function start(port: number) {
+  async function start(port: number, rootPath = directory) {
     const process = Bun.spawn(
-      [
-        Bun.which("bun") ?? "bun",
-        "src/server/main.ts",
-        "--root",
-        directory,
-        "--port",
-        String(port),
-      ],
+      [Bun.which("bun") ?? "bun", "src/server/main.ts", "--root", rootPath, "--port", String(port)],
       { stdout: "pipe", stderr: "inherit" },
     );
     const reader = process.stdout.getReader();
@@ -168,6 +161,7 @@ await withTempDirectory("git-review-restart-qa-", async (directory) => {
         await page.waitForFunction(async () =>
           (await navigator.clipboard.readText()).includes("Editor survives restart"),
         );
+        const copiedText = await page.evaluate(() => navigator.clipboard.readText());
         assert(lookups === lookupCount, "Recovery performed a project selection lookup");
         for (const resource of [
           "/status",
@@ -204,10 +198,52 @@ await withTempDirectory("git-review-restart-qa-", async (directory) => {
           (await fetch(origin + media.resource.url, { method: "HEAD" })).status === 200,
           "Fresh backend rejected raw HEAD",
         );
+
+        await edit(1, "Draft survives an approved-root change");
+        await page.getByRole("button", { name: "Save comment", exact: true }).click();
+        await page.locator(".file-panel .diff-language-row select").selectOption("text");
+        // Reuse this origin and browser storage while changing only root configuration and URLs.
+        for (const [rootPath, relativePath] of [
+          [projectPath, ""],
+          [directory, folder],
+        ] as const) {
+          server.process.kill();
+          await server.process.exited;
+          server = await start(port, rootPath);
+          const next = new URL(destination);
+          next.searchParams.set("project", relativePath);
+          await page.goto(next.href);
+          await page.locator('.file-code-row[data-line="1"]').waitFor();
+          assert(
+            (await page.locator(".file-panel .diff-language-row select").inputValue()) === "text",
+            "The same absolute project lost its language preference after a root change",
+          );
+          await page.getByRole("button", { name: "Feedback 1", exact: true }).click();
+          await page.getByText("Draft survives an approved-root change", { exact: true }).waitFor();
+          await page.locator("#review-export-text").waitFor();
+          assert(
+            (await page.locator("#review-export-text").inputValue()).includes(
+              "Draft survives an approved-root change",
+            ),
+            "Root change invalidated unchanged source feedback",
+          );
+          await page.locator(".review-history-item summary").click();
+          assert(
+            (await page.locator(".review-history-item textarea").inputValue()) === copiedText,
+            "The same absolute project lost its exact copied feedback after a root change",
+          );
+          await page.getByRole("button", { name: "Close feedback", exact: true }).click();
+          await tab("Changes").click();
+          await card.locator(".diff-row-added").waitFor();
+          assert(
+            (await card.locator(".diff-card-toggle").getAttribute("aria-expanded")) === "true",
+            "The same absolute project lost its expanded-card preference after a root change",
+          );
+        }
       });
     });
     console.log(
-      "Alias deep links canonicalize once and preserve the file/line destination and history. Live backend restarts preserve saved drafts and an active editor; Changes, Files, Search, Git, media, checked copy and transport retry work without a new lookup or page reload.",
+      "Alias deep links canonicalize once and preserve the file/line destination and history. Live backend restarts preserve saved drafts and an active editor; Changes, Files, Search, Git, media, checked copy and transport retry work without a new lookup or page reload. Changing the approved root and relative URL retains drafts, copied history, language and expanded-card preferences for the same absolute project.",
     );
   } finally {
     server.process.kill();

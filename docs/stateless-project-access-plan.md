@@ -1,6 +1,6 @@
 # Stateless project access
 
-Status: implemented, independently reviewed and accepted on 2026-10-06
+Status: complete, independently reviewed, accepted and closed on 2026-10-06
 
 Created: 2026-10-05
 
@@ -283,3 +283,29 @@ storage; Chrome covers the canonical URL, preserved file/line destination, one l
 replacement and restart recovery. Redundant query-string conversions were removed. The follow-up
 review found no further actionable concerns. The maintainer accepted the result and authorized its
 commit.
+
+## Same folder after an approved-root change
+
+The accepted cutover is committed as `d05ec28`. The maintainer clarified that changing the approved
+root or relative project URL must retain saved review state whenever the canonical absolute folder
+is unchanged. Comments, copy history, open-card preferences and language overrides already use that
+absolute path alone; global preferences are independent of project identity. Recents and tab
+fallback selection remain root-scoped navigation metadata, and an old relative URL may need a new
+selection.
+
+The follow-up adds storage and live-browser regressions for the existing contract: narrow the root
+to the project itself, change its relative URL to the empty path, then broaden the root and reopen
+the original URL on the same origin. Drafts, copied history and project preferences must return
+under the same absolute path; the same relative URL under a different absolute folder must not
+inherit them. Requests still validate containment under the current approved root, and existing
+source-anchor checks still determine whether a comment is current. No new API or storage format is
+needed. The maintainer accepted this follow-up, authorized its commit and closed the work on
+2026-10-06.
+
+Verified on 2026-10-06: Chrome passed both root changes on the same origin, retaining a saved draft,
+exact copy history, language choice and expanded diff card. The draft still produced copyable
+feedback after checking its unchanged source. Storage regression coverage also confirms that a
+different absolute folder with the same relative name does not inherit the state. All 204 tests,
+strict type checking, formatting and QA gates passed. Application code and storage formats already
+meet this contract; the follow-up changes only regression coverage and this record. Physical-device
+behavior was not rechecked.

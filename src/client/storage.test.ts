@@ -2,13 +2,69 @@ import { expect, test } from "bun:test";
 import {
   discardObsoleteProjectData,
   readSavedWorkspace,
+  readOpenCards,
+  readLanguageOverride,
+  saveLanguageOverride,
+  saveOpenCards,
+  saveWorkspace,
+  withSelectedPath,
   parseActiveProject,
   parseOpenCards,
   parseSavedWorkspace,
   parseWrapPreference,
-  withSelectedPath,
 } from "./storage.ts";
 import { withTestStorage } from "./storage-test-support.ts";
+import {
+  emptyCommentStore,
+  readCommentStore,
+  saveCommentStore,
+  type CommentStore,
+} from "./comments.ts";
+
+test("review state follows the absolute folder when the approved root and relative route change", () => {
+  withTestStorage(() => {
+    const projectPath = "/approved/root/project";
+    const store: CommentStore = {
+      ...emptyCommentStore(projectPath),
+      drafts: [
+        {
+          id: "draft",
+          anchor: {
+            kind: "file",
+            source: "worktree",
+            path: "notes.txt",
+            line: 1,
+            sourceText: "A note",
+            before: null,
+            after: null,
+          },
+          subject: { kind: "line" },
+          body: "Keep this feedback",
+          createdAt: 1,
+          updatedAt: 1,
+          state: "current",
+        },
+      ],
+      history: [{ id: "copy", copiedAt: 2, text: "Earlier copied feedback", comments: [] }],
+    };
+    const cards = new Set(["staged:notes.txt"]);
+    saveCommentStore(store);
+    saveOpenCards(projectPath, cards);
+    saveLanguageOverride(projectPath, "notes.txt", "text");
+    saveWorkspace({ version: 4, rootPath: "/approved/root", recentPaths: ["project"] });
+    expect(readSavedWorkspace(projectPath).recentPaths).toEqual([]);
+    saveWorkspace({ version: 4, rootPath: projectPath, recentPaths: [""] });
+    expect(readSavedWorkspace("/approved/root").recentPaths).toEqual([]);
+    expect(readCommentStore(projectPath)).toEqual(store);
+    expect(readOpenCards(projectPath)).toEqual(cards);
+    expect(readLanguageOverride(projectPath, "notes.txt")).toBe("text");
+    const differentFolder = "/different/root/project";
+    expect(readCommentStore(differentFolder).drafts).toEqual([]);
+    expect(readCommentStore(differentFolder).history).toEqual([]);
+    expect(readOpenCards(differentFolder).size).toBe(0);
+    expect(readLanguageOverride(differentFolder, "notes.txt")).toBeNull();
+  });
+});
 
 test("obsolete project data is discarded without reading it or clearing unrelated settings", () => {
   withTestStorage((local, session) => {
