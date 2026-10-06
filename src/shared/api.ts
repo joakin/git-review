@@ -1,3 +1,5 @@
+import { validateChangeGroupTotals } from "./change-line-stats.ts";
+
 export type RootInfo = {
   label: string;
   path: string;
@@ -58,9 +60,20 @@ export type ChangeEntry = {
   isSubmodule: boolean;
 };
 
-export type ProjectStatus =
+export type ChangeLineStats =
+  | { kind: "text"; added: number; deleted: number }
+  | { kind: "binary" }
+  | { kind: "not_applicable"; reason: "conflict" | "symlink" | "submodule" }
+  | { kind: "unavailable"; reason: "limit" | "read_error" | "changed" };
+export type ReviewChangeEntry = ChangeEntry & { stats: ChangeLineStats };
+export type ProjectInventory =
   | { kind: "not_git" }
   | { kind: "git"; revision: string; changeToken: string; entries: ChangeEntry[] };
+export type ProjectStatus =
+  | { kind: "not_git" }
+  | { kind: "git"; revision: string; changeToken: string; entries: ReviewChangeEntry[] };
+export type ProjectChangeCheck =
+  { kind: "not_git" } | { kind: "git"; revision: string; changeToken: string };
 
 export type DiffLine = {
   kind: "context" | "added" | "removed";
@@ -358,7 +371,7 @@ export function parseProjectResponse(value: unknown): Project {
   };
 }
 
-export function parseStatusResponse(value: unknown): ProjectStatus {
+export function parseChangeCheckResponse(value: unknown): ProjectChangeCheck {
   const outer = expectRecord(value, "server response");
   if (outer["kind"] === "not_git") return { kind: "not_git" };
   if (outer["kind"] !== "git") throw new Error("Expected a Git status response");
@@ -366,9 +379,40 @@ export function parseStatusResponse(value: unknown): ProjectStatus {
   if (!/^[0-9a-f]{20}$/.test(revision)) throw new Error("Expected a valid status revision");
   const changeToken = expectString(outer["changeToken"], "changeToken");
   if (!/^[0-9a-f]{20}$/.test(changeToken)) throw new Error("Expected a valid change token");
+  return { kind: "git", revision, changeToken };
+}
+
+export function parseChangeLineStats(value: unknown): ChangeLineStats {
+  const raw = expectRecord(value, "change statistics");
+  if (raw["kind"] === "text")
+    return {
+      kind: "text",
+      added: expectNonNegativeInteger(raw["added"], "added lines"),
+      deleted: expectNonNegativeInteger(raw["deleted"], "deleted lines"),
+    };
+  if (raw["kind"] === "binary") return { kind: "binary" };
+  const reason = raw["reason"];
+  if (
+    raw["kind"] === "not_applicable" &&
+    (reason === "conflict" || reason === "symlink" || reason === "submodule")
+  )
+    return { kind: "not_applicable", reason };
+  if (
+    raw["kind"] === "unavailable" &&
+    (reason === "limit" || reason === "read_error" || reason === "changed")
+  )
+    return { kind: "unavailable", reason };
+  throw new Error("Expected change statistics");
+}
+
+export function parseStatusResponse(value: unknown): ProjectStatus {
+  const check = parseChangeCheckResponse(value);
+  if (check.kind === "not_git") return check;
+  const outer = expectRecord(value, "server response");
   const rawEntries = outer["entries"];
   if (!Array.isArray(rawEntries)) throw new Error("Expected status entries to be an array");
-  const entries: ChangeEntry[] = rawEntries.map((raw: unknown) => {
+  const seen = new Set<string>();
+  const entries: ReviewChangeEntry[] = rawEntries.map((raw: unknown) => {
     const entry = expectRecord(raw, "status entry");
     const layer = entry["layer"];
     const kind = entry["kind"];
@@ -395,22 +439,43 @@ export function parseStatusResponse(value: unknown): ProjectStatus {
     if (oldPath !== null && typeof oldPath !== "string")
       throw new Error("Expected an old path or null");
     if (typeof entry["isSubmodule"] !== "boolean") throw new Error("Expected a submodule flag");
-    const path = expectString(entry["path"], "entry.path");
+    const path = expectProjectPath(entry["path"], "entry.path", false);
     if (path.length === 0 || (oldPath !== null && oldPath.length === 0))
       throw new Error("Expected a nonempty change path");
+    if (
+      oldPath !== null &&
+      (oldPath.length > 4096 || oldPath.includes("\0") || oldPath.startsWith("/"))
+    )
+      throw new Error("Expected a bounded relative rename origin");
     if ((layer === "conflict") !== (kind === "conflicted"))
       throw new Error("Expected a matching conflict state");
     if (layer === "untracked" && kind !== "added")
       throw new Error("Expected an added untracked file");
+    const key = JSON.stringify([layer, path]);
+    if (seen.has(key)) throw new Error("Expected unique status entries");
+    seen.add(key);
+    const stats = parseChangeLineStats(entry["stats"]);
+    if (
+      (layer === "conflict") !== (stats.kind === "not_applicable" && stats.reason === "conflict") ||
+      (entry["isSubmodule"] === true &&
+        layer !== "conflict" &&
+        (stats.kind !== "not_applicable" || stats.reason !== "submodule")) ||
+      (stats.kind === "not_applicable" && stats.reason === "submodule" && !entry["isSubmodule"]) ||
+      (kind === "added" && stats.kind === "text" && stats.deleted !== 0) ||
+      (kind === "deleted" && stats.kind === "text" && stats.added !== 0)
+    )
+      throw new Error("Expected statistics matching the change entry");
     return {
       layer,
       kind,
       path,
       oldPath,
       isSubmodule: entry["isSubmodule"],
+      stats,
     };
   });
-  return { kind: "git", revision, changeToken, entries };
+  validateChangeGroupTotals(entries);
+  return { ...check, entries };
 }
 
 export function parseDiffResponse(value: unknown): DiffResult {

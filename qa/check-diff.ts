@@ -176,26 +176,31 @@ async function main(): Promise<void> {
       const sticky = await page.evaluate(() => {
         const card = document.querySelector('main .diff-card[data-path="src/tall-review.ts"]');
         const topbar = document.querySelector(".topbar");
+        const section = card?.closest(".diff-section")?.querySelector(".diff-section-heading");
         const header = card?.querySelector(".diff-card-toggle");
         if (
           !(card instanceof HTMLElement) ||
           !(topbar instanceof HTMLElement) ||
+          !(section instanceof HTMLElement) ||
           !(header instanceof HTMLElement)
         )
           throw new Error("Tall review card is missing");
         window.scrollTo(0, window.scrollY + card.getBoundingClientRect().top + 360);
         return {
           topbarBottom: topbar.getBoundingClientRect().bottom,
+          sectionTop: section.getBoundingClientRect().top,
+          sectionBottom: section.getBoundingClientRect().bottom,
           headerTop: header.getBoundingClientRect().top,
           cardBottom: card.getBoundingClientRect().bottom,
         };
       });
       if (
-        Math.abs(sticky.headerTop - sticky.topbarBottom) > 3 ||
+        Math.abs(sticky.sectionTop - sticky.topbarBottom) > 3 ||
+        Math.abs(sticky.headerTop - sticky.sectionBottom) > 3 ||
         sticky.cardBottom < sticky.headerTop + 200
       ) {
         throw new Error(
-          `Long-file header did not stick below the top bar: ${JSON.stringify(sticky)}`,
+          `Section and long-file headings did not stick below the top bar: ${JSON.stringify(sticky)}`,
         );
       }
 

@@ -101,6 +101,11 @@ checks Git Changes while the tab is visible, shows the Update action when the to
 refreshes expanded diffs only on request. The action remains above Feedback on phones. A polite
 status announcement and a small repeated-check error complete the visible states.
 
+The [line-count slice](changes-line-counts-proposal.md) now enriches initial/Refresh/Update
+responses with required per-entry statistics. Background checks use the same status resource with
+`?mode=check`, returning only Git state and version tokens without collecting statistics. Displayed
+counts stay steady with the code until an explicit update succeeds.
+
 The [working-copy review owner](../src/client/working-copy-review.ts) keeps the displayed snapshot
 separate from background checks and scopes refresh, card preferences, and reading position to the
 accepted project. Failed status refresh retains a ready snapshot and the pending notice; the manual

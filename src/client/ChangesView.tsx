@@ -1,4 +1,13 @@
-import type { ChangeEntry, ChangeLayer, LanguageOption, ProjectStatus } from "../shared/api.ts";
+import type {
+  ChangeEntry,
+  ChangeLayer,
+  LanguageOption,
+  ProjectStatus,
+  ReviewChangeEntry,
+} from "../shared/api.ts";
+import type { ComponentChildren } from "preact";
+import { useLayoutEffect, useRef } from "preact/hooks";
+import { ChangeStats, ChangeGroupStats, ChangeGroupNotes } from "./ChangeStats.tsx";
 import type { CommentAnchor, DraftComment, ReviewSide } from "./comments.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { diffCardKey, DiffCard } from "./DiffCard.tsx";
@@ -37,7 +46,7 @@ function ChangeGroups({
   entries,
   onSelect,
 }: {
-  entries: readonly ChangeEntry[];
+  entries: readonly ReviewChangeEntry[];
   onSelect: (entry: ChangeEntry) => void;
 }) {
   return (
@@ -49,8 +58,12 @@ function ChangeGroups({
           <section class={`change-group change-group-${key}`} key={key}>
             <h2>
               <span>{label}</span>
-              <span class="change-count">{group.length}</span>
+              <span class="change-heading-counts">
+                {group.length > 0 && key !== "conflict" && <ChangeGroupStats entries={group} />}
+                <span class="change-count">{group.length}</span>
+              </span>
             </h2>
+            {key !== "conflict" && <ChangeGroupNotes entries={group} />}
             {group.length === 0 ? (
               <p class="change-empty">No {label.toLowerCase()} files</p>
             ) : (
@@ -74,10 +87,13 @@ function ChangeGroups({
                       </span>
                       <span class="change-file">
                         <strong title={entry.path}>{entry.path}</strong>
-                        <small>
-                          <span class="change-kind">{entry.kind.replace("_", " ")}</span>
-                          {entry.oldPath === null ? "" : ` from ${entry.oldPath}`}
-                          {entry.isSubmodule ? " · submodule" : ""}
+                        <small class="change-metadata">
+                          <span class="change-description">
+                            <span class="change-kind">{entry.kind.replace("_", " ")}</span>
+                            {entry.oldPath === null ? "" : ` from ${entry.oldPath}`}
+                            {entry.isSubmodule ? " · submodule" : ""}
+                          </span>
+                          <ChangeStats stats={entry.stats} />
                         </small>
                       </span>
                     </button>
@@ -124,6 +140,59 @@ export function ChangesSidebar({
         </>
       )}
     </div>
+  );
+}
+
+function ChangeSection({
+  layer,
+  label,
+  entries,
+  children,
+}: {
+  layer: ChangeLayer;
+  label: string;
+  entries: readonly ReviewChangeEntry[];
+  children: ComponentChildren;
+}) {
+  const section = useRef<HTMLElement>(null);
+  const heading = useRef<HTMLElement>(null);
+  function measureHeading(): void {
+    const container = section.current;
+    const header = heading.current;
+    if (container === null || header === null) return;
+    const height = header.getBoundingClientRect().height;
+    // A hidden phone content view keeps its last visible offset for the next selection.
+    if (height > 0) container.style.setProperty("--change-section-heading-height", `${height}px`);
+  }
+  useLayoutEffect(measureHeading);
+  useLayoutEffect(() => {
+    const header = heading.current;
+    if (header === null) return;
+    const observer = new ResizeObserver(measureHeading);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <section class={`diff-section diff-section-${layer}`} ref={section}>
+      <header class="diff-section-heading" ref={heading}>
+        <h3>
+          <button
+            type="button"
+            class="diff-section-jump"
+            aria-label={`Go to start of ${label.toLowerCase()} changes`}
+            onClick={() => section.current?.scrollIntoView({ block: "start", behavior: "instant" })}
+          >
+            <span>{label}</span>
+            <span class="change-heading-counts">
+              {entries.length > 0 && layer !== "conflict" && <ChangeGroupStats entries={entries} />}
+              <span class="change-count">{entries.length}</span>
+            </span>
+          </button>
+        </h3>
+        {layer !== "conflict" && <ChangeGroupNotes entries={entries} />}
+      </header>
+      {children}
+    </section>
   );
 }
 
@@ -209,11 +278,7 @@ export function ChangesView({
               const group = gitStatus.entries.filter((entry) => entry.layer === key);
               if (key === "conflict" && group.length === 0) return null;
               return (
-                <section class={`diff-section diff-section-${key}`} key={key}>
-                  <h3>
-                    <span>{label}</span>
-                    <span class="change-count">{group.length}</span>
-                  </h3>
+                <ChangeSection layer={key} label={label} entries={group} key={key}>
                   {group.length === 0 ? (
                     <p class="diff-section-empty">No {label.toLowerCase()} files</p>
                   ) : (
@@ -241,7 +306,7 @@ export function ChangesView({
                       />
                     ))
                   )}
-                </section>
+                </ChangeSection>
               );
             })}
           </div>

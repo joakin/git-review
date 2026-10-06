@@ -1,4 +1,5 @@
 import type { CommitDetail, CommitStats, CommitSummary } from "../shared/git.ts";
+import { LineCounts } from "./LineCounts.tsx";
 
 type MetaSource =
   { kind: "list"; commit: CommitSummary } | { kind: "detail"; commit: CommitDetail };
@@ -42,10 +43,7 @@ function LineTotals({ stats }: { stats: CommitStats }) {
   const label = `${countFormat.format(stats.added)} added lines, ${countFormat.format(stats.deleted)} deleted lines${stats.binaryFiles === 0 ? "" : `, ${stats.binaryFiles} binary ${stats.binaryFiles === 1 ? "file" : "files"}`}`;
   return (
     <span class="commit-stats" title={label} aria-label={label}>
-      <span class="commit-stats-counts" dir="ltr">
-        <span class="commit-added">+{countFormat.format(stats.added)}</span>
-        <span class="commit-deleted">−{countFormat.format(stats.deleted)}</span>
-      </span>
+      <LineCounts added={stats.added} deleted={stats.deleted} />
       {stats.binaryFiles > 0 && (
         <span class="commit-binary">{countFormat.format(stats.binaryFiles)} binary</span>
       )}

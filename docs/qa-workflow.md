@@ -347,6 +347,29 @@ retaining drafts and typography.
 phone, tablet portrait, tablet landscape, and desktop captures. Check reading comfort, native
 controls, and the installed app's status bar on real devices.
 
+## Changes line counts
+
+Run `bun qa/prepare-change-stats-fixture.ts` once to create the ignored
+`qa/.artifacts/line-counts-fixture`; it refuses to overwrite existing content. Start a separate
+fixture server with `--root "$PWD/qa/.artifacts"`, then run
+`bun qa/check-change-stats.ts http://127.0.0.1:3000/`. The check verifies bundled initial/count
+responses without loading collapsed patches, matching file/layer statistics in the list and cards,
+binary/non-text/unavailable summaries, explicit Update without prematurely replacing counts,
+preserved expansion, all four sizes and localized large-number wrapping at 320 px. Its temporary
+working-file edit is restored in `finally`.
+
+The same check verifies totals align immediately before file-count badges, redundant working-copy
+layer pills are absent, section/card headings stack without overlap, headings hand off between
+sections, sidebar selections land below the section heading, and pointer/keyboard section jumps
+retain the URL, expansion and loaded data. The fixture's tall untracked card exercises sticky
+behavior even in tablet portrait. The check also verifies square, shadow-free section headings and
+file corners that become square only while pinned, then regain rounding after returning to the
+section start.
+
+The [line-count record](changes-line-counts-proposal.md#verification--2026-10-06) links inspected
+four-size captures of the contextual list and collapsed/expanded cards. Real-device touch and large
+production repository performance remain separate checks.
+
 ## Live change detection
 
 Start the app with `--root "$PWD/qa/.artifacts"`, then run

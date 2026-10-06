@@ -658,6 +658,8 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   margin: 0;
   color: var(--color-heading);
   font-size: var(--font-size-16);
@@ -676,6 +678,7 @@ button:focus-visible {
   color: var(--color-change-conflict);
 }
 .change-count {
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   min-width: 26px;
@@ -717,6 +720,7 @@ button:focus-visible {
   background: var(--color-error-surface);
 }
 .change-file {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1099,15 +1103,49 @@ button:focus-visible {
 }
 .diff-section {
   min-width: 0;
+  scroll-margin-top: var(--review-top);
+}
+.diff-section-heading {
+  position: sticky;
+  top: var(--review-top);
+  z-index: 4;
+  background: var(--color-page);
 }
 .diff-section h3 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 0 var(--space-3);
+  margin: 0;
   color: var(--color-heading);
   font-size: var(--font-size-18);
   letter-spacing: -0.025em;
+}
+.diff-section-jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.diff-section-heading > .change-stats-note {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+}
+.diff-section .diff-card {
+  scroll-margin-top: calc(
+    var(--review-top) + var(--change-section-heading-height) + var(--space-3)
+  );
+}
+.diff-section .diff-card-toggle[aria-expanded="true"] {
+  top: calc(var(--review-top) + var(--change-section-heading-height));
+}
+.diff-section .diff-card-toggle-pinned[aria-expanded="true"] {
+  border-radius: 0;
 }
 .diff-section-staged h3 {
   color: var(--color-change-staged);
@@ -1152,6 +1190,14 @@ button:focus-visible {
   color: var(--color-heading);
   text-align: left;
 }
+.diff-card-sticky-marker {
+  display: block;
+  width: 1px;
+  height: 1px;
+  margin-bottom: -1px;
+  visibility: hidden;
+  pointer-events: none;
+}
 .diff-card-toggle[aria-expanded="true"] {
   position: sticky;
   top: var(--topbar-height);
@@ -1182,6 +1228,7 @@ button:focus-visible {
   line-height: 1;
 }
 .diff-card-title {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -2149,6 +2196,9 @@ button:focus-visible {
   .file-location-bar {
     top: var(--topbar-height-mobile);
   }
+  .diff-groups {
+    --review-top: var(--topbar-height-mobile);
+  }
   .change-group {
     padding: 15px;
   }
@@ -2400,21 +2450,63 @@ button:focus-visible {
   gap: var(--space-1);
   text-align: right;
 }
-.commit-stats-counts {
+.line-counts {
   display: inline-flex;
   gap: var(--space-2);
   white-space: nowrap;
   font-family: var(--font-code);
   font-weight: var(--font-weight-semibold);
 }
-.commit-added {
+.line-added {
   color: var(--color-stat-added);
 }
-.commit-deleted {
+.line-deleted {
   color: var(--color-stat-deleted);
 }
 .commit-binary {
   white-space: nowrap;
+}
+
+.change-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+}
+.change-description {
+  min-width: 0;
+  flex: 1 1 100px;
+}
+.change-metadata > .line-counts,
+.change-stats-state {
+  margin-left: auto;
+}
+.change-stats-state {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.change-group-stats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-11);
+}
+.change-heading-counts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.change-stats-note {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-11);
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 .commit-meta-detail {
   font-size: var(--font-size-12);

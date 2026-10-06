@@ -30,7 +30,14 @@ const status: ProjectStatus = {
   revision: "revision",
   changeToken: "token",
   entries: [
-    { layer: "unstaged", path: "file.ts", kind: "modified", oldPath: null, isSubmodule: false },
+    {
+      layer: "unstaged",
+      path: "file.ts",
+      kind: "modified",
+      oldPath: null,
+      isSubmodule: false,
+      stats: { kind: "text", added: 1, deleted: 0 },
+    },
   ],
 };
 const diff: DiffResult = {

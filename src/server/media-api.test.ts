@@ -213,6 +213,7 @@ test("subfolder staged rename and deletion retain their scoped Old image", async
       path: "new name.svg",
       oldPath: "old name.svg",
       isSubmodule: false,
+      stats: { kind: "text", added: 0, deleted: 0 },
     });
     for (const [path, expected] of [
       ["new name.svg", renamed],

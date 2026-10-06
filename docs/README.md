@@ -15,6 +15,8 @@ installation.
   [optional backlog](initial-implementation-plan.md#remaining-roadmap).
 - [Maintenance plan](maintenance-plan.md): completed pass, measurement results, and the stop
   boundary. Git preserves implementation and review history.
+- [Changes line counts](changes-line-counts-proposal.md): bundled file/layer statistics in the
+  contextual list and collapsed/expanded headings; implemented and accepted on 2026-10-06.
 - [Engineering conventions](engineering-conventions.md): reusable principles for module boundaries,
   types, state ownership, navigation, transactions, and documentation.
 - [QA workflow](qa-workflow.md): focused behavior checks, browser fixtures, four-size captures, and
@@ -82,8 +84,9 @@ opening/accepted events to initialize other domains. Storage remains the format 
 boundary.
 
 [Working-copy review](../src/client/working-copy-review.ts) owns the displayed Git snapshot,
-background update checks, refresh, card preferences, and review-position restoration. App supplies
-current navigation and modal pause policy, and retains one-time URL-selected card focus.
+including bundled [line counts](changes-line-counts-proposal.md), lightweight background update
+checks, refresh, card preferences, and review-position restoration. App supplies current navigation
+and modal pause policy, and retains one-time URL-selected card focus.
 
 [Project picker](../src/client/ProjectPicker.tsx), [Files sidebar](../src/client/FilesSidebar.tsx),
 and [Changes presentation](../src/client/ChangesView.tsx) render scoped values and consume explicit

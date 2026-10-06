@@ -2,6 +2,7 @@ import type { ApprovedRoot } from "./paths.ts";
 import { AppError, listDirectory, openProject } from "./paths.ts";
 import { isRecord } from "../shared/validation.ts";
 import { readProjectStatus } from "./git-status.ts";
+import { readReviewStatus } from "./change-stats.ts";
 import { readProjectDiff } from "./git-diff.ts";
 import { languageOverride, languages } from "./syntax.ts";
 import {
@@ -294,6 +295,10 @@ async function handleApiRequest(
     }
     const statusRoute = /^\/api\/projects\/([0-9a-f]{20})\/status$/.exec(url.pathname);
     if (statusRoute !== null && request.method === "GET") {
+      onlyQueryKeys(url, ["mode"]);
+      const modes = url.searchParams.getAll("mode");
+      if (modes.length > 1 || (modes.length === 1 && modes[0] !== "check"))
+        throw new AppError("invalid_request", 400, "Specify one valid status mode");
       const id = statusRoute[1];
       const project = id === undefined ? undefined : openProjects.get(id);
       if (project === undefined)
@@ -301,7 +306,19 @@ async function handleApiRequest(
       const current = await openProject(root, project.path);
       if (current.id !== id)
         throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
-      return Response.json(await readProjectStatus(current.absolutePath));
+      if (modes[0] === "check") {
+        const status = await readProjectStatus(current.absolutePath);
+        return Response.json(
+          status.kind === "not_git"
+            ? status
+            : {
+                kind: "git",
+                revision: status.revision,
+                changeToken: status.changeToken,
+              },
+        );
+      }
+      return Response.json(await readReviewStatus(root, current));
     }
     const diffRoute = /^\/api\/projects\/([0-9a-f]{20})\/diff$/.exec(url.pathname);
     if (diffRoute !== null && request.method === "GET") {

@@ -3,6 +3,7 @@
 Status: implemented and committed. [Diff cards](diff-slice.md),
 [media previews](media-preview-slice-proposal.md), and
 [live change detection](live-change-detection-slice-proposal.md) build on this inventory.
+[Bundled line counts](changes-line-counts-proposal.md) are implemented and accepted on 2026-10-06.
 
 ## User flow
 
@@ -12,8 +13,9 @@ The list stays beside content at widths of 900 px and above, uses a drawer on na
 is a full-width screen on phones. The shared content-heading back arrow reveals or returns to it.
 Project choice belongs to the global menu. Refresh rereads Git without changing the selected folder.
 
-Sidebar rows show state and path and now open the corresponding diff card. The main inventory has
-become the continuous card list described in [the diff slice](diff-slice.md).
+Sidebar rows show state, path and line counts and open the corresponding diff card. Staged, unstaged
+and untracked groups show layer totals alongside their file counts. The main inventory has become
+the continuous card list described in [the diff slice](diff-slice.md).
 
 [Changes presentation](../src/client/ChangesView.tsx) keeps the ordered layers and compact list
 beside the card view. It consumes scoped values and review commands from the
@@ -44,11 +46,18 @@ The response is one of:
       "kind": "modified",
       "path": "src/view.ts",
       "oldPath": null,
-      "isSubmodule": false
+      "isSubmodule": false,
+      "stats": { "kind": "text", "added": 3, "deleted": 1 }
     }
   ]
 }
 ```
+
+Opening Changes and explicit Refresh/Update receive metadata and statistics together. Background
+polling uses `GET /api/projects/:id/status?mode=check` and receives only `kind`, `revision` and
+`changeToken`, without entries or statistics work. Internal diff/media checks also retain
+lightweight inventory reads. [The line-count record](changes-line-counts-proposal.md) defines
+exceptional states, per-layer comparisons, bounded reads and snapshot consistency.
 
 The revision is a digest of the raw status output, including branch information. The separate change
 token also includes metadata fingerprints for working-tree paths, so another edit can be detected
@@ -68,9 +77,9 @@ response before rendering it.
 
 Non-Git folders open Files. A repository without a first commit can show untracked files or staged
 additions. Staged and unstaged edits on one path are separate entries. Renames, deletions,
-conflicts, and submodule states remain visible. Binary/media classification belongs to the file/diff
-read. Active-page polling detects new edits and offers Update; it does not replace the reader's
-content until requested. Manual Refresh remains available.
+conflicts, and submodule states remain visible. Statistics classify text/binary/non-applicable
+entries independently of card preview choice. Active-page polling detects new edits and offers
+Update; it does not replace the reader's content until requested. Manual Refresh remains available.
 
 ## Verification
 

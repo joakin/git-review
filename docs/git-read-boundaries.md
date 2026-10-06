@@ -42,8 +42,11 @@ The runner is a transport boundary, while each domain owns its command selection
   containment and mutable stale/size-limit policy.
 - [History](../src/server/git-history.ts) parses refs, metadata and raw file inventories, preserving
   exact immutable comparisons, unborn/detached/shallow states and missing-parent behavior.
-- [Statistics](../src/server/git-stats.ts) owns batch-parent and numeric-diff parsing, limits and
-  its immutable totals cache.
+- [Historical statistics](../src/server/git-stats.ts) owns batch-parent comparisons, limits and its
+  immutable totals cache. [Working-copy statistics](../src/server/change-stats.ts) owns mutable
+  layer comparisons, bounded untracked reads and combined inventory/statistics retry. They share
+  [numeric record parsing](../src/server/git-numstat.ts), while keeping version/cache policy
+  separate.
 - [Media](../src/server/media.ts) owns format/header checks, source mapping and version matching;
   [media streaming](../src/server/media-stream.ts) owns range/HEAD responses and byte slicing.
   [Checked working-file access](working-file-boundaries.md) shares containment and descriptor

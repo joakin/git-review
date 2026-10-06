@@ -3,17 +3,20 @@
 Status: implemented and committed. [Syntax highlighting](syntax-highlighting-slice.md),
 [line comments](feedback-slice-proposal.md), [word detail](diff-fidelity-slice-proposal.md), and
 [media previews](media-preview-slice-proposal.md) extend this slice.
+[Line counts](changes-line-counts-proposal.md) now enrich working-copy headings and layer groups;
+the maintainer accepted that delivery and its UI refinements on 2026-10-06.
 
 ## User flow
 
 The Changes page is a continuous list of file cards in Git layer order. Cards restore their saved
-open state, otherwise starting collapsed with path and change state. Selecting a file from the
-contextual list navigates to its URL, expands it, and focuses it once. Later card toggles and
-Refresh do not repeat that focus. Expanding a card fetches its diff unless the matching validated
-result is already in the [tab-memory cache](loading-and-transition-polish.md). A visible wrap
-control switches code between wrapped lines and horizontal scrolling inside the code pane; the page
-itself stays within the viewport. Wrap preference and open cards survive reload; diff payloads do
-not.
+open state, otherwise starting collapsed with path, change state and line counts. Counts arrive with
+the inventory and remain visible in expanded/sticky headings without loading patches first.
+Selecting a file from the contextual list navigates to its URL, expands it, and focuses it once.
+Later card toggles and Refresh do not repeat that focus. Expanding a card fetches its diff unless
+the matching validated result is already in the
+[tab-memory cache](loading-and-transition-polish.md). A visible wrap control switches code between
+wrapped lines and horizontal scrolling inside the code pane; the page itself stays within the
+viewport. Wrap preference and open cards survive reload; diff payloads do not.
 
 This slice established source rows with diff colors and line numbers. Syntax tokens, line feedback,
 bounded word detail, and media previews are now implemented. Moved-block detection remains optional.
@@ -27,9 +30,13 @@ minimum row or gutter height. Wrapped rows grow with their content; short lines 
 wrap modes. The change sign sits to the left of the old/new line-number gutters. When wrapping is
 off, one shared scroll surface spans every hunk in the file. Short rows and hunk backgrounds extend
 to the width of the longest line; the change sign, line-number gutters, and hunk labels remain
-visible at the left edge while code scrolls. The expanded file heading stays below the top bar
-during vertical scrolling until its card ends. File headings keep their rounded corners; touch taps
-do not leave a hover background on the heading.
+visible at the left edge while code scrolls. In Changes, the section heading stays below the top bar
+and the expanded file heading stays directly below it until its card ends. Section headings hand off
+at layer boundaries; activating one returns to that section's start. Working-copy cards omit the
+repeated layer pill. Historical file headings retain their existing position below the top bar. File
+headings retain rounding inside their cards; Changes headings become square while pinned beneath the
+flat section heading and regain rounding when scrolled back. Touch taps do not leave a hover
+background on the heading.
 
 ## Data and API
 
@@ -47,7 +54,7 @@ path remain distinct. The browser validates hunk counts, line numbers, and decor
 rendering.
 
 [DiffCardFrame](../src/client/DiffCardFrame.tsx) uses one review/inspect mode for heading metadata
-and line interaction. Working-copy review supplies a single status entry plus its comment
+and line interaction. Working-copy review supplies a status entry with statistics plus its comment
 capabilities; historical inspection supplies a commit file. The review entry drives both the heading
 and anchor identity. The frame passes that mode directly to [DiffBody](../src/client/DiffBody.tsx);
 fetching and cache ownership stay in their separate callers.

@@ -8,6 +8,7 @@ import {
   parseProjectResponse,
   parseRootResponse,
   parseStatusResponse,
+  parseChangeCheckResponse,
   parseSearchResponse,
   type ApiErrorCode,
   type DirectoryListing,
@@ -18,6 +19,7 @@ import {
   type Project,
   type RootInfo,
   type ProjectStatus,
+  type ProjectChangeCheck,
   type LanguageOption,
   type SearchResponse,
 } from "../shared/api.ts";
@@ -103,6 +105,17 @@ export async function fetchProjectStatus(id: string, signal: AbortSignal): Promi
     cache: "no-store",
   });
   return parseStatusResponse(await responseBody(response));
+}
+
+export async function fetchProjectChangeCheck(
+  id: string,
+  signal: AbortSignal,
+): Promise<ProjectChangeCheck> {
+  const response = await fetch(`/api/projects/${encodeURIComponent(id)}/status?mode=check`, {
+    signal,
+    cache: "no-store",
+  });
+  return parseChangeCheckResponse(await responseBody(response));
 }
 
 export async function fetchLanguages(signal: AbortSignal): Promise<LanguageOption[]> {

@@ -6,14 +6,14 @@ import {
   parseDiffResponse,
   type ChangeEntry,
   type DiffResult,
-  type ProjectStatus,
+  type ProjectInventory,
 } from "../shared/api.ts";
 import { parseGitPatch, readProjectDiff } from "./git-diff.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { approveRoot, openProject } from "./paths.ts";
 import { readProjectFile } from "./project-files.ts";
 
-function changed(status: ProjectStatus, layer: ChangeEntry["layer"], path: string): ChangeEntry {
+function changed(status: ProjectInventory, layer: ChangeEntry["layer"], path: string): ChangeEntry {
   if (status.kind !== "git") throw new Error("Expected a Git fixture");
   const entry = status.entries.find((item) => item.layer === layer && item.path === path);
   if (entry === undefined) throw new Error(`Missing ${layer} change for ${path}`);

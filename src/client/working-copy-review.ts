@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ChangeEntry, Project, ProjectStatus } from "../shared/api.ts";
-import { fetchProjectStatus } from "./api.ts";
+import { fetchProjectChangeCheck, fetchProjectStatus } from "./api.ts";
 import { diffCardKey } from "./DiffCard.tsx";
 import { routeProjectPath, type Route } from "./navigation.ts";
 import { readOpenCards, saveOpenCards } from "./storage.ts";
@@ -234,7 +234,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       const controller = new AbortController();
       request = controller;
       try {
-        const latest = await fetchProjectStatus(project.id, controller.signal);
+        const latest = await fetchProjectChangeCheck(project.id, controller.signal);
         if (!isCurrent() || controller.signal.aborted) return;
         update((current) => ({
           ...current,

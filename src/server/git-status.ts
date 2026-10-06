@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
 import { dirname, posix, resolve } from "node:path";
-import type { ChangeEntry, ChangeKind, ProjectStatus } from "../shared/api.ts";
+import type { ChangeEntry, ChangeKind, ProjectInventory } from "../shared/api.ts";
 import { hasErrorCode } from "../shared/validation.ts";
 import { AppError, isWithinRoot } from "./paths.ts";
 import { runGit } from "./git-execution.ts";
@@ -182,7 +182,7 @@ async function workingPathFingerprint(projectPath: string, path: string): Promis
   }
 }
 
-export async function readProjectStatus(projectPath: string): Promise<ProjectStatus> {
+export async function readProjectStatus(projectPath: string): Promise<ProjectInventory> {
   if (!(await isGitWorktree(projectPath))) return { kind: "not_git" };
   const [prefix, output] = await Promise.all([
     readGitPrefix(projectPath),

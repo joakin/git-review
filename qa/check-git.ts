@@ -171,8 +171,8 @@ await withQaBrowser(async (browser) => {
             hasText: "Improve reading and preserve historical context",
           });
           if (
-            (await commitRow.locator(".commit-added").innerText()) !== "+163" ||
-            (await commitRow.locator(".commit-deleted").innerText()) !== "−163"
+            (await commitRow.locator(".line-added").innerText()) !== "+163" ||
+            (await commitRow.locator(".line-deleted").innerText()) !== "−163"
           )
             throw new Error("Commit list line totals differ from the fixture");
           if (!/\d{1,2}:\d{2}/.test(await commitRow.locator("time").innerText()))
@@ -187,8 +187,8 @@ await withQaBrowser(async (browser) => {
           await allDiffsReady(page);
           const metadata = page.locator(".commit-meta-detail");
           if (
-            (await metadata.locator(".commit-added").innerText()) !== "+163" ||
-            (await metadata.locator(".commit-deleted").innerText()) !== "−163"
+            (await metadata.locator(".line-added").innerText()) !== "+163" ||
+            (await metadata.locator(".line-deleted").innerText()) !== "−163"
           )
             throw new Error("Commit detail line totals disagree with its list");
           if ((await metadata.locator("time").innerText()) !== listDate)

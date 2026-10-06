@@ -3,12 +3,13 @@ import type { ChangeEntry, DiffHunk, DiffLine, DiffResult, Project } from "../sh
 import { GitCommandError, runGit } from "./git-execution.ts";
 import { readGitPrefix, repositoryPath } from "./git-context.ts";
 import { readGitPath } from "./git-objects.ts";
-import { AppError, isWithinRoot, type ApprovedRoot } from "./paths.ts";
+import { isWithinRoot, type ApprovedRoot } from "./paths.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { withWordDetails } from "./diff-words.ts";
-import { checkedProjectPath, withCheckedWorkingFile } from "./working-files.ts";
+import { maxWorkingTextBytes, parseWorkingText, readWorkingContent } from "./working-text.ts";
+import { workingDiffPaths } from "./working-diff-paths.ts";
 
-const maxTextBytes = 1024 * 1024;
+const maxTextBytes = maxWorkingTextBytes;
 const maxPatchBytes = 2 * 1024 * 1024;
 const maxDiffLines = 20_000;
 const noNewlineMarker = "\\ No newline at end of file";
@@ -156,17 +157,11 @@ export function parseGitPatch(output: Buffer): ParsedDiff {
 }
 
 export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): ParsedDiff {
-  if (content.byteLength > maxTextBytes) return { kind: "too_large" };
-  if (content.includes(0)) return { kind: "binary", reason: "binary" };
-  let text: string;
-  try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(content);
-  } catch {
-    return { kind: "binary", reason: "binary" };
-  }
+  const parsed = parseWorkingText(content);
+  if (parsed.kind !== "text") return parsed;
+  const { text, hasFinalNewline } = parsed;
   if (text === "")
     return { kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks: [] };
-  const hasFinalNewline = text.endsWith("\n");
   const sourceLines = text.split("\n");
   if (hasFinalNewline) sourceLines.pop();
   if (sourceLines.length > maxDiffLines) return { kind: "too_large" };
@@ -194,50 +189,12 @@ export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): P
   };
 }
 
-type WorkingFile =
-  | { kind: "content"; content: Buffer }
-  | { kind: "binary"; reason: "binary" | "symlink" }
-  | { kind: "too_large" }
-  | { kind: "stale" };
-
-async function readWorkingFile(
-  root: ApprovedRoot,
-  project: Project,
-  path: string,
-): Promise<WorkingFile> {
-  try {
-    const location = await checkedProjectPath(root, project, path);
-    if (location.kind === "symlink") return { kind: "binary", reason: "symlink" };
-    if (location.kind !== "file") return { kind: "binary", reason: "binary" };
-    if (location.metadata.size > maxTextBytes) return { kind: "too_large" };
-    return await withCheckedWorkingFile(
-      root,
-      project,
-      path,
-      async ({ file, metadata }): Promise<WorkingFile> => {
-        if (metadata.size > maxTextBytes) return { kind: "too_large" };
-        const content = Buffer.alloc(maxTextBytes + 1);
-        let size = 0;
-        while (size < content.length) {
-          const { bytesRead } = await file.read(content, size, content.length - size, null);
-          if (bytesRead === 0) break;
-          size += bytesRead;
-        }
-        return { kind: "content", content: content.subarray(0, size) };
-      },
-    );
-  } catch (error: unknown) {
-    if (error instanceof AppError && error.code === "not_found") return { kind: "stale" };
-    throw error;
-  }
-}
-
 async function readUntrackedFile(
   root: ApprovedRoot,
   project: Project,
   path: string,
 ): Promise<DiffResult> {
-  const file = await readWorkingFile(root, project, path);
+  const file = await readWorkingContent(root, project, path);
   return file.kind === "content" ? diffFromContent(file.content) : file;
 }
 
@@ -268,7 +225,7 @@ async function readWorkingSource(
   project: Project,
   path: string,
 ): Promise<string | null> {
-  const file = await readWorkingFile(root, project, path);
+  const file = await readWorkingContent(root, project, path);
   return file.kind === "content" ? decodedText(file.content) : null;
 }
 
@@ -318,12 +275,6 @@ export async function readProjectDiff(
       languageOverride,
     );
 
-  const pathspecs = [entry.path];
-  if (entry.oldPath !== null) {
-    const oldCandidate = resolve(project.absolutePath, entry.oldPath);
-    if (isWithinRoot(root.realPath, oldCandidate) && !pathspecs.includes(entry.oldPath))
-      pathspecs.push(entry.oldPath);
-  }
   const args = [
     "diff",
     ...(entry.layer === "staged" ? ["--cached"] : []),
@@ -334,7 +285,7 @@ export async function readProjectDiff(
     "--no-prefix",
     "--find-renames",
     "--",
-    ...pathspecs,
+    ...workingDiffPaths(root, project, entry),
   ];
   try {
     return withSyntax(

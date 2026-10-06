@@ -1,13 +1,13 @@
 import type { Project } from "../shared/api.ts";
 import {
   expectGitOid,
-  gitPath,
   parseCommitStats,
   type CommitComparison,
   type CommitStats,
 } from "../shared/git.ts";
 import { AppError } from "./paths.ts";
 import { GitCommandError, runGit } from "./git-execution.ts";
+import { readNumstatRecord } from "./git-numstat.ts";
 
 type ReadyStats = Extract<CommitStats, { kind: "ready" }>;
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -123,26 +123,13 @@ function parseTotals(output: Buffer, oids: readonly string[]): Map<string, Ready
       if (current === null) throw new Error("Unexpected Git stats commit");
       continue;
     }
-    const match = /^(0|[1-9][0-9]*|-)\t(0|[1-9][0-9]*|-)\t([\s\S]*)$/.exec(record);
-    if (match === null || current === null) throw new Error("Invalid Git numeric stat record");
-    const added = match[1];
-    const deleted = match[2];
-    const path = match[3];
-    if (
-      added === undefined ||
-      deleted === undefined ||
-      path === undefined ||
-      (added === "-") !== (deleted === "-")
-    )
-      throw new Error("Invalid Git numeric counts");
-    if (path === "") {
-      gitPath(records[++index]);
-      gitPath(records[++index]); // Rename paths follow as separate NUL records.
-    } else gitPath(path);
-    if (added === "-") current.binaryFiles += 1;
+    if (current === null) throw new Error("Unexpected Git numeric stat record");
+    const { stats, nextIndex } = readNumstatRecord(records, index);
+    index = nextIndex - 1;
+    if (stats.kind === "binary") current.binaryFiles += 1;
     else {
-      current.added += Number(added);
-      current.deleted += Number(deleted);
+      current.added += stats.added;
+      current.deleted += stats.deleted;
     }
     parseCommitStats(current); // Reject unsafe totals before constructing the response.
   }

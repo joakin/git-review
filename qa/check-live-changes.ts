@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { appUrl, assertNoHorizontalOverflow, withQaBrowser } from "./browser-support.ts";
-import { parseStatusResponse } from "../src/shared/api.ts";
+import { parseChangeCheckResponse, parseStatusResponse } from "../src/shared/api.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-live-changes.ts <local app URL>");
@@ -217,7 +217,7 @@ try {
 
     let activeChecks = 0;
     let maximumChecks = 0;
-    await phone.page.route("**/api/projects/*/status", async (route) => {
+    await phone.page.route("**/api/projects/*/status**", async (route) => {
       activeChecks += 1;
       maximumChecks = Math.max(maximumChecks, activeChecks);
       await new Promise((finish) => setTimeout(finish, 300));
@@ -238,7 +238,7 @@ try {
       .waitFor({ state: "visible", timeout: 4_000 });
     if (maximumChecks !== 1 || !(await phone.card.textContent())?.includes('message = "third"'))
       throw new Error("Polling requests overlapped or a check failure replaced the review");
-    await phone.page.unroute("**/api/projects/*/status");
+    await phone.page.unroute("**/api/projects/*/status**");
     await phone.page.getByRole("button", { name: "Refresh", exact: true }).click();
     await phone.page
       .getByRole("status")
@@ -249,7 +249,7 @@ try {
     // Keep the worktree unchanged during failure: a manual generation still refetches diffs,
     // while a controlled pending token exercises retention of the displayed status snapshot.
     let failUpdate = false;
-    await phone.page.route("**/api/projects/*/status", async (route) => {
+    await phone.page.route("**/api/projects/*/status**", async (route) => {
       if (failUpdate) {
         await route.fulfill({
           status: 503,
@@ -258,7 +258,11 @@ try {
         return;
       }
       const response = await route.fetch();
-      const latest = parseStatusResponse((await response.json()) as unknown);
+      const body: unknown = await response.json();
+      const latest =
+        new URL(route.request().url()).searchParams.get("mode") === "check"
+          ? parseChangeCheckResponse(body)
+          : parseStatusResponse(body);
       if (latest.kind !== "git")
         throw new Error("The live-change fixture must remain a Git worktree");
       await route.fulfill({
@@ -332,7 +336,7 @@ try {
       !(await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).isVisible())
     )
       throw new Error("Failed Update collapsed a card or lost the draft");
-    await phone.page.unroute("**/api/projects/*/status");
+    await phone.page.unroute("**/api/projects/*/status**");
     await writeFile(source, content("recovered"));
     await phone.page.locator(".changes-update").click();
     await phone.card.getByText('export const message = "recovered";').waitFor({ state: "visible" });

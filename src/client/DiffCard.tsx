@@ -1,4 +1,4 @@
-import type { ChangeEntry, LanguageOption } from "../shared/api.ts";
+import type { ChangeEntry, LanguageOption, ReviewChangeEntry } from "../shared/api.ts";
 import { fetchProjectDiff } from "./api.ts";
 import { type CommentAnchor, type DraftComment, type ReviewSide } from "./comments.ts";
 import { DiffCardFrame } from "./DiffCardFrame.tsx";
@@ -7,7 +7,7 @@ import { useDiffLoading } from "./diff-loading.ts";
 import { useLanguageOverride } from "./language-override.ts";
 
 type DiffCardProps = {
-  entry: ChangeEntry;
+  entry: ReviewChangeEntry;
   projectId: string;
   revision: string;
   changeToken: string;

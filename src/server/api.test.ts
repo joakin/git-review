@@ -9,6 +9,7 @@ import {
   parseLanguagesResponse,
   parseProjectResponse,
   parseStatusResponse,
+  parseChangeCheckResponse,
 } from "../shared/api.ts";
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
@@ -51,6 +52,12 @@ test("status access requires an opened folder and rechecks its approved path", a
         (await (await handle(new Request(url))).json()) as unknown,
       );
       if (changedStatus.kind !== "git") throw new Error("Expected Git status");
+      expect(changedStatus.entries[0]?.stats).toEqual({ kind: "text", added: 1, deleted: 0 });
+      const checkBody: unknown = await (await handle(new Request(`${url}?mode=check`))).json();
+      expect(checkBody).toEqual(parseChangeCheckResponse(changedStatus));
+      expect(() => parseStatusResponse(checkBody)).toThrow();
+      for (const query of ["mode=unknown", "mode=check&mode=check", "other=value", "mode="])
+        expect((await handle(new Request(`${url}?${query}`))).status).toBe(400);
       const diffUrl = new URL(`http://localhost/api/projects/${project.id}/diff`);
       diffUrl.search = new URLSearchParams({
         layer: "untracked",
