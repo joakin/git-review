@@ -1,12 +1,9 @@
 # Documentation map
 
 The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed
-the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) resumed at M10
-on 2026-10-05 after the agreed
-[PWA navigation, phone project entry, and file feedback](pwa-navigation-and-file-feedback-proposal.md)
-slices and selection extension were accepted and committed; its plan owns maintenance progress and
-review status. Product additions remain in the
-[optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current
+the app is usable and useful. The subsequent [maintenance pass](maintenance-plan.md) is complete and
+closed as of 2026-10-06; its plan records the outcome and stop boundary. Product additions remain in
+the [optional backlog](initial-implementation-plan.md#remaining-roadmap). Start here to find current
 behavior, design decisions, and QA evidence. [AGENTS.md](../AGENTS.md) defines the collaboration and
 engineering rules; the root [README](../README.md) explains running the app and private HTTPS
 installation.
@@ -16,7 +13,7 @@ installation.
 - [Initial Implementation Plan](initial-implementation-plan.md): product scope,
   [stage closure](initial-implementation-plan.md#stage-closure--2026-09-30), and the
   [optional backlog](initial-implementation-plan.md#remaining-roadmap).
-- [Maintenance plan](maintenance-plan.md): brief current status, remaining work, and the stop
+- [Maintenance plan](maintenance-plan.md): completed pass, measurement results, and the stop
   boundary. Git preserves implementation and review history.
 - [Engineering conventions](engineering-conventions.md): reusable principles for module boundaries,
   types, state ownership, navigation, transactions, and documentation.
@@ -57,6 +54,7 @@ the bounded cleanup pass. Historical implementation checkpoints describe complet
 | Per-tab session storage | Active project used when opening `/` without an explicit route                                                                                     | [storage.ts](../src/client/storage.ts)                                                                                                                                                                                                                                                                                                                                                                                 |
 | Browser-local storage   | Recent projects, drafts, copy history, wrapping, open-card preferences, language overrides, typography, and appearance                             | [storage.ts](../src/client/storage.ts), [comments.ts](../src/client/comments.ts), [backup.ts](../src/client/backup.ts)                                                                                                                                                                                                                                                                                                 |
 | Tab memory              | Open project handle, loaded data, bounded diff and Git caches, historical collapsed cards, route scroll positions, transient UI, and pending audio | [App.tsx](../src/client/App.tsx), [project-session.ts](../src/client/project-session.ts), [working-copy-review.ts](../src/client/working-copy-review.ts), [diff-cache.ts](../src/client/diff-cache.ts), [git-browser.ts](../src/client/git-browser.ts), [review-feedback.ts](../src/client/review-feedback.ts), [CommitViewer.tsx](../src/client/CommitViewer.tsx), [VoiceComment.tsx](../src/client/VoiceComment.tsx) |
+| Server memory           | Bounded ready commit details and immutable line totals                                                                                             | [git-history.ts](../src/server/git-history.ts), [git-stats.ts](../src/server/git-stats.ts)                                                                                                                                                                                                                                                                                                                             |
 | Service worker          | Offline fallback page only; API responses and raw media are not cached                                                                             | [sw.ts](../src/client/sw.ts)                                                                                                                                                                                                                                                                                                                                                                                           |
 
 [Git read boundaries](git-read-boundaries.md) describe shared subprocess execution, repository
@@ -66,9 +64,10 @@ root. [Checked working-file boundaries](working-file-boundaries.md) describe sha
 opening, identity rechecks and descriptor lifetime for Files, diffs and media. Their callers retain
 byte limits, decoding and content-version policy.
 
-[ResourceCache](../src/client/resource-cache.ts) owns the common tab-memory cache mechanism: LRU
+[ResourceCache](../src/shared/resource-cache.ts) owns the common memory-cache mechanism: LRU
 promotion, replacement accounting, oversized-write rejection, removal, and eviction. The diff
-adapter and Git browser own resource identities, freshness, and individual budgets.
+adapter, Git browser and server commit reader own resource identities, freshness, and individual
+budgets.
 
 [The shared diff loader](../src/client/diff-loading.ts) owns keyed card state, request lifetime,
 retry, and cache-first rendering. Working-copy and historical card adapters retain their resource

@@ -1,4 +1,4 @@
-// Tab memory only. Bound both entry count and estimated UTF-16 payload size.
+// Process-local memory. Bound both entry count and estimated UTF-16 payload size.
 export class ResourceCache<T> {
   private readonly items = new Map<string, { value: T; bytes: number }>();
   private bytes = 0;

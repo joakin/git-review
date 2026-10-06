@@ -1,4 +1,5 @@
 import type { Project } from "../shared/api.ts";
+import { ResourceCache } from "../shared/resource-cache.ts";
 import {
   gitPath,
   parseCommitDetail,
@@ -27,6 +28,13 @@ import { withDiffSyntax } from "./diff-syntax.ts";
 import { commitParents, readCommitStats, readHistoryStats } from "./git-stats.ts";
 
 const decoder = new TextDecoder("utf-8", { fatal: true });
+
+type AvailableCommitDetail = Omit<CommitDetail, "comparison" | "stats"> & {
+  comparison: Exclude<CommitComparison, { kind: "missing_parent" }>;
+  stats: Extract<CommitDetail["stats"], { kind: "ready" }>;
+};
+
+const commitDetails = new ResourceCache<AvailableCommitDetail>(64, 4 * 1024 * 1024);
 
 export async function readGitRefs(project: Project): Promise<GitRefs> {
   const ctx = await readGitContext(project.absolutePath);
@@ -242,8 +250,23 @@ function parseInventory(output: Buffer, ctx: GitContext): CommitFileChange[] {
 export async function readCommit(project: Project, requestedOid: string): Promise<CommitDetail> {
   const ctx = await requireGitContext(project.absolutePath);
   const oid = objectId(requestedOid, ctx);
-  if (!(await hasGitObject(project.absolutePath, oid, "commit")))
-    throw new AppError("not_found", 404, "This commit is no longer available in this repository");
+  const key = JSON.stringify([project.absolutePath, ctx.prefix, ctx.oidLength, oid]);
+  const cached = commitDetails.read(key);
+  try {
+    if (!(await hasGitObject(project.absolutePath, oid, "commit")))
+      throw new AppError("not_found", 404, "This commit is no longer available in this repository");
+    if (cached !== null) {
+      if (
+        cached.comparison.kind === "empty" ||
+        (await hasGitObject(project.absolutePath, cached.comparison.oid, "commit"))
+      )
+        return cached;
+      commitDetails.remove(key);
+    }
+  } catch (error: unknown) {
+    commitDetails.remove(key);
+    throw error;
+  }
   let raw: Buffer;
   let metadata: Buffer;
   try {
@@ -310,7 +333,7 @@ export async function readCommit(project: Project, requestedOid: string): Promis
         ]).then((output) => parseInventory(output, ctx)),
     readCommitStats(project, oid, comparison),
   ]);
-  return parseCommitDetail({
+  const detail = parseCommitDetail({
     oid,
     author: fields[1],
     date: fields[2],
@@ -322,6 +345,9 @@ export async function readCommit(project: Project, requestedOid: string): Promis
     stats,
     scope: ctx.prefix === "" ? "" : ctx.prefix.slice(0, -1),
   });
+  if (detail.comparison.kind !== "missing_parent" && detail.stats.kind === "ready")
+    commitDetails.remember(key, { ...detail, comparison: detail.comparison, stats: detail.stats });
+  return detail;
 }
 
 export function commitFile(detail: CommitDetail, path: string): CommitFileChange {

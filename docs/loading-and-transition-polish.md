@@ -53,7 +53,7 @@ large and are reproducible from the host. Working-tree file contents still refet
 viewer remounts; caching those would need a separate freshness policy because files can change
 outside the app.
 
-[ResourceCache](../src/client/resource-cache.ts) owns storage, LRU promotion, replacement/removal
+[ResourceCache](../src/shared/resource-cache.ts) owns storage, LRU promotion, replacement/removal
 accounting, oversized-value rejection, and eviction. The [diff adapter](../src/client/diff-cache.ts)
 owns its budget, working-copy identity, and stale-result exclusion. The Git browser uses the same
 mechanism with its own identities and budgets; immutable commit diffs share the diff adapter's

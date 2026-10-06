@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { testGitText as git, withTempDirectory } from "../test-support.ts";
-import { chmod, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseCommitDetail, parseCommitSummary, type CommitDetail } from "../shared/git.ts";
@@ -184,6 +184,10 @@ test("project-subfolder history confines both sides, including renames across it
     git(directory, "mv", "outside.txt", "inside/inbound.txt");
     git(directory, "mv", "inside/outbound.txt", "outbound.txt");
     const oid = commit(directory, "Cross boundary");
+    const repository = await openProject(await approveRoot(directory), "");
+    const wholeCommit = await readCommit(repository, oid);
+    expect(wholeCommit.scope).toBe("");
+    expect(wholeCommit.files.map((file) => file.kind)).toEqual(["renamed", "renamed"]);
     const root = await approveRoot(join(directory, "inside"));
     const project = await openProject(root, "");
     const detail = await readCommit(project, oid);
@@ -202,10 +206,12 @@ test("project-subfolder history confines both sides, including renames across it
     expect(history.commits[0]?.oid).toBe(oid);
     expect(detail.stats).toEqual({ kind: "ready", added: 1, deleted: 1, binaryFiles: 0 });
     expect(history.commits[0]?.stats).toEqual(detail.stats);
+    expect(await readCommit(repository, oid)).toEqual(wholeCommit);
+    expect(await readCommit(project, oid)).toEqual(detail);
   });
 });
 
-test("shallow missing parents stay unavailable and messages respect the explicit limit", async () => {
+test("shallow missing parents recover after fetching and messages respect the explicit limit", async () => {
   await withTempDirectory("git-review-history-shallow-", async (directory) => {
     git(directory, "init", "-q", "-b", "main");
     await writeFile(join(directory, "value.txt"), "base\n");
@@ -224,6 +230,12 @@ test("shallow missing parents stay unavailable and messages respect the explicit
     expect(
       (await readGitHistory(project, { kind: "ref", ref: "refs/heads/main" })).commits[0]?.stats,
     ).toEqual(detail.stats);
+    git(clone, "fetch", "-q", "--unshallow");
+    const recovered = await readCommit(project, oid);
+    expect(recovered.comparison).toEqual({ kind: "parent", oid: base });
+    expect(recovered.files.map((file) => file.path)).toEqual(["value.txt"]);
+    expect(recovered.stats).toEqual({ kind: "ready", added: 1, deleted: 1, binaryFiles: 0 });
+    expect(await readCommit(project, oid)).toEqual(recovered);
     git(directory, "commit", "--allow-empty", "-qm", "x".repeat(65_537));
     const original = await openProject(await approveRoot(directory), "");
     await expect(readCommit(original, git(directory, "rev-parse", "HEAD"))).rejects.toThrow(
@@ -232,6 +244,46 @@ test("shallow missing parents stay unavailable and messages respect the explicit
     await expect(readCommit(original, "a".repeat(40))).rejects.toThrow("no longer available");
     const folder = await openProject(await approveRoot(tmpdir()), "");
     expect(await readGitRefs(folder)).toEqual({ kind: "not_git" });
+  });
+});
+
+test("cached commit details recheck missing commit and parent objects and recover", async () => {
+  await withTempDirectory("git-review-history-cache-", async (directory) => {
+    git(directory, "init", "-q", "-b", "main");
+    await writeFile(join(directory, "value.txt"), "base\n");
+    const parent = commit(directory, "Base");
+    await writeFile(join(directory, "value.txt"), "changed\n");
+    const oid = commit(directory, "Changed");
+    const project = await openProject(await approveRoot(directory), "");
+    const detail = await readCommit(project, oid);
+    expect(await readCommit(project, oid)).toEqual(detail);
+
+    const parentObject = join(directory, ".git", "objects", parent.slice(0, 2), parent.slice(2));
+    const savedParent = join(directory, "saved-parent");
+    await rename(parentObject, savedParent);
+    try {
+      await expect(readCommit(project, oid)).rejects.toThrow("unable to parse commit");
+      await writeFile(join(directory, ".git", "shallow"), `${oid}\n`);
+      const missingParent = await readCommit(project, oid);
+      expect(missingParent.comparison).toEqual({ kind: "missing_parent", oid: parent });
+      expect(missingParent.files).toEqual([]);
+      expect(missingParent.stats).toEqual({ kind: "unavailable", reason: "missing_parent" });
+      expect(() => commitFile(missingParent, "value.txt")).toThrow("parent");
+    } finally {
+      await rm(join(directory, ".git", "shallow"), { force: true });
+      await rename(savedParent, parentObject);
+    }
+    expect(await readCommit(project, oid)).toEqual(detail);
+
+    const commitObject = join(directory, ".git", "objects", oid.slice(0, 2), oid.slice(2));
+    const savedCommit = join(directory, "saved-commit");
+    await rename(commitObject, savedCommit);
+    try {
+      await expect(readCommit(project, oid)).rejects.toThrow("no longer available");
+    } finally {
+      await rename(savedCommit, commitObject);
+    }
+    expect(await readCommit(project, oid)).toEqual(detail);
   });
 });
 

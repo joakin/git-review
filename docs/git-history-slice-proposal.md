@@ -181,7 +181,7 @@ bounded tab-memory caches. Historical diffs share the existing 128-entry/about-3
 with working-copy diffs. Byte accounting estimates serialized UTF-16 data size; it is a cache bound,
 not a total browser-memory measurement.
 
-[ResourceCache](../src/client/resource-cache.ts) owns the common bounded storage and LRU mechanism
+[ResourceCache](../src/shared/resource-cache.ts) owns the common bounded storage and LRU mechanism
 for these caches and the [diff adapter](../src/client/diff-cache.ts). Git snapshot pinning, refresh
 invalidation, exact commit identities, and the shared diff budget remain in their domain owners.
 
@@ -192,6 +192,15 @@ Successfully loaded diffs render immediately when returning to a commit. Histori
 and list-scroll records retain at most 64 destinations in tab memory. They reset on reload;
 wrapping, themes, typography, and per-path language choices use existing browser preferences. Git
 payloads do not enter local-data backups or the service-worker cache.
+
+The server commit reader shares this cache mechanism with a separate 64-entry/4-MiB estimated
+payload budget. It stores only validated details with an available comparison and ready statistics,
+keyed by canonical project path, current repository scope/object format and full commit ID. Each
+request still revalidates the approved project and Git context; cache hits recheck the commit and
+first parent. Missing commit/parent objects evict the detail; errors and unavailable results are
+never stored. Raw blobs and rendered diffs retain their existing read boundaries. Entries have no
+time expiry; LRU eviction, oversized-write rejection and server restart bound their lifetime and
+storage.
 
 ## Implementation checkpoints and verification
 

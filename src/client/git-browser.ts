@@ -3,7 +3,7 @@ import type { Project } from "../shared/api.ts";
 import type { CommitDetail, GitHistoryPage, GitRefs } from "../shared/git.ts";
 import type { GitRoute } from "./navigation.ts";
 import { fetchCommit, fetchGitHistory, fetchGitRefs } from "./git-api.ts";
-import { ResourceCache } from "./resource-cache.ts";
+import { ResourceCache } from "../shared/resource-cache.ts";
 
 export type GitLoad<T> =
   { kind: "loading" } | { kind: "ready"; value: T } | { kind: "error"; message: string };

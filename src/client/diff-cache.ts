@@ -1,5 +1,5 @@
 import type { ChangeLayer, DiffResult } from "../shared/api.ts";
-import { ResourceCache } from "./resource-cache.ts";
+import { ResourceCache } from "../shared/resource-cache.ts";
 
 export type DiffCacheIdentity = {
   projectId: string;

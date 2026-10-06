@@ -3,10 +3,10 @@
 ## Project status
 
 The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed
-the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is
-underway. Its plan owns current slice status and the next step; keep it brief. Git preserves
-implementation and dated review history. Keep maintenance work in small reviewed steps and preserve
-the commit-approval rule below. The
+the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is complete
+and closed as of 2026-10-06. Its plan records the outcome and stop boundary; keep it brief. Git
+preserves implementation and dated review history. Keep further work in small reviewed steps and
+preserve the commit-approval rule below. The
 [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product
 backlog; start further features only when the maintainer requests them.
 
