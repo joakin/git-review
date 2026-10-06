@@ -135,7 +135,7 @@ await withQaBrowser(async (browser) => {
           let peak = 0;
           const active = new Set<Request>();
           page.on("request", (request) => {
-            if (/\/git\/commits\/[^/]+\/diff$/.test(new URL(request.url()).pathname)) {
+            if (/\/git\/commits\/[^/]+\/diffs?$/.test(new URL(request.url()).pathname)) {
               diffRequests += 1;
               active.add(request);
               peak = Math.max(peak, active.size);

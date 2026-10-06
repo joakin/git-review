@@ -15,6 +15,9 @@ installation.
   [optional backlog](initial-implementation-plan.md#remaining-roadmap).
 - [Maintenance plan](maintenance-plan.md): completed pass, measurement results, and the stop
   boundary. Git preserves implementation and review history.
+- [Diff batching and bulk card controls](diff-batching-and-bulk-controls-proposal.md): approved
+  shared bounded loading for Changes and Git, followed by Expand all / Collapse all; Git batching
+  accepted, Changes batching next.
 - [Changes line counts](changes-line-counts-proposal.md): bundled file/layer statistics in the
   contextual list and collapsed/expanded headings; implemented and accepted on 2026-10-06.
 - [Engineering conventions](engineering-conventions.md): reusable principles for module boundaries,
@@ -73,10 +76,10 @@ budgets.
 
 [The shared diff loader](../src/client/diff-loading.ts) owns keyed card state, request lifetime,
 retry, and cache-first rendering. Working-copy and historical card adapters retain their resource
-identities and response policies; Git requests retain their queue in
-[git-api.ts](../src/client/git-api.ts). [LanguagePicker](../src/client/LanguagePicker.tsx) shares
-the control presentation, and [language overrides](../src/client/language-override.ts) share
-validation and per-file persistence.
+identities and response policies; Git uses the bounded
+[batch queue](../src/client/diff-batch-queue.ts) through [git-api.ts](../src/client/git-api.ts).
+[LanguagePicker](../src/client/LanguagePicker.tsx) shares the control presentation, and
+[language overrides](../src/client/language-override.ts) share validation and per-file persistence.
 
 [The project/session owner](../src/client/project-session.ts) owns root connection, accepted project
 handles, recents, and per-tab restoration. App supplies current URL identity and handles

@@ -109,8 +109,8 @@ the card metadata; links and submodules are named states and are not followed.
   project, commit, comparison base, path, and language; working-tree change tokens cannot invalidate
   an immutable commit. Keep card expansion and scroll state scoped to that commit. Do not persist
   Git payloads in local storage or the service worker.
-- Build the whole file inventory first, then fetch expanded cards with a small concurrency limit
-  (initially three). Reserve card structure during requests, delay loading indicators, and render
+- Build the whole file inventory first, then batch uncached expanded cards with at most three server
+  file reads in flight. Reserve card structure during requests, delay loading indicators, and render
   cached diffs on the first render. Every ordinary file is included; oversized or unsupported
   content has a named state. Card toggles never repeat route focus.
 
@@ -125,6 +125,7 @@ Implemented routes, all under an opened and revalidated project:
 | `GET /api/projects/:id/git/log?tip=<object-id>&offset=<number>`         | Another page from the same history snapshot. Reject mixed ref/tip inputs.                                       |
 | `GET /api/projects/:id/git/commits/:oid`                                | Full message, author/date, parents, comparison-base variant, line totals, and changed-file inventory.           |
 | `GET /api/projects/:id/git/commits/:oid/diff?path=<path>&language=<id>` | One file's parsed patch, semantic syntax/word data, or explicit media/binary/limit state.                       |
+| `POST /api/projects/:id/git/commits/:oid/diffs`                         | Bounded batch of those file results, with source/file identities and independent errors or deferred results.    |
 | `GET/HEAD /api/projects/:id/raw/commit?...`                             | Version-checked Old/New media from that commit comparison, with the existing range and raw-link behavior.       |
 
 The [shared Git boundary](../src/shared/git.ts) uses purpose-built types: `GitHead` variants for
@@ -186,12 +187,16 @@ for these caches and the [diff adapter](../src/client/diff-cache.ts). Git snapsh
 invalidation, exact commit identities, and the shared diff budget remain in their domain owners.
 
 Branch lists stay pinned until Refresh or reload. Each **Load older** action carries the existing
-tip and offset; refreshing starts a new snapshot without changing a selected commit ID. Three
-concurrent diff slots are shared across commit cards; canceled queued requests release their place.
-Successfully loaded diffs render immediately when returning to a commit. Historical collapsed-card
-and list-scroll records retain at most 64 destinations in tab memory. They reset on reload;
-wrapping, themes, typography, and per-path language choices use existing browser preferences. Git
-payloads do not enter local-data backups or the service-worker cache.
+tip and offset; refreshing starts a new snapshot without changing a selected commit ID. The
+[shared batch queue](../src/client/diff-batch-queue.ts) starts a new source with three files, then
+collects up to 32 per request, with one active batch and three server file reads in flight.
+Completed and canceled demand is released; an active request is aborted when all its demand is
+canceled. Request/response byte limits and individual fallback retain the existing per-file bounds
+and cache budget. [The batching record](diff-batching-and-bulk-controls-proposal.md) owns policy and
+measurements. Successfully loaded diffs render immediately when returning to a commit. Historical
+collapsed-card and list-scroll records retain at most 64 destinations in tab memory. They reset on
+reload; wrapping, themes, typography, and per-path language choices use existing browser
+preferences. Git payloads do not enter local-data backups or the service-worker cache.
 
 The server commit reader shares this cache mechanism with a separate 64-entry/4-MiB estimated
 payload budget. It stores only validated details with an available comparison and ready statistics,

@@ -33,10 +33,12 @@ import {
   readGitRefs,
 } from "./git-history.ts";
 import { isGitOid, validGitRef } from "../shared/git.ts";
+import { maxDiffBatchRequestBytes } from "../shared/diff-batch.ts";
+import { readCommitDiffBatch } from "./commit-diff-batch.ts";
 
 const maxBodyBytes = 4096;
 
-async function readJsonBody(request: Request): Promise<unknown> {
+async function readJsonBody(request: Request, limit = maxBodyBytes): Promise<unknown> {
   if (!request.headers.get("content-type")?.startsWith("application/json")) {
     throw new AppError("invalid_request", 400, "Expected a JSON request body");
   }
@@ -50,7 +52,7 @@ async function readJsonBody(request: Request): Promise<unknown> {
       const next = await reader.read();
       if (next.done) break;
       size += next.value.byteLength;
-      if (size > maxBodyBytes) {
+      if (size > limit) {
         await reader.cancel();
         throw new AppError("invalid_request", 413, "Request body is too large");
       }
@@ -154,6 +156,23 @@ async function handleApiRequest(
       const project = await openProject(root, body["path"]);
       openProjects.set(project.id, project);
       return Response.json({ project });
+    }
+    const gitBatchRoute =
+      /^\/api\/projects\/([0-9a-f]{20})\/git\/commits\/([0-9a-f]{40}|[0-9a-f]{64})\/diffs$/.exec(
+        url.pathname,
+      );
+    if (gitBatchRoute !== null && request.method === "POST") {
+      onlyQueryKeys(url, []);
+      const id = gitBatchRoute[1];
+      const oid = gitBatchRoute[2];
+      const project = id === undefined ? undefined : openProjects.get(id);
+      if (project === undefined || oid === undefined)
+        throw new AppError("not_found", 404, "Open this folder before browsing its Git history");
+      const body = await readJsonBody(request, maxDiffBatchRequestBytes);
+      const current = await openProject(root, project.path);
+      if (current.id !== id)
+        throw new AppError("not_found", 404, "The selected folder has changed. Open it again.");
+      return await readCommitDiffBatch(current, oid, body, request.signal);
     }
     const gitRoute =
       /^\/api\/projects\/([0-9a-f]{20})\/git\/(refs|log|commits\/((?:[0-9a-f]{40}|[0-9a-f]{64}))(\/diff)?)$/.exec(

@@ -63,9 +63,12 @@ capacity. The byte estimate counts serialized UTF-16 data, not total browser mem
 cancellation, retry, and immediate cache reads for working-copy and historical cards. Each card
 adapter supplies its resource key, request, error fallback, and any response policy. Working-copy
 stale handling stays in [DiffCard](../src/client/DiffCard.tsx); immutable commit keys stay in
-[CommitViewer](../src/client/CommitViewer.tsx), and its three-request queue stays in
-[git-api.ts](../src/client/git-api.ts). The loader checks current expansion and identity before
-accepting results, including before effect cleanup aborts a superseded request.
+[CommitViewer](../src/client/CommitViewer.tsx). Its request adapter in
+[git-api.ts](../src/client/git-api.ts) uses the bounded
+[batch queue](../src/client/diff-batch-queue.ts); see the
+[batching record](diff-batching-and-bulk-controls-proposal.md) for policy and measurements. The
+loader checks current expansion and identity before accepting results, including before effect
+cleanup aborts a superseded request.
 
 The delay is a presentation choice, not a delay before starting requests. Network and parsing errors
 retain their existing messages and retry actions. We avoid retaining results from another project or

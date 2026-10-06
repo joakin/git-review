@@ -10,6 +10,14 @@ import {
   type GitRefs,
 } from "../shared/git.ts";
 import { responseBody } from "./api.ts";
+import {
+  commitDiffBatchSource,
+  commitDiffRequestKey,
+  type CommitDiffRequest,
+} from "../shared/commit-diff-batch.ts";
+import { parseDiffBatchResponse } from "../shared/diff-batch.ts";
+import { DiffBatchQueue, type DiffBatchSource } from "./diff-batch-queue.ts";
+import { diffBatchResponseBody } from "./diff-batch-response.ts";
 
 export async function fetchGitRefs(id: string, signal: AbortSignal): Promise<GitRefs> {
   return parseGitRefs(
@@ -53,39 +61,7 @@ export async function fetchCommit(
   return result;
 }
 
-let activeDiffs = 0;
-const waitingDiffs: (() => void)[] = [];
-
-async function withDiffSlot<T>(signal: AbortSignal, read: () => Promise<T>): Promise<T> {
-  await new Promise<void>((resolve, reject) => {
-    const start = () => {
-      signal.removeEventListener("abort", cancel);
-      activeDiffs += 1;
-      resolve();
-    };
-    const cancel = () => {
-      const index = waitingDiffs.indexOf(start);
-      if (index >= 0) waitingDiffs.splice(index, 1);
-      reject(new DOMException("Aborted", "AbortError"));
-    };
-    if (signal.aborted) {
-      cancel();
-      return;
-    }
-    if (activeDiffs < 3) start();
-    else {
-      waitingDiffs.push(start);
-      signal.addEventListener("abort", cancel, { once: true });
-    }
-  });
-  try {
-    signal.throwIfAborted();
-    return await read();
-  } finally {
-    activeDiffs -= 1;
-    waitingDiffs.shift()?.();
-  }
-}
+const commitDiffs = new DiffBatchQueue<CommitDiffRequest, CommitDiff>(commitDiffRequestKey);
 
 export async function fetchCommitDiff(
   id: string,
@@ -94,13 +70,29 @@ export async function fetchCommitDiff(
   language: string | null,
   signal: AbortSignal,
 ): Promise<CommitDiff> {
-  return withDiffSlot(signal, async () => {
-    const query = new URLSearchParams({ path });
-    if (language !== null) query.set("language", language);
-    return parseCommitDiff(
-      await responseBody(
-        await fetch(`/api/projects/${id}/git/commits/${oid}/diff?${query}`, { signal }),
+  const base = `/api/projects/${id}/git/commits/${oid}`;
+  const source: DiffBatchSource<CommitDiffRequest, CommitDiff> = {
+    key: commitDiffBatchSource(id, oid),
+    encode: (files) => JSON.stringify({ files }),
+    read: async (body, files, signal) =>
+      parseDiffBatchResponse(
+        await diffBatchResponseBody(
+          await fetch(`${base}/diffs`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body,
+            signal,
+          }),
+        ),
+        commitDiffBatchSource(id, oid),
+        files.map(commitDiffRequestKey),
+        parseCommitDiff,
       ),
-    );
-  });
+    readSingle: async (file, signal) => {
+      const query = new URLSearchParams({ path: file.path });
+      if (file.language !== null) query.set("language", file.language);
+      return parseCommitDiff(await responseBody(await fetch(`${base}/diff?${query}`, { signal })));
+    },
+  };
+  return commitDiffs.read(source, { path, language }, signal);
 }
