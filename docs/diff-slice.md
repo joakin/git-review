@@ -24,6 +24,40 @@ their domain rules. [Loading](loading-and-transition-polish.md) owns cache-first
 reading-position restoration. Open choices and wrapping survive reload; fetched diff payloads do
 not.
 
+## Revealing unchanged context
+
+Supported text cards in Changes show a separator for each omitted unchanged interval. The
+bar-and-arrow buttons reveal up to twenty lines per click: **Up** takes code immediately above the
+following block, and **Down** takes code immediately below the preceding block. Internal gaps offer
+both directions; file-edge gaps offer the one useful direction. The count decreases as either end
+expands. Exhausting an interval removes its separator and joins the code without duplicate rows.
+
+The original Git hunks remain canonical. Revealed rows form a separate display projection with exact
+Old/New coordinates, complete-source syntax highlighting and ordinary line/selection actions.
+Existing anchors retain their original hunk neighbors;
+[feedback](feedback-slice-proposal.md#anchor-identity-and-checking) owns source-neighbor checking
+for newly revealed code.
+
+Loading and read errors stay beside the affected separator while visible code remains usable. Retry
+repeats the failed direction. A stale source offers the existing **New edits · Update** flow. The
+buttons stay visible during horizontal code scrolling, retain keyboard focus, and provide phone-size
+touch targets. Accepted insertions preserve a visible source row's position; when the last insertion
+removes the focused separator, focus moves to a visible line action.
+
+Expansion lives in bounded tab memory for the exact project, layer, path and snapshot. Collapse and
+reopen preserve it; Update, Refresh and page reload reset it. Wrapping and theme changes preserve
+it. Changing language redecorates the same ranges; a failed replay retains plain source text and
+pauses further expansion until Retry succeeds. Canceled or superseded requests cannot update another
+view.
+
+Metadata derives from checked HEAD/index/working-tree sources and canonical hunks. Each expansion
+revalidates the gap, source digest and both snapshot tokens around the read; requests supply no Git
+expression or rename origin. The [shared context contract](../src/shared/diff-context.ts) owns wire
+validation and budgets. Sources outside the bounded read capability show an explanation while
+keeping the ordinary patch usable. Added/deleted/untracked one-sided content, non-text/unsupported
+states, empty diffs and historical Git inspection have no expansion controls. Whole-file expansion,
+re-collapsing gaps and historical expansion remain follow-ups.
+
 ## Sources and freshness
 
 | Layer     | Old side | New side     |
@@ -70,6 +104,23 @@ repositories, limits, malformed hunks and stale requests. [Diff browser QA](../q
 exercises navigation, persistence, wrapping, sticky gutters and contained scrolling.
 [Blank-line browser QA](../qa/check-blank-lines.ts) checks empty and whitespace-only row heights,
 exact source text, CRLF display and typography across the four viewport profiles and wrapping modes.
+
+[Context tests](../src/server/diff-context.test.ts) cover exact gaps, side offsets, zero-count
+coordinates, CRLF/final-newline handling, mixed expansion and exhaustion, limits, stale sources and
+malformed input. [Client context tests](../src/client/diff-context.test.ts) cover display ownership,
+source-side anchors and bounded checking. [Context browser QA](../qa/check-diff-context.ts)
+exercises expansion, retry, language replay, cancellation, reading position/focus, reload feedback
+and contained scrolling at the four standard sizes plus a narrow phone. The
+[context milestone](../qa/screenshots/diff-context-controls/mobile.png) was captured and inspected
+at all four standard sizes. Physical-device gestures remain unverified.
+
+A local 581,780-byte, 4,000-line source with twenty changed hunks was measured with seven warm
+samples per operation. Median initial reads were 13.7 ms without context metadata and 21.7 ms with
+it in Plain text; TypeScript reads were 2.67 s and 2.66 s respectively. Twenty-line expansion,
+including inventory and before/after freshness checks, took 39.3 ms in Plain text and 1.36 s with
+TypeScript. Full-source highlighting dominates these local timings; they exclude network and browser
+costs and do not establish physical-phone performance. Per-operation source reuse avoids duplicate
+reads without a persistent source cache.
 
 The [diff](../qa/screenshots/blank-lines-diff/mobile.png) and
 [Files](../qa/screenshots/blank-lines-files/mobile.png) blank-line milestone sets were inspected at

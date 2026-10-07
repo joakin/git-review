@@ -26,6 +26,9 @@ The [long diff performance investigation](long-diff-performance-investigation.md
 measurements and the reviewed render-isolation and CSS-containment implementations. Physical
 iPad/Safari verification remains pending.
 
+The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
+behavior and its feedback, syntax and loading owners.
+
 ## Behavior records
 
 | Area                                  | Authoritative record                                                                                                                                                                                                     |

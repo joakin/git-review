@@ -91,6 +91,15 @@ line number, exact source text, and neighboring context must still match, includ
 diff. An unrelated edit elsewhere need not invalidate an unchanged file anchor. Git status revision
 alone is insufficient because content can change without changing it.
 
+Revealing [diff context](diff-slice.md#revealing-unchanged-context) does not rewrite ordinary hunk
+anchors. Newly revealed rows use exact neighbors from the chosen source side, including neighbors
+outside the displayed chunk. Fresh checking first tries canonical hunks, then checks unmatched diff
+anchors directly against bounded comparison sources. This preserves line and selected-fragment
+drafts after collapse, Refresh or reload, without persisting expansion or changing the saved anchor
+format. Source checks do not require the ordinary patch to fit its display budget. Unavailable
+bounded reads block export for Retry; missing/non-text sources and mismatched text or neighbors mark
+drafts outdated.
+
 A changed, missing, or non-text source makes the draft outdated and excludes it from export. A
 working-file `file_not_found` response represents that absence; project access, permission, network,
 and other read failures retain drafts and block export until a successful Retry. Never silently

@@ -25,6 +25,11 @@ selection and unknown language detection require no syntax source read; empty di
 either. Non-text states are handled before decoration. Files uses the same source-reconstruction
 validation while retaining its display normalization.
 
+[Changes context expansion](diff-slice.md#revealing-unchanged-context) independently needs both
+comparison sources for gap validation, including Plain text. Those reads share lazy per-operation
+snapshots with syntax decoration. Revealed chunks use complete-source grammar context; changing the
+language replays the same ranges and preserves plain text if redecorating fails.
+
 [diff-syntax.ts](../src/server/diff-syntax.ts) owns full-side decoration and fallback.
 [shared/api.ts](../src/shared/api.ts) owns wire types, allowed roles and per-line/aggregate
 validation limits. Aggregate overflow is rejected before parsing another diff token batch. Syntax

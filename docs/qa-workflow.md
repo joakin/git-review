@@ -30,13 +30,14 @@ target an isolated fixture server; never use the maintainer's working repository
 fixture. Choose unused ports and stop only QA processes you started. The app's run/HTTPS setup
 belongs in the [root README](../README.md#run-the-app).
 
-| Fixture     | Preparation                              | Used by                                                                                   |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Inventory   | `bun qa/prepare-inventory-fixture.ts`    | Most working-copy, navigation, feedback, and settings checks                              |
-| Git history | `bun qa/prepare-git-fixture.ts`          | Git and loading checks; object IDs are saved in `qa/.artifacts/history-fixture-info.json` |
-| Line counts | `bun qa/prepare-change-stats-fixture.ts` | Changes statistics                                                                        |
-| Images      | `bun qa/prepare-media-fixture.ts`        | Image/SVG previews                                                                        |
-| Audio/video | `bun qa/prepare-media-av-fixture.ts`     | Playback/ranges; preparation requires FFmpeg with H.264 encoding                          |
+| Fixture      | Preparation                              | Used by                                                                                   |
+| ------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Inventory    | `bun qa/prepare-inventory-fixture.ts`    | Most working-copy, navigation, feedback, and settings checks                              |
+| Git history  | `bun qa/prepare-git-fixture.ts`          | Git and loading checks; object IDs are saved in `qa/.artifacts/history-fixture-info.json` |
+| Line counts  | `bun qa/prepare-change-stats-fixture.ts` | Changes statistics                                                                        |
+| Diff context | `bun qa/prepare-diff-context-fixture.ts` | Directional Changes context expansion                                                     |
+| Images       | `bun qa/prepare-media-fixture.ts`        | Image/SVG previews                                                                        |
+| Audio/video  | `bun qa/prepare-media-av-fixture.ts`     | Playback/ranges; preparation requires FFmpeg with H.264 encoding                          |
 
 Preparation scripts create their named directories under ignored `qa/.artifacts/` and refuse to
 overwrite existing fixtures. Reuse a fixture only while it matches its preparation script; remove
@@ -89,6 +90,7 @@ not a second assertion list.
 | ------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [Foundation](../qa/check-foundation.ts)                       | `bun qa/check-foundation.ts --url <URL> --folder inventory-fixture` | Inventory or another direct Git child                   | [Picker](foundation-slice.md), reload, saved browser state                                                                                                         |
 | [Inventory/diffs](../qa/check-diff.ts)                        | `bun qa/check-diff.ts --url <URL> --folder inventory-fixture`       | Inventory; folder name may differ if contents match     | [Diff cards](diff-slice.md), compact rows, wrapping                                                                                                                |
+| [Diff context](../qa/check-diff-context.ts)                   | `bun qa/check-diff-context.ts <URL> context-fixture`                | Diff context fixture                                    | [Context expansion](diff-slice.md#revealing-unchanged-context), direction/retry, exhaustion, position/focus, language replay, cancellation and fresh feedback      |
 | [Files](../qa/check-files.ts)                                 | `bun qa/check-files.ts <URL>`                                       | Inventory                                               | [Tree and viewer](file-browser-slice-proposal.md), syntax, wrapping and return to Changes                                                                          |
 | [Blank source lines](../qa/check-blank-lines.ts)              | `bun qa/check-blank-lines.ts <URL>`                                 | Creates its own fixture under `qa/.artifacts/`          | [Source-row height](diff-slice.md), empty/whitespace lines, exact text, CRLF, font sizes and wrapping in Changes, Git and Files                                    |
 | [Code rendering](../qa/check-code-rendering.ts)               | `bun qa/check-code-rendering.ts <URL>`                              | Creates its own fixture under `qa/.artifacts/`          | Unchanged-code isolation and affected feedback markers in large Changes and Files                                                                                  |
@@ -145,14 +147,14 @@ appropriate.
 
 `bun run qa:capture --help` is the full option reference. Useful controls are:
 
-| Purpose                         | Options                                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Wait for loaded content         | `--ready <selector>`, `--after-click-ready <selector>`                                              |
-| Set up an interaction           | Repeat `--click <selector>` and `--fill <selector> <value>` in order                                |
-| Show narrow contextual lists    | `--reveal-list`                                                                                     |
-| Inspect a long or scrolled view | `--full-page`, `--scroll-to <selector>`, `--scroll-offset <pixels>`, `--scroll-x-to-end <selector>` |
-| Show a code selection           | `--select-text <code-selector> <text>`                                                              |
-| Show recording or ready media   | `--fake-microphone`, `--media-ready`                                                                |
+| Purpose                         | Options                                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Wait for loaded content         | `--ready <selector>`, `--after-click-ready <selector>`                                                                    |
+| Set up an interaction           | Repeat `--click <selector>` and `--fill <selector> <value>` in order                                                      |
+| Show narrow contextual lists    | `--reveal-list`                                                                                                           |
+| Inspect a long or scrolled view | `--full-page`, `--scroll-to <selector>`, `--scroll-offset <pixels>` (negative scrolls up), `--scroll-x-to-end <selector>` |
+| Show a code selection           | `--select-text <code-selector> <text>`                                                                                    |
+| Show recording or ready media   | `--fake-microphone`, `--media-ready`                                                                                      |
 
 Keep useful milestone images and manifests, and link them once from the owning behavior record or
 current review handoff. Older captures show their recorded version, not the current UI. Ordinary

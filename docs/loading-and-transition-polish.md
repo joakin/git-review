@@ -49,6 +49,11 @@ Collapsed or superseded card requests cannot accept late results into the view o
 the selected language. The [shared loader](../src/client/diff-loading.ts) enforces that ownership;
 [bounded batching](diff-batching-and-bulk-controls-proposal.md) defines request scheduling.
 
+[Revealed diff context](diff-slice.md#revealing-unchanged-context) has a separate bounded projection
+cache tied to that same resource/version. Its owner defines collapse/reopen retention, language
+replay, per-card request cancellation and insertion-position compensation; expansion does not create
+a route focus intent.
+
 ## Route focus and reading position
 
 Opening a changed file from the list or a URL expands and focuses its card once per navigation.

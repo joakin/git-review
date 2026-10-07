@@ -51,7 +51,7 @@ Options:
   --storage-state <file> Use a saved Playwright browser state for every viewport
   --active-path <path>  Select this host-relative project in each viewport tab
   --scroll-to <CSS selector> Scroll an element to the top before capture
-  --scroll-offset <pixels> Scroll farther after --scroll-to (default: 320)
+  --scroll-offset <pixels> Adjust position after --scroll-to (default: 320; negative scrolls up)
   --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
   --select-text <CSS selector> <text> Select code text and show its contextual action
   --fake-microphone       Grant Chrome's synthetic microphone for recording UI captures
@@ -135,8 +135,8 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         break;
       case "--scroll-offset": {
         const parsed = Number(readValue(args, index, flag));
-        if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 5000)
-          throw new Error("--scroll-offset must be an integer from 0 to 5000");
+        if (!Number.isSafeInteger(parsed) || parsed < -5000 || parsed > 5000)
+          throw new Error("--scroll-offset must be an integer from -5000 to 5000");
         scrollOffset = parsed;
         index += 1;
         break;
