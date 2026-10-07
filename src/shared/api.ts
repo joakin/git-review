@@ -118,7 +118,7 @@ export type DiffHunk = {
 };
 
 export type DiffResult =
-  | { kind: "text"; syntax: SyntaxState; hunks: DiffHunk[] }
+  | { kind: "text"; syntax: SyntaxState; hunks: DiffHunk[]; context?: DiffContextMetadata }
   | { kind: "media"; old: MediaSide; new: MediaSide }
   | { kind: "binary"; reason: "binary" | "symlink" | "submodule" }
   | { kind: "too_large" }
@@ -592,7 +592,14 @@ export function parseDiffResponse(value: unknown): DiffResult {
           lines,
         };
       });
-      return { kind: "text", syntax, hunks };
+      return outer["context"] === undefined
+        ? { kind: "text", syntax, hunks }
+        : {
+            kind: "text",
+            syntax,
+            hunks,
+            context: parseDiffContextMetadata(outer["context"], hunks),
+          };
     }
     default:
       throw new Error("Expected a diff response kind");
@@ -645,3 +652,4 @@ export function parseApiError(value: unknown): ApiError | null {
   return null;
 }
 import { expectNonNegativeInteger, expectRecord, expectString } from "./validation.ts";
+import { parseDiffContextMetadata, type DiffContextMetadata } from "./diff-context.ts";

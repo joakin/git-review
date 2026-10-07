@@ -37,6 +37,8 @@ import { readCommitDiffBatch } from "./commit-diff-batch.ts";
 import { readChangeDiffBatch } from "./change-diff-batch.ts";
 import { isValidUrlEncoding } from "../shared/validation.ts";
 import { isChangeSnapshotToken } from "../shared/change-snapshot.ts";
+import { readDiffContext } from "./diff-context.ts";
+import { maxContextBodyBytes } from "../shared/diff-context.ts";
 
 const maxBodyBytes = 4096;
 
@@ -296,6 +298,12 @@ async function handleApiRequest(
         );
       }
       return Response.json(await readReviewStatus(root, current));
+    }
+    if (url.pathname === "/api/project/diff-context" && request.method === "POST") {
+      onlyQueryKeys(url, []);
+      const body = await readJsonBody(request, maxContextBodyBytes);
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
+      return await readDiffContext(root, current, body, request.signal);
     }
     const diffBatchRoute = /^\/api\/project\/diffs$/.exec(url.pathname);
     if (diffBatchRoute !== null && request.method === "POST") {
