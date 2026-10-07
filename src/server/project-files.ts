@@ -15,6 +15,7 @@ import {
   withCheckedWorkingFile,
 } from "./working-files.ts";
 import { detectLanguage, highlightSource } from "./syntax.ts";
+import { maxSourceTextBytes, parseSourceText } from "./source-text.ts";
 import { fileImageResource, validImageHeader, workingVersion } from "./image-types.ts";
 import { fileAudioVideoResource, validAudioVideoHeader } from "./audio-video-types.ts";
 import {
@@ -30,8 +31,6 @@ import {
 } from "../shared/media-types.ts";
 
 const maxEntries = 1000;
-const maxTextBytes = 1024 * 1024;
-const maxLines = 20_000;
 
 export async function readProjectTree(
   root: ApprovedRoot,
@@ -250,16 +249,16 @@ async function readFile(
       byteLength: media.byteLength,
     };
   }
-  if (location.metadata.size > maxTextBytes)
+  if (location.metadata.size > maxSourceTextBytes)
     return { kind: "too_large", path: location.path, byteLength: location.metadata.size };
   const content = await withCheckedWorkingFile(
     root,
     project,
     location.path,
     async ({ file, metadata }) => {
-      if (metadata.size > maxTextBytes)
+      if (metadata.size > maxSourceTextBytes)
         return { kind: "too_large" as const, byteLength: metadata.size };
-      const bytes = Buffer.allocUnsafe(maxTextBytes + 1);
+      const bytes = Buffer.allocUnsafe(maxSourceTextBytes + 1);
       let size = 0;
       while (size < bytes.length) {
         const { bytesRead } = await file.read(bytes, size, bytes.length - size, null);
@@ -273,18 +272,11 @@ async function readFile(
     return { kind: "too_large", path: location.path, byteLength: content.byteLength };
   const bytes = content.bytes;
   const size = bytes.length;
-  if (size > maxTextBytes) return { kind: "too_large", path: location.path, byteLength: size };
-  let source: string;
-  try {
-    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, size));
-  } catch {
-    return { kind: "binary", path: location.path, byteLength: size };
-  }
-  if (source.includes("\0")) return { kind: "binary", path: location.path, byteLength: size };
-  source = source.replaceAll("\r\n", "\n");
+  const parsed = parseSourceText(bytes);
+  if (parsed.kind !== "text") return { kind: parsed.kind, path: location.path, byteLength: size };
+  const source = parsed.text.replaceAll("\r\n", "\n");
   const parts = source === "" ? [] : source.split("\n");
   if (source.endsWith("\n")) parts.pop();
-  if (parts.length > maxLines) return { kind: "too_large", path: location.path, byteLength: size };
   const language = requestedLanguage ?? detectLanguage(location.path);
   let syntax: SyntaxState = {
     kind: "plain",

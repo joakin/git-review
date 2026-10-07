@@ -27,9 +27,11 @@ symbolic-link, special-file, oversized, and unreadable inputs have explicit outc
 
 ## Boundaries and rationale
 
-The [file reader](../src/server/project-files.ts) owns directory ordering, entry/text limits, file
-classification, CRLF display normalization, and syntax fallback. It includes hidden files and omits
-Git control directories. Invalid UTF-8 and NUL-containing data are not rendered as source text.
+The [file reader](../src/server/project-files.ts) owns directory ordering, entry limits, file
+results, CRLF display normalization, and syntax fallback. The shared
+[source-text owner](../src/server/source-text.ts) supplies bounded decoding and line classification
+without normalizing source. Files includes hidden files and omits Git control directories. Invalid
+UTF-8 and NUL-containing data are not rendered as source text.
 [Shared response types and parsers](../src/shared/api.ts) define the wire format.
 
 [Checked working-file access](working-file-boundaries.md) confines reads to the selected project and

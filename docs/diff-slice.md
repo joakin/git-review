@@ -38,11 +38,11 @@ own safe access. Hunk counts, prefixes and line numbers must agree; source text,
 final newlines remain exact. Empty and mode-only changes retain meaningful metadata. Binary files,
 links, submodules, conflicts and oversized content have explicit states.
 
-Cards use the [batch contract](diff-batching-and-bulk-controls-proposal.md). Individual fallback
-matches a current inventory entry and checks status before and after reading. That route accepts an
-optional change token in addition to the revision; batch fallback supplies both. Stale results offer
-**New edits · Update** without automatically replacing the review or starting refresh loops. The
-[live-update record](live-change-detection-slice-proposal.md) owns recovery.
+Cards and individual fallback use the complete current snapshot required by the
+[batch contract](diff-batching-and-bulk-controls-proposal.md), including its before/after read
+checks. Stale results offer **New edits · Update** without automatically replacing the review or
+starting refresh loops. The [live-update record](live-change-detection-slice-proposal.md) owns
+recovery.
 
 [shared/api.ts](../src/shared/api.ts) defines the diff result and validates unknown responses,
 including hunk/line consistency and decoration reconstruction. The shared renderer supports

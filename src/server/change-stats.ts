@@ -15,7 +15,8 @@ import { readNumstatRecord } from "./git-numstat.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { AppError, type ApprovedRoot } from "./paths.ts";
 import { workingDiffPaths } from "./working-diff-paths.ts";
-import { maxWorkingTextBytes, parseWorkingText, readWorkingContent } from "./working-text.ts";
+import { maxSourceTextBytes, parseSourceText } from "./source-text.ts";
+import { readWorkingContent } from "./working-text.ts";
 
 const maxStatsBytes = 8 * 1024 * 1024;
 const maxUntrackedFiles = 1000;
@@ -199,7 +200,7 @@ async function untrackedStats(
           root,
           project,
           entry.path,
-          Math.min(maxWorkingTextBytes, remaining - 1),
+          Math.min(maxSourceTextBytes, remaining - 1),
           (bytes) => {
             if (bytes > remaining) return false;
             remaining -= bytes;
@@ -213,7 +214,7 @@ async function untrackedStats(
               ? { kind: "not_applicable", reason: "symlink" }
               : { kind: "binary" };
         else if (file.kind === "content") {
-          const text = parseWorkingText(file.content);
+          const text = parseSourceText(file.content);
           stats =
             text.kind === "too_large"
               ? readLimit

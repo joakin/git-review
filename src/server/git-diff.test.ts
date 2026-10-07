@@ -8,7 +8,7 @@ import {
   type DiffResult,
   type ProjectInventory,
 } from "../shared/api.ts";
-import { parseGitPatch, readProjectDiff } from "./git-diff.ts";
+import { diffFromContent, parseGitPatch, readProjectDiff } from "./git-diff.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { approveRoot, resolveProject } from "./paths.ts";
 import { readProjectFile } from "./project-files.ts";
@@ -211,6 +211,32 @@ test("diff source lines retain CRLF content", () => {
   const patch = Buffer.from("@@ -1 +1 @@\n-before\r\n+after\r\n");
   const diff = textDiff(parseGitPatch(patch));
   expect(diff.hunks[0]?.lines.map((line) => line.text)).toEqual(["before\r", "after\r"]);
+});
+
+test("content diffs keep exact source lines and final-newline anchors on either side", () => {
+  for (const [source, expected, noNewline] of [
+    ["", [], false],
+    ["\n", [""], false],
+    ["first\nlast", ["first", "last"], true],
+    ["first\r\nlast\r\n", ["first\r", "last\r"], false],
+    ["first\rlast", ["first\rlast"], true],
+  ] as const) {
+    for (const side of ["old", "new"] as const) {
+      const diff = textDiff(diffFromContent(Buffer.from(source), side));
+      const lines = diff.hunks.flatMap((hunk) => hunk.lines);
+      expect(lines.map((line) => line.text)).toEqual([...expected]);
+      expect(lines.map((line) => line.oldLine)).toEqual(
+        expected.map((_, index) => (side === "old" ? index + 1 : null)),
+      );
+      expect(lines.map((line) => line.newLine)).toEqual(
+        expected.map((_, index) => (side === "new" ? index + 1 : null)),
+      );
+      expect(lines.map((line) => line.noNewlineAtEnd)).toEqual(
+        expected.map((_, index) => noNewline && index === expected.length - 1),
+      );
+      expect(parseDiffResponse(diff)).toEqual(diff);
+    }
+  }
 });
 
 test("word detail follows clear pairs through a multi-line edit with an inserted row", () => {

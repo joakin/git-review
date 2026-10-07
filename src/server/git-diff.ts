@@ -6,10 +6,10 @@ import { readGitPath } from "./git-objects.ts";
 import { isWithinRoot, type ApprovedRoot } from "./paths.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { withWordDetails } from "./diff-words.ts";
-import { maxWorkingTextBytes, parseWorkingText, readWorkingContent } from "./working-text.ts";
+import { decodedText, maxSourceTextBytes, parseSourceText } from "./source-text.ts";
+import { readWorkingContent } from "./working-text.ts";
 import { workingDiffPaths } from "./working-diff-paths.ts";
 
-const maxTextBytes = maxWorkingTextBytes;
 const maxPatchBytes = 2 * 1024 * 1024;
 const maxDiffLines = 20_000;
 const noNewlineMarker = "\\ No newline at end of file";
@@ -32,13 +32,8 @@ function hunkNumber(value: string | undefined): number {
 
 export function parseGitPatch(output: Buffer): ParsedDiff {
   if (output.byteLength > maxPatchBytes) return { kind: "too_large" };
-  let patch: string;
-  try {
-    patch = new TextDecoder("utf-8", { fatal: true }).decode(output);
-  } catch {
-    return { kind: "binary", reason: "binary" };
-  }
-  if (patch.includes("\0")) return { kind: "binary", reason: "binary" };
+  const patch = decodedText(output, maxPatchBytes);
+  if (patch === null) return { kind: "binary", reason: "binary" };
   const rows = patch.split("\n");
   if (rows[rows.length - 1] === "") rows.pop();
   const hunks: DiffHunk[] = [];
@@ -157,7 +152,7 @@ export function parseGitPatch(output: Buffer): ParsedDiff {
 }
 
 export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): ParsedDiff {
-  const parsed = parseWorkingText(content);
+  const parsed = parseSourceText(content);
   if (parsed.kind !== "text") return parsed;
   const { text, hasFinalNewline } = parsed;
   if (text === "")
@@ -198,22 +193,15 @@ async function readUntrackedFile(
   return file.kind === "content" ? diffFromContent(file.content) : file;
 }
 
-export function decodedText(content: Buffer): string | null {
-  if (content.byteLength > maxTextBytes || content.includes(0)) return null;
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(content);
-  } catch {
-    return null;
-  }
-}
-
 async function readBlob(
   project: Project,
   kind: "head" | "index",
   path: string,
 ): Promise<string | null> {
   try {
-    return decodedText(await readGitPath(project.absolutePath, { kind, path }, maxTextBytes + 1));
+    return decodedText(
+      await readGitPath(project.absolutePath, { kind, path }, maxSourceTextBytes + 1),
+    );
   } catch (error: unknown) {
     if (error instanceof GitCommandError) return null;
     throw error;

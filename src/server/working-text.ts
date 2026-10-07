@@ -1,44 +1,20 @@
 import type { Project } from "../shared/api.ts";
 import { AppError, type ApprovedRoot } from "./paths.ts";
 import { checkedProjectPath, withCheckedWorkingFile } from "./working-files.ts";
+import { maxSourceTextBytes } from "./source-text.ts";
 
-export const maxWorkingTextBytes = 1024 * 1024;
-export const maxWorkingTextLines = 20_000;
 export type WorkingContent =
   | { kind: "content"; content: Buffer }
   | { kind: "binary"; reason: "binary" | "symlink" }
   | { kind: "too_large" }
   | { kind: "stale" };
-type WorkingText =
-  | { kind: "text"; text: string; lineCount: number; hasFinalNewline: boolean }
-  | { kind: "binary"; reason: "binary" }
-  | { kind: "too_large" };
-
-/** Shared source classification/counting without building diff rows or decorations. */
-export function parseWorkingText(content: Buffer): WorkingText {
-  if (content.byteLength > maxWorkingTextBytes) return { kind: "too_large" };
-  if (content.includes(0)) return { kind: "binary", reason: "binary" };
-  let text: string;
-  try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(content);
-  } catch {
-    return { kind: "binary", reason: "binary" };
-  }
-  const hasFinalNewline = text.endsWith("\n");
-  let lineCount = text === "" || hasFinalNewline ? 0 : 1;
-  for (let index = 0; index < text.length; index += 1) {
-    if (text.charCodeAt(index) === 10) lineCount += 1;
-    if (lineCount > maxWorkingTextLines) return { kind: "too_large" };
-  }
-  return { kind: "text", text, lineCount, hasFinalNewline };
-}
 
 /** Checked, bounded bytes used by working-copy diffs and untracked statistics. */
 export async function readWorkingContent(
   root: ApprovedRoot,
   project: Project,
   path: string,
-  maxBytes = maxWorkingTextBytes,
+  maxBytes = maxSourceTextBytes,
   reserveBytes: (byteLength: number) => boolean = () => true,
 ): Promise<WorkingContent> {
   try {

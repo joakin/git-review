@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { parseDiffResponse } from "../shared/api.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { diffFromContent, parseGitPatch } from "./git-diff.ts";
+import { decodedText, maxSourceTextLines, parseSourceText } from "./source-text.ts";
 
 function editedDiff() {
   const diff = parseGitPatch(
@@ -69,4 +70,30 @@ test("unavailable, rejected, or mismatched syntax sources retain the valid plain
       expect(parseDiffResponse(result)).toEqual(original);
     }
   }
+});
+
+test("small diffs retain syntax context from source beyond the display line limit", async () => {
+  const line = maxSourceTextLines + 1;
+  const prefix = "\n".repeat(maxSourceTextLines);
+  const oldContent = Buffer.from(prefix + "const value = false;\n");
+  const newContent = Buffer.from(prefix + "const value = true;\n");
+  expect(parseSourceText(oldContent)).toEqual({ kind: "too_large" });
+  expect(parseSourceText(newContent)).toEqual({ kind: "too_large" });
+  const diff = parseGitPatch(
+    Buffer.from(`@@ -${line} +${line} @@\n-const value = false;\n+const value = true;\n`),
+  );
+  if (diff.kind !== "text") throw new Error("Expected the small changed hunk");
+  const decorated = await withDiffSyntax(
+    diff,
+    "source.ts",
+    null,
+    async () => decodedText(oldContent),
+    async () => decodedText(newContent),
+  );
+  expect(decorated.syntax).toEqual({ kind: "highlighted", language: "typescript" });
+  expect(decorated.hunks[0]?.lines.map((row) => row.text)).toEqual([
+    "const value = false;",
+    "const value = true;",
+  ]);
+  expect(parseDiffResponse(decorated)).toEqual(decorated);
 });

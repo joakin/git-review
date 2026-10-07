@@ -1,9 +1,12 @@
 import { expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { approveRoot, resolveProject } from "./paths.ts";
 import { readProjectFile, readProjectTree } from "./project-files.ts";
+import { maxSourceTextBytes, maxSourceTextLines } from "./source-text.ts";
+import { withTempDirectory } from "../test-support.ts";
 
 test("working-tree browsing stays in a non-Git project and never follows links", async () => {
   const base = await mkdtemp(join(tmpdir(), "git-review-files-"));
@@ -85,4 +88,110 @@ test("file reader classifies binary, oversized, empty, and disappeared files", a
   } finally {
     await rm(base, { recursive: true, force: true });
   }
+});
+
+test("Files display normalizes only CRLF and preserves blank and unterminated lines", async () => {
+  await withTempDirectory("git-review-display-lines-", async (directory) => {
+    const root = await approveRoot(directory);
+    const project = await resolveProject(root, root.realPath);
+    for (const [source, expected] of [
+      ["", []],
+      ["\n", [""]],
+      ["\n\n", ["", ""]],
+      ["first\r\nlast", ["first", "last"]],
+      ["first\r\nlast\r\n", ["first", "last"]],
+      ["first\rlast", ["first\rlast"]],
+    ] as const) {
+      await writeFile(join(directory, "source.txt"), source);
+      const result = await readProjectFile(root, project, "source.txt", "text");
+      if (result.kind !== "text") throw new Error("Expected displayed source");
+      expect(result.byteLength).toBe(Buffer.byteLength(source));
+      expect(result.lines.map((line) => line.text)).toEqual([...expected]);
+    }
+  });
+});
+
+test("Files accepts exact UTF-8 byte and display line limits", async () => {
+  await withTempDirectory("git-review-file-limits-", async (directory) => {
+    const root = await approveRoot(directory);
+    const project = await resolveProject(root, root.realPath);
+    const byteSource = "é".repeat(maxSourceTextBytes / 2);
+    await writeFile(join(directory, "bytes.txt"), byteSource);
+    const bytes = await readProjectFile(root, project, "bytes.txt", "text");
+    if (bytes.kind !== "text") throw new Error("Expected source at the exact byte limit");
+    expect(bytes.byteLength).toBe(maxSourceTextBytes);
+    expect(bytes.lines.map((line) => line.text)).toEqual([byteSource]);
+    await writeFile(join(directory, "lines.txt"), "\r\n".repeat(maxSourceTextLines));
+    const lines = await readProjectFile(root, project, "lines.txt", "text");
+    if (lines.kind !== "text") throw new Error("Expected source at the exact line limit");
+    expect(lines.lines.length).toBe(maxSourceTextLines);
+    expect(lines.lines.every((line) => line.text === "")).toBe(true);
+  });
+});
+
+test("Files reads growth within its byte budget and refuses growth beyond it", async () => {
+  await withTempDirectory("git-review-file-growth-", async (directory) => {
+    for (const exceedsLimit of [false, true]) {
+      await writeFile(join(directory, "source.txt"), "first\n");
+      // Isolate the descriptor read gate so other tests always use the real filesystem methods.
+      const output = execFileSync(
+        process.execPath,
+        [
+          "--eval",
+          `
+            import { appendFileSync } from "node:fs";
+            import { open } from "node:fs/promises";
+            import { approveRoot, resolveProject } from ${JSON.stringify(new URL("./paths.ts", import.meta.url).href)};
+            import { readProjectFile } from ${JSON.stringify(new URL("./project-files.ts", import.meta.url).href)};
+            import { maxSourceTextBytes } from ${JSON.stringify(new URL("./source-text.ts", import.meta.url).href)};
+            const directory = ${JSON.stringify(directory)};
+            const root = await approveRoot(directory);
+            const project = await resolveProject(root, root.realPath);
+            const path = directory + "/source.txt";
+            const reference = await open(path, "r");
+            const identity = await reference.stat();
+            const prototype = Object.getPrototypeOf(reference);
+            const descriptor = Object.getOwnPropertyDescriptor(prototype, "read");
+            if (descriptor === undefined) throw new Error("Missing descriptor read method");
+            let appended = false;
+            Object.defineProperty(prototype, "read", {
+              ...descriptor,
+              value: async function (...args) {
+                const current = await this.stat();
+                if (!appended && current.dev === identity.dev && current.ino === identity.ino) {
+                  appended = true;
+                  appendFileSync(path, ${exceedsLimit} ? "x".repeat(maxSourceTextBytes) : "last\\n");
+                }
+                return descriptor.value.apply(this, args);
+              },
+            });
+            try {
+              const result = await readProjectFile(root, project, "source.txt", "text");
+              console.log(JSON.stringify({ appended, result }));
+            } finally {
+              Object.defineProperty(prototype, "read", descriptor);
+              await reference.close();
+            }
+          `,
+        ],
+        { encoding: "utf8", timeout: 10_000 },
+      );
+      const observed: unknown = JSON.parse(output);
+      expect(observed).toEqual({
+        appended: true,
+        result: exceedsLimit
+          ? { kind: "too_large", path: "source.txt", byteLength: maxSourceTextBytes + 1 }
+          : {
+              kind: "text",
+              path: "source.txt",
+              byteLength: 11,
+              syntax: { kind: "plain", reason: "selected" },
+              lines: [
+                { number: 1, text: "first", tokens: [{ text: "first", role: "plain" }] },
+                { number: 2, text: "last", tokens: [{ text: "last", role: "plain" }] },
+              ],
+            },
+      });
+    }
+  });
 });

@@ -31,17 +31,16 @@ describes implementation risk, not defect severity. The proposed slices are deli
 than a wholesale rewrite. Completed documentation, accepted code changes, and the current review
 slice are recorded below.
 
-| ID  | Finding                                                        | Area          | Risk       |
-| --- | -------------------------------------------------------------- | ------------- | ---------- |
-| S14 | Share text classification while retaining source-read policies | Server        | Medium     |
-| S15 | Separate pure diff parsing from working-copy orchestration     | Server        | Low        |
-| S16 | Share the Git raw-record parser                                | Server        | Medium     |
-| S17 | Simplify media inspection and result mapping                   | Server        | Medium     |
-| S18 | Share repeated headings and selected working-file wiring       | Client        | Medium     |
-| S19 | Resolve diff-row feedback side in one place                    | Client        | Low–medium |
-| S20 | Group identical Files/diff code-pane CSS                       | Client/styles | Low–medium |
-| S22 | Share QA dimensions without changing emulation options         | QA            | Medium     |
-| S23 | Reuse existing Git fixture helpers in older QA callers         | QA            | Low–medium |
+| ID  | Finding                                                    | Area          | Risk       |
+| --- | ---------------------------------------------------------- | ------------- | ---------- |
+| S15 | Separate pure diff parsing from working-copy orchestration | Server        | Low        |
+| S16 | Share the Git raw-record parser                            | Server        | Medium     |
+| S17 | Simplify media inspection and result mapping               | Server        | Medium     |
+| S18 | Share repeated headings and selected working-file wiring   | Client        | Medium     |
+| S19 | Resolve diff-row feedback side in one place                | Client        | Low–medium |
+| S20 | Group identical Files/diff code-pane CSS                   | Client/styles | Low–medium |
+| S22 | Share QA dimensions without changing emulation options     | QA            | Medium     |
+| S23 | Reuse existing Git fixture helpers in older QA callers     | QA            | Low–medium |
 
 ## Completed documentation items
 
@@ -153,6 +152,20 @@ Independent client review found no actionable issues. Isolated Chrome checks pas
 rendering, raw SVG isolation, staged/Files audio and video loading and seeking, and raw ranges.
 Physical-device playback remains unverified.
 
+### S14 — Share text classification while retaining source-read policies
+
+The neutral [source-text owner](../src/server/source-text.ts) supplies exact byte-bounded decoding
+and line-limited classification to Files, working diffs/statistics, patches, and historical sources.
+Syntax decoding retains complete source snapshots without a line limit. Files alone normalizes CRLF
+for display; the Files and working-content readers retain their distinct growth, reservation, and
+error policies. The [Files record](file-browser-slice-proposal.md) links the new owner; the diff
+record also corrects a stale optional-snapshot description left from S11.
+
+All five TypeScript configurations and 51 focused tests passed. New coverage includes exact UTF-8
+byte/line bounds, line endings, source fidelity, syntax beyond the display line limit, and
+deterministic real-filesystem growth checks with isolated descriptor gating. Independent review and
+the static gate are recorded at commit. No visible layout changed.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -168,23 +181,7 @@ retry/lifecycle abstraction would add complexity. No application change is neede
 remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) owns the deliberate
 reset and current-format behavior.
 
-## Compatibility and shared boundaries
-
 ## Server organization and mechanisms
-
-### S14 — Share text classification while retaining source-read policies
-
-**Evidence:** [Files](../src/server/project-files.ts), lines 33–34 and 250–282, repeats text
-budgets, fatal UTF-8 decoding, NUL classification, final-newline handling, and line limits already
-present in [working-text.ts](../src/server/working-text.ts), lines 5–33.
-[git-diff.ts](../src/server/git-diff.ts), lines 201–207, contains another bounded decoder.
-
-**Proposed slice:** share source-text budgets and decoding/classification in a neutrally named text
-owner. Keep Files display conversion and each reader's errors/growth policy separate. Files
-normalizes CRLF; diff anchors preserve exact CRLF. Syntax source decoding currently differs from
-display line-count classification, so retain those entrypoint semantics. Do not blindly replace the
-Files reader with `readWorkingContent`. Verify empty/final-newline/CRLF/invalid UTF-8/NUL inputs,
-exact limits, growth, missing-file errors, and existing file/diff/statistics tests.
 
 ### S15 — Separate pure diff parsing from working-copy orchestration
 

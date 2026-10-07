@@ -23,7 +23,8 @@ import {
   type GitContext,
 } from "./git-context.ts";
 import { hasGitObject, readGitBlob } from "./git-objects.ts";
-import { decodedText, diffFromContent, parseGitPatch } from "./git-diff.ts";
+import { diffFromContent, parseGitPatch } from "./git-diff.ts";
+import { decodedText, maxSourceTextBytes } from "./source-text.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { commitParents, readCommitStats, readHistoryStats } from "./git-stats.ts";
 
@@ -400,7 +401,7 @@ export async function readCommitDiff(
       const selected = file.new.kind === "present" ? file.new : file.old;
       if (selected.kind === "absent") throw new Error("Missing commit file content");
       diff = diffFromContent(
-        await readGitBlob(project.absolutePath, selected.oid, 1024 * 1024 + 1),
+        await readGitBlob(project.absolutePath, selected.oid, maxSourceTextBytes + 1),
         file.new.kind === "present" ? "new" : "old",
       );
     }
@@ -413,7 +414,7 @@ export async function readCommitDiff(
   const readSide = async (side: CommitFileSide): Promise<string | null> => {
     if (side.kind === "absent") return "";
     try {
-      return decodedText(await readGitBlob(project.absolutePath, side.oid, 1024 * 1024 + 1));
+      return decodedText(await readGitBlob(project.absolutePath, side.oid, maxSourceTextBytes + 1));
     } catch (error: unknown) {
       if (error instanceof GitCommandError) return null;
       throw error;
