@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project } from "../shared/api.ts";
 import { fetchProjectDiff, fetchProjectFile, fetchProjectStatus } from "./api.ts";
+import { checkContextAnchors } from "./diff-context-api.ts";
 import {
   canReattachAnchor,
   maxDrafts,
@@ -121,6 +122,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       },
       fetchStatus: fetchProjectStatus,
       fetchDiff: fetchProjectDiff,
+      fetchContext: checkContextAnchors,
       fetchFile: fetchProjectFile,
       writeText: async (text) => {
         if (navigator.clipboard?.writeText === undefined)

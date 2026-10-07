@@ -103,7 +103,9 @@ function deferred<T>() {
 type Ports = ConstructorParameters<typeof FeedbackTransactions>[0];
 function harness(
   drafts: DraftComment[] = [draft("one")],
-  overrides: Partial<Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchFile" | "writeText">> = {},
+  overrides: Partial<
+    Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchContext" | "fetchFile" | "writeText">
+  > = {},
 ) {
   let current: CommentStore | null = { ...emptyCommentStore(project.absolutePath), drafts };
   const states: FeedbackState[] = [];
@@ -119,6 +121,8 @@ function harness(
     onCopied: (value) => copied.push(value),
     fetchStatus: overrides.fetchStatus ?? (async () => status),
     fetchDiff: overrides.fetchDiff ?? (async () => diff),
+    fetchContext:
+      overrides.fetchContext ?? (async (_project, _file, anchors) => anchors.map(() => false)),
     fetchFile:
       overrides.fetchFile ??
       (async () => {
@@ -163,6 +167,43 @@ function heldClipboard() {
 }
 
 describe("owned feedback transactions", () => {
+  test("revealed-line feedback survives fresh checks without saved expansion state, and read failures block copying", async () => {
+    const revealed = draft("revealed");
+    revealed.anchor = {
+      ...revealed.anchor,
+      line: 40,
+      sourceText: "revealed source",
+      before: "before",
+      after: "after",
+    };
+    const success = harness([revealed], {
+      fetchContext: async (_project, file, anchors) => {
+        expect(file.language).toBe("text");
+        expect(anchors).toEqual([
+          {
+            side: "new",
+            line: 40,
+            sourceText: "revealed source",
+            before: "before",
+            after: "after",
+          },
+        ]);
+        return [true];
+      },
+    });
+    await success.transactions.copy(project);
+    expect(success.written[0]).toContain("revealed source");
+    expect(success.store.drafts).toHaveLength(0);
+    const failure = harness([revealed], {
+      fetchContext: async () => {
+        throw new Error("Permission denied");
+      },
+    });
+    await failure.transactions.copy(project);
+    expect(failure.written).toHaveLength(0);
+    expect(failure.store.drafts).toHaveLength(1);
+    expect(failure.state.check.kind).toBe("error");
+  });
   test("feedback checks both snapshot tokens and retries an edit behind unchanged status", async () => {
     let changeToken = status.changeToken;
     const snapshots: ChangeSnapshot[] = [];

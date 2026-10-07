@@ -1,4 +1,5 @@
 import type { Project } from "../shared/api.ts";
+import type { checkContextAnchors } from "./diff-context-api.ts";
 import {
   ApiRequestError,
   type fetchProjectDiff,
@@ -33,6 +34,7 @@ type FeedbackPorts = {
   onCopied: (result: CopyResult) => void;
   fetchStatus: typeof fetchProjectStatus;
   fetchDiff: typeof fetchProjectDiff;
+  fetchContext: typeof checkContextAnchors;
   fetchFile: typeof fetchProjectFile;
   writeText: (text: string) => Promise<void>;
 };
@@ -84,6 +86,7 @@ export class FeedbackTransactions {
   ): Promise<CheckedComments> {
     const diffDrafts = snapshot.drafts.filter((draft) => draft.anchor.kind === "diff");
     const results = new Map<string, Awaited<ReturnType<typeof fetchProjectDiff>>>();
+    const contextMatches = new Map<string, boolean>();
     if (diffDrafts.length > 0) {
       const latest = await this.ports.fetchStatus(snapshot.projectPath, signal);
       signal.throwIfAborted();
@@ -111,6 +114,36 @@ export class FeedbackTransactions {
           if (result.kind === "stale")
             throw new Error("The files changed during checking. Try again.");
           results.set(key, result);
+          const missing = diffDrafts.filter(
+            (draft) =>
+              draft.anchor.kind === "diff" &&
+              draft.anchor.layer === anchor.layer &&
+              draft.anchor.path === anchor.path &&
+              !anchorMatches(result, draft.anchor),
+          );
+          const anchors = missing.map((draft) => {
+            if (draft.anchor.kind !== "diff") throw new Error("Expected diff anchor");
+            const { side, line, sourceText, before, after } = draft.anchor;
+            return { side, line, sourceText, before, after };
+          });
+          if (anchors.length > 0) {
+            const matches = await this.ports.fetchContext(
+              snapshot.projectPath,
+              {
+                revision: latest.revision,
+                changeToken: latest.changeToken,
+                layer: anchor.layer,
+                path: anchor.path,
+                language: "text",
+              },
+              anchors,
+              signal,
+            );
+            signal.throwIfAborted();
+            missing.forEach((draft, index) =>
+              contextMatches.set(JSON.stringify(draft.anchor), matches[index] === true),
+            );
+          }
         }
     }
     const files = new Map<string, Awaited<ReturnType<typeof fetchProjectFile>> | null>();
@@ -146,7 +179,9 @@ export class FeedbackTransactions {
         let current = false;
         if (anchor.kind === "diff") {
           const result = results.get(`${anchor.layer}:${anchor.path}`);
-          current = result !== undefined && anchorMatches(result, anchor);
+          current =
+            result !== undefined &&
+            (anchorMatches(result, anchor) || contextMatches.get(JSON.stringify(anchor)) === true);
         } else {
           const result = files.get(anchor.path);
           current = result !== undefined && result !== null && fileAnchorMatches(result, anchor);

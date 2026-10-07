@@ -218,6 +218,52 @@ test("large source capability falls back without losing a small patch or imposin
   });
 });
 
+test("source anchor checks remain available when the ordinary patch exceeds its display budget", async () => {
+  await withTempDirectory("git-review-context-anchor-budget-", async (directory) => {
+    testGit(directory, "init", "-q");
+    const lines = Array.from({ length: 20_005 }, (_, i) => `original ${i}`);
+    await writeFile(join(directory, "many.txt"), lines.join("\n") + "\n");
+    testGit(directory, "add", ".");
+    testGit(directory, "commit", "-qm", "base");
+    await writeFile(
+      join(directory, "many.txt"),
+      lines.map((line, i) => (i < 2 ? line : `changed ${i}`)).join("\n") + "\n",
+    );
+    const root = await approveRoot(directory);
+    const project = await resolveProject(root, root.realPath);
+    const status = await readProjectStatus(project.absolutePath);
+    if (status.kind !== "git") throw new Error("Expected Git fixture");
+    const entry = status.entries[0];
+    if (entry === undefined) throw new Error("Missing fixture entry");
+    expect((await readProjectDiff(root, project, entry, "text")).kind).toBe("too_large");
+    const request: DiffContextRequest = {
+      kind: "check",
+      revision: status.revision,
+      changeToken: status.changeToken,
+      layer: entry.layer,
+      path: entry.path,
+      language: "text",
+      anchors: [
+        { side: "new", line: 1, sourceText: "original 0", before: null, after: "original 1" },
+      ],
+    };
+    const response = await createApiHandler(root)(
+      new Request(
+        projectRequestUrl("http://localhost/api/project/diff-context", project.absolutePath),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    );
+    expect(parseDiffContextResponse(await response.json(), request, null)).toEqual({
+      kind: "checked",
+      matches: [true],
+    });
+  });
+});
+
 test("context boundaries reject malformed metadata, response coordinates and oversized anchor input", () => {
   const patch = text(parseGitPatch(Buffer.from("@@ -2 +2 @@\n-old\n+new\n")));
   const content = diffContextContent(patch, "a\nold\nc\n", "a\nnew\nc\n");

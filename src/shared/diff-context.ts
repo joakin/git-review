@@ -124,7 +124,7 @@ export function parseDiffContextMetadata(
 
 function anchorText(value: unknown): string {
   const text = expectString(value, "anchor source text");
-  if (text.length > maxContextAnchorText || text.includes("\n"))
+  if (text.length > maxContextAnchorText || text.includes("\n") || text.includes("\0"))
     throw new Error("Invalid anchor text");
   return text;
 }
@@ -242,6 +242,7 @@ export function parseDiffContextResponse(
   const lines = (parsed.hunks[0]?.lines ?? []).map((line, index): DiffContextLine => {
     if (
       line.kind !== "context" ||
+      line.text.includes("\0") ||
       line.detail.kind !== "none" ||
       line.oldLine !== gap.oldStart + offset + index ||
       line.newLine !== gap.newStart + offset + index

@@ -81,6 +81,7 @@ function harness(
   let state: FeedbackState = { check: { kind: "idle" }, copy: { kind: "idle" } };
   const written: string[] = [];
   const engine = new FeedbackTransactions({
+    fetchContext: async (_project, _file, anchors) => anchors.map(() => false),
     readStore: () => store,
     updateStore: (change) => (store = change(store)),
     onState: (next) => {
