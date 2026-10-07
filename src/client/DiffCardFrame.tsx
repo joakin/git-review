@@ -6,6 +6,7 @@ import { DelayedLoading } from "./DelayedLoading.tsx";
 import { DiffBody, type DiffInteraction } from "./DiffBody.tsx";
 import { LanguagePicker } from "./LanguagePicker.tsx";
 import type { DiffState } from "./diff-loading.ts";
+import type { DiffContextControl } from "./use-diff-context.ts";
 
 type DiffCardMode =
   | (Extract<DiffInteraction, { kind: "review" }> & { entry: ReviewChangeEntry })
@@ -78,6 +79,7 @@ export function DiffCardFrame({
   requestKey,
   retry,
   wrap,
+  context = null,
 }: {
   mode: DiffCardMode;
   id: string;
@@ -90,6 +92,7 @@ export function DiffCardFrame({
   requestKey: string;
   retry: () => void;
   wrap: boolean;
+  context?: DiffContextControl | null;
 }) {
   const sticky = usePinnedHeading(expanded && mode.kind === "review");
   const path = mode.kind === "review" ? mode.entry.path : mode.file.path;
@@ -175,7 +178,7 @@ export function DiffCardFrame({
             </div>
           )}
           {current.kind === "ready" && (
-            <DiffBody result={current.value} wrap={wrap} interaction={mode} />
+            <DiffBody result={current.value} wrap={wrap} interaction={mode} context={context} />
           )}
         </div>
       )}

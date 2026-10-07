@@ -6,6 +6,7 @@ import { diffCacheKey } from "./diff-cache.ts";
 import { useDiffLoading } from "./diff-loading.ts";
 import { useLanguageOverride } from "./language-override.ts";
 import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
+import { useDiffContext } from "./use-diff-context.ts";
 
 type DiffCardProps = ChangeSnapshot & {
   entry: ReviewChangeEntry;
@@ -73,6 +74,20 @@ export function DiffCard({
     },
   });
 
+  const context = useDiffContext(
+    expanded,
+    {
+      projectPath,
+      layer: entry.layer,
+      path: entry.path,
+      revision,
+      changeToken,
+      refreshKey,
+      language: effectiveOverride,
+    },
+    current.kind === "ready" ? current.value : null,
+    onStale,
+  );
   return (
     <DiffCardFrame
       mode={{ kind: "review", projectPath, entry, onComment, drafts, reattachSide }}
@@ -86,6 +101,7 @@ export function DiffCard({
       requestKey={requestKey}
       retry={retry}
       wrap={wrap}
+      context={context}
     />
   );
 }

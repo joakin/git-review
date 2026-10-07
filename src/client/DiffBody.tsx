@@ -14,6 +14,11 @@ import {
 import { SelectableCode } from "./code-selection.tsx";
 import { MediaDiff } from "./MediaPreview.tsx";
 import { decorateDiffTokens } from "./diff-detail.ts";
+import type { DiffContextLine } from "../shared/diff-context.ts";
+import type { DiffContextControl } from "./use-diff-context.ts";
+import { anchorForContextLine } from "./diff-context-anchor.ts";
+import { DiffContextGap } from "./DiffContextGap.tsx";
+import { contextDisplayResource, emptyContext } from "./diff-context-state.ts";
 
 export type DiffInteraction =
   | {
@@ -38,7 +43,13 @@ type LineAction = {
   width: number;
 };
 
-type LineReveal = (hunk: DiffHunk, index: number, row: HTMLElement, clientX: number) => void;
+type LineReveal = (
+  hunk: DiffHunk,
+  index: number,
+  row: HTMLElement,
+  clientX: number,
+  context: DiffContextLine | null,
+) => void;
 type DraftCounts = Record<ReviewSide, ReadonlyMap<number, number>>;
 
 function preferredSide(kind: DiffLine["kind"], reattachSide: ReviewSide | null): ReviewSide {
@@ -66,6 +77,7 @@ const DiffRow = memo(function DiffRow({
   newCount,
   onReveal,
   onComment,
+  contextLine,
 }: {
   resource: DiffResult;
   hunk: DiffHunk;
@@ -76,17 +88,24 @@ const DiffRow = memo(function DiffRow({
   newCount: number;
   onReveal: LineReveal;
   onComment: (anchor: DiffCommentAnchor) => void;
+  contextLine: DiffContextLine | null;
 }) {
-  const lineTap = useLineTap((_, row, x) => onReveal(hunk, index, row, x));
+  const lineTap = useLineTap((_, row, x) => onReveal(hunk, index, row, x, contextLine));
   const anchors = useMemo(
     () =>
       source.kind === "review"
         ? {
-            old: anchorForLine(source.entry.layer, source.entry.path, hunk, index, "old"),
-            new: anchorForLine(source.entry.layer, source.entry.path, hunk, index, "new"),
+            old:
+              contextLine === null
+                ? anchorForLine(source.entry.layer, source.entry.path, hunk, index, "old")
+                : anchorForContextLine(source.entry.layer, source.entry.path, contextLine, "old"),
+            new:
+              contextLine === null
+                ? anchorForLine(source.entry.layer, source.entry.path, hunk, index, "new")
+                : anchorForContextLine(source.entry.layer, source.entry.path, contextLine, "new"),
           }
         : null,
-    [source, hunk, index],
+    [source, hunk, index, contextLine],
   );
   const tokens = useMemo(
     () =>
@@ -114,7 +133,7 @@ const DiffRow = memo(function DiffRow({
           onClick={(event) => {
             const row = event.currentTarget.parentElement;
             if (row instanceof HTMLElement)
-              onReveal(hunk, index, row, row.getBoundingClientRect().left + 100);
+              onReveal(hunk, index, row, row.getBoundingClientRect().left + 100, contextLine);
           }}
         >
           {number}
@@ -140,6 +159,8 @@ const DiffRow = memo(function DiffRow({
   return (
     <div
       class={`diff-row diff-row-${line.kind}`}
+      data-old-line={line.oldLine}
+      data-new-line={line.newLine}
       key={`${index}:${line.oldLine ?? ""}:${line.newLine ?? ""}`}
       {...lineTap(index)}
     >
@@ -156,7 +177,7 @@ const DiffRow = memo(function DiffRow({
           const row = event.currentTarget.parentElement;
           if (row instanceof HTMLElement) {
             const rect = row.getBoundingClientRect();
-            onReveal(hunk, index, row, rect.left + Math.min(rect.width / 2, 140));
+            onReveal(hunk, index, row, rect.left + Math.min(rect.width / 2, 140), contextLine);
           }
         }}
       />
@@ -185,6 +206,8 @@ const HunkRows = memo(function HunkRows({
   draftCounts,
   onReveal,
   onComment,
+  contextLines,
+  heading,
 }: {
   resource: DiffResult;
   hunk: DiffHunk;
@@ -192,12 +215,16 @@ const HunkRows = memo(function HunkRows({
   draftCounts: DraftCounts;
   onReveal: LineReveal;
   onComment: (anchor: DiffCommentAnchor) => void;
+  contextLines: readonly DiffContextLine[] | null;
+  heading: boolean;
 }) {
   return (
     <div class="diff-hunk">
-      <div class="diff-hunk-label">
-        <span>{`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`}</span>
-      </div>
+      {heading && (
+        <div class="diff-hunk-label">
+          <span>{`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`}</span>
+        </div>
+      )}
       <CodeRenderBlocks>
         {hunk.lines.map((line, index) => (
           <DiffRow
@@ -206,6 +233,7 @@ const HunkRows = memo(function HunkRows({
             hunk={hunk}
             index={index}
             line={line}
+            contextLine={contextLines?.[index] ?? null}
             source={source}
             oldCount={line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)}
             newCount={line.newLine === null ? 0 : (draftCounts.new.get(line.newLine) ?? 0)}
@@ -222,13 +250,18 @@ export function DiffBody({
   result,
   wrap,
   interaction,
+  context = null,
 }: {
   result: DiffResult;
   wrap: boolean;
   interaction: DiffInteraction;
+  context?: DiffContextControl | null;
 }) {
   const [action, setAction] = useLineAction<LineAction>(result, wrap);
-  const codePane = useCodeRendering(result, wrap);
+  const codePane = useCodeRendering(
+    contextDisplayResource(result, context?.data ?? emptyContext),
+    wrap,
+  );
   const rowCount = useMemo(
     () =>
       result.kind === "text"
@@ -262,7 +295,13 @@ export function DiffBody({
   });
 
   const reveal: LineReveal = useStableCallback(
-    (hunk: DiffHunk, index: number, row: HTMLElement, clientX: number) => {
+    (
+      hunk: DiffHunk,
+      index: number,
+      row: HTMLElement,
+      clientX: number,
+      contextLine: DiffContextLine | null,
+    ) => {
       const line = hunk.lines[index];
       if (line === undefined) return;
       const position = lineActionPosition(row, clientX);
@@ -270,13 +309,21 @@ export function DiffBody({
       let action: LineAction["action"];
       if (interaction.kind === "inspect") action = { kind: "inspect" };
       else {
-        const anchor = anchorForLine(
-          interaction.entry.layer,
-          interaction.entry.path,
-          hunk,
-          index,
-          preferredSide(line.kind, interaction.reattachSide),
-        );
+        const anchor =
+          contextLine !== null
+            ? anchorForContextLine(
+                interaction.entry.layer,
+                interaction.entry.path,
+                contextLine,
+                preferredSide(line.kind, interaction.reattachSide),
+              )
+            : anchorForLine(
+                interaction.entry.layer,
+                interaction.entry.path,
+                hunk,
+                index,
+                preferredSide(line.kind, interaction.reattachSide),
+              );
         if (anchor === null) return;
         const count =
           (line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)) +
@@ -329,25 +376,91 @@ export function DiffBody({
     );
   return (
     <>
+      {result.context?.kind === "unavailable" && (
+        <p class="diff-message diff-context-notice">
+          {result.context.reason === "limit"
+            ? "More context is unavailable: the source exceeds the current read limit."
+            : "More context is unavailable for this source."}
+        </p>
+      )}
+      {context?.activity.kind === "loading" && context.activity.gap === null && (
+        <p class="diff-message" role="status">
+          Updating context highlighting…
+        </p>
+      )}
+      {context?.activity.kind === "error" && context.activity.gap === null && (
+        <p class="diff-message" role="alert">
+          {context.activity.message}{" "}
+          <button type="button" onClick={context.retry}>
+            Retry
+          </button>
+        </p>
+      )}
       <div
         class={`diff-scroll${wrap ? " diff-scroll-wrap" : ""}`}
         aria-label="File diff"
         ref={codePane.ref}
         data-code-contained={codePane.contained ? "" : undefined}
-        style={{ "--code-row-count": rowCount, "--code-hunk-count": result.hunks.length }}
+        style={{
+          "--code-row-count":
+            rowCount +
+            (context?.data.chunks.reduce((sum, chunk) => sum + chunk.lines.length, 0) ?? 0),
+          "--code-hunk-count": result.hunks.length,
+        }}
       >
         <div class="diff-scroll-content">
-          {result.hunks.map((hunk, index) => (
-            <HunkRows
-              resource={result}
-              hunk={hunk}
-              source={source}
-              onComment={onComment}
-              draftCounts={draftCounts}
-              onReveal={reveal}
-              key={`${index}:${hunk.oldStart}:${hunk.newStart}`}
-            />
-          ))}
+          {Array.from({ length: result.hunks.length + 1 }, (_, index) => {
+            const hunk = result.hunks[index];
+            const gap =
+              result.context?.kind === "available"
+                ? result.context.gaps.find((gap) => gap.id === index)
+                : undefined;
+            const chunks =
+              context?.data.chunks
+                .filter((chunk) => chunk.gap === index)
+                .sort((a, b) => a.offset - b.offset) ?? [];
+            const rows = (direction: "up" | "down") =>
+              chunks
+                .filter((chunk) => chunk.direction === direction)
+                .map((chunk) => (
+                  <HunkRows
+                    resource={result}
+                    hunk={chunk.hunk}
+                    source={source}
+                    onComment={onComment}
+                    draftCounts={draftCounts}
+                    onReveal={reveal}
+                    contextLines={chunk.lines}
+                    heading={false}
+                    key={`context:${index}:${chunk.offset}`}
+                  />
+                ));
+            return [
+              ...rows("down"),
+              gap !== undefined && context !== null ? (
+                <DiffContextGap
+                  gap={gap}
+                  hunkCount={result.hunks.length}
+                  control={context}
+                  key={`gap:${index}`}
+                />
+              ) : null,
+              ...rows("up"),
+              hunk === undefined ? null : (
+                <HunkRows
+                  resource={result}
+                  hunk={hunk}
+                  source={source}
+                  onComment={onComment}
+                  draftCounts={draftCounts}
+                  onReveal={reveal}
+                  contextLines={null}
+                  heading={context === null}
+                  key={`${index}:${hunk.oldStart}:${hunk.newStart}`}
+                />
+              ),
+            ];
+          })}
         </div>
       </div>
       {action !== null && (
