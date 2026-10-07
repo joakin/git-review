@@ -33,7 +33,6 @@ slice are recorded below.
 
 | ID  | Finding                                                  | Area          | Risk       |
 | --- | -------------------------------------------------------- | ------------- | ---------- |
-| S16 | Share the Git raw-record parser                          | Server        | Medium     |
 | S17 | Simplify media inspection and result mapping             | Server        | Medium     |
 | S18 | Share repeated headings and selected working-file wiring | Client        | Medium     |
 | S19 | Resolve diff-row feedback side in one place              | Client        | Low–medium |
@@ -178,6 +177,20 @@ including root/parent history, SHA-256, subtree renames, media, batching, syntax
 Independent server review found no actionable issues and confirmed the constructor and test bodies
 were unchanged. The [diff record](diff-slice.md) links the new owners.
 
+### S16 — Share the Git raw-record parser
+
+The [raw-record reader](../src/server/git-raw.ts) now validates common modes, complete object IDs,
+status/score variants, paths, and record consumption. History and statistics retain their own
+UTF-8/NUL wrappers, subtree/absence/conflict policy, origin matching, and aggregation. The pure
+history inventory parser is directly testable. The [Git boundary record](git-read-boundaries.md)
+links the shared mechanics without duplicating their format.
+
+All five TypeScript configurations and 33 focused tests passed. New regression coverage separates
+history's absence/format/conflict policy from statistics and exercises malformed records, literal
+names, scored renames/copies, scope, and aggregation. The author also compared 28,224 baseline/new
+acceptance and result combinations. Independent client review found no actionable issues; static QA
+also passed.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -194,20 +207,6 @@ remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) 
 reset and current-format behavior.
 
 ## Server organization and mechanisms
-
-### S16 — Share the Git raw-record parser
-
-**Evidence:** [historical inventory](../src/server/git-history.ts), lines 195–224, and
-[change statistics](../src/server/change-stats.ts), lines 43–75, both parse NUL records, modes,
-object IDs, status, rename scores, and one/two paths. The adjacent numeric format already has a
-shared [numstat reader](../src/server/git-numstat.ts).
-
-**Proposed slice:** a server-local raw-record reader returning validated fields and the next index.
-Keep subtree clipping, absent-side interpretation, conflicts, aggregation, and raw/numstat origin
-matching with callers. Historical inventory excludes `U`; statistics accepts it. Preserve zero IDs,
-SHA-1/SHA-256, literal filenames, and renames crossing a selected subtree. Test malformed/incomplete
-records, object formats, scores, and existing historical/scoped statistics cases. Review separately
-because a shared parser can accidentally broaden domain input.
 
 ### S17 — Simplify media inspection and result mapping
 

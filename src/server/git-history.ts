@@ -23,6 +23,7 @@ import {
   type GitContext,
 } from "./git-context.ts";
 import { hasGitObject, readGitBlob } from "./git-objects.ts";
+import { readRawRecord, type GitRawSide } from "./git-raw.ts";
 import { diffFromContent, maxPatchBytes, parseGitPatch } from "./diff-content.ts";
 import { decodedText, maxSourceTextBytes } from "./source-text.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
@@ -180,60 +181,38 @@ export async function readGitHistory(
   };
 }
 
-function scopedSide(ctx: GitContext, mode: string, oid: string, path: string): CommitFileSide {
-  gitPath(path);
+function scopedSide(ctx: GitContext, side: GitRawSide): CommitFileSide {
+  const { mode, oid, path } = side;
   if (mode === "000000") {
     if (oid !== "0".repeat(ctx.oidLength)) throw new Error("Invalid absent Git side");
     return { kind: "absent" };
   }
   objectId(oid, ctx);
-  if (mode !== "100644" && mode !== "100755" && mode !== "120000" && mode !== "160000")
-    throw new Error("Invalid Git file mode");
   if (!path.startsWith(ctx.prefix)) return { kind: "absent" };
   return { kind: "present", path: gitPath(path.slice(ctx.prefix.length)), mode, oid };
 }
 
-function parseInventory(output: Buffer, ctx: GitContext): CommitFileChange[] {
+export function parseCommitInventory(output: Buffer, ctx: GitContext): CommitFileChange[] {
   const records = decoder.decode(output).split("\0");
   if (records.pop() !== "") throw new Error("Incomplete Git file inventory");
   const files: CommitFileChange[] = [];
-  for (let i = 0; i < records.length;) {
-    const header = records[i++];
-    const firstPath = records[i++];
-    const match = /^:(\d{6}) (\d{6}) ([0-9a-f]+) ([0-9a-f]+) ([AMDT]|[RC]\d{1,3})$/.exec(
-      header ?? "",
-    );
-    if (match === null || firstPath === undefined) throw new Error("Invalid Git raw diff record");
-    const oldMode = match[1];
-    const newMode = match[2];
-    const oldOid = match[3];
-    const newOid = match[4];
-    const status = match[5];
-    if (
-      oldMode === undefined ||
-      newMode === undefined ||
-      oldOid === undefined ||
-      newOid === undefined ||
-      status === undefined
-    )
-      throw new Error("Incomplete Git raw diff record");
-    const rename = status.startsWith("R") || status.startsWith("C");
-    if (rename && Number(status.slice(1)) > 100) throw new Error("Invalid Git rename score");
-    const nextPath = rename ? records[i++] : firstPath;
-    if (nextPath === undefined) throw new Error("Missing Git rename destination");
-    const old = scopedSide(ctx, oldMode, oldOid, firstPath);
-    const next = scopedSide(ctx, newMode, newOid, nextPath);
+  for (let index = 0; index < records.length;) {
+    const record = readRawRecord(records, index);
+    index = record.nextIndex;
+    if (record.status === "U") throw new Error("Invalid Git raw diff record");
+    const old = scopedSide(ctx, record.old);
+    const next = scopedSide(ctx, record.new);
     if (old.kind === "absent" && next.kind === "absent") continue;
     const kind =
       old.kind === "absent"
         ? "added"
         : next.kind === "absent"
           ? "deleted"
-          : status.startsWith("R")
+          : record.status === "R"
             ? "renamed"
-            : status.startsWith("C")
+            : record.status === "C"
               ? "copied"
-              : status === "T"
+              : record.status === "T"
                 ? "type_changed"
                 : "modified";
     const path = next.kind === "present" ? next.path : old.kind === "present" ? old.path : "";
@@ -331,7 +310,7 @@ export async function readCommit(project: Project, requestedOid: string): Promis
           "--find-renames",
           ...(comparison.kind === "empty" ? ["--root", oid] : [comparison.oid, oid]),
           "--",
-        ]).then((output) => parseInventory(output, ctx)),
+        ]).then((output) => parseCommitInventory(output, ctx)),
     readCommitStats(project, oid, comparison),
   ]);
   const detail = parseCommitDetail({

@@ -8,10 +8,10 @@ import type {
 } from "../shared/api.ts";
 import { parseChangeLineStats } from "../shared/api.ts";
 import { validateChangeGroupTotals } from "../shared/change-line-stats.ts";
-import { expectGitOid, gitPath } from "../shared/git.ts";
 import { hasErrorCode } from "../shared/validation.ts";
 import { GitCommandError, runGit } from "./git-execution.ts";
 import { readNumstatRecord } from "./git-numstat.ts";
+import { readRawRecord } from "./git-raw.ts";
 import { readProjectStatus } from "./git-status.ts";
 import { AppError, type ApprovedRoot } from "./paths.ts";
 import { workingDiffPaths } from "./working-diff-paths.ts";
@@ -49,26 +49,17 @@ export function parseChangeStats(output: Buffer): ReadonlyMap<string, ChangeLine
   const origins = new Map<string, Set<string | null>>();
   let index = 0;
   while (records[index]?.startsWith(":")) {
-    const match =
-      /^:(000000|100644|100755|120000|160000) (000000|100644|100755|120000|160000) ([0-9a-f]+) ([0-9a-f]+) ([AMDTU]|[RC][0-9]{1,3})$/.exec(
-        records[index++] ?? "",
-      );
-    if (match === null) throw new Error("Invalid Git statistics mode record");
-    if (expectGitOid(match[3]).length !== expectGitOid(match[4]).length)
-      throw new Error("Mismatched Git statistics object formats");
-    const status = match[5];
-    if (status === undefined) throw new Error("Missing Git statistics status");
-    const first = gitPath(records[index++]);
-    const renamed = status.startsWith("R") || status.startsWith("C");
-    if (renamed && Number(status.slice(1)) > 100) throw new Error("Invalid Git rename score");
-    const path = renamed ? gitPath(records[index++]) : first;
+    const record = readRawRecord(records, index);
+    index = record.nextIndex;
+    const renamed = record.status === "R" || record.status === "C";
+    const path = record.new.path;
     const previousOrigins = origins.get(path) ?? new Set<string | null>();
-    previousOrigins.add(renamed ? first : null);
+    previousOrigins.add(renamed ? record.old.path : null);
     origins.set(path, previousOrigins);
     const kind =
-      match[1] === "120000" || match[2] === "120000"
+      record.old.mode === "120000" || record.new.mode === "120000"
         ? "symlink"
-        : match[1] === "160000" || match[2] === "160000"
+        : record.old.mode === "160000" || record.new.mode === "160000"
           ? "submodule"
           : "text";
     const previous = modes.get(path);

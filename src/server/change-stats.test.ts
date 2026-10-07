@@ -261,6 +261,44 @@ test("numeric records reject malformed paths, modes, unsafe counts and incomplet
     expect(() => parseChangeStats(Buffer.from(output))).toThrow();
 });
 
+test("statistics retain conflict and zero-ID handling without immutable absent-side policy", () => {
+  for (const length of [40, 64]) {
+    const oid = "a".repeat(length);
+    const zero = "0".repeat(length);
+    const output =
+      `:000000 000000 ${zero} ${zero} U\0conflict\0` +
+      `:000000 100644 ${oid} ${zero} A\0addition\0` +
+      `:100644 100755 ${zero} ${zero} M\0working\0` +
+      "0\t0\tconflict\0" +
+      "3\t0\taddition\0" +
+      "1\t1\tworking\0";
+    expect([...parseChangeStats(Buffer.from(output))]).toEqual([
+      ["conflict", { kind: "text", added: 0, deleted: 0 }],
+      ["addition", { kind: "text", added: 3, deleted: 0 }],
+      ["working", { kind: "text", added: 1, deleted: 1 }],
+    ]);
+  }
+});
+
+test("statistics match repeated ordinary, rename and copy origins before aggregating counts", () => {
+  const oid = "a".repeat(40);
+  const output =
+    `:100644 100644 ${oid} ${oid} M\0:target\nname\0` +
+    `:100644 100644 ${oid} ${oid} R100\0old\tname\0:target\nname\0` +
+    `:100644 100644 ${oid} ${oid} C000\0copied\0:target\nname\0` +
+    "1\t1\t:target\nname\0" +
+    "2\t0\t\0old\tname\0:target\nname\0" +
+    "0\t1\t\0copied\0:target\nname\0";
+  expect(parseChangeStats(Buffer.from(output)).get(":target\nname")).toEqual({
+    kind: "text",
+    added: 3,
+    deleted: 2,
+  });
+  expect(() =>
+    parseChangeStats(Buffer.from(output.replace("copied\0:target", "wrong\0:target"))),
+  ).toThrow();
+});
+
 test("combined snapshots retry once and never attach counts to another inventory version", async () => {
   const inventory = (token: string): Extract<ProjectInventory, { kind: "git" }> => ({
     kind: "git",

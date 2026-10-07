@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { parseCommitDetail, parseCommitSummary, type CommitDetail } from "../shared/git.ts";
 import {
   commitFile,
+  parseCommitInventory,
   readCommit,
   readCommitDiff,
   readGitHistory,
@@ -22,6 +23,73 @@ function commit(cwd: string, message: string): string {
 function file(detail: CommitDetail, path: string) {
   return commitFile(detail, path);
 }
+
+test("commit inventories retain absent-side, conflict and repository-format policies", () => {
+  for (const oidLength of [40, 64] as const) {
+    const ctx = { prefix: "inside/", oidLength };
+    const oid = "a".repeat(oidLength);
+    const zero = "0".repeat(oidLength);
+    const added = `:000000 100644 ${zero} ${oid} A\0inside/added\0`;
+    const deleted = `:100755 000000 ${oid} ${zero} D\0inside/deleted\0`;
+    const absent = `:000000 000000 ${zero} ${zero} M\0outside\0`;
+    expect(parseCommitInventory(Buffer.from(added + deleted + absent), ctx)).toEqual([
+      {
+        path: "added",
+        kind: "added",
+        old: { kind: "absent" },
+        new: { kind: "present", mode: "100644", oid, path: "added" },
+      },
+      {
+        path: "deleted",
+        kind: "deleted",
+        old: { kind: "present", mode: "100755", oid, path: "deleted" },
+        new: { kind: "absent" },
+      },
+    ]);
+    expect(
+      parseCommitInventory(Buffer.from(`:100644 100755 ${zero} ${zero} M\0inside/mode\0`), ctx),
+    ).toEqual([
+      {
+        path: "mode",
+        kind: "modified",
+        old: { kind: "present", mode: "100644", oid: zero, path: "mode" },
+        new: { kind: "present", mode: "100755", oid: zero, path: "mode" },
+      },
+    ]);
+    for (const output of [
+      added.replace(`${zero} ${oid}`, `${oid} ${oid}`),
+      deleted.replace(`${oid} ${zero}`, `${oid} ${oid}`),
+      `:000000 000000 ${zero} ${zero} U\0outside\0`,
+      `:100644 100644 ${"b".repeat(oidLength === 40 ? 64 : 40)} ${"b".repeat(oidLength === 40 ? 64 : 40)} M\0outside\0`,
+      added.slice(0, -1),
+    ])
+      expect(() => parseCommitInventory(Buffer.from(output), ctx)).toThrow();
+  }
+  expect(() =>
+    parseCommitInventory(Buffer.from([0xff, 0]), { prefix: "", oidLength: 40 }),
+  ).toThrow();
+});
+
+test("commit inventories clip rename and copy sides after validating their raw paths", () => {
+  const oid = "a".repeat(40);
+  const ctx = { prefix: "inside/", oidLength: 40 } as const;
+  const output =
+    `:100644 100644 ${oid} ${oid} R100\0outside\0inside/incoming\0` +
+    `:100644 100644 ${oid} ${oid} C000\0inside/original\0inside/copy\0` +
+    `:100644 100644 ${oid} ${oid} R0\0inside/leaving\0outside-next\0`;
+  const files = parseCommitInventory(Buffer.from(output), ctx);
+  expect(files.map((entry) => [entry.path, entry.kind])).toEqual([
+    ["incoming", "added"],
+    ["copy", "copied"],
+    ["leaving", "deleted"],
+  ]);
+  expect(files[0]?.old).toEqual({ kind: "absent" });
+  expect(files[1]?.old).toEqual({ kind: "present", mode: "100644", oid, path: "original" });
+  expect(files[2]?.new).toEqual({ kind: "absent" });
+  expect(() =>
+    parseCommitInventory(Buffer.from(output.replace("outside\0", "../outside\0")), ctx),
+  ).toThrow();
+});
 
 test("commit inspection reads immutable full messages, root/parent diffs and file kinds", async () => {
   await withTempDirectory("git-review-history-", async (directory) => {

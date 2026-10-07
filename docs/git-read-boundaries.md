@@ -29,8 +29,9 @@ HTTP handlers first apply the [project contract](stateless-project-access-plan.m
 arbitrary subprocess commands. [Status](git-status-slice.md) owns mutable inventory/version parsing;
 [diffs](diff-slice.md) own patch/source results; [history](git-history-slice-proposal.md) owns
 immutable comparisons and unavailable parents; [working counts](changes-line-counts-proposal.md) and
-historical totals own their distinct failure and cache policies. They share
-[numstat parsing](../src/server/git-numstat.ts), not their semantics.
+historical totals own their distinct failure and cache policies. Shared
+[raw-record](../src/server/git-raw.ts) and [numstat](../src/server/git-numstat.ts) readers validate
+format mechanics; scope, absent sides, conflicts, and aggregation remain with their domains.
 [Media](media-preview-slice-proposal.md) owns source/version mapping and range responses.
 
 Checked working-tree reads use the separate [file boundary](working-file-boundaries.md). Git object
