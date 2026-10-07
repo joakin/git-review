@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { Icon } from "./Icons.tsx";
+import { ContentHeading } from "./ContentHeading.tsx";
 
 export type GitHeadingCommands = {
   back: () => void;
@@ -21,22 +21,14 @@ export function GitHeading({
   children?: ComponentChildren;
 }) {
   return (
-    <div class="changes-heading">
-      <div class="content-heading-title">
-        <button class="content-back" type="button" aria-label="Open list" onClick={commands.back}>
-          <Icon name="back" />
-        </button>
-        <h2>{title}</h2>
-      </div>
-      <div class="changes-actions">
-        {children}
-        <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>
-          {wrap ? "Wrap: on" : "Wrap: off"}
-        </button>
-        <button type="button" disabled={refreshing} onClick={commands.refresh}>
-          Refresh
-        </button>
-      </div>
-    </div>
+    <ContentHeading title={title} onBack={commands.back}>
+      {children}
+      <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>
+        {wrap ? "Wrap: on" : "Wrap: off"}
+      </button>
+      <button type="button" disabled={refreshing} onClick={commands.refresh}>
+        Refresh
+      </button>
+    </ContentHeading>
   );
 }

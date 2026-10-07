@@ -11,7 +11,7 @@ import { ChangeStats, ChangeGroupStats, ChangeGroupNotes } from "./ChangeStats.t
 import type { CommentAnchor, DraftComment, ReviewSide } from "./comments.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { diffCardKey, DiffCard } from "./DiffCard.tsx";
-import { Icon } from "./Icons.tsx";
+import { ContentHeading } from "./ContentHeading.tsx";
 import type { LoadState } from "./load-state.ts";
 import { BulkDiffControls } from "./BulkDiffControls.tsx";
 
@@ -223,47 +223,37 @@ export function ChangesView({
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
   return (
     <>
-      <div class="changes-heading">
-        <div class="content-heading-title">
-          <button class="content-back" type="button" aria-label="Open list" onClick={commands.back}>
-            <Icon name="back" />
+      <ContentHeading title="Changed files" onBack={commands.back}>
+        <BulkDiffControls
+          canExpand={
+            gitStatus?.entries.some((entry) => !expandedKeys.has(diffCardKey(entry))) ?? false
+          }
+          canCollapse={
+            gitStatus?.entries.some((entry) => expandedKeys.has(diffCardKey(entry))) ?? false
+          }
+          onExpand={commands.expandAll}
+          onCollapse={commands.collapseAll}
+        />
+        <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>
+          {wrap ? "Wrap: on" : "Wrap: off"}
+        </button>
+        <span class="visually-hidden" role="status">
+          {pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}
+        </span>
+        {pendingUpdate && (
+          <button
+            class="changes-update"
+            type="button"
+            disabled={refreshing}
+            onClick={commands.refresh}
+          >
+            {refreshing ? "Updating…" : "New edits · Update"}
           </button>
-          <h2>Changed files</h2>
-        </div>
-        <div class="changes-actions">
-          <BulkDiffControls
-            canExpand={
-              gitStatus?.entries.some((entry) => !expandedKeys.has(diffCardKey(entry))) ?? false
-            }
-            canCollapse={
-              gitStatus?.entries.some((entry) => expandedKeys.has(diffCardKey(entry))) ?? false
-            }
-            onExpand={commands.expandAll}
-            onCollapse={commands.collapseAll}
-          />
-          <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>
-            {wrap ? "Wrap: on" : "Wrap: off"}
-          </button>
-          <span class="visually-hidden" role="status">
-            {pendingUpdate && !refreshing
-              ? "New edits are available. Use Update to load them."
-              : ""}
-          </span>
-          {pendingUpdate && (
-            <button
-              class="changes-update"
-              type="button"
-              disabled={refreshing}
-              onClick={commands.refresh}
-            >
-              {refreshing ? "Updating…" : "New edits · Update"}
-            </button>
-          )}
-          <button type="button" disabled={refreshing} onClick={commands.refresh}>
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
-      </div>
+        )}
+        <button type="button" disabled={refreshing} onClick={commands.refresh}>
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </ContentHeading>
       {checkError && (
         <p class="changes-check-error" role="status">
           Could not check for new edits. Refresh is still available.

@@ -9,6 +9,7 @@ import type { LoadState } from "./load-state.ts";
 import { FileViewer } from "./FileViewer.tsx";
 import { CommitViewer } from "./CommitViewer.tsx";
 import { GitHeading } from "./GitHeading.tsx";
+import { ContentHeading } from "./ContentHeading.tsx";
 import { GitSidebar } from "./GitSidebar.tsx";
 import { useGitBrowser } from "./git-browser.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
@@ -580,6 +581,20 @@ export function App() {
     (route?.section === "git" && route.target.kind === "list")
       ? "list"
       : "content";
+  const selectedWorkingFile =
+    project !== null && selectedFile !== null ? (
+      <FileViewer
+        key={JSON.stringify([project.absolutePath, selectedFile])}
+        projectPath={project.absolutePath}
+        path={selectedFile}
+        wrap={wrapCode}
+        languages={languages}
+        refreshKey={fileRefresh}
+        drafts={drafts}
+        onComment={feedback.actions.chooseLine}
+        searchTarget={searchTarget}
+      />
+    ) : null;
 
   return (
     <div
@@ -943,19 +958,10 @@ export function App() {
                   </>
                 ) : viewMode === "search" ? (
                   <>
-                    <div class="changes-heading">
-                      <div class="content-heading-title">
-                        <button
-                          class="content-back"
-                          type="button"
-                          aria-label="Open list"
-                          onClick={showList}
-                        >
-                          <Icon name="back" />
-                        </button>
-                        <h2>{selectedFile === null ? "Search files" : "Search result"}</h2>
-                      </div>
-                    </div>
+                    <ContentHeading
+                      title={selectedFile === null ? "Search files" : "Search result"}
+                      onBack={showList}
+                    />
                     {selectedFile === null ? (
                       <p class="status-message">
                         Search this project from the results list. Select a match to read its file
@@ -966,43 +972,20 @@ export function App() {
                         <div class="file-location-bar">
                           <span>{selectedFile}</span>
                         </div>
-                        <FileViewer
-                          key={JSON.stringify([project.absolutePath, selectedFile])}
-                          projectPath={project.absolutePath}
-                          path={selectedFile}
-                          wrap={wrapCode}
-                          languages={languages}
-                          refreshKey={fileRefresh}
-                          drafts={drafts}
-                          onComment={feedback.actions.chooseLine}
-                          searchTarget={searchTarget}
-                        />
+                        {selectedWorkingFile}
                       </>
                     )}
                   </>
                 ) : viewMode === "files" ? (
                   <>
-                    <div class="changes-heading">
-                      <div class="content-heading-title">
-                        <button
-                          class="content-back"
-                          type="button"
-                          aria-label="Open list"
-                          onClick={showList}
-                        >
-                          <Icon name="back" />
-                        </button>
-                        <h2>Browse files</h2>
-                      </div>
-                      <div class="changes-actions">
-                        <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>
-                          {wrapCode ? "Wrap: on" : "Wrap: off"}
-                        </button>
-                        <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>
-                          Refresh
-                        </button>
-                      </div>
-                    </div>
+                    <ContentHeading title="Browse files" onBack={showList}>
+                      <button type="button" aria-pressed={wrapCode} onClick={toggleWrap}>
+                        {wrapCode ? "Wrap: on" : "Wrap: off"}
+                      </button>
+                      <button type="button" onClick={() => setFileRefresh((value) => value + 1)}>
+                        Refresh
+                      </button>
+                    </ContentHeading>
                     <div class="file-location-bar">
                       <span>
                         {selectedFile ??
@@ -1015,17 +998,7 @@ export function App() {
                         Comment to add feedback.
                       </p>
                     ) : (
-                      <FileViewer
-                        key={JSON.stringify([project.absolutePath, selectedFile])}
-                        projectPath={project.absolutePath}
-                        path={selectedFile}
-                        wrap={wrapCode}
-                        languages={languages}
-                        refreshKey={fileRefresh}
-                        drafts={drafts}
-                        onComment={feedback.actions.chooseLine}
-                        searchTarget={searchTarget?.path === selectedFile ? searchTarget : null}
-                      />
+                      selectedWorkingFile
                     )}
                   </>
                 ) : (

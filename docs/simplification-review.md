@@ -31,13 +31,12 @@ describes implementation risk, not defect severity. The proposed slices are deli
 than a wholesale rewrite. Completed documentation, accepted code changes, and the current review
 slice are recorded below.
 
-| ID  | Finding                                                  | Area          | Risk       |
-| --- | -------------------------------------------------------- | ------------- | ---------- |
-| S18 | Share repeated headings and selected working-file wiring | Client        | Medium     |
-| S19 | Resolve diff-row feedback side in one place              | Client        | Low–medium |
-| S20 | Group identical Files/diff code-pane CSS                 | Client/styles | Low–medium |
-| S22 | Share QA dimensions without changing emulation options   | QA            | Medium     |
-| S23 | Reuse existing Git fixture helpers in older QA callers   | QA            | Low–medium |
+| ID  | Finding                                                | Area          | Risk       |
+| --- | ------------------------------------------------------ | ------------- | ---------- |
+| S19 | Resolve diff-row feedback side in one place            | Client        | Low–medium |
+| S20 | Group identical Files/diff code-pane CSS               | Client/styles | Low–medium |
+| S22 | Share QA dimensions without changing emulation options | QA            | Medium     |
+| S23 | Reuse existing Git fixture helpers in older QA callers | QA            | Low–medium |
 
 ## Completed documentation items
 
@@ -204,6 +203,27 @@ raw failures, and unsupported rename destinations. Independent client review fou
 issues. Isolated Chrome image/SVG, staged/Files playback and range checks, and Git source/navigation
 checks at four sizes passed. Physical-device playback remains unverified.
 
+### S18 — Share repeated headings and selected working-file wiring
+
+A presentation-only [heading](../src/client/ContentHeading.tsx) now renders the common title/Back
+shell and caller-supplied actions. Changes, Git, Files, and Search retain their own controls,
+labels, disabled states, announcements, and empty/loading behavior. App constructs the selected
+FileViewer once per render but keeps it in the existing branch positions, preserving section
+remounts and selection/source cleanup for the same project/path key.
+
+All five TypeScript configurations, static QA, the build, and relevant client tests passed.
+Independent server review found no actionable issues. Files, Search, navigation, loading, selected
+Search, and selected-feedback browser checks passed. The new phone/desktop regression exercises
+normal UI navigation and direct history jumps between same-path Files/Search entries, checking fresh
+reads and cleared selection. The existing deep-line Search check now waits for its geometry
+requirement after asynchronous route focus.
+[Files](../qa/screenshots/simplification-s18-files/mobile.png),
+[Search](../qa/screenshots/simplification-s18-search/mobile.png),
+[Changes](../qa/screenshots/simplification-s18-changes/mobile.png), and
+[Git](../qa/screenshots/simplification-s18-git/mobile.png) captures were inspected at all four
+sizes; no page overflow or clipped heading controls were found. Physical-device checks remain
+unverified.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -222,19 +242,6 @@ reset and current-format behavior.
 ## Server organization and mechanisms
 
 ## Client presentation and types
-
-### S18 — Share repeated headings and selected working-file wiring
-
-**Evidence:** [GitHeading](../src/client/GitHeading.tsx), lines 24–39,
-[Changes](../src/client/ChangesView.tsx), line 235, and Search/Files in
-[App](../src/client/App.tsx), lines 955–1014, repeat heading/back/control presentation. App also
-repeats keyed FileViewer setup at lines 978–988 and 1027–1037.
-
-**Proposed slices:** share a presentation-only heading with caller-supplied controls; separately
-render the selected working file once. Keep domain commands, Search's existing control visibility,
-titles/empty states, route-derived targets, and project/path keys. Preserve remount, selection,
-feedback, and loading behavior. Run Files/Search/navigation/loading QA and inspect four-size
-captures. The evidence justifies these extractions; App's size alone does not justify a broad split.
 
 ### S19 — Resolve diff-row feedback side in one place
 
