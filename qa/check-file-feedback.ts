@@ -39,6 +39,7 @@ const diff = parseDiffResponse(
           layer: "staged",
           path: "src/view.ts",
           revision: status.revision,
+          changeToken: status.changeToken,
           language: "text",
         }),
     ),

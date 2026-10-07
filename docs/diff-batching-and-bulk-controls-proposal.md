@@ -39,18 +39,21 @@ identity and freshness policy.
 
 - Git reads validated detail for the complete commit ID and preserves parent availability, project
   scope and [immutable comparison rules](git-history-slice-proposal.md#comparison-rules).
-- Changes checks both displayed snapshot tokens before and after reading against lightweight
-  inventory. Either token changing, or any file reporting stale, invalidates every payload in the
-  batch. Client refresh generations reject late results and stale notices from another review.
-  Recovery is the reader-controlled [Update flow](live-change-detection-slice-proposal.md), with no
-  automatic refresh loop. The tokens are ordinary-edit signals, not an atomic filesystem snapshot.
+- Changes individual and batch reads require the complete displayed snapshot and check both tokens
+  before and after reading against lightweight inventory. Either token changing makes an individual
+  read stale; in a batch, it or any stale file invalidates every payload. Client refresh generations
+  reject late results and stale notices from another review. Recovery is the reader-controlled
+  [Update flow](live-change-detection-slice-proposal.md), with no automatic refresh loop. The tokens
+  are ordinary-edit signals, not an atomic filesystem snapshot.
 - Every request uses the
   [stateless project contract](stateless-project-access-plan.md#project-contract-and-validation) and
   resolves files from the server inventory. Clients supply no rename origin or arbitrary Git
   expression. [Working-copy](../src/shared/change-diff-batch.ts) and
   [commit](../src/shared/commit-diff-batch.ts) contracts retain separate version and request shapes.
 
-Feedback checks retain individual source reads and drafts keep their original anchors.
+Feedback checks retain individual source reads using the latest complete snapshot, while drafts keep
+their original anchors. A stale read preserves drafts for retry. The
+[shared snapshot contract](../src/shared/change-snapshot.ts) owns token validation.
 
 ## Measurement evidence
 

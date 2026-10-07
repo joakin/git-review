@@ -25,6 +25,7 @@ import {
   type SearchResponse,
 } from "../shared/api.ts";
 import { expectRecord, expectString } from "../shared/validation.ts";
+import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -132,17 +133,16 @@ export async function fetchProjectDiff(
   projectPath: string,
   layer: ChangeLayer,
   path: string,
-  revision: string,
+  snapshot: ChangeSnapshot,
   language: string | null,
   signal: AbortSignal,
-  changeToken?: string,
 ): Promise<DiffResult> {
   const response = await fetch(
     projectApiUrl("/diff", projectPath, {
       layer,
       path,
-      revision,
-      ...(changeToken === undefined ? {} : { changeToken }),
+      revision: snapshot.revision,
+      changeToken: snapshot.changeToken,
       ...(language === null ? {} : { language }),
     }),
     {

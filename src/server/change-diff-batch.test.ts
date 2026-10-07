@@ -9,7 +9,9 @@ import {
   parseChangeCheckResponse,
   parseDiffResponse,
   parseProjectResponse,
+  type DiffResult,
 } from "../shared/api.ts";
+import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
 import {
   changeDiffBatchSource,
   changeDiffRequestKey,
@@ -203,6 +205,16 @@ test("change batches match individual layers, languages and media while isolatin
         ).status,
       ).toBe(400);
       expect((await post({ ...body, changeToken: newer.changeToken })).status).toBe(200);
+      staleSingle.set("changeToken", newer.changeToken);
+      expect(
+        parseDiffResponse(
+          (await (
+            await handle(
+              new Request(projectRequestUrl(`${base}/diff?${staleSingle}`, project.absolutePath)),
+            )
+          ).json()) as unknown,
+        ).kind,
+      ).toBe("text");
       await rename(repo, join(directory, "moved"));
       await symlink(outside, repo);
       expect((await post(body)).status).toBe(403);
@@ -210,94 +222,125 @@ test("change batches match individual layers, languages and media while isolatin
   });
 });
 
-test("an edit after batch work starts invalidates every file and recovers on a new snapshot", async () => {
-  await withTempDirectory("git-review-change-race-", async (directory) => {
-    const repo = join(directory, "repo");
-    const shim = join(directory, "shim");
-    await mkdir(repo);
-    await mkdir(shim);
-    git(repo, "init", "-q", "-b", "main");
-    for (const path of ["a.txt", "b.txt"]) await writeFile(join(repo, path), "base\n");
-    git(repo, "add", ".");
-    git(repo, "commit", "-qm", "Base");
-    for (const path of ["a.txt", "b.txt"]) await writeFile(join(repo, path), "before\n");
-    const root = await approveRoot(directory);
-    const handle = createApiHandler(root);
-    const project = parseProjectResponse(
-      (await (
-        await handle(new Request("http://localhost" + projectApiUrl("", root.realPath + "/repo")))
-      ).json()) as unknown,
-    );
-    const base = `http://localhost/api/project`;
-    const snapshot = async () =>
-      parseChangeCheckResponse(
+for (const mode of ["batch", "individual"] as const)
+  test(`an edit during ${mode} diff work invalidates its snapshot and permits a fresh retry`, async () => {
+    await withTempDirectory("git-review-change-race-", async (directory) => {
+      const repo = join(directory, "repo");
+      const shim = join(directory, "shim");
+      await mkdir(repo);
+      await mkdir(shim);
+      git(repo, "init", "-q", "-b", "main");
+      for (const path of ["a.txt", "b.txt"]) await writeFile(join(repo, path), "base\n");
+      git(repo, "add", ".");
+      git(repo, "commit", "-qm", "Base");
+      for (const path of ["a.txt", "b.txt"]) await writeFile(join(repo, path), "before\n");
+      const root = await approveRoot(directory);
+      const handle = createApiHandler(root);
+      const project = parseProjectResponse(
         (await (
-          await handle(
-            new Request(projectRequestUrl(`${base}/status?mode=check`, project.absolutePath)),
-          )
+          await handle(new Request("http://localhost" + projectApiUrl("", root.realPath + "/repo")))
         ).json()) as unknown,
       );
-    const before = await snapshot();
-    if (before.kind !== "git") throw new Error("Expected Git snapshot");
-    const files = ["a.txt", "b.txt"].map((path): ChangeDiffRequest => ({
-      layer: "unstaged",
-      path,
-      language: "text",
-    }));
-    const post = (revision: string, changeToken: string) =>
-      handle(
-        new Request(projectRequestUrl(`${base}/diffs`, project.absolutePath), {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ revision, changeToken, files }),
-        }),
+      const base = `http://localhost/api/project`;
+      const snapshot = async () =>
+        parseChangeCheckResponse(
+          (await (
+            await handle(
+              new Request(projectRequestUrl(`${base}/status?mode=check`, project.absolutePath)),
+            )
+          ).json()) as unknown,
+        );
+      const before = await snapshot();
+      if (before.kind !== "git") throw new Error("Expected Git snapshot");
+      const files = ["a.txt", "b.txt"].map((path): ChangeDiffRequest => ({
+        layer: "unstaged",
+        path,
+        language: "text",
+      }));
+      const read = (version: ChangeSnapshot) =>
+        mode === "batch"
+          ? handle(
+              new Request(projectRequestUrl(`${base}/diffs`, project.absolutePath), {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  revision: version.revision,
+                  changeToken: version.changeToken,
+                  files,
+                }),
+              }),
+            )
+          : handle(
+              new Request(
+                "http://localhost" +
+                  projectApiUrl("/diff", project.absolutePath, {
+                    revision: version.revision,
+                    changeToken: version.changeToken,
+                    layer: "unstaged",
+                    path: "a.txt",
+                    language: "text",
+                  }),
+              ),
+            );
+      const realGit = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
+      const marker = join(directory, "started");
+      const gate = join(directory, "release");
+      // Gate real diff subprocesses after the initial snapshot, without changing the API reader.
+      await writeFile(
+        join(shim, "git"),
+        `#!${process.execPath}\nimport { existsSync, writeFileSync } from "node:fs";\nimport { spawnSync } from "node:child_process";\nconst args = process.argv.slice(2);\nif (args.includes("diff")) { writeFileSync(${JSON.stringify(marker)}, ""); const deadline = Date.now() + 5000; while (!existsSync(${JSON.stringify(gate)})) { if (Date.now() > deadline) process.exit(1); await Bun.sleep(5); } }\nconst child = spawnSync(${JSON.stringify(realGit)}, args, { stdio: "inherit" });\nprocess.exit(child.status ?? 1);\n`,
       );
-    const realGit = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
-    const marker = join(directory, "started");
-    const gate = join(directory, "release");
-    // Gate real diff subprocesses after the initial snapshot, without changing the API reader.
-    await writeFile(
-      join(shim, "git"),
-      `#!${process.execPath}\nimport { existsSync, writeFileSync } from "node:fs";\nimport { spawnSync } from "node:child_process";\nconst args = process.argv.slice(2);\nif (args.includes("diff")) { writeFileSync(${JSON.stringify(marker)}, ""); const deadline = Date.now() + 5000; while (!existsSync(${JSON.stringify(gate)})) { if (Date.now() > deadline) process.exit(1); await Bun.sleep(5); } }\nconst child = spawnSync(${JSON.stringify(realGit)}, args, { stdio: "inherit" });\nprocess.exit(child.status ?? 1);\n`,
-    );
-    await chmod(join(shim, "git"), 0o755);
-    const oldPath = process.env["PATH"];
-    let pending: Promise<Response> | null = null;
-    try {
-      process.env["PATH"] = `${shim}:${oldPath ?? ""}`;
-      pending = post(before.revision, before.changeToken);
-      const deadline = Date.now() + 5000;
-      while (!(await Bun.file(marker).exists())) {
-        if (Date.now() > deadline) throw new Error("Diff work did not start");
-        await Bun.sleep(5);
+      await chmod(join(shim, "git"), 0o755);
+      const oldPath = process.env["PATH"];
+      let pending: Promise<Response> | null = null;
+      try {
+        process.env["PATH"] = `${shim}:${oldPath ?? ""}`;
+        pending = read(before);
+        const deadline = Date.now() + 5000;
+        while (!(await Bun.file(marker).exists())) {
+          if (Date.now() > deadline) throw new Error("Diff work did not start");
+          await Bun.sleep(5);
+        }
+        await writeFile(join(repo, "a.txt"), "changed during diff\n");
+        await writeFile(gate, "");
+        expect(await (await pending).json()).toEqual(
+          mode === "batch"
+            ? {
+                kind: "stale",
+                source: changeDiffBatchSource(
+                  project.absolutePath,
+                  before.revision,
+                  before.changeToken,
+                ),
+              }
+            : { kind: "stale" },
+        );
+        const after = await snapshot();
+        if (after.kind !== "git") throw new Error("Expected edited snapshot");
+        expect(after.revision).toBe(before.revision);
+        expect(after.changeToken).not.toBe(before.changeToken);
+        const body: unknown = await (await read(after)).json();
+        let diff: DiffResult;
+        if (mode === "batch") {
+          const current = parseChangeDiffBatchResponse(
+            body,
+            changeDiffBatchSource(project.absolutePath, after.revision, after.changeToken),
+            files.map(changeDiffRequestKey),
+          );
+          if (current.kind !== "ready") throw new Error("Expected recovery");
+          const first = current.results[0];
+          if (first?.kind !== "ready") throw new Error("Expected recovered diff");
+          diff = first.value;
+        } else diff = parseDiffResponse(body);
+        expect(diff.kind === "text" && diff.hunks[0]?.lines.map((line) => line.text)).toEqual([
+          "base",
+          "changed during diff",
+        ]);
+      } finally {
+        await writeFile(gate, "");
+        if (oldPath === undefined) delete process.env["PATH"];
+        else process.env["PATH"] = oldPath;
+        await pending;
       }
-      await writeFile(join(repo, "a.txt"), "changed during batch\n");
-      await writeFile(gate, "");
-      expect(await (await pending).json()).toEqual({
-        kind: "stale",
-        source: changeDiffBatchSource(project.absolutePath, before.revision, before.changeToken),
-      });
-      const after = await snapshot();
-      if (after.kind !== "git") throw new Error("Expected edited snapshot");
-      expect(after.revision).toBe(before.revision);
-      expect(after.changeToken).not.toBe(before.changeToken);
-      const current = parseChangeDiffBatchResponse(
-        (await (await post(after.revision, after.changeToken)).json()) as unknown,
-        changeDiffBatchSource(project.absolutePath, after.revision, after.changeToken),
-        files.map(changeDiffRequestKey),
-      );
-      if (current.kind !== "ready") throw new Error("Expected recovery");
-      const first = current.results[0];
-      expect(
-        first?.kind === "ready" &&
-          first.value.kind === "text" &&
-          first.value.hunks[0]?.lines.map((line) => line.text),
-      ).toEqual(["base", "changed during batch"]);
-    } finally {
-      await writeFile(gate, "");
-      if (oldPath === undefined) delete process.env["PATH"];
-      else process.env["PATH"] = oldPath;
-      await pending;
-    }
-  });
-}, 15_000);
+    });
+  }, 15_000);

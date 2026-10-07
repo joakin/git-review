@@ -5,12 +5,11 @@ import { DiffCardFrame } from "./DiffCardFrame.tsx";
 import { diffCacheKey } from "./diff-cache.ts";
 import { useDiffLoading } from "./diff-loading.ts";
 import { useLanguageOverride } from "./language-override.ts";
+import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
 
-type DiffCardProps = {
+type DiffCardProps = ChangeSnapshot & {
   entry: ReviewChangeEntry;
   projectPath: string;
-  revision: string;
-  changeToken: string;
   refreshKey: number;
   expanded: boolean;
   wrap: boolean;

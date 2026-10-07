@@ -6,12 +6,11 @@ import {
   type DiffBatchResponse,
 } from "./diff-batch.ts";
 import { gitPath } from "./git.ts";
+import { parseChangeSnapshot, type ChangeSnapshot } from "./change-snapshot.ts";
 import { expectRecord, expectString } from "./validation.ts";
 
 export type ChangeDiffRequest = { layer: ChangeLayer; path: string; language: string | null };
-export type ChangeDiffBatchRequest = {
-  revision: string;
-  changeToken: string;
+export type ChangeDiffBatchRequest = ChangeSnapshot & {
   files: ChangeDiffRequest[];
 };
 type CurrentDiff = Exclude<DiffResult, { kind: "stale" }>;
@@ -34,10 +33,7 @@ export function parseChangeDiffBatchRequest(value: unknown): ChangeDiffBatchRequ
   const outer = expectRecord(value, "change diff batch request");
   if (Object.keys(outer).some((key) => !["revision", "changeToken", "files"].includes(key)))
     throw new Error("Unexpected change diff batch field");
-  const revision = expectString(outer["revision"], "revision");
-  const changeToken = expectString(outer["changeToken"], "change token");
-  if (!/^[0-9a-f]{20}$/.test(revision) || !/^[0-9a-f]{20}$/.test(changeToken))
-    throw new Error("Invalid change diff version");
+  const snapshot = parseChangeSnapshot(outer);
   const files = parseDiffBatchFiles(
     { files: outer["files"] },
     (value): ChangeDiffRequest => {
@@ -60,7 +56,7 @@ export function parseChangeDiffBatchRequest(value: unknown): ChangeDiffBatchRequ
     },
     changeDiffRequestKey,
   );
-  return { revision, changeToken, files };
+  return { ...snapshot, files };
 }
 
 export function parseChangeDiffBatchResponse(

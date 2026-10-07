@@ -10,13 +10,14 @@ import { fetchProjectDiff } from "./api.ts";
 import { DiffBatchQueue, type DiffBatchSource } from "./diff-batch-queue.ts";
 import { diffBatchResponseBody } from "./diff-batch-response.ts";
 import type { DiffBatchResult } from "../shared/diff-batch.ts";
+import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
 
 const changes = new DiffBatchQueue<ChangeDiffRequest, DiffResult>(changeDiffRequestKey);
 
 export async function fetchChangeDiff(
   projectPath: string,
   file: ChangeDiffRequest,
-  snapshot: { revision: string; changeToken: string; refreshKey: number },
+  snapshot: ChangeSnapshot & { refreshKey: number },
   signal: AbortSignal,
 ): Promise<DiffResult> {
   const { revision, changeToken, refreshKey } = snapshot;
@@ -51,15 +52,7 @@ export async function fetchChangeDiff(
           };
     },
     readSingle: (file, signal) =>
-      fetchProjectDiff(
-        projectPath,
-        file.layer,
-        file.path,
-        revision,
-        file.language,
-        signal,
-        changeToken,
-      ),
+      fetchProjectDiff(projectPath, file.layer, file.path, snapshot, file.language, signal),
   };
   return changes.read(adapter, file, signal);
 }

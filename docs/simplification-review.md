@@ -1,6 +1,6 @@
 # Simplification and readability review
 
-Status: S01–S07, S09–S10, and S21 accepted. The remaining findings are authorized for autonomous
+Status: S01–S07, S09–S11, and S21 complete. The remaining findings are authorized for autonomous
 implementation, independent review, correction, and staged commits as of 2026-10-07.
 
 Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this research. The previous
@@ -34,7 +34,6 @@ slice are recorded below.
 | ID  | Finding                                                        | Area          | Risk       |
 | --- | -------------------------------------------------------------- | ------------- | ---------- |
 | S08 | Retire the obsolete-storage deletion path after its cutover    | Compatibility | Low        |
-| S11 | Require one complete working-copy snapshot for every diff read | Shared/API    | Medium     |
 | S12 | Share diff-request fields and existing language query parsing  | Shared/API    | Low        |
 | S13 | Share supported media metadata between server and parser       | Shared/API    | Low        |
 | S14 | Share text classification while retaining source-read policies | Server        | Medium     |
@@ -121,6 +120,16 @@ actions, reattachment, and clipboard/history/Undo. The selected-Search fixture n
 before asserting below-selection placement and still checks docking separately. New screenshots and
 physical-device checks were not performed.
 
+### S11 — Require one complete working-copy snapshot for every diff read
+
+Completed after independent review by the client reviewer, with no actionable findings. Individual
+reads, feedback checks, and deferred batch fallback now require the shared complete snapshot;
+validation and both before/after token checks protect edits behind unchanged porcelain status. Raw
+media and immutable history retain their separate source/version contracts. All five type-check
+configurations, static QA, the build, 91 focused tests, and isolated feedback/transaction browser
+checks passed. Regression coverage gates real Git reads and verifies stale recovery without losing
+drafts. See the [batching contract](diff-batching-and-bulk-controls-proposal.md).
+
 ## Compatibility and shared boundaries
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -137,21 +146,6 @@ than deleted. Confirm that retirement condition during review; it has not been e
 audit. Preserve current namespaces, strict current-format parsing, unrelated settings, and storage
 denial behavior. Run storage/backup tests and tab QA. This does not justify removing format versions
 or accepting old imports.
-
-### S11 — Require one complete working-copy snapshot for every diff read
-
-**Evidence:** [individual API reads](../src/server/api.ts), lines 312–355, accept an optional
-`changeToken` and carry conditional freshness checks. [client/api.ts](../src/client/api.ts), lines
-131–145, exposes that weaker signature. Batches require both tokens, and their deferred singleton
-fallback already passes both. [Feedback checking](../src/client/feedback-transactions.ts), lines
-88–109, fetches latest status but passes only its revision to individual diffs.
-
-**Proposed slice:** share a required revision/change-token snapshot contract, pass it from feedback,
-and remove the optional-token branches. Share the repeated token predicate in this slice. Keep the
-individual route: oversized/deferred batch results still need it. Preserve before/after checks,
-batch-wide invalidation, exact anchors, and retry on edits. Verify batch/status/feedback tests,
-including an edit that changes content while porcelain status stays the same. This is an active
-weaker contract, not dormant compatibility that can simply be deleted.
 
 ### S12 — Share diff-request fields and existing language query parsing
 

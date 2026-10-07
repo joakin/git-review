@@ -36,6 +36,7 @@ import { maxDiffBatchRequestBytes } from "../shared/diff-batch.ts";
 import { readCommitDiffBatch } from "./commit-diff-batch.ts";
 import { readChangeDiffBatch } from "./change-diff-batch.ts";
 import { isValidUrlEncoding } from "../shared/validation.ts";
+import { isChangeSnapshotToken } from "../shared/change-snapshot.ts";
 
 const maxBodyBytes = 4096;
 
@@ -316,13 +317,7 @@ async function handleApiRequest(
       const layer = changeLayer(oneQueryValue(url, "layer"));
       const path = oneQueryValue(url, "path");
       const revision = oneQueryValue(url, "revision");
-      const changeTokens = url.searchParams.getAll("changeToken");
-      if (
-        changeTokens.length > 1 ||
-        (changeTokens.length === 1 && !/^[0-9a-f]{20}$/.test(changeTokens[0] ?? ""))
-      )
-        throw new AppError("invalid_request", 400, "Specify one valid change token");
-      const changeToken = changeTokens[0];
+      const changeToken = oneQueryValue(url, "changeToken");
       const requestedLanguages = url.searchParams.getAll("language");
       if (requestedLanguages.length > 1)
         throw new AppError("invalid_request", 400, "Specify one language override");
@@ -333,7 +328,8 @@ async function handleApiRequest(
         path.length === 0 ||
         path.length > 4096 ||
         path.includes("\0") ||
-        !/^[0-9a-f]{20}$/.test(revision)
+        !isChangeSnapshotToken(revision) ||
+        !isChangeSnapshotToken(changeToken)
       ) {
         throw new AppError("invalid_request", 400, "Invalid diff request");
       }
@@ -342,7 +338,7 @@ async function handleApiRequest(
       if (
         status.kind !== "git" ||
         status.revision !== revision ||
-        (changeToken !== undefined && status.changeToken !== changeToken)
+        status.changeToken !== changeToken
       )
         return Response.json({ kind: "stale" });
       const entry = status.entries.find((item) => item.layer === layer && item.path === path);
@@ -352,9 +348,7 @@ async function handleApiRequest(
         (await readProjectDiff(root, current, entry, requestedLanguage));
       const after = await readProjectStatus(current.absolutePath);
       return Response.json(
-        after.kind === "git" &&
-          after.revision === revision &&
-          (changeToken === undefined || after.changeToken === changeToken)
+        after.kind === "git" && after.revision === revision && after.changeToken === changeToken
           ? diff
           : { kind: "stale" },
       );

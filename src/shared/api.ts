@@ -1,6 +1,7 @@
 import { isProjectPath } from "./project-path.ts";
 import { validateChangeGroupTotals } from "./change-line-stats.ts";
 import { normalizeSearchQuery } from "./search-query.ts";
+import { parseChangeSnapshot, type ChangeSnapshot } from "./change-snapshot.ts";
 
 export type RootInfo = {
   label: string;
@@ -68,13 +69,10 @@ export type ChangeLineStats =
   | { kind: "unavailable"; reason: "limit" | "read_error" | "changed" };
 export type ReviewChangeEntry = ChangeEntry & { stats: ChangeLineStats };
 export type ProjectInventory =
-  | { kind: "not_git" }
-  | { kind: "git"; revision: string; changeToken: string; entries: ChangeEntry[] };
+  { kind: "not_git" } | (ChangeSnapshot & { kind: "git"; entries: ChangeEntry[] });
 export type ProjectStatus =
-  | { kind: "not_git" }
-  | { kind: "git"; revision: string; changeToken: string; entries: ReviewChangeEntry[] };
-export type ProjectChangeCheck =
-  { kind: "not_git" } | { kind: "git"; revision: string; changeToken: string };
+  { kind: "not_git" } | (ChangeSnapshot & { kind: "git"; entries: ReviewChangeEntry[] });
+export type ProjectChangeCheck = { kind: "not_git" } | (ChangeSnapshot & { kind: "git" });
 
 export type DiffLine = {
   kind: "context" | "added" | "removed";
@@ -384,11 +382,7 @@ export function parseChangeCheckResponse(value: unknown): ProjectChangeCheck {
   const outer = expectRecord(value, "server response");
   if (outer["kind"] === "not_git") return { kind: "not_git" };
   if (outer["kind"] !== "git") throw new Error("Expected a Git status response");
-  const revision = expectString(outer["revision"], "revision");
-  if (!/^[0-9a-f]{20}$/.test(revision)) throw new Error("Expected a valid status revision");
-  const changeToken = expectString(outer["changeToken"], "changeToken");
-  if (!/^[0-9a-f]{20}$/.test(changeToken)) throw new Error("Expected a valid change token");
-  return { kind: "git", revision, changeToken };
+  return { kind: "git", ...parseChangeSnapshot(outer) };
 }
 
 export function parseChangeLineStats(value: unknown): ChangeLineStats {

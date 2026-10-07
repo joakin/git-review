@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DiffResult, Project, ProjectStatus } from "../shared/api.ts";
+import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
 import {
   emptyCommentStore,
   formatFeedback,
@@ -25,8 +26,8 @@ const otherProject: Project = {
 };
 const status: ProjectStatus = {
   kind: "git",
-  revision: "revision",
-  changeToken: "token",
+  revision: "a".repeat(20),
+  changeToken: "b".repeat(20),
   entries: [
     {
       layer: "unstaged",
@@ -162,6 +163,47 @@ function heldClipboard() {
 }
 
 describe("owned feedback transactions", () => {
+  test("feedback checks both snapshot tokens and retries an edit behind unchanged status", async () => {
+    let changeToken = status.changeToken;
+    const snapshots: ChangeSnapshot[] = [];
+    const h = harness([draft("one")], {
+      fetchStatus: async () => ({ ...status, changeToken }),
+      fetchDiff: async (projectPath, layer, path, snapshot, language, signal) => {
+        expect([projectPath, layer, path, language]).toEqual([
+          project.absolutePath,
+          "unstaged",
+          "file.ts",
+          "text",
+        ]);
+        expect(signal.aborted).toBe(false);
+        snapshots.push({ revision: snapshot.revision, changeToken: snapshot.changeToken });
+        if (snapshot.changeToken === status.changeToken) {
+          changeToken = "c".repeat(20);
+          return { kind: "stale" };
+        }
+        return diff;
+      },
+    });
+    const current = h.store;
+    await h.transactions.copy(project);
+    expect(h.state.check).toEqual({
+      kind: "error",
+      message: "The files changed during checking. Try again.",
+    });
+    expect(h.store).toEqual(current);
+    expect(h.written).toEqual([]);
+    expect(h.copied).toEqual([]);
+
+    await h.transactions.copy(project);
+    expect(snapshots).toEqual([
+      { revision: status.revision, changeToken: status.changeToken },
+      { revision: status.revision, changeToken },
+    ]);
+    expect(h.written).toEqual([formatFeedback(project.absolutePath, [draft("one")])]);
+    expect(h.store.drafts).toEqual([]);
+    expect(h.store.history[0]?.comments).toEqual([draft("one")]);
+  });
+
   test("a late line check preserves edits, deletion, reattachment, new drafts and history", async () => {
     const result = deferred<DiffResult>();
     const started = deferred<void>();
@@ -340,7 +382,7 @@ describe("owned feedback transactions", () => {
     const started = deferred<AbortSignal>();
     let first = true;
     const h = harness([draft("one")], {
-      fetchDiff: async (_id, _layer, _path, _revision, _language, signal) => {
+      fetchDiff: async (_id, _layer, _path, _snapshot, _language, signal) => {
         if (first) {
           first = false;
           started.resolve(signal);

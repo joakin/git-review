@@ -133,6 +133,7 @@ for (const format of ["sha1", "sha256"] as const) {
               layer,
               path: media.path,
               revision: status.revision,
+              changeToken: status.changeToken,
             });
             const response = await handle(
               new Request(projectRequestUrl(`${base}/diff?${query}`, project.absolutePath)),
@@ -233,6 +234,7 @@ test("subfolder staged rename and deletion retain their scoped Old image", async
         layer: "staged",
         path,
         revision: status.revision,
+        changeToken: status.changeToken,
       });
       const diff = parseDiffResponse(
         (await (

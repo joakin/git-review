@@ -72,15 +72,24 @@ test("status access accepts a project path and rechecks its approved path", asyn
         layer: "untracked",
         path: "new.txt",
         revision: changedStatus.revision,
+        changeToken: changedStatus.changeToken,
       }).toString();
       expect(
         parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown).kind,
       ).toBe("text");
+      for (const key of ["revision", "changeToken"])
+        for (const value of [null, "", "old", "A".repeat(20), "a".repeat(21)]) {
+          const invalid = new URL(diffUrl);
+          if (value === null) invalid.searchParams.delete(key);
+          else invalid.searchParams.set(key, value);
+          expect((await handle(new Request(invalid))).status).toBe(400);
+        }
       diffUrl.search = new URLSearchParams({
         projectPath: project.absolutePath,
         layer: "untracked",
         path: "new.txt",
         revision: changedStatus.revision,
+        changeToken: changedStatus.changeToken,
         language: "invalid-grammar",
       }).toString();
       expect((await handle(new Request(diffUrl))).status).toBe(400);
@@ -89,6 +98,7 @@ test("status access accepts a project path and rechecks its approved path", asyn
         layer: "untracked",
         path: "other.txt",
         revision: changedStatus.revision,
+        changeToken: changedStatus.changeToken,
       }).toString();
       expect((await handle(new Request(diffUrl))).status).toBe(404);
       diffUrl.search = new URLSearchParams({
@@ -96,6 +106,7 @@ test("status access accepts a project path and rechecks its approved path", asyn
         layer: "untracked",
         path: "new.txt",
         revision: cleanStatus.revision,
+        changeToken: cleanStatus.changeToken,
       }).toString();
       expect(
         parseDiffResponse((await (await handle(new Request(diffUrl))).json()) as unknown),
@@ -225,6 +236,7 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
         layer,
         path: "art.svg",
         revision: status.revision,
+        changeToken: status.changeToken,
       }).toString();
       const diff = parseDiffResponse(
         (await (
@@ -277,6 +289,7 @@ test("image previews keep HEAD, index, and working-tree versions separate and ga
         layer,
         path,
         revision: status.revision,
+        changeToken: status.changeToken,
       }).toString();
       const diff = parseDiffResponse(
         (await (
@@ -358,6 +371,7 @@ test("audio ranges read the correct Git side and support seeking, HEAD, and stal
         layer,
         path: "sound.wav",
         revision: status.revision,
+        changeToken: status.changeToken,
       }).toString();
       const diff = parseDiffResponse(
         (await (

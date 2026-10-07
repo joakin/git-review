@@ -103,7 +103,7 @@ export class FeedbackTransactions {
             snapshot.projectPath,
             anchor.layer,
             anchor.path,
-            latest.revision,
+            latest,
             "text",
             signal,
           );

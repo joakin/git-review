@@ -20,7 +20,9 @@ test("change batches preserve layer/language identity and require both snapshot 
   expect(parsed).toEqual(request);
   expect(new Set(parsed.files.map(changeDiffRequestKey)).size).toBe(3);
   for (const invalid of [
+    { ...request, revision: undefined },
     { ...request, changeToken: undefined },
+    { ...request, changeToken: "B".repeat(20) },
     { ...request, revision: "HEAD" },
     { ...request, extra: true },
     { ...request, files: [] },

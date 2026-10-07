@@ -22,6 +22,16 @@ const response = (entries: unknown[]) => ({
   entries,
 });
 
+test("status and check responses require both valid snapshot tokens", () => {
+  expect(parseChangeCheckResponse({ kind: "not_git" })).toEqual({ kind: "not_git" });
+  for (const key of ["revision", "changeToken"])
+    for (const value of [undefined, null, 1, "", "old", "A".repeat(20), "a".repeat(21)]) {
+      const invalid = { ...response([]), [key]: value };
+      expect(() => parseChangeCheckResponse(invalid)).toThrow();
+      expect(() => parseStatusResponse(invalid)).toThrow();
+    }
+});
+
 test("required statistics reject invalid counts, duplicate identities and contradictory states", () => {
   const valid = entry({ kind: "text", added: 12, deleted: 3 });
   expect<unknown>(parseStatusResponse(response([valid]))).toEqual(response([valid]));

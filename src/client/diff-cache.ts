@@ -1,12 +1,11 @@
 import type { ChangeLayer, DiffResult } from "../shared/api.ts";
 import { ResourceCache } from "../shared/resource-cache.ts";
+import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
 
-export type DiffCacheIdentity = {
+export type DiffCacheIdentity = ChangeSnapshot & {
   projectPath: string;
   layer: ChangeLayer;
   path: string;
-  revision: string;
-  changeToken: string;
   refreshKey: number;
   language: string | null;
 };
