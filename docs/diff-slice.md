@@ -56,6 +56,11 @@ including hunk/line consistency and decoration reconstruction. The shared render
 working-copy review with comments and [historical inspection](git-history-slice-proposal.md) without
 comments; request and cache identities remain with each source.
 
+The
+[long-code performance record](long-diff-performance-investigation.md#agreed-implementation-approach)
+owns code-render isolation, bounded browser rendering containment and measured-size lifetime for
+Changes, historical diffs and Files.
+
 ## Verification
 
 [Diff-constructor tests](../src/server/diff-content.test.ts),

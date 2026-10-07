@@ -2,7 +2,8 @@
 
 Status: investigation completed on 2026-10-07. The maintainer authorized render isolation and CSS
 containment on 2026-10-08, with independent review and a separate commit for each step. Render
-isolation is implemented and reviewed; containment is the next step.
+isolation and containment are implemented and independently reviewed. Physical iPad/Safari testing
+remains a maintainer follow-up.
 
 ## Findings
 
@@ -174,9 +175,9 @@ An independent read-only review found no actionable correctness or maintainabili
 current callbacks, resource identity, side changes, primitive counts, line taps and file targets.
 Typecheck, build and all 256 tests passed. Focused browser QA covered comment persistence,
 Old-context reattachment and checked export. [Rendering QA](../qa/check-code-rendering.ts) guards
-unchanged-code exclusion and affected-marker updates in large Changes and Files views. Further
-selection/navigation QA is recorded in the step handoff. Physical-device and Safari behavior remain
-unverified.
+unchanged-code exclusion and affected-marker updates in large Changes and Files views. Selected-code
+feedback, Old/New reattachment and navigation QA also passed. Physical-device and Safari behavior
+remain unverified.
 
 ## Agreed implementation approach
 
@@ -199,12 +200,63 @@ The first implementation keeps the current DOM and loading policy while isolatin
   phone, tablet portrait, tablet landscape and desktop states, then check the maintainer's real
   phone.
 
-After that reviewed slice, prototype containment of bounded code blocks, with measured heights
-scoped to diff version and layout conditions. Review font changes, wrapping, rotation, deep card
-jumps and Back/Forward restoration before choosing it. Validate Safari on a real device before
-depending on this approach for iPhone performance. If retained DOM or mounting still dominates,
-consider viewport mounting in a separate proposal, preserving active selections, focused elements
-and active comment targets.
+The second slice applies automatic content visibility to each text code pane and bounded groups of
+source lines within wrapped panes. It retains every row and syntax token. Initial skipped heights
+estimate one ordinary code-line height per row, plus hunk headings at the pane level. Visited block
+and pane heights are remembered by the immutable displayed resource and layout: pane/viewport width,
+wrapping, typography and completed font loads. The cache retains a bounded number of layouts per
+resource without retaining DOM nodes. Resize observations accept only rendered children and apply
+non-inherited intrinsic block sizes directly. Layout changes discard pending measurements before
+observing the new layout.
+
+Per-row containment was tested but added substantial scrolling overhead. Small groups reduced that
+cost while still bounding browser work inside a long file. Unwrapped inner blocks keep normal layout
+to preserve the full horizontal extent of off-screen long lines; the outer pane still uses automatic
+content visibility. Sticky card headings and fixed line actions stay outside containment. Explicit
+file-line targets render their block before route scrolling. Browsers lacking the required CSS and
+visibility/resize APIs use ordinary rendering. This is browser rendering deferral, not DOM
+virtualization; initial mounting and retained DOM still have costs.
+
+Final samples used the same Chrome phone profile and 4× CPU throttling as the investigation, with
+three fresh contexts per fixture and no concurrent browser checks. Medians compare the original
+baseline with both delivered steps:
+
+| Operation           | Twenty files: baseline | Twenty files: delivered | One file: baseline | One file: delivered |
+| ------------------- | ---------------------- | ----------------------- | ------------------ | ------------------- |
+| Expand all          | 2,211 ms               | 1,644 ms                | 2,022 ms           | 1,317 ms            |
+| Open comment editor | 706 ms                 | 143 ms                  | 562 ms             | 63 ms               |
+| One typed character | 142 ms                 | 33 ms                   | 128 ms             | 33 ms               |
+| Save comment        | 658 ms                 | 107 ms                  | 559 ms             | 50 ms               |
+| Cached Back         | 1,595 ms               | 771 ms                  | 1,259 ms           | 564 ms              |
+
+The single-file synthetic scroll's median maximum frame gap was about 36 ms, versus 133 ms in the
+baseline. None of the six final scroll samples exceeded 50 ms. These controlled measurements are not
+physical-phone timings or an INP score. The final result file is retained locally beside the
+original ignored investigation evidence as `results-step-two-final.json`.
+
+Independent review identified visibility-filter and responsive-cache issues; both were corrected and
+rereviewed without further findings. The isolated delivery tree passed typecheck, build, formatting,
+CSS-token checks and all 256 tests. [Containment QA](../qa/check-code-containment.ts) checks
+complete DOM, skipped off-screen content, deep cached Back, rotation, font size, wrapping,
+horizontal extent, card jumps, direct file-line navigation, far-line focus and unsupported fallback.
+Rendering QA still records zero unchanged code renders for transient actions and exactly one
+affected line on Save. Blank-line checks passed in Changes, historical Git and Files at all four
+layouts, multiple font sizes and both wrap modes. Selected-code feedback, Old/New reattachment and
+navigation checks passed.
+
+The [Changes](../qa/screenshots/long-code-containment-changes/mobile.png) and
+[Files with a line action](../qa/screenshots/long-code-containment-files/mobile.png) milestone sets
+were captured and inspected at phone, tablet portrait, tablet landscape and desktop sizes. No blank
+visible blocks, clipped actions or page-wide horizontal overflow were observed. Safari 26.0.1 is
+installed locally, but WebDriver could not create a session because remote automation is disabled;
+its settings were left unchanged. No Safari or physical iPad/phone pass is claimed. The maintainer
+accepted enabling containment now and checking their iPad afterward.
+
+Concurrent feature work was kept out of both commits. Final typecheck, tests and browser checks used
+an isolated copy of the reviewed render-isolation commit plus only the containment changes; the
+shared working app's client assets were rebuilt afterward. Future changes to a text snapshot must
+also change the containment resource identity, including any separately implemented context
+expansion.
 
 Other opportunities are secondary: prioritize near-viewport expanded-card requests for initial
 network work; avoid repeated token decoration and duplicate per-card language-option work; inspect
@@ -214,9 +266,9 @@ cache-hit scenarios measured here.
 
 ## Evidence limits
 
-This investigation did not validate physical iOS/Android gestures, installed-PWA behavior, Safari
-rendering, deep scroll restoration under estimated heights, browser find, keyboard/screen-reader
-navigation, unwrapped horizontal sizing, other viewport sizes, or sustained memory use. Temporary
-prototypes are performance probes, not completed correctness-tested implementations. The original
-performance probes did not change production code. Implementation evidence is recorded separately
-above.
+The original investigation did not validate physical iOS/Android gestures, installed-PWA behavior,
+Safari rendering, deep scroll restoration under estimated heights, browser find,
+keyboard/screen-reader navigation, unwrapped horizontal sizing, other viewport sizes, or sustained
+memory use. Temporary prototypes are performance probes, not completed correctness-tested
+implementations. The original performance probes did not change production code. Implementation
+evidence is recorded separately above.

@@ -1,4 +1,6 @@
 import { memo } from "preact/compat";
+import { CodeRenderBlocks } from "./CodeRenderBlocks.tsx";
+import { useCodeRendering } from "./code-rendering.ts";
 import { useMemo } from "preact/hooks";
 import { useStableCallback } from "./use-stable-callback.ts";
 import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts";
@@ -196,20 +198,22 @@ const HunkRows = memo(function HunkRows({
       <div class="diff-hunk-label">
         <span>{`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`}</span>
       </div>
-      {hunk.lines.map((line, index) => (
-        <DiffRow
-          key={`${index}:${line.oldLine ?? ""}:${line.newLine ?? ""}`}
-          resource={resource}
-          hunk={hunk}
-          index={index}
-          line={line}
-          source={source}
-          oldCount={line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)}
-          newCount={line.newLine === null ? 0 : (draftCounts.new.get(line.newLine) ?? 0)}
-          onReveal={onReveal}
-          onComment={onComment}
-        />
-      ))}
+      <CodeRenderBlocks>
+        {hunk.lines.map((line, index) => (
+          <DiffRow
+            key={`${index}:${line.oldLine ?? ""}:${line.newLine ?? ""}`}
+            resource={resource}
+            hunk={hunk}
+            index={index}
+            line={line}
+            source={source}
+            oldCount={line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)}
+            newCount={line.newLine === null ? 0 : (draftCounts.new.get(line.newLine) ?? 0)}
+            onReveal={onReveal}
+            onComment={onComment}
+          />
+        ))}
+      </CodeRenderBlocks>
     </div>
   );
 });
@@ -224,6 +228,14 @@ export function DiffBody({
   interaction: DiffInteraction;
 }) {
   const [action, setAction] = useLineAction<LineAction>(result, wrap);
+  const codePane = useCodeRendering(result, wrap);
+  const rowCount = useMemo(
+    () =>
+      result.kind === "text"
+        ? result.hunks.reduce((count, hunk) => count + hunk.lines.length, 0)
+        : 0,
+    [result],
+  );
   const drafts = interaction.kind === "review" ? interaction.drafts : noDrafts;
   const draftCounts = useMemo<DraftCounts>(() => {
     const counts = { old: new Map<number, number>(), new: new Map<number, number>() };
@@ -317,7 +329,13 @@ export function DiffBody({
     );
   return (
     <>
-      <div class={`diff-scroll${wrap ? " diff-scroll-wrap" : ""}`} aria-label="File diff">
+      <div
+        class={`diff-scroll${wrap ? " diff-scroll-wrap" : ""}`}
+        aria-label="File diff"
+        ref={codePane.ref}
+        data-code-contained={codePane.contained ? "" : undefined}
+        style={{ "--code-row-count": rowCount, "--code-hunk-count": result.hunks.length }}
+      >
         <div class="diff-scroll-content">
           {result.hunks.map((hunk, index) => (
             <HunkRows

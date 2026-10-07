@@ -43,6 +43,11 @@ independent of file access. Project loss, canonical-path change, and access deni
 file-level `file_not_found` means an absent file that may make its anchors outdated. Other read and
 transport failures require Retry, so an offline host is never treated as deleted source.
 
+The
+[long-code performance record](long-diff-performance-investigation.md#agreed-implementation-approach)
+owns code-render isolation, bounded browser rendering containment and measured-size lifetime for
+Changes, historical diffs and Files.
+
 ## Evidence and device limits
 
 The [QA catalog](qa-workflow.md) identifies Files, navigation, and feedback checks.

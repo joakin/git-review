@@ -5,6 +5,10 @@
   --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --code-font-family: var(--font-code);
   --code-font-size: var(--font-size-12);
+  /* Code panes and bounded blocks supply source counts for rendering estimates. */
+  --code-row-count: 0;
+  --code-hunk-count: 0;
+  --code-block-rows: 0;
   --font-size-10: 10px;
   --font-size-11: 11px;
   --font-size-12: 12px;

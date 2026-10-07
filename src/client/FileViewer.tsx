@@ -1,4 +1,6 @@
 import { memo } from "preact/compat";
+import { CodeRenderBlocks } from "./CodeRenderBlocks.tsx";
+import { useCodeRendering } from "./code-rendering.ts";
 import { useStableCallback } from "./use-stable-callback.ts";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { FileReadResult, LanguageOption } from "../shared/api.ts";
@@ -180,6 +182,7 @@ function FileLines({
   targetLine: number | null;
 }) {
   const [action, setAction] = useLineAction<FileLineAction>(result, wrap);
+  const codePane = useCodeRendering(result, wrap);
   const counts = useMemo(() => {
     const counts = new Map<number, number>();
     for (const draft of drafts)
@@ -198,7 +201,13 @@ function FileLines({
   });
   return (
     <>
-      <div class={`file-code-scroll${wrap ? " file-code-wrap" : ""}`} aria-label="File contents">
+      <div
+        class={`file-code-scroll${wrap ? " file-code-wrap" : ""}`}
+        aria-label="File contents"
+        ref={codePane.ref}
+        data-code-contained={codePane.contained ? "" : undefined}
+        style={{ "--code-row-count": result.lines.length, "--code-hunk-count": 0 }}
+      >
         <div class="file-code-content">
           <FileRows
             projectPath={projectPath}
@@ -326,19 +335,21 @@ const FileRows = memo(function FileRows({
 }) {
   return (
     <>
-      {result.lines.map((line, index) => (
-        <FileRow
-          key={line.number}
-          projectPath={projectPath}
-          result={result}
-          line={line}
-          index={index}
-          count={counts.get(line.number) ?? 0}
-          targeted={line.number === targetLine}
-          onComment={onComment}
-          onReveal={onReveal}
-        />
-      ))}
+      <CodeRenderBlocks>
+        {result.lines.map((line, index) => (
+          <FileRow
+            key={line.number}
+            projectPath={projectPath}
+            result={result}
+            line={line}
+            index={index}
+            count={counts.get(line.number) ?? 0}
+            targeted={line.number === targetLine}
+            onComment={onComment}
+            onReveal={onReveal}
+          />
+        ))}
+      </CodeRenderBlocks>
     </>
   );
 });

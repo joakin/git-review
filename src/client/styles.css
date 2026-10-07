@@ -883,6 +883,26 @@ button:focus-visible {
 .file-code-scroll {
   border-top: 1px solid var(--color-border);
 }
+/* Keep card headers and fixed line actions outside the rendering boundary. */
+[data-code-contained] {
+  content-visibility: auto;
+  contain-intrinsic-block-size: calc(
+    var(--code-row-count) * (var(--code-font-size) * 1.4 + var(--space-1)) +
+      var(--code-hunk-count) * (var(--font-size-11) * 1.5 + var(--space-4))
+  );
+}
+/* Unwrapped rows retain intrinsic widths, including the longest off-screen line. */
+.file-code-wrap[data-code-contained] .code-render-block,
+.diff-scroll-wrap[data-code-contained] .code-render-block {
+  content-visibility: auto;
+  contain-intrinsic-block-size: calc(
+    var(--code-block-rows) * (var(--code-font-size) * 1.4 + var(--space-1))
+  );
+}
+/* Resolve an explicit file-line destination before its one-time route scroll. */
+.file-code-wrap[data-code-contained] .code-render-block:has(.file-code-row-target) {
+  content-visibility: visible;
+}
 .file-code-content,
 .diff-scroll-content {
   display: inline-block;

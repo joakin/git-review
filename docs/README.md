@@ -23,8 +23,8 @@ record. Update the owner instead of adding correction banners or a second specif
 types, route fields, supported-value lists, constants, and script assertions belong in code.
 
 The [long diff performance investigation](long-diff-performance-investigation.md) records local
-measurements and the reviewed render-isolation implementation. CSS containment is the next
-authorized step.
+measurements and the reviewed render-isolation and CSS-containment implementations. Physical
+iPad/Safari verification remains pending.
 
 ## Behavior records
 
