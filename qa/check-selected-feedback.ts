@@ -4,8 +4,19 @@ import { resolve } from "node:path";
 import { type Locator, type Page } from "playwright-core";
 import { parseReviewBackup } from "../src/client/backup.ts";
 import { responseBody } from "../src/client/api.ts";
-import { validateCommentStore, type CommentStore } from "../src/client/comments.ts";
-import { parseProjectResponse } from "../src/shared/api.ts";
+import {
+  anchorForLine,
+  emptyCommentStore,
+  selectionSubject,
+  validateCommentStore,
+  type CommentStore,
+} from "../src/client/comments.ts";
+import { parseDiffResponse, parseProjectResponse } from "../src/shared/api.ts";
+import {
+  changeDiffBatchSource,
+  changeDiffRequestKey,
+  parseChangeDiffBatchRequest,
+} from "../src/shared/change-diff-batch.ts";
 import { selectCodeText } from "./select-code-text.ts";
 import {
   appUrl,
@@ -93,6 +104,198 @@ async function save(page: Page, body: string): Promise<void> {
   await page.getByPlaceholder("Add a question, note, or suggestion…").fill(body);
   await page.getByRole("button", { name: "Save comment", exact: true }).click();
   await page.locator(".comment-editor").waitFor({ state: "detached" });
+}
+
+async function checkContextFeedback(page: Page, touch: boolean): Promise<void> {
+  const contextText = "\tconst stable = '🦊' + 'again' + 'again';";
+  const staleText = contextText.replace("stable", "before");
+  const start = contextText.lastIndexOf("again");
+  const subject = selectionSubject(staleText, start, start + 5);
+  assert(subject !== null, "Invalid Old selection fixture");
+  const diff = parseDiffResponse({
+    kind: "text",
+    syntax: { kind: "plain", reason: "selected" },
+    hunks: [
+      {
+        oldStart: 7,
+        oldCount: 1,
+        newStart: 11,
+        newCount: 1,
+        lines: [
+          {
+            kind: "context",
+            oldLine: 7,
+            newLine: 11,
+            text: contextText,
+            tokens: [{ text: contextText, role: "plain" }],
+            detail: { kind: "none" },
+            noNewlineAtEnd: false,
+          },
+        ],
+      },
+    ],
+  });
+  assert(diff.kind === "text", "Invalid context diff fixture");
+  const hunk = diff.hunks[0];
+  assert(hunk !== undefined, "Missing context hunk");
+  const oldAnchor = anchorForLine("unstaged", "src/view.ts", hunk, 0, "old");
+  const newAnchor = anchorForLine("unstaged", "src/view.ts", hunk, 0, "new");
+  assert(oldAnchor !== null && newAnchor !== null, "Missing context anchors");
+  const store: CommentStore = {
+    ...emptyCommentStore(project.absolutePath),
+    drafts: [
+      {
+        id: "old-selection",
+        anchor: { ...oldAnchor, sourceText: staleText },
+        subject,
+        body: "Keep this second Old occurrence",
+        state: "outdated",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: "old-line",
+        anchor: { ...oldAnchor, sourceText: staleText },
+        subject: { kind: "line" },
+        body: "Keep this whole Old line",
+        state: "outdated",
+        createdAt: 2,
+        updatedAt: 2,
+      },
+      {
+        id: "new-line",
+        anchor: newAnchor,
+        subject: { kind: "line" },
+        body: "Keep this New line",
+        state: "current",
+        createdAt: 3,
+        updatedAt: 3,
+      },
+    ],
+  };
+  assert(validateCommentStore(store, project.absolutePath) !== null, "Invalid mixed count fixture");
+  await page.addInitScript(({ key, store }) => localStorage.setItem(key, JSON.stringify(store)), {
+    key,
+    store,
+  });
+  await page.route("**/api/project/diff?*", async (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    if (
+      params.get("projectPath") === project.absolutePath &&
+      params.get("layer") === "unstaged" &&
+      params.get("path") === "src/view.ts"
+    )
+      await route.fulfill({ json: diff });
+    else await route.continue();
+  });
+  await page.route("**/api/project/diffs?*", async (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const request = parseChangeDiffBatchRequest(route.request().postDataJSON() as unknown);
+    if (
+      params.get("projectPath") === project.absolutePath &&
+      request.files.every((file) => file.layer === "unstaged" && file.path === "src/view.ts")
+    )
+      await route.fulfill({
+        json: {
+          kind: "ready",
+          source: changeDiffBatchSource(
+            project.absolutePath,
+            request.revision,
+            request.changeToken,
+          ),
+          results: request.files.map((file) => ({
+            key: changeDiffRequestKey(file),
+            kind: "ready",
+            value: diff,
+          })),
+        },
+      });
+    else await route.continue();
+  });
+  await page.goto(
+    `${origin}/?${new URLSearchParams({ section: "changes", project: project.relativePath, layer: "unstaged", file: "src/view.ts" })}`,
+  );
+  const card = page.locator('.diff-card[data-layer="unstaged"][data-path="src/view.ts"]');
+  const row = card.locator(".diff-row-context");
+  const code = row.locator(".diff-code");
+  await code.waitFor({ state: "visible" });
+  assert(
+    (await row
+      .getByRole("button", { name: "Old line 7, 2 comments. Add comment", includeHidden: true })
+      .count()) === 1 &&
+      (await row
+        .getByRole("button", { name: "New line 11, 1 comments. Add comment", includeHidden: true })
+        .count()) === 1,
+    "Gutter counts lost selection/outdated drafts or mixed the Old/New sides",
+  );
+  if (touch) await code.tap();
+  else await code.click();
+  const action = page.locator(".diff-line-action");
+  await action.waitFor({ state: "visible" });
+  assert(
+    (await action.textContent())?.includes("Comment (3)") === true &&
+      (await action.getAttribute("aria-label"))?.includes("Comment on new line 11") === true,
+    "Context row did not combine side counts or default to New",
+  );
+  await page.keyboard.press("Escape");
+  const comment = page.getByRole("button", {
+    name: "Comment on selected text: again",
+    exact: true,
+  });
+  await range(code, start, start + 5);
+  await comment.click();
+  assert(
+    (await page.locator(".comment-editor .review-anchor").textContent())?.includes(
+      "unstaged · new line 11",
+    ) === true,
+    "Context selection did not default to New",
+  );
+  await page.getByRole("button", { name: "Close comment editor", exact: true }).click();
+
+  await preview(page);
+  await page
+    .locator(".review-item")
+    .filter({ hasText: "Keep this second Old occurrence" })
+    .getByRole("button", { name: "Reattach selection", exact: true })
+    .click();
+  await page.locator(".reattach-banner").waitFor({ state: "visible" });
+  await range(code, start, start + 5);
+  await comment.click();
+  await page.locator(".reattach-banner").waitFor({ state: "detached" });
+  const moved = (await readStore(page)).drafts.find((draft) => draft.id === "old-selection");
+  assert(
+    moved?.body === "Keep this second Old occurrence" &&
+      moved.createdAt === 1 &&
+      moved.anchor.kind === "diff" &&
+      moved.anchor.side === "old" &&
+      moved.anchor.line === 7 &&
+      moved.anchor.sourceText === contextText &&
+      moved.state === "current" &&
+      JSON.stringify(moved.subject) === JSON.stringify(subject),
+    "Old context selection reattachment lost its ID, body, side, line, or exact UTF-16 offsets",
+  );
+
+  await preview(page);
+  await page
+    .locator(".review-item")
+    .filter({ hasText: "Keep this whole Old line" })
+    .getByRole("button", { name: "Reattach to line", exact: true })
+    .click();
+  await page.locator(".reattach-banner").waitFor({ state: "visible" });
+  const beforeWrongSubject = await readStore(page);
+  await range(code, start, start + 5);
+  await comment.click();
+  assert(
+    (await page.locator(".comment-editor").count()) === 0 &&
+      (await page.locator(".reattach-banner").isVisible()) &&
+      JSON.stringify(await readStore(page)) === JSON.stringify(beforeWrongSubject),
+    "A whole-line draft reattached through a selection or lost its stored identity",
+  );
+  await page
+    .locator(".reattach-banner")
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  await assertNoHorizontalOverflow(page);
 }
 
 try {
@@ -443,6 +646,14 @@ try {
       );
     });
     console.log("Diff Old/New selection sources and inspection annotation boundaries passed");
+    for (const profile of [qaProfiles.phone, qaProfiles.desktop]) {
+      await withQaContext(browser, profile, async (context) => {
+        await checkContextFeedback(await context.newPage(), profile === qaProfiles.phone);
+      });
+    }
+    console.log(
+      "Phone/desktop Old-context selection reattachment, subject agreement, and side/row counts passed",
+    );
   });
 } finally {
   if (previous === null) await rm(location, { force: true });

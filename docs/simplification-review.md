@@ -33,7 +33,6 @@ slice are recorded below.
 
 | ID  | Finding                                                | Area          | Risk       |
 | --- | ------------------------------------------------------ | ------------- | ---------- |
-| S19 | Resolve diff-row feedback side in one place            | Client        | Low–medium |
 | S20 | Group identical Files/diff code-pane CSS               | Client/styles | Low–medium |
 | S22 | Share QA dimensions without changing emulation options | QA            | Medium     |
 | S23 | Reuse existing Git fixture helpers in older QA callers | QA            | Low–medium |
@@ -224,6 +223,20 @@ requirement after asynchronous route focus.
 sizes; no page overflow or clipped heading controls were found. Physical-device checks remain
 unverified.
 
+### S19 — Resolve diff-row feedback side and counts in one place
+
+DiffBody shares the preferred side between selection registration and floating row actions. An
+_ephemeral_ per-card count index keeps each gutter's side count separate from combined row counts,
+including selection subjects and outdated drafts. Caller scope, exact anchors, historical
+inspection, no-newline exclusion, and action timing remain intact.
+
+All five TypeScript configurations, static QA, the build, and 51 focused tests passed. Independent
+server review found no actionable issues. Selected-feedback browser checks passed at five sizes,
+including new phone/desktop context cases with different Old/New numbers, side/combined counts,
+default New actions, and Old-selection reattachment retaining identity, body, and exact offsets.
+Existing floating Old-context feedback/export and four-size Git inspection checks passed. No layout
+or physical-device behavior was changed or newly verified.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -242,20 +255,6 @@ reset and current-format behavior.
 ## Server organization and mechanisms
 
 ## Client presentation and types
-
-### S19 — Resolve diff-row feedback side in one place
-
-**Evidence:** [DiffBody](../src/client/DiffBody.tsx), lines 138 and 181, independently chooses Old
-for removed rows or Old reattachment of context, otherwise New. Selection registration and floating
-row actions must agree. Anchors/counts are rebuilt for gutters, selection, and row actions at lines
-71–79, 133–143, and 185–198. [FileViewer](../src/client/FileViewer.tsx), line 185, already indexes
-draft counts once.
-
-**Proposed slice:** share the preferred-side rule first; consider a per-card count index afterward
-if it clarifies the row code. Keep per-side gutter counts distinct from combined Old/New row counts.
-Preserve Old context reattachment, exact anchors, historical inspection, and selection exclusion for
-the no-newline annotation. Verify both action paths choose Old during Old reattachment, count
-semantics, and existing feedback/selection QA. A persistent generic row model is unnecessary.
 
 ### S20 — Group identical Files/diff code-pane CSS
 

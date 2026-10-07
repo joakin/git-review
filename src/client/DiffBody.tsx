@@ -1,5 +1,5 @@
 import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts";
-import type { ChangeEntry, DiffHunk, DiffResult } from "../shared/api.ts";
+import type { ChangeEntry, DiffHunk, DiffLine, DiffResult } from "../shared/api.ts";
 import {
   anchorForLine,
   type DiffCommentAnchor,
@@ -34,16 +34,23 @@ type LineAction = {
 };
 
 type LineReveal = (hunk: DiffHunk, index: number, row: HTMLElement, clientX: number) => void;
+type DraftCounts = Record<ReviewSide, ReadonlyMap<number, number>>;
+
+function preferredSide(kind: DiffLine["kind"], reattachSide: ReviewSide | null): ReviewSide {
+  return kind === "removed" || (kind === "context" && reattachSide === "old") ? "old" : "new";
+}
 
 function HunkRows({
   resource,
   hunk,
   interaction,
+  draftCounts,
   onReveal,
 }: {
   resource: DiffResult;
   hunk: DiffHunk;
   interaction: DiffInteraction;
+  draftCounts: DraftCounts;
   onReveal: LineReveal;
 }) {
   const lineTap = useLineTap((index, row, x) => onReveal(hunk, index, row, x));
@@ -76,12 +83,7 @@ function HunkRows({
       side,
     );
     if (anchor === null) return <span class="diff-number diff-number-empty" aria-hidden="true" />;
-    const count = interaction.drafts.filter(
-      (draft) =>
-        draft.anchor.kind === "diff" &&
-        draft.anchor.side === side &&
-        draft.anchor.line === anchor.line,
-    ).length;
+    const count = draftCounts[side].get(anchor.line) ?? 0;
     return (
       <button
         class={`diff-number diff-number-button${count > 0 ? " diff-number-commented" : ""}`}
@@ -135,10 +137,7 @@ function HunkRows({
                     interaction.entry.path,
                     hunk,
                     index,
-                    line.kind === "removed" ||
-                      (line.kind === "context" && interaction.reattachSide === "old")
-                      ? "old"
-                      : "new",
+                    preferredSide(line.kind, interaction.reattachSide),
                   )
                 : null
             }
@@ -169,6 +168,14 @@ export function DiffBody({
   interaction: DiffInteraction;
 }) {
   const [action, setAction] = useLineAction<LineAction>(result, wrap);
+  const draftCounts = { old: new Map<number, number>(), new: new Map<number, number>() };
+  if (interaction.kind === "review") {
+    for (const draft of interaction.drafts) {
+      if (draft.anchor.kind !== "diff") continue;
+      const counts = draftCounts[draft.anchor.side];
+      counts.set(draft.anchor.line, (counts.get(draft.anchor.line) ?? 0) + 1);
+    }
+  }
 
   const reveal: LineReveal = (hunk, index, row, clientX) => {
     const line = hunk.lines[index];
@@ -178,24 +185,17 @@ export function DiffBody({
     let action: LineAction["action"];
     if (interaction.kind === "inspect") action = { kind: "inspect" };
     else {
-      const side =
-        line.kind === "removed" || (line.kind === "context" && interaction.reattachSide === "old")
-          ? "old"
-          : "new";
       const anchor = anchorForLine(
         interaction.entry.layer,
         interaction.entry.path,
         hunk,
         index,
-        side,
+        preferredSide(line.kind, interaction.reattachSide),
       );
       if (anchor === null) return;
-      const count = interaction.drafts.filter(
-        (draft) =>
-          draft.anchor.kind === "diff" &&
-          ((draft.anchor.side === "old" && draft.anchor.line === line.oldLine) ||
-            (draft.anchor.side === "new" && draft.anchor.line === line.newLine)),
-      ).length;
+      const count =
+        (line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)) +
+        (line.newLine === null ? 0 : (draftCounts.new.get(line.newLine) ?? 0));
       action = { kind: "comment", anchor, count };
     }
     setAction({
@@ -250,6 +250,7 @@ export function DiffBody({
               resource={result}
               hunk={hunk}
               interaction={interaction}
+              draftCounts={draftCounts}
               onReveal={reveal}
               key={`${index}:${hunk.oldStart}:${hunk.newStart}`}
             />
