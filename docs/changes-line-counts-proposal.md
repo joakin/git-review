@@ -36,10 +36,10 @@ conflicts, links and submodules show a quiet dash with an accessible reason. Lim
 unstable content show Stats unavailable. Group totals include known text and explicitly label
 entries that cannot contribute.
 
-Untracked counting shares [text classification](../src/server/working-text.ts) with its diff:
-bounded bytes, valid UTF-8, no NUL and correct final-newline handling. It scans without constructing
-diff rows or decorations and uses [checked no-follow access](working-file-boundaries.md). Tracked
-numeric counts can remain available when a full patch exceeds display limits.
+Untracked counting shares [text classification](../src/server/source-text.ts) with its diff: bounded
+bytes, valid UTF-8, no NUL and correct final-newline handling. It scans without constructing diff
+rows or decorations and uses [checked no-follow access](working-file-boundaries.md). Tracked numeric
+counts can remain available when a full patch exceeds display limits.
 
 Ordinary staged/unstaged comparisons preserve separate inventory entries. Raw modes keep links and
 submodules out of text counts. Explicit renames/copies use their card's permitted paths and rename

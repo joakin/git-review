@@ -2,12 +2,13 @@
 
 ## Project status
 
-The [initial implementation](docs/initial-implementation-plan.md#stage-closure--2026-09-30) and
-first [maintenance pass](docs/maintenance-plan.md) are complete and closed. Keep closure records
-brief; Git preserves original proposals, implementation sequences, and dated review history. Keep
-further work in small reviewed steps and preserve the commit-approval rule below. The
-[remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is optional; start
-further features only when the maintainer requests them.
+The [initial implementation](docs/initial-implementation-plan.md#stage-closure--2026-09-30), first
+[maintenance pass](docs/maintenance-plan.md), and
+[simplification pass](docs/simplification-review.md) are complete and closed, the latter on
+2026-10-07. Keep closure records brief; Git preserves original proposals, implementation sequences,
+and dated review history. Keep further work in small reviewed steps and preserve the commit-approval
+rule below. The [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is
+optional; start further features only when the maintainer requests them.
 
 ## Collaboration
 

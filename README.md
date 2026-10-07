@@ -11,8 +11,9 @@ Drafts and preferences stay in the browser; Git and file contents are read from 
 
 ## Project status
 
-The [initial implementation](docs/initial-implementation-plan.md#stage-closure--2026-09-30) and
-first [maintenance pass](docs/maintenance-plan.md) are complete and closed. The
+The [initial implementation](docs/initial-implementation-plan.md#stage-closure--2026-09-30), first
+[maintenance pass](docs/maintenance-plan.md), and
+[simplification pass](docs/simplification-review.md) are complete and closed. The
 [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product
 backlog. Further changes follow the review and commit-approval rules in [AGENTS.md](AGENTS.md).
 

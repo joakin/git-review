@@ -1,22 +1,20 @@
 # Documentation map
 
-Start here for the current contract of the area you are changing. The app's initial implementation
-and first maintenance pass are closed; optional product work is in the
-[backlog](initial-implementation-plan.md#remaining-roadmap). The
-[simplification review](simplification-review.md) records the current documentation pass and the
-remaining code findings.
+Start here for the current contract of the area you are changing. The app's initial implementation,
+first maintenance pass, and [simplification pass](simplification-review.md) are closed. Optional
+product work is in the [backlog](initial-implementation-plan.md#remaining-roadmap).
 
 ## What belongs where
 
-| Record                                                                                     | Responsibility                                                                            |
-| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| [Root README](../README.md)                                                                | Run, HTTPS installation, runtime prerequisites, and entrypoint commands.                  |
-| [AGENTS.md](../AGENTS.md)                                                                  | Collaboration, commit approval, and required delivery checks.                             |
-| [Engineering conventions](engineering-conventions.md)                                      | Principles that apply across domains, including documentation ownership.                  |
-| Behavior records below                                                                     | Current user behavior, stable contracts, non-obvious decisions, and selected evidence.    |
-| [QA workflow](qa-workflow.md)                                                              | Runnable checks, fixture prerequisites, screenshot procedure, and evidence limits.        |
-| [Initial plan](initial-implementation-plan.md), [maintenance closure](maintenance-plan.md) | Scope, acceptance, stop boundaries, and optional backlog.                                 |
-| Git                                                                                        | Original proposals, implementation sequences, dated handoffs, and superseded definitions. |
+| Record                                                                                                                                         | Responsibility                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [Root README](../README.md)                                                                                                                    | Run, HTTPS installation, runtime prerequisites, and entrypoint commands.                  |
+| [AGENTS.md](../AGENTS.md)                                                                                                                      | Collaboration, commit approval, and required delivery checks.                             |
+| [Engineering conventions](engineering-conventions.md)                                                                                          | Principles that apply across domains, including documentation ownership.                  |
+| Behavior records below                                                                                                                         | Current user behavior, stable contracts, non-obvious decisions, and selected evidence.    |
+| [QA workflow](qa-workflow.md)                                                                                                                  | Runnable checks, fixture prerequisites, screenshot procedure, and evidence limits.        |
+| [Initial plan](initial-implementation-plan.md), [maintenance closure](maintenance-plan.md), [simplification closure](simplification-review.md) | Scope, acceptance, stop boundaries, and optional backlog.                                 |
+| Git                                                                                                                                            | Original proposals, implementation sequences, dated handoffs, and superseded definitions. |
 
 The retained `*-proposal.md` filenames are link identities, not pending plans. Their current content
 is authoritative where listed below; short follow-up records point to the domain that absorbed them.

@@ -39,7 +39,7 @@ contracts.
 
 ## Verification
 
-[Git-diff tests](../src/server/git-diff.test.ts) and
+[Diff-constructor tests](../src/server/diff-content.test.ts) and
 [decoration tests](../src/client/diff-detail.test.ts) cover middle insertions/deletions, clear and
 ambiguous pairs, punctuation, whitespace, tabs, repeated words, Unicode/surrogates and safe
 large-input fallback. Response validation rejects out-of-order, out-of-bounds or excessive spans.

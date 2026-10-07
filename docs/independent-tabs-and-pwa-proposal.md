@@ -29,11 +29,11 @@ handling.
 ## Local data and backups
 
 [Storage](../src/client/storage.ts), [comments](../src/client/comments.ts), and
-[backups](../src/client/backup.ts) define current formats and validation. Current workspace and
-comment records are version 4, active-project records are version 2, and backups accept only
-version 6. Project-keyed storage namespaces use encoded canonical paths. Obsolete project data is
-deleted only from known app keys, without preservation or migration; unrelated storage and global
-preferences remain. No earlier-format readers or legacy backup imports are supported.
+[backups](../src/client/backup.ts) define current formats, namespaces, and validation. Project-keyed
+storage uses encoded canonical paths. Obsolete project data is deleted only from known app keys,
+without preservation or migration; unrelated storage and global preferences remain. The scoped
+cleanup also reclaims capacity that current saves may need; retain it while an origin may still
+contain obsolete records. No earlier-format readers or legacy backup imports are supported.
 
 Open **Settings → Install & local data** to export or import. Backups contain saved drafts, exact
 copy history, recents, card/language preferences, wrapping, typography, and appearance. They stay on
