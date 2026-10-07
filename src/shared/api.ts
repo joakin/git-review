@@ -1,5 +1,6 @@
 import { isProjectPath } from "./project-path.ts";
 import { validateChangeGroupTotals } from "./change-line-stats.ts";
+import { normalizeSearchQuery } from "./search-query.ts";
 
 export type RootInfo = {
   label: string;
@@ -348,8 +349,7 @@ export function parseFileReadResponse(value: unknown): FileReadResult {
 export function parseSearchResponse(value: unknown): SearchResponse {
   const outer = expectRecord(value, "search response");
   const query = expectString(outer["query"], "search query");
-  if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query))
-    throw new Error("Expected a valid search query");
+  if (normalizeSearchQuery(query) !== query) throw new Error("Expected a valid search query");
   if (typeof outer["truncated"] !== "boolean") throw new Error("Expected a search truncation flag");
   const rawMatches = outer["matches"];
   if (!Array.isArray(rawMatches) || rawMatches.length > 100)

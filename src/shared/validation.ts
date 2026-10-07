@@ -1,4 +1,14 @@
 /** Generic checks for data before it crosses into typed application code. */
+export function isValidUrlEncoding(value: string): boolean {
+  try {
+    // URLSearchParams silently replaces malformed Unicode; check before parsing.
+    encodeURIComponent(decodeURIComponent(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,4 +1,5 @@
 import type { SearchMatch, SearchResponse } from "../shared/api.ts";
+import { maxSearchQueryLength } from "../shared/search-query.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import type { LoadState } from "./load-state.ts";
 
@@ -57,7 +58,7 @@ export function SearchView({
             name="query"
             type="search"
             value={query}
-            maxLength={128}
+            maxLength={maxSearchQueryLength}
             required
             autoComplete="off"
             placeholder="Symbol or text"

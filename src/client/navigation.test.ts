@@ -91,4 +91,46 @@ describe("browser navigation", () => {
       },
     });
   });
+
+  test("Search URLs normalize input and round trip literal Unicode without losing the target", () => {
+    for (const query of ["term�", "café🦊", "-word", "a+b ?#%", "x".repeat(128), "🦊".repeat(64)]) {
+      const route: Route = {
+        section: "search",
+        projectPath: "x",
+        query,
+        target: { kind: "file", path: "src/a.ts", line: 3 },
+      };
+      const input = new URL(routeUrl(route), "https://example.test");
+      input.searchParams.set("q", ` \t${query}\n`);
+      const parsed = parseNavigationSearch(input.search);
+      expect(parsed).toEqual({ kind: "ready", route });
+      if (parsed.kind !== "ready") throw new Error("Expected a valid Search route");
+      expect(parseNavigationSearch(new URL(routeUrl(parsed.route), input).search)).toEqual(parsed);
+    }
+    expect(parseNavigationSearch("?section=search&project=x")).toEqual({
+      kind: "ready",
+      route: { section: "search", projectPath: "x", query: null, target: { kind: "results" } },
+    });
+  });
+
+  test("Search URLs reject malformed UTF-8 and invalid queries before replacement decoding", () => {
+    for (const encoded of [
+      "%",
+      "%ZZ",
+      "term%FF",
+      "term%C3%28",
+      "term%ED%A0%80",
+      "term%E2%82",
+      "term\ud800",
+      "\udc00b",
+      "%20%09",
+      "a%0Ab",
+      "a%00b",
+      "x".repeat(129),
+      encodeURIComponent("🦊".repeat(65)),
+    ]) {
+      expect(parseNavigationSearch(`?section=search&project=x&q=${encoded}`).kind).toBe("invalid");
+    }
+    expect(parseNavigationSearch("?section=search&project=x&q=a&q=b").kind).toBe("invalid");
+  });
 });

@@ -35,6 +35,7 @@ import { isGitOid, validGitRef } from "../shared/git.ts";
 import { maxDiffBatchRequestBytes } from "../shared/diff-batch.ts";
 import { readCommitDiffBatch } from "./commit-diff-batch.ts";
 import { readChangeDiffBatch } from "./change-diff-batch.ts";
+import { isValidUrlEncoding } from "../shared/validation.ts";
 
 const maxBodyBytes = 4096;
 
@@ -258,6 +259,8 @@ async function handleApiRequest(
     }
     const searchRoute = /^\/api\/project\/search$/.exec(url.pathname);
     if (searchRoute !== null && request.method === "GET") {
+      if (!isValidUrlEncoding(url.search))
+        throw new AppError("invalid_request", 400, "Invalid query encoding");
       onlyQueryKeys(url, ["query"]);
       const query = oneQueryValue(url, "query");
       const current = await resolveProject(root, oneQueryValue(url, "projectPath"));

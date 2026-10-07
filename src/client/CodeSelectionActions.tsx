@@ -231,8 +231,7 @@ export function CodeSelectionActions({
     if (!valid || selected === null) return;
     if (kind === "comment" && selected.target !== null)
       handlersRef.current.onComment(selected.target);
-    if (kind === "search" && selected.text.trim().length <= 128)
-      handlersRef.current.onSearch(selected.text.trim());
+    if (kind === "search" && selected.query !== null) handlersRef.current.onSearch(selected.query);
   };
   const hold = (event: PointerEvent) => {
     holdRef.current = true;
@@ -252,11 +251,11 @@ export function CodeSelectionActions({
       class={`code-selection-action code-selection-action-${action.placement}`}
       style={{ left: `${action.left}px`, top: `${action.top}px`, width: `${action.width}px` }}
     >
-      {action.selected.text.trim().length <= 128 && (
+      {action.selected.query !== null && (
         <button
           type="button"
           class="code-selection-search"
-          aria-label={`Search selected text: ${action.selected.text.trim()}`}
+          aria-label={`Search selected text: ${action.selected.query}`}
           onPointerDown={hold}
           onFocus={focus}
           onBlur={blur}
@@ -264,7 +263,7 @@ export function CodeSelectionActions({
         >
           <span aria-hidden="true">⌕</span>
           <span class="code-selection-label">
-            Search <strong>“{action.selected.text.trim()}”</strong>
+            Search <strong>“{action.selected.query}”</strong>
           </span>
         </button>
       )}
@@ -279,7 +278,7 @@ export function CodeSelectionActions({
           onClick={() => invoke("comment")}
         >
           Comment
-          {action.selected.text.trim().length > 128 && (
+          {action.selected.query === null && (
             <span class="code-selection-label">
               <strong>“{action.selected.text}”</strong>
             </span>

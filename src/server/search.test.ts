@@ -106,3 +106,40 @@ test("search reports incomplete results when the match limit is reached", async 
     expect(results.truncated).toBe(true);
   });
 });
+
+test("Search requests preserve literal Unicode and reject malformed URL decoding", async () => {
+  await withTempDirectory("git-review-search-query-", async (rootPath) => {
+    const queries = ["term�", "café🦊", "-word", "a+b ?#%", "x".repeat(128), "🦊".repeat(64)];
+    await writeFile(join(rootPath, "literal.txt"), queries.join("\n"));
+    const root = await approveRoot(rootPath);
+    const handle = createApiHandler(root);
+    for (const [index, query] of queries.entries()) {
+      const response = await handle(
+        new Request(
+          "http://localhost" + projectApiUrl("/search", root.realPath, { query: ` \t${query}\n` }),
+        ),
+      );
+      expect(response.status).toBe(200);
+      const results = parseSearchResponse((await response.json()) as unknown);
+      expect(results.query).toBe(query);
+      expect(results.matches).toEqual([{ path: "literal.txt", line: index + 1, excerpt: query }]);
+    }
+    // The URL must reach the handler with its original bytes; URLSearchParams would repair them.
+    for (const encoded of [
+      "%",
+      "%ZZ",
+      "term%FF",
+      "term%C3%28",
+      "term%ED%A0%80",
+      "term%E2%82",
+      "%20%09",
+      "a%0Ab",
+      "a%00b",
+      "x".repeat(129),
+      encodeURIComponent("🦊".repeat(65)),
+    ]) {
+      const endpoint = `http://localhost/api/project/search?projectPath=${encodeURIComponent(root.realPath)}&query=${encoded}`;
+      expect((await handle(new Request(endpoint))).status).toBe(400);
+    }
+  });
+});

@@ -6,9 +6,10 @@ browser does not download or index the codebase.
 
 ## Current user flow
 
-Submit a case-sensitive literal query in **Search**. Search runs on submission, with grouped paths,
-line numbers, and excerpts, plus explicit empty, loading, error, and truncated states. Refresh
-repeats the query. It does not expand identifiers or add whole-word matching.
+Submit a case-sensitive literal query in **Search**. Submission and direct links trim surrounding
+whitespace through the same query contract. Search runs on submission, with grouped paths, line
+numbers, and excerpts, plus explicit empty, loading, error, and truncated states. Refresh repeats
+the query. It does not expand identifiers or add whole-word matching.
 
 The URL owns the submitted query and selected result. Opening a result retains Search as its parent
 list and scrolls the current working-tree file to the matching line. Back/Forward restores the
@@ -37,12 +38,18 @@ activation. The feedback record owns exact comment offsets, source identity, and
 
 ## Boundaries and rationale
 
-[The server Search reader](../src/server/search.ts) owns query validation, executable discovery,
-fixed ripgrep arguments, result/output/file limits, and timeout. It honors project ignore rules,
-includes hidden source files, excludes Git control directories, and does not follow symlinks. JSON
-Lines are validated before becoming [Search response values](../src/shared/api.ts); non-UTF-8 paths
-or lines that Files cannot represent are skipped. Leading-dash queries remain literal because they
-are passed as arguments to the fixed query option, without a shell.
+[The shared query contract](../src/shared/search-query.ts) owns normalization and validation across
+navigation, submissions, selection actions, server reads, and response parsing. Literal Unicode,
+including a typed replacement character, remains searchable. Malformed URL encoding is rejected
+before decoding can replace bytes with that character; lone surrogates are rejected before URL
+serialization can change the query. Responses must contain the normalized query.
+
+[The server Search reader](../src/server/search.ts) owns executable discovery, fixed ripgrep
+arguments, result/output/file limits, and timeout. It honors project ignore rules, includes hidden
+source files, excludes Git control directories, and does not follow symlinks. JSON Lines are
+validated before becoming [Search response values](../src/shared/api.ts); non-UTF-8 paths or lines
+that Files cannot represent are skipped. Leading-dash queries remain literal because they are passed
+as arguments to the fixed query option, without a shell.
 
 A no-match exit is an empty result; timeout, invalid output, and subprocess failure are errors.
 Result/output limits produce a truncated result. Cancellation prevents a superseded project or query

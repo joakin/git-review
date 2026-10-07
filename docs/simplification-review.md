@@ -1,7 +1,7 @@
 # Simplification and readability review
 
-Status: S01–S07, S09, and S21 accepted. The remaining findings await individual review and small
-implementation steps.
+Status: S01–S07, S09–S10, and S21 accepted. The remaining findings are authorized for autonomous
+implementation, independent review, correction, and staged commits as of 2026-10-07.
 
 Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this research. The previous
 [maintenance pass](maintenance-plan.md) remains closed.
@@ -11,8 +11,11 @@ Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this rese
 Simplify the existing app without losing its behavior: remove repeated code and specifications,
 improve domain organization and shared contracts, and retire unnecessary compatibility for this
 unreleased, single-user app. Review findings individually; accept, narrow, defer, or reject each
-before acting. The maintainer approved the documentation pass and its completed changes. Further
-changes follow the separate review and commit-approval rule in [AGENTS.md](../AGENTS.md).
+before acting. The maintainer approved the documentation pass and its completed changes. On
+2026-10-07, the maintainer authorized executing the remaining queue autonomously: validate each
+finding, implement valid stages, obtain an independent review, address valid feedback, then commit
+and continue. This explicit authorization supplies the commit approval required by
+[AGENTS.md](../AGENTS.md) for this queue; it does not extend to optional product features.
 
 The review covered client views and state owners, server reads and parsers, shared wire contracts,
 persistence and backups, documentation, and QA support. Three focused investigations covered the
@@ -23,26 +26,26 @@ second specification of the code.
 
 ## Review queue
 
-The remaining code and QA items are unreviewed. Risk describes implementation risk, not defect
-severity. The proposed slices are deliberately smaller than a wholesale rewrite. Completed
-documentation, accepted code changes, and the current review slice are recorded below.
+The remaining code and QA items await validity checks and independent implementation review. Risk
+describes implementation risk, not defect severity. The proposed slices are deliberately smaller
+than a wholesale rewrite. Completed documentation, accepted code changes, and the current review
+slice are recorded below.
 
-| ID  | Finding                                                        | Area              | Risk       |
-| --- | -------------------------------------------------------------- | ----------------- | ---------- |
-| S08 | Retire the obsolete-storage deletion path after its cutover    | Compatibility     | Low        |
-| S10 | Give Search one query contract across its boundaries           | Shared boundaries | Medium     |
-| S11 | Require one complete working-copy snapshot for every diff read | Shared/API        | Medium     |
-| S12 | Share diff-request fields and existing language query parsing  | Shared/API        | Low        |
-| S13 | Share supported media metadata between server and parser       | Shared/API        | Low        |
-| S14 | Share text classification while retaining source-read policies | Server            | Medium     |
-| S15 | Separate pure diff parsing from working-copy orchestration     | Server            | Low        |
-| S16 | Share the Git raw-record parser                                | Server            | Medium     |
-| S17 | Simplify media inspection and result mapping                   | Server            | Medium     |
-| S18 | Share repeated headings and selected working-file wiring       | Client            | Medium     |
-| S19 | Resolve diff-row feedback side in one place                    | Client            | Low–medium |
-| S20 | Group identical Files/diff code-pane CSS                       | Client/styles     | Low–medium |
-| S22 | Share QA dimensions without changing emulation options         | QA                | Medium     |
-| S23 | Reuse existing Git fixture helpers in older QA callers         | QA                | Low–medium |
+| ID  | Finding                                                        | Area          | Risk       |
+| --- | -------------------------------------------------------------- | ------------- | ---------- |
+| S08 | Retire the obsolete-storage deletion path after its cutover    | Compatibility | Low        |
+| S11 | Require one complete working-copy snapshot for every diff read | Shared/API    | Medium     |
+| S12 | Share diff-request fields and existing language query parsing  | Shared/API    | Low        |
+| S13 | Share supported media metadata between server and parser       | Shared/API    | Low        |
+| S14 | Share text classification while retaining source-read policies | Server        | Medium     |
+| S15 | Separate pure diff parsing from working-copy orchestration     | Server        | Low        |
+| S16 | Share the Git raw-record parser                                | Server        | Medium     |
+| S17 | Simplify media inspection and result mapping                   | Server        | Medium     |
+| S18 | Share repeated headings and selected working-file wiring       | Client        | Medium     |
+| S19 | Resolve diff-row feedback side in one place                    | Client        | Low–medium |
+| S20 | Group identical Files/diff code-pane CSS                       | Client/styles | Low–medium |
+| S22 | Share QA dimensions without changing emulation options         | QA            | Medium     |
+| S23 | Reuse existing Git fixture helpers in older QA callers         | QA            | Low–medium |
 
 ## Completed documentation items
 
@@ -96,6 +99,28 @@ Chrome tab and PWA/backup checks passed. Regression coverage includes invalid-st
 restoration, current-format imports, and Unicode/literal-name round-trips. Physical-device checks
 and new screenshots were not performed.
 
+### S10 — Give Search one query contract across its boundaries
+
+Accepted on 2026-10-07. Navigation, form/selection submission, the server reader, and response
+parsing now use one [Search query contract](../src/shared/search-query.ts). The shared bound also
+drives the input control and validation messages. Direct links normalize whitespace before becoming
+destinations; literal replacement characters remain searchable, while malformed URL decoding and
+lone surrogates are rejected before they can change the query. Responses must carry normalized
+queries.
+
+Selections retain exact comment text and offsets alongside a validated optional Search query.
+Selection actions reuse that value, and form/selection actions share one submission handler. Fixed,
+case-sensitive matching, explicit submission, repeated-query refresh, source/range checks, and
+selection cleanup remain intact. The [Search record](search-slice-proposal.md) owns this behavior;
+source owns exact rules and limits.
+
+The full type-check and static QA gates, client build, and 214 unit/integration tests passed.
+Isolated Chrome Search and selected-Search checks passed; selected-feedback checks covered narrow
+phones, both tablet orientations, and desktop, including exact fragments, long/blank ranges, stale
+actions, reattachment, and clipboard/history/Undo. The selected-Search fixture now centers its range
+before asserting below-selection placement and still checks docking separately. New screenshots and
+physical-device checks were not performed.
+
 ## Compatibility and shared boundaries
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -112,23 +137,6 @@ than deleted. Confirm that retirement condition during review; it has not been e
 audit. Preserve current namespaces, strict current-format parsing, unrelated settings, and storage
 denial behavior. Run storage/backup tests and tab QA. This does not justify removing format versions
 or accepting old imports.
-
-### S10 — Give Search one query contract across its boundaries
-
-**Evidence:** query rules repeat in [server Search](../src/server/search.ts), lines 47–53,
-[response parsing](../src/shared/api.ts), lines 348–354, [navigation](../src/client/navigation.ts),
-lines 51–52, and [App](../src/client/App.tsx), lines 506–540. The same limit recurs in
-[SearchView](../src/client/SearchView.tsx), line 63, selected-code eligibility, and selection
-actions. A read-only probe confirmed that `term�` is accepted by the server query validator but
-rejected by the corresponding URL parser.
-
-**Proposed slice:** agree one browser-safe query contract with normalization, length, and
-single-line checks, and reuse its limit/predicates at each boundary. Decide how a literal
-replacement character differs from malformed URL decoding; do not silently narrow valid literal
-searches. Preserve fixed, case-sensitive search and the distinction between trimmed Search input and
-exact comment fragments. The repeated submit/navigation commands can then be simplified if their
-intentional cleanup differs explicitly. Test route/request round-trips, malformed encoding,
-whitespace, Unicode, boundary lengths, and repeat-query refresh; run selected-code Search QA.
 
 ### S11 — Require one complete working-copy snapshot for every diff read
 
@@ -357,9 +365,11 @@ remove substantial repetition while keeping policy with each domain.
 
 ## Reviewing the remaining findings
 
-S09 is ready for review; S10–S11 describe demonstrated contract differences. Select later items by
-practical payoff. The queue is not approval to execute them all. Review S13 before S17, and S14
-before S15. S18 has two independently reviewable presentation extractions.
+Execute the remaining queue under the maintainer's autonomous authorization above. Validate each
+finding against the current source, preserve behavior, obtain an independent review after each
+stage, address valid feedback, and commit before continuing. Record narrowed or rejected findings
+with their rationale. S13 precedes S17, and S14 precedes S15. S18 has two independently reviewable
+presentation extractions. The smaller optional candidates remain outside this queue.
 
 The [documentation map](README.md#what-belongs-where) now owns the organizing strategy. Further
 accepted changes should update the existing domain record, keep disposition concise, and let Git
@@ -380,5 +390,6 @@ final result; it does not require app tests, builds or screenshots.
 No application source, QA script, service, or asset changed, and no commit was created. No new
 browser capture, real-device, microphone, clipboard, visual QA, performance measurement, or
 exhaustive behavior-equivalence proof was performed. Historical evidence remains labeled with its
-limits in the relevant record. The authorized pass ends here, with S08–S23 available for later
-individual review.
+limits in the relevant record. These limits describe the original documentation pass. Later
+code-stage outcomes are recorded above; the remaining queue is now authorized for autonomous
+execution.

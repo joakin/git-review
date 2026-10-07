@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import { selectionSubject, type CommentAnchor, type CommentTarget } from "./comments.ts";
+import { normalizeSearchQuery } from "../shared/search-query.ts";
 
 type CodeSource = { projectPath: string | null; text: string; anchor: CommentAnchor | null };
 const sources = new WeakMap<HTMLElement, CodeSource>();
@@ -71,6 +72,7 @@ export type SelectedCode = {
   start: number;
   end: number;
   text: string;
+  query: string | null;
   target: CommentTarget | null;
 };
 
@@ -91,18 +93,14 @@ export function selectedCode(range: Range, projectPath: string): SelectedCode | 
   const start = prefix.toString().length;
   const text = range.toString();
   const end = start + text.length;
-  if (
-    text.trim().length === 0 ||
-    /[\0\r\n]/.test(text) ||
-    end > source.text.length ||
-    source.text.slice(start, end) !== text
-  )
+  if (/[\0\r\n]/.test(text) || end > source.text.length || source.text.slice(start, end) !== text)
     return null;
   const subject = selectionSubject(source.text, start, end);
+  const query = normalizeSearchQuery(text);
   const target =
     source.anchor !== null && subject !== null ? { anchor: source.anchor, subject } : null;
-  if (text.trim().length > 128 && target === null) return null;
-  return { code, source, range: range.cloneRange(), start, end, text, target };
+  if (query === null && target === null) return null;
+  return { code, source, range: range.cloneRange(), start, end, text, query, target };
 }
 
 export function selectionIsCurrent(selected: SelectedCode, projectPath: string): boolean {

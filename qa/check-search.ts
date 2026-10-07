@@ -20,11 +20,23 @@ await withQaBrowser(async (browser) => {
       .getByRole("navigation", { name: "Project views" })
       .getByRole("button", { name: "Search" })
       .click();
-    await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
+    await page.getByRole("searchbox", { name: "Find text" }).fill("  working tree  ");
     await page.locator(".search-form button").click();
     await page
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });
+    if (
+      (await page.getByRole("searchbox", { name: "Find text" }).inputValue()) !== "working tree" ||
+      new URL(page.url()).searchParams.get("q") !== "working tree"
+    )
+      throw new Error("Search submission did not normalize the input and URL");
+    const beforeRepeat = page.url();
+    const repeated = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === "/api/project/search",
+    );
+    await page.locator(".search-form button").click();
+    if ((await repeated).status() !== 200 || page.url() !== beforeRepeat)
+      throw new Error("Repeating a Search query did not refresh the same destination");
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).click();
     await page
       .locator('.file-panel[data-path="src/view.ts"] .file-code-row-target[data-line="1"]')
@@ -82,8 +94,33 @@ await withQaBrowser(async (browser) => {
       .filter({ hasText: "may have changed or been deleted" })
       .waitFor({ state: "visible" });
     await assertNoHorizontalOverflow(page);
+
+    const direct = new URL(beforeRepeat);
+    direct.searchParams.set("q", "  term� + café🦊  ");
+    await page.goto(direct.href, { waitUntil: "load" });
+    await page
+      .getByText("No matches for “term� + café🦊”. Try another search.", { exact: true })
+      .waitFor({ state: "visible" });
+    if (
+      new URL(page.url()).searchParams.get("q") !== "term� + café🦊" ||
+      (await page.getByRole("searchbox", { name: "Find text" }).inputValue()) !== "term� + café🦊"
+    )
+      throw new Error("A direct Unicode Search link did not canonicalize its query");
+    let malformedRequests = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/project/search") malformedRequests += 1;
+    });
+    await page.goto(`${url.origin}/?section=search&project=inventory-fixture&q=term%FF`, {
+      waitUntil: "load",
+    });
+    await page
+      .getByText("This link has invalid navigation information. Choose a project to continue.", {
+        exact: true,
+      })
+      .waitFor({ state: "visible" });
+    if (malformedRequests !== 0) throw new Error("A malformed Search link reached the API");
   });
   console.log(
-    "Phone search, deep navigation, stale-result notice, preserved results, refresh, and page width passed",
+    "Phone search, query normalization and encoding, repeat submission, deep navigation, stale-result notice, preserved results, refresh, and page width passed",
   );
 });

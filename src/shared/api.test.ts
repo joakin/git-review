@@ -2,10 +2,33 @@ import { describe, expect, test } from "bun:test";
 import {
   parseDiffResponse,
   parseFileReadResponse,
+  parseSearchResponse,
   type DiffLine,
   type SyntaxRole,
   type SyntaxToken,
 } from "./api.ts";
+
+test("Search responses contain normalized, browser-safe literal queries", () => {
+  for (const query of ["term�", "a+b ?#%", "café🦊", "x".repeat(128), "🦊".repeat(64)]) {
+    const response = { query, matches: [], truncated: false };
+    expect(parseSearchResponse(response)).toEqual(response);
+  }
+  for (const query of [
+    null,
+    "",
+    " \t",
+    " padded ",
+    "a\nb",
+    "a\rb",
+    "a\0b",
+    "x".repeat(129),
+    "🦊".repeat(65),
+    "a\ud800",
+    "\udc00b",
+  ]) {
+    expect(() => parseSearchResponse({ query, matches: [], truncated: false })).toThrow();
+  }
+});
 
 type RawLine = { text: string; tokens: unknown };
 const plain = { kind: "plain", reason: "selected" };

@@ -1,5 +1,7 @@
 import type { ChangeLayer } from "../shared/api.ts";
 import { isGitOid, validGitRef } from "../shared/git.ts";
+import { normalizeSearchQuery } from "../shared/search-query.ts";
+import { isValidUrlEncoding } from "../shared/validation.ts";
 import { isNavigationPath } from "./navigation-path.ts";
 
 export type ChangesTarget =
@@ -42,17 +44,13 @@ function isChangeLayer(value: string): value is ChangeLayer {
   );
 }
 
-function validQuery(value: string): boolean {
-  return value.length > 0 && value.length <= 128 && !/[\0\r\n\ufffd]/u.test(value);
-}
-
 export function parentDirectory(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }
 
 export function parseNavigationSearch(search: string): RouteState {
   if (search === "") return { kind: "empty" };
-  if (/%(?![0-9a-fA-F]{2})/u.test(search)) return { kind: "invalid", message: routeError };
+  if (!isValidUrlEncoding(search)) return { kind: "invalid", message: routeError };
   const params = new URLSearchParams(search);
   const seen = new Set<string>();
   for (const [key] of params) {
@@ -178,25 +176,36 @@ export function parseNavigationSearch(search: string): RouteState {
     };
   }
   if (section === "search") {
+    const normalizedQuery = query === null ? null : normalizeSearchQuery(query);
     if (
       directory !== null ||
       target !== null ||
       layer !== null ||
-      (query !== null && !validQuery(query))
+      (query !== null && normalizedQuery === null)
     )
       return { kind: "invalid", message: routeError };
     if (file === null && lineText === null)
       return {
         kind: "ready",
-        route: { section, projectPath: project, query, target: { kind: "results" } },
+        route: {
+          section,
+          projectPath: project,
+          query: normalizedQuery,
+          target: { kind: "results" },
+        },
       };
-    if (query === null || file === null || !isNavigationPath(file, false))
+    if (normalizedQuery === null || file === null || !isNavigationPath(file, false))
       return { kind: "invalid", message: routeError };
     const line = parseLine(lineText);
     if (line === false || line === null) return { kind: "invalid", message: routeError };
     return {
       kind: "ready",
-      route: { section, projectPath: project, query, target: { kind: "file", path: file, line } },
+      route: {
+        section,
+        projectPath: project,
+        query: normalizedQuery,
+        target: { kind: "file", path: file, line },
+      },
     };
   }
   return { kind: "invalid", message: routeError };

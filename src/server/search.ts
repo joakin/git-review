@@ -3,6 +3,7 @@ import { accessSync, constants } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import type { Project, SearchMatch, SearchResponse } from "../shared/api.ts";
 import { expectNonNegativeInteger, expectRecord, expectString } from "../shared/validation.ts";
+import { maxSearchQueryLength, normalizeSearchQuery } from "../shared/search-query.ts";
 import { AppError } from "./paths.ts";
 import { validateProjectFilePath } from "./working-files.ts";
 
@@ -47,9 +48,13 @@ function ripgrepExecutable(): string {
 export function validateSearchQuery(value: unknown): string {
   if (typeof value !== "string")
     throw new AppError("invalid_request", 400, "Specify a search query");
-  const query = value.trim();
-  if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query))
-    throw new AppError("invalid_request", 400, "Search query must be 1–128 characters on one line");
+  const query = normalizeSearchQuery(value);
+  if (query === null)
+    throw new AppError(
+      "invalid_request",
+      400,
+      `Search query must be 1–${maxSearchQueryLength} characters on one line`,
+    );
   return query;
 }
 

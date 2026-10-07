@@ -23,12 +23,13 @@ await withQaBrowser(async (browser) => {
     await diff.locator(".diff-card-toggle").click();
     const code = diff.locator(".diff-code").filter({ hasText: "working tree" });
     await code.waitFor({ state: "visible" });
-    await code.scrollIntoViewIfNeeded();
+    // Leave room below the range for the placement assertion; docking is checked separately.
+    await code.evaluate((element) => element.scrollIntoView({ block: "center" }));
     await selectCodeText(code, "working tree");
     await page
       .getByRole("button", { name: "Search selected text: working tree" })
       .waitFor({ state: "visible" });
-    await selectCodeText(code, "export const");
+    await selectCodeText(code, "export const ");
     const action = page.getByRole("button", { name: "Search selected text: export const" });
     await action.waitFor({ state: "visible" });
     const before = await action.boundingBox();

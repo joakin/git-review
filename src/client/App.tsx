@@ -37,6 +37,7 @@ import {
 } from "./navigation.ts";
 import { useNavigationHistory } from "./use-navigation-history.ts";
 import { readWrapPreference, saveWrapPreference } from "./storage.ts";
+import { maxSearchQueryLength, normalizeSearchQuery } from "../shared/search-query.ts";
 import type {
   ChangeEntry,
   DirectoryListing,
@@ -504,12 +505,16 @@ export function App() {
   }
 
   function submitSearch(input: string): void {
-    const query = input.trim();
-    if (query.length === 0 || query.length > 128 || /[\0\r\n]/.test(query)) {
+    if (project === null) return;
+    const query = normalizeSearchQuery(input);
+    if (query === null) {
       if (searchKey !== null)
         setSearchLoad({
           key: searchKey,
-          state: { kind: "error", message: "Enter 1–128 characters on one line." },
+          state: {
+            kind: "error",
+            message: `Enter 1–${maxSearchQueryLength} characters on one line.`,
+          },
         });
       return;
     }
@@ -517,27 +522,13 @@ export function App() {
     setLastSubmittedQuery(query);
     if (query === submittedQuery && route?.section === "search" && route.target.kind === "results")
       setSearchRefresh((value) => value + 1);
-    else if (project !== null)
+    else
       navigate({
         section: "search",
         projectPath: project.relativePath,
         query,
         target: { kind: "results" },
       });
-  }
-
-  function searchSelectedCode(query: string): void {
-    if (project === null) return;
-    setSearchQuery(query);
-    setLastSubmittedQuery(query);
-    if (query === submittedQuery && route?.section === "search" && route.target.kind === "results")
-      setSearchRefresh((value) => value + 1);
-    navigate({
-      section: "search",
-      projectPath: project.relativePath,
-      query,
-      target: { kind: "results" },
-    });
   }
 
   function openSearchMatch(match: SearchMatch, query: string): void {
@@ -1114,7 +1105,7 @@ export function App() {
           <CodeSelectionActions
             key={route === null ? project.absolutePath : routeUrl(route)}
             projectPath={project.absolutePath}
-            onSearch={searchSelectedCode}
+            onSearch={submitSearch}
             onComment={feedback.actions.chooseSelection}
             wrap={wrapCode}
           />
