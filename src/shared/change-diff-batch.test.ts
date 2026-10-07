@@ -53,3 +53,23 @@ test("change batches preserve layer/language identity and require both snapshot 
     ),
   ).toThrow();
 });
+
+test("change batch requests retain every layer and reject invalid layer values", () => {
+  const request = {
+    revision: "a".repeat(20),
+    changeToken: "b".repeat(20),
+    files: ["staged", "unstaged", "untracked", "conflict"].map((layer) => ({
+      layer,
+      path: "file.ts",
+      language: null,
+    })),
+  };
+  expect<unknown>(parseChangeDiffBatchRequest(request)).toEqual(request);
+  for (const layer of [undefined, null, 1, "", "index", "Staged"])
+    expect(() =>
+      parseChangeDiffBatchRequest({
+        ...request,
+        files: [{ layer, path: "file.ts", language: null }],
+      }),
+    ).toThrow();
+});

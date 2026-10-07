@@ -1,6 +1,6 @@
 # Simplification and readability review
 
-Status: S01–S07, S09–S11, and S21 complete; S08 reviewed and retained. The remaining findings are
+Status: S01–S07, S09–S12, and S21 complete; S08 reviewed and retained. The remaining findings are
 authorized for autonomous implementation, independent review, correction, and staged commits as of
 2026-10-07.
 
@@ -34,7 +34,6 @@ slice are recorded below.
 
 | ID  | Finding                                                        | Area          | Risk       |
 | --- | -------------------------------------------------------------- | ------------- | ---------- |
-| S12 | Share diff-request fields and existing language query parsing  | Shared/API    | Low        |
 | S13 | Share supported media metadata between server and parser       | Shared/API    | Low        |
 | S14 | Share text classification while retaining source-read policies | Server        | Medium     |
 | S15 | Separate pure diff parsing from working-copy orchestration     | Server        | Low        |
@@ -130,6 +129,19 @@ configurations, static QA, the build, 91 focused tests, and isolated feedback/tr
 checks passed. Regression coverage gates real Git reads and verifies stale recovery without losing
 drafts. See the [batching contract](diff-batching-and-bulk-controls-proposal.md).
 
+### S12 — Share diff-request fields and existing language query parsing
+
+The shared [diff-request fields](../src/shared/diff-request.ts) now own the common path/language
+contract; Changes adds its layer and commit requests use it directly. One ChangeLayer predicate
+serves status, batches, HTTP, and navigation. Files and individual Changes reuse the existing HTTP
+language helper. Wrapper allowlists, duplicate rejection, identities, limits, Git paths, and
+server-side language support remain with their boundaries.
+
+Independent client review and the final checks are recorded at commit. The author checks passed all
+five TypeScript configurations and 53 focused tests, including exact bounds, unusual paths, null
+versus missing language, all layer variants, and HTTP default/plain/highlighted behavior. Static QA
+and the client build also passed. No visible behavior or layout changed.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -146,20 +158,6 @@ remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) 
 reset and current-format behavior.
 
 ## Compatibility and shared boundaries
-
-### S12 — Share diff-request fields and existing language query parsing
-
-**Evidence:** [commit batch requests](../src/shared/commit-diff-batch.ts), lines 18–27, and
-[change batch requests](../src/shared/change-diff-batch.ts), lines 43–59, repeat path and nullable
-language parsing. Change-layer guards recur in shared status parsing, change requests, HTTP routes,
-and navigation. [requestedLanguage](../src/server/api.ts), lines 107–112, already exists, while
-Files and individual Changes repeat it at lines 274–279 and 323–328.
-
-**Proposed slice:** share the named path/language field parser and change-layer guard; reuse the
-HTTP language helper. Keep wrapper-specific allowed-field checks, identities, and server-side Shiki
-support validation. Reject duplicate/unknown fields as today. Run shared batch parser and API tests
-for unusual paths, null/plain/highlighted language choices, and invalid IDs. A general object-schema
-framework would add complexity without a demonstrated need.
 
 ### S13 — Share supported media metadata between server and response parser
 

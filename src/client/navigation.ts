@@ -1,4 +1,4 @@
-import type { ChangeLayer } from "../shared/api.ts";
+import { isChangeLayer, type ChangeLayer } from "../shared/api.ts";
 import { isGitOid, validGitRef } from "../shared/git.ts";
 import { normalizeSearchQuery } from "../shared/search-query.ts";
 import { isValidUrlEncoding } from "../shared/validation.ts";
@@ -37,12 +37,6 @@ const keys = new Set([
   "commit",
 ]);
 const routeError = "This link has invalid navigation information. Choose a project to continue.";
-
-function isChangeLayer(value: string): value is ChangeLayer {
-  return (
-    value === "staged" || value === "unstaged" || value === "untracked" || value === "conflict"
-  );
-}
 
 export function parentDirectory(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";

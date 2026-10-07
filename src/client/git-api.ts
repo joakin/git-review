@@ -11,11 +11,8 @@ import {
   type GitRefs,
 } from "../shared/git.ts";
 import { responseBody } from "./api.ts";
-import {
-  commitDiffBatchSource,
-  commitDiffRequestKey,
-  type CommitDiffRequest,
-} from "../shared/commit-diff-batch.ts";
+import { commitDiffBatchSource, commitDiffRequestKey } from "../shared/commit-diff-batch.ts";
+import type { DiffFileRequest } from "../shared/diff-request.ts";
 import { parseDiffBatchResponse } from "../shared/diff-batch.ts";
 import { DiffBatchQueue, type DiffBatchSource } from "./diff-batch-queue.ts";
 import { diffBatchResponseBody } from "./diff-batch-response.ts";
@@ -71,7 +68,7 @@ export async function fetchCommit(
   return result;
 }
 
-const commitDiffs = new DiffBatchQueue<CommitDiffRequest, CommitDiff>(commitDiffRequestKey);
+const commitDiffs = new DiffBatchQueue<DiffFileRequest, CommitDiff>(commitDiffRequestKey);
 
 export async function fetchCommitDiff(
   projectPath: string,
@@ -81,7 +78,7 @@ export async function fetchCommitDiff(
   signal: AbortSignal,
 ): Promise<CommitDiff> {
   const resource = `/git/commits/${oid}`;
-  const source: DiffBatchSource<CommitDiffRequest, CommitDiff> = {
+  const source: DiffBatchSource<DiffFileRequest, CommitDiff> = {
     key: commitDiffBatchSource(projectPath, oid),
     encode: (files) => JSON.stringify({ files }),
     read: async (body, files, signal) =>

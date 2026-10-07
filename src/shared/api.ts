@@ -51,6 +51,13 @@ export type Project = {
 };
 
 export type ChangeLayer = "staged" | "unstaged" | "untracked" | "conflict";
+
+export function isChangeLayer(value: unknown): value is ChangeLayer {
+  return (
+    value === "staged" || value === "unstaged" || value === "untracked" || value === "conflict"
+  );
+}
+
 export type ChangeKind =
   "added" | "modified" | "deleted" | "renamed" | "copied" | "type_changed" | "conflicted";
 
@@ -420,14 +427,7 @@ export function parseStatusResponse(value: unknown): ProjectStatus {
     const layer = entry["layer"];
     const kind = entry["kind"];
     const oldPath = entry["oldPath"];
-    if (
-      layer !== "staged" &&
-      layer !== "unstaged" &&
-      layer !== "untracked" &&
-      layer !== "conflict"
-    ) {
-      throw new Error("Expected a valid change layer");
-    }
+    if (!isChangeLayer(layer)) throw new Error("Expected a valid change layer");
     if (
       kind !== "added" &&
       kind !== "modified" &&

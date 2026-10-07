@@ -2,6 +2,22 @@ import { describe, expect, test } from "bun:test";
 import { parseNavigationSearch, routeUrl, type Route } from "./navigation.ts";
 
 describe("browser navigation", () => {
+  test("every change layer retains its navigable file destination", () => {
+    for (const layer of ["staged", "unstaged", "untracked", "conflict"] as const) {
+      const route: Route = {
+        section: "changes",
+        projectPath: "project",
+        target: { kind: "file", layer, path: "file.ts" },
+      };
+      expect(
+        parseNavigationSearch(new URL(routeUrl(route), "https://example.test").search),
+      ).toEqual({
+        kind: "ready",
+        route,
+      });
+    }
+  });
+
   test("round trips destinations with unusual names and literal search text", () => {
     const routes: Route[] = [
       { section: "projects", directory: "client work/hi #1" },

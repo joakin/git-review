@@ -23,7 +23,7 @@ import { audioVideoResponse } from "./media-stream.ts";
 import { imageMimeType } from "./image-types.ts";
 import { searchProject } from "./search.ts";
 import { createTranscriptionHandler } from "./transcription.ts";
-import type { ChangeLayer } from "../shared/api.ts";
+import { isChangeLayer, type ChangeLayer } from "../shared/api.ts";
 import {
   commitFile,
   readCommit,
@@ -92,8 +92,7 @@ function oneQueryValue(url: URL, name: string): string {
 }
 
 function changeLayer(value: string): ChangeLayer {
-  if (value === "staged" || value === "unstaged" || value === "untracked" || value === "conflict")
-    return value;
+  if (isChangeLayer(value)) return value;
   throw new AppError("invalid_request", 400, "Invalid change layer");
 }
 
@@ -275,13 +274,7 @@ async function handleApiRequest(
       if (fileRoute[1] === "tree") return Response.json(await readProjectTree(root, current, path));
       if (oneQueryValue(url, "source") !== "worktree")
         throw new AppError("invalid_request", 400, "Only working-tree files are available");
-      const requestedLanguages = url.searchParams.getAll("language");
-      if (requestedLanguages.length > 1)
-        throw new AppError("invalid_request", 400, "Specify one language override");
-      const requestedLanguage = requestedLanguages[0] ?? null;
-      if (requestedLanguage !== null && languageOverride(requestedLanguage) === null)
-        throw new AppError("invalid_request", 400, "Invalid language override");
-      return Response.json(await readProjectFile(root, current, path, requestedLanguage));
+      return Response.json(await readProjectFile(root, current, path, requestedLanguage(url)));
     }
     const statusRoute = /^\/api\/project\/status$/.exec(url.pathname);
     if (statusRoute !== null && request.method === "GET") {
@@ -318,12 +311,7 @@ async function handleApiRequest(
       const path = oneQueryValue(url, "path");
       const revision = oneQueryValue(url, "revision");
       const changeToken = oneQueryValue(url, "changeToken");
-      const requestedLanguages = url.searchParams.getAll("language");
-      if (requestedLanguages.length > 1)
-        throw new AppError("invalid_request", 400, "Specify one language override");
-      const requestedLanguage = requestedLanguages[0] ?? null;
-      if (requestedLanguage !== null && languageOverride(requestedLanguage) === null)
-        throw new AppError("invalid_request", 400, "Invalid language override");
+      const language = requestedLanguage(url);
       if (
         path.length === 0 ||
         path.length > 4096 ||
@@ -345,7 +333,7 @@ async function handleApiRequest(
       if (entry === undefined) throw new AppError("not_found", 404, "Changed file was not found");
       const diff =
         (await describeDiffMedia(root, current, entry, revision)) ??
-        (await readProjectDiff(root, current, entry, requestedLanguage));
+        (await readProjectDiff(root, current, entry, language));
       const after = await readProjectStatus(current.absolutePath);
       return Response.json(
         after.kind === "git" && after.revision === revision && after.changeToken === changeToken

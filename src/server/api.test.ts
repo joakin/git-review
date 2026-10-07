@@ -131,6 +131,83 @@ test("configured HTTPS proxy origin is accepted without trusting other origins",
   });
 });
 
+test("file and diff language queries share defaults, plain text and strict supported overrides", async () => {
+  await withTempDirectory("git-review-language-api-", async (directory) => {
+    git(directory, "init", "-q", "-b", "main");
+    await writeFile(join(directory, "value.ts"), "export const value = 1;\n");
+    git(directory, "add", ".");
+    git(directory, "commit", "-qm", "Base");
+    await writeFile(join(directory, "value.ts"), "export const value = 2;\n");
+    git(directory, "add", ".");
+    git(directory, "commit", "-qm", "Updated");
+    const oid = git(directory, "rev-parse", "HEAD").toString("utf8").trim();
+    await writeFile(join(directory, "value.ts"), "export const value = 3;\n");
+    const root = await approveRoot(directory);
+    const handle = createApiHandler(root);
+    const status = parseChangeCheckResponse(
+      (await (
+        await handle(
+          new Request(
+            "http://localhost" + projectApiUrl("/status", root.realPath, { mode: "check" }),
+          ),
+        )
+      ).json()) as unknown,
+    );
+    if (status.kind !== "git") throw new Error("Expected Git snapshot");
+    const changes =
+      "http://localhost" +
+      projectApiUrl("/diff", root.realPath, {
+        path: "value.ts",
+        layer: "unstaged",
+        revision: status.revision,
+        changeToken: status.changeToken,
+      });
+    const endpoints = [
+      {
+        url:
+          "http://localhost" +
+          projectApiUrl("/file", root.realPath, { path: "value.ts", source: "worktree" }),
+        parse: parseFileReadResponse,
+      },
+      { url: changes, parse: parseDiffResponse },
+      {
+        url:
+          "http://localhost" +
+          projectApiUrl(`/git/commits/${oid}/diff`, root.realPath, { path: "value.ts" }),
+        parse: parseDiffResponse,
+      },
+    ];
+    for (const endpoint of endpoints) {
+      for (const language of [null, "text", "typescript"]) {
+        const url = new URL(endpoint.url);
+        if (language !== null) url.searchParams.set("language", language);
+        const result = endpoint.parse((await (await handle(new Request(url))).json()) as unknown);
+        if (result.kind !== "text") throw new Error("Expected text response");
+        expect(result.syntax).toEqual(
+          language === "text"
+            ? { kind: "plain", reason: "selected" }
+            : { kind: "highlighted", language: "typescript" },
+        );
+      }
+      for (const language of ["", "null", "not-a-language", "TS", "x".repeat(100)]) {
+        const url = new URL(endpoint.url);
+        url.searchParams.set("language", language);
+        expect((await handle(new Request(url))).status).toBe(400);
+      }
+      const duplicate = new URL(endpoint.url);
+      duplicate.searchParams.append("language", "text");
+      duplicate.searchParams.append("language", "text");
+      expect((await handle(new Request(duplicate))).status).toBe(400);
+    }
+    for (const layer of [null, "", "index", "Staged"]) {
+      const url = new URL(changes);
+      if (layer === null) url.searchParams.delete("layer");
+      else url.searchParams.set("layer", layer);
+      expect((await handle(new Request(url))).status).toBe(400);
+    }
+  });
+});
+
 test("file API accepts a project path and serves non-Git working-tree files", async () => {
   await withTempDirectory("git-review-file-api-", async (rootPath) => {
     await mkdir(join(rootPath, "notes"));

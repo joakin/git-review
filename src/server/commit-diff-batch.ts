@@ -3,8 +3,8 @@ import {
   commitDiffBatchSource,
   commitDiffRequestKey,
   parseCommitDiffBatchRequest,
-  type CommitDiffRequest,
 } from "../shared/commit-diff-batch.ts";
+import type { DiffFileRequest } from "../shared/diff-request.ts";
 import { commitFile, readCommit, readCommitDiff } from "./git-history.ts";
 import { describeCommitMedia } from "./media.ts";
 import { AppError } from "./paths.ts";
@@ -17,7 +17,7 @@ export async function readCommitDiffBatch(
   body: unknown,
   signal: AbortSignal,
 ): Promise<Response> {
-  let files: CommitDiffRequest[];
+  let files: DiffFileRequest[];
   try {
     files = parseCommitDiffBatchRequest(body);
     if (files.some((file) => file.language !== null && languageOverride(file.language) === null))

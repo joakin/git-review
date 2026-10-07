@@ -1,15 +1,15 @@
-import { parseDiffResponse, type ChangeLayer, type DiffResult } from "./api.ts";
+import { isChangeLayer, parseDiffResponse, type ChangeLayer, type DiffResult } from "./api.ts";
 import {
   maxDiffBatchFiles,
   parseDiffBatchFiles,
   parseDiffBatchResponse,
   type DiffBatchResponse,
 } from "./diff-batch.ts";
-import { gitPath } from "./git.ts";
+import { parseDiffFileFields, type DiffFileRequest } from "./diff-request.ts";
 import { parseChangeSnapshot, type ChangeSnapshot } from "./change-snapshot.ts";
-import { expectRecord, expectString } from "./validation.ts";
+import { expectRecord } from "./validation.ts";
 
-export type ChangeDiffRequest = { layer: ChangeLayer; path: string; language: string | null };
+export type ChangeDiffRequest = DiffFileRequest & { layer: ChangeLayer };
 export type ChangeDiffBatchRequest = ChangeSnapshot & {
   files: ChangeDiffRequest[];
 };
@@ -41,18 +41,8 @@ export function parseChangeDiffBatchRequest(value: unknown): ChangeDiffBatchRequ
       if (Object.keys(file).some((key) => !["layer", "path", "language"].includes(key)))
         throw new Error("Unexpected change diff request field");
       const layer = file["layer"];
-      if (
-        layer !== "staged" &&
-        layer !== "unstaged" &&
-        layer !== "untracked" &&
-        layer !== "conflict"
-      )
-        throw new Error("Invalid change layer");
-      const language =
-        file["language"] === null ? null : expectString(file["language"], "language");
-      if (language !== null && (language.length === 0 || language.length > 100))
-        throw new Error("Invalid language override");
-      return { layer, path: gitPath(file["path"]), language };
+      if (!isChangeLayer(layer)) throw new Error("Invalid change layer");
+      return { layer, ...parseDiffFileFields(file) };
     },
     changeDiffRequestKey,
   );

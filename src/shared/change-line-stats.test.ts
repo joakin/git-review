@@ -32,6 +32,25 @@ test("status and check responses require both valid snapshot tokens", () => {
     }
 });
 
+test("status keeps every change layer and rejects invalid layer values", () => {
+  for (const layer of ["staged", "unstaged", "untracked", "conflict"] as const) {
+    const raw = {
+      ...entry(
+        layer === "conflict"
+          ? { kind: "not_applicable", reason: "conflict" }
+          : { kind: "text", added: 1, deleted: 0 },
+      ),
+      layer,
+      kind: layer === "conflict" ? "conflicted" : layer === "untracked" ? "added" : "modified",
+    };
+    expect<unknown>(parseStatusResponse(response([raw]))).toEqual(response([raw]));
+  }
+  for (const layer of [undefined, null, 1, "", "index", "Staged"])
+    expect(() =>
+      parseStatusResponse(response([{ ...entry({ kind: "text", added: 1, deleted: 0 }), layer }])),
+    ).toThrow();
+});
+
 test("required statistics reject invalid counts, duplicate identities and contradictory states", () => {
   const valid = entry({ kind: "text", added: 12, deleted: 3 });
   expect<unknown>(parseStatusResponse(response([valid]))).toEqual(response([valid]));
