@@ -2,6 +2,7 @@ import type { Page } from "playwright-core";
 import {
   appUrl,
   assertNoHorizontalOverflow,
+  qaDimensions,
   qaProfiles,
   withQaBrowser,
   withQaContext,
@@ -49,10 +50,10 @@ async function list(page: Page): Promise<void> {
 await withQaBrowser(async (browser) => {
   for (const viewport of [
     { width: 320, height: 720 },
-    { width: 390, height: 844 },
-    { width: 820, height: 1180 },
-    { width: 1180, height: 820 },
-    { width: 1440, height: 900 },
+    qaDimensions.phone,
+    qaDimensions.tabletPortrait,
+    qaDimensions.tabletLandscape,
+    qaDimensions.desktop,
   ]) {
     await withQaContext(
       browser,
@@ -77,7 +78,7 @@ await withQaBrowser(async (browser) => {
         await list(page);
         if (viewport.width > 600 && viewport.width < 900) {
           await availability(page, false, false);
-          await page.setViewportSize({ width: 1180, height: 820 });
+          await page.setViewportSize(qaDimensions.tabletLandscape);
           await availability(page, true, false);
           await page.setViewportSize(viewport);
           await availability(page, false, false);
@@ -160,7 +161,7 @@ await withQaBrowser(async (browser) => {
         if (viewport.width < 1200) {
           await page.getByRole("button", { name: "Open workspace menu" }).click();
           await page.locator(".history-navigation").waitFor({ state: "hidden" });
-          await page.setViewportSize({ width: 1440, height: 900 });
+          await page.setViewportSize(qaDimensions.desktop);
           await availability(page, true, false);
           await page.setViewportSize(viewport);
           await page.locator(".history-navigation").waitFor({ state: "hidden" });

@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright-core";
+import { qaDimensions } from "./browser-support.ts";
 import { selectCodeText } from "./select-code-text.ts";
 
 type CaptureOptions = {
@@ -34,10 +35,10 @@ type View = {
 };
 
 const views: readonly View[] = [
-  { name: "desktop", width: 1440, height: 900, isMobile: false, hasTouch: false },
-  { name: "tablet-landscape", width: 1180, height: 820, isMobile: true, hasTouch: true },
-  { name: "tablet-portrait", width: 820, height: 1180, isMobile: true, hasTouch: true },
-  { name: "mobile", width: 390, height: 844, isMobile: true, hasTouch: true },
+  { name: "desktop", ...qaDimensions.desktop, isMobile: false, hasTouch: false },
+  { name: "tablet-landscape", ...qaDimensions.tabletLandscape, isMobile: true, hasTouch: true },
+  { name: "tablet-portrait", ...qaDimensions.tabletPortrait, isMobile: true, hasTouch: true },
+  { name: "mobile", ...qaDimensions.phone, isMobile: true, hasTouch: true },
 ];
 
 const usage = `Usage: bun run qa:capture --url <http(s) URL> --label <milestone> [options]

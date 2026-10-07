@@ -21,6 +21,7 @@ import { selectCodeText } from "./select-code-text.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
+  qaDimensions,
   qaProfiles,
   withQaBrowser,
   withQaContext,
@@ -303,10 +304,10 @@ try {
   await withQaBrowser(async (browser) => {
     for (const view of [
       { width: 320, height: 740, touch: true },
-      { width: 390, height: 844, touch: true },
-      { width: 820, height: 1180, touch: true },
-      { width: 1180, height: 820, touch: true },
-      { width: 1440, height: 900, touch: false },
+      { ...qaDimensions.phone, touch: true },
+      { ...qaDimensions.tabletPortrait, touch: true },
+      { ...qaDimensions.tabletLandscape, touch: true },
+      { ...qaDimensions.desktop, touch: false },
     ]) {
       await writeFile(location, original);
       await withQaContext(
@@ -558,7 +559,7 @@ try {
             await withQaContext(
               browser,
               {
-                viewport: { width: 390, height: 844 },
+                viewport: qaDimensions.phone,
                 isMobile: true,
                 hasTouch: true,
               },

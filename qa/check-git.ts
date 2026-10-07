@@ -5,6 +5,7 @@ import { expectGitOid, parseCommitDetail, parseGitHistory } from "../src/shared/
 import {
   appUrl,
   assertNoHorizontalOverflow,
+  qaDimensions,
   withQaBrowser,
   withQaContext,
 } from "./browser-support.ts";
@@ -106,10 +107,10 @@ async function checkHistoryRefresh(page: Page, olderCount: number): Promise<void
 
 await withQaBrowser(async (browser) => {
   for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 820, height: 1180 },
-    { width: 1180, height: 820 },
-    { width: 1440, height: 900 },
+    qaDimensions.phone,
+    qaDimensions.tabletPortrait,
+    qaDimensions.tabletLandscape,
+    qaDimensions.desktop,
   ]) {
     const peak = await withQaContext(
       browser,

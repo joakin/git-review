@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { Browser, Page } from "playwright-core";
+import { qaDimensions } from "./browser-support.ts";
 import {
   parseActiveProject,
   validateSavedWorkspace,
@@ -70,10 +71,10 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
   const pickerUrl = new URL("/?section=projects&dir=inventory-fixture", base).href;
   for (const viewport of [
     { width: 320, height: 700 },
-    { width: 390, height: 844 },
-    { width: 820, height: 1180 },
-    { width: 1180, height: 820 },
-    { width: 1440, height: 900 },
+    qaDimensions.phone,
+    qaDimensions.tabletPortrait,
+    qaDimensions.tabletLandscape,
+    qaDimensions.desktop,
   ]) {
     const context = await browser.newContext({
       viewport,
@@ -142,7 +143,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
     { outcome: "error", releaseAt: "ready" },
   ] as const) {
     const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
+      viewport: qaDimensions.phone,
       isMobile: true,
       hasTouch: true,
       serviceWorkers: "block",
@@ -273,7 +274,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
   }
 
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
+    viewport: qaDimensions.phone,
     isMobile: true,
     hasTouch: true,
     serviceWorkers: "block",

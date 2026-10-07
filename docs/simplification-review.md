@@ -33,7 +33,6 @@ slice are recorded below.
 
 | ID  | Finding                                                | Area | Risk       |
 | --- | ------------------------------------------------------ | ---- | ---------- |
-| S22 | Share QA dimensions without changing emulation options | QA   | Medium     |
 | S23 | Reuse existing Git fixture helpers in older QA callers | QA   | Low–medium |
 
 ## Completed documentation items
@@ -253,6 +252,25 @@ contained scrolling. The
 [diff unwrapped](../qa/screenshots/simplification-s20-diff-nowrap/mobile.png) milestone sets were
 inspected at all four sizes. Physical-device gestures remain unverified.
 
+### S22 — Shared QA dimensions with scenario policies preserved
+
+`qaDimensions` now supplies the standard phone, tablet, and desktop sizes to eight QA callers.
+Emulation options, deliberate omissions, permissions, pixel scale, scenario order, and local 320px
+cases remain with their callers. A before/after comparison matched all 63 configured/effective
+cases.
+
+Independent review found no extraction issues. A file-feedback check exposed a pre-existing setup
+assumption after S11: feedback validated an edited file independently, but the staged diff still
+used the accepted pre-edit Changes token. A controlled API reproduction confirmed the expected stale
+response. The check now explicitly refreshes Changes and awaits a valid full status response before
+opening the staged diff; wrong-source, reattachment-banner, and stored-anchor assertions remain.
+
+All five type-check configurations, formatting, static QA, and whitespace checks passed. Chrome
+checks passed for live changes, Git, history controls, loading/project opening, selected feedback,
+and file feedback at their configured sizes, including plain-folder and clean-Git roots. Capture
+produced the same four dimensions without horizontal overflow. No application behavior changed;
+physical devices were not checked.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -273,25 +291,6 @@ reset and current-format behavior.
 ## Client presentation and types
 
 ## QA support
-
-### S22 — Share QA dimensions without changing emulation options
-
-**Evidence:** standard sizes exist in [browser-support.ts](../qa/browser-support.ts), lines 23–33,
-but recur in [capture](../qa/capture.ts), lines 36–41, [live changes](../qa/check-live-changes.ts),
-lines 32–37, [Git](../qa/check-git.ts), lines 108–120,
-[history controls](../qa/check-history-controls.ts), lines 50–63,
-[project opening](../qa/project-opening-check.ts), lines 71–82,
-[file feedback](../qa/check-file-feedback.ts), lines 80–85, and
-[selected feedback](../qa/check-selected-feedback.ts), lines 101–115.
-
-The browser options differ: shared tablets omit `isMobile`; capture/Git use mobile tablets, while
-history controls uses a different landscape touch policy. Clipboard permissions, blocked service
-workers, and pixel scale also belong to specific checks.
-
-**Proposed slice:** share named dimensions and retain explicit scenario options. Preserve special
-320px/breakpoint/keyboard cases locally. Compare effective configurations before/after and run
-affected checks/captures. Blindly substituting shared profiles would change the evidence. A new
-general QA runner is not needed.
 
 ### S23 — Reuse existing Git fixture helpers in older QA callers
 

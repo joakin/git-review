@@ -1,7 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import { appUrl, assertNoHorizontalOverflow, withQaBrowser } from "./browser-support.ts";
+import {
+  appUrl,
+  assertNoHorizontalOverflow,
+  qaDimensions,
+  withQaBrowser,
+} from "./browser-support.ts";
 import { parseChangeCheckResponse, parseStatusResponse } from "../src/shared/api.ts";
 import { parseChangeDiffBatchRequest } from "../src/shared/change-diff-batch.ts";
 
@@ -30,10 +35,10 @@ function git(...args: string[]): void {
 }
 
 const views = [
-  { name: "mobile", width: 390, height: 844, isMobile: true, hasTouch: true },
-  { name: "tablet-portrait", width: 820, height: 1180, isMobile: true, hasTouch: true },
-  { name: "tablet-landscape", width: 1180, height: 820, isMobile: true, hasTouch: true },
-  { name: "desktop", width: 1440, height: 900, isMobile: false, hasTouch: false },
+  { name: "mobile", ...qaDimensions.phone, isMobile: true, hasTouch: true },
+  { name: "tablet-portrait", ...qaDimensions.tabletPortrait, isMobile: true, hasTouch: true },
+  { name: "tablet-landscape", ...qaDimensions.tabletLandscape, isMobile: true, hasTouch: true },
+  { name: "desktop", ...qaDimensions.desktop, isMobile: false, hasTouch: false },
 ] as const;
 
 try {
@@ -174,7 +179,7 @@ try {
     )
       throw new Error(`Update action does not fit the narrow phone: ${JSON.stringify(narrowFit)}`);
     await assertNoHorizontalOverflow(phone.page);
-    await phone.page.setViewportSize({ width: 390, height: 844 });
+    await phone.page.setViewportSize(qaDimensions.phone);
 
     await phone.page.locator(".changes-update").click();
     await phone.card.getByText('export const message = "other";').waitFor({ state: "visible" });

@@ -20,16 +20,23 @@ export async function projectLookupResponse(
   return await fetch(origin + projectApiUrl("", absolutePath));
 }
 
+export const qaDimensions = {
+  phone: { width: 390, height: 844 },
+  tabletPortrait: { width: 820, height: 1180 },
+  tabletLandscape: { width: 1180, height: 820 },
+  desktop: { width: 1440, height: 900 },
+};
+
 export const qaProfiles = {
   phone: {
-    viewport: { width: 390, height: 844 },
+    viewport: qaDimensions.phone,
     isMobile: true,
     hasTouch: true,
     deviceScaleFactor: 1,
   },
-  tabletPortrait: { viewport: { width: 820, height: 1180 }, hasTouch: true },
-  tabletLandscape: { viewport: { width: 1180, height: 820 }, hasTouch: true },
-  desktop: { viewport: { width: 1440, height: 900 } },
+  tabletPortrait: { viewport: qaDimensions.tabletPortrait, hasTouch: true },
+  tabletLandscape: { viewport: qaDimensions.tabletLandscape, hasTouch: true },
+  desktop: { viewport: qaDimensions.desktop },
 } satisfies Record<string, BrowserContextOptions>;
 
 export function appUrl(value: string): URL {

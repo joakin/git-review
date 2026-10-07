@@ -11,6 +11,7 @@ import { selectCodeText } from "./select-code-text.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
+  qaDimensions,
   withQaBrowser,
   withQaContext,
 } from "./browser-support.ts";
@@ -80,10 +81,10 @@ const key = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`
 const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const views = [
   { width: 320, height: 740, touch: true },
-  { width: 390, height: 844, touch: true },
-  { width: 820, height: 1180, touch: true },
-  { width: 1180, height: 820, touch: true },
-  { width: 1440, height: 900, touch: false },
+  { ...qaDimensions.phone, touch: true },
+  { ...qaDimensions.tabletPortrait, touch: true },
+  { ...qaDimensions.tabletLandscape, touch: true },
+  { ...qaDimensions.desktop, touch: false },
 ];
 function assert(value: boolean, message: string): asserts value {
   if (!value) throw new Error(message);
@@ -284,7 +285,7 @@ try {
             await withQaContext(
               browser,
               {
-                viewport: { width: 390, height: 844 },
+                viewport: qaDimensions.phone,
                 isMobile: true,
                 hasTouch: true,
               },
@@ -345,6 +346,28 @@ try {
             // A file comment cannot be converted into a diff comment by browsing away during reattachment.
             await p.getByRole("button", { name: "Open list", exact: true }).click();
             await p.getByRole("button", { name: "Changes", exact: true }).click();
+            // Feedback checked the edited file independently; accept a fresh Changes snapshot too.
+            await p.getByRole("button", { name: "Review all changes", exact: true }).click();
+            const [refreshed] = await Promise.all([
+              p.waitForResponse((response) => {
+                const url = new URL(response.url());
+                return (
+                  url.pathname === "/api/project/status" &&
+                  !url.searchParams.has("mode") &&
+                  url.searchParams.get("projectPath") === project.absolutePath &&
+                  response.ok()
+                );
+              }),
+              p.getByRole("button", { name: "Refresh", exact: true }).click(),
+            ]);
+            assert(
+              parseStatusResponse(await refreshed.json()).kind === "git",
+              "Changes refresh did not load the edited fixture",
+            );
+            await p
+              .getByRole("button", { name: "Refresh", exact: true })
+              .waitFor({ state: "visible" });
+            await p.getByRole("button", { name: "Open list", exact: true }).click();
             const stagedCard = p.locator(
               'main .diff-card[data-layer="staged"][data-path="src/view.ts"]',
             );
@@ -434,7 +457,7 @@ try {
       await withQaContext(
         browser,
         {
-          viewport: { width: 390, height: 844 },
+          viewport: qaDimensions.phone,
           isMobile: true,
           hasTouch: true,
         },
