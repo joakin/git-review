@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import type { MediaResource, MediaSide } from "../shared/api.ts";
+import type { MediaSide } from "../shared/api.ts";
+import type { MediaResource } from "../shared/media-types.ts";
 
 function sizeLabel(bytes: number): string {
   return bytes < 1024

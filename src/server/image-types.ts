@@ -1,24 +1,8 @@
 import { projectApiUrl } from "../shared/project-path.ts";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
-import type { ChangeLayer, MediaResource } from "../shared/api.ts";
-
-export const maxImageBytes = 25 * 1024 * 1024;
-
-const mimeByExtension = new Map<string, string>([
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".gif", "image/gif"],
-  [".webp", "image/webp"],
-  [".avif", "image/avif"],
-  [".svg", "image/svg+xml"],
-]);
-
-export function imageMimeType(path: string): string | null {
-  const dot = path.lastIndexOf(".");
-  return dot === -1 ? null : (mimeByExtension.get(path.slice(dot).toLowerCase()) ?? null);
-}
+import type { ChangeLayer } from "../shared/api.ts";
+import type { ImageMimeType, ImageResource } from "../shared/media-types.ts";
 
 export function validImageHeader(bytes: Uint8Array, mimeType: string): boolean {
   const ascii = (start: number, end: number) =>
@@ -68,9 +52,9 @@ export function fileImageResource(
   projectPath: string,
   path: string,
   version: string,
-  mimeType: string,
+  mimeType: ImageMimeType,
   byteLength: number,
-): MediaResource {
+): ImageResource {
   return {
     kind: "image",
     mimeType,
@@ -86,9 +70,9 @@ export function diffImageResource(
   revision: string,
   side: "old" | "new",
   version: string,
-  mimeType: string,
+  mimeType: ImageMimeType,
   byteLength: number,
-): MediaResource {
+): ImageResource {
   return {
     kind: "image",
     mimeType,

@@ -1,6 +1,7 @@
 import type { FileHandle } from "node:fs/promises";
 import { basename } from "node:path";
 import type { Project } from "../shared/api.ts";
+import type { AudioVideoType } from "../shared/media-types.ts";
 import { workingVersion } from "./image-types.ts";
 import { openGitStream } from "./git-execution.ts";
 
@@ -11,7 +12,7 @@ type MediaStreamSource =
 export type StreamableMedia = {
   source: MediaStreamSource;
   byteLength: number;
-  mimeType: string;
+  mimeType: AudioVideoType["mimeType"];
   path: string;
 };
 

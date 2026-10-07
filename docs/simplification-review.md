@@ -1,8 +1,7 @@
 # Simplification and readability review
 
-Status: S01–S07, S09–S12, and S21 complete; S08 reviewed and retained. The remaining findings are
-authorized for autonomous implementation, independent review, correction, and staged commits as of
-2026-10-07.
+Status: implementation in progress under the maintainer’s autonomous authorization of 2026-10-07.
+Completed and retained dispositions are below; the remaining queue is explicit.
 
 Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this research. The previous
 [maintenance pass](maintenance-plan.md) remains closed.
@@ -34,7 +33,6 @@ slice are recorded below.
 
 | ID  | Finding                                                        | Area          | Risk       |
 | --- | -------------------------------------------------------------- | ------------- | ---------- |
-| S13 | Share supported media metadata between server and parser       | Shared/API    | Low        |
 | S14 | Share text classification while retaining source-read policies | Server        | Medium     |
 | S15 | Separate pure diff parsing from working-copy orchestration     | Server        | Low        |
 | S16 | Share the Git raw-record parser                                | Server        | Medium     |
@@ -142,6 +140,19 @@ five TypeScript configurations and 53 focused tests, including exact bounds, unu
 versus missing language, all layer variants, and HTTP default/plain/highlighted behavior. Static QA
 and the client build also passed. No visible behavior or layout changed.
 
+### S13 — Share supported media metadata between server and response parser
+
+The browser-safe [media catalog](../src/shared/media-types.ts) now supplies correlated descriptor
+types, supported extension discovery, MIME validation, and preview budgets. Server sniffing,
+source/version validation, security headers, read flows, and streaming remain in their existing
+owners. The [media record](media-preview-slice-proposal.md) links the catalog and signature owners.
+
+All five TypeScript configurations, static QA, the build, and 60 focused tests passed. Boundary
+coverage preserves every alias, kind/MIME pair, inclusive budget, and raw URL identity check.
+Independent client review found no actionable issues. Isolated Chrome checks passed for image
+rendering, raw SVG isolation, staged/Files audio and video loading and seeking, and raw ranges.
+Physical-device playback remains unverified.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -158,19 +169,6 @@ remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) 
 reset and current-format behavior.
 
 ## Compatibility and shared boundaries
-
-### S13 — Share supported media metadata between server and response parser
-
-**Evidence:** [shared API parsing](../src/shared/api.ts), lines 259–284, repeats MIME sets and
-image/audio/video byte budgets from [image-types.ts](../src/server/image-types.ts), lines 6–20, and
-[audio-video-types.ts](../src/server/audio-video-types.ts), lines 4–22. Adding a format requires
-coordinating those definitions. Current descriptor types allow arbitrary MIME strings internally.
-
-**Proposed slice:** introduce browser-safe kind/MIME/extension/limit metadata and precise descriptor
-types, deriving parser checks and extension discovery from it. Keep header sniffing, file/object
-reads, versions, raw security headers, and streaming server-side. Preserve all supported aliases,
-case-insensitive extensions, budgets, and raw URL validation. Verify parser acceptance/rejection,
-media APIs, and stateless resources; check that client imports introduce no server dependencies.
 
 ## Server organization and mechanisms
 

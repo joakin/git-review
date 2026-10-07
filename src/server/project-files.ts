@@ -15,19 +15,19 @@ import {
   withCheckedWorkingFile,
 } from "./working-files.ts";
 import { detectLanguage, highlightSource } from "./syntax.ts";
+import { fileImageResource, validImageHeader, workingVersion } from "./image-types.ts";
+import { fileAudioVideoResource, validAudioVideoHeader } from "./audio-video-types.ts";
 import {
-  fileImageResource,
   imageMimeType,
   maxImageBytes,
-  validImageHeader,
-  workingVersion,
-} from "./image-types.ts";
-import {
   audioVideoType,
-  fileAudioVideoResource,
   maxAudioVideoBytes,
-  validAudioVideoHeader,
-} from "./audio-video-types.ts";
+  type AudioVideoResource,
+  type AudioVideoType,
+  type ImageMimeType,
+  type ImageResource,
+  type MediaResource,
+} from "../shared/media-types.ts";
 
 const maxEntries = 1000;
 const maxTextBytes = 1024 * 1024;
@@ -73,11 +73,11 @@ export async function readProjectTree(
   return { path: location.path, parentPath, entries };
 }
 
-type WorkingImage =
+type WorkingMedia<Resource extends MediaResource> =
   | {
       kind: "ready";
       version: string;
-      resource: Extract<FileReadResult, { kind: "media" }>["resource"];
+      resource: Resource;
     }
   | { kind: "too_large" | "unsupported"; byteLength: number };
 
@@ -85,7 +85,7 @@ export async function inspectWorkingImage(
   root: ApprovedRoot,
   project: Project,
   rawPath: unknown,
-): Promise<WorkingImage> {
+): Promise<WorkingMedia<ImageResource>> {
   return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const { metadata, file, path } = opened;
     const mimeType = imageMimeType(path);
@@ -109,7 +109,7 @@ export async function readWorkingImageBytes(
   project: Project,
   rawPath: unknown,
   version: string,
-): Promise<{ bytes: Buffer; mimeType: string }> {
+): Promise<{ bytes: Buffer; mimeType: ImageMimeType }> {
   return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const { file, metadata } = opened;
     const mimeType = imageMimeType(opened.path);
@@ -141,7 +141,7 @@ export async function inspectWorkingAudioVideo(
   root: ApprovedRoot,
   project: Project,
   rawPath: unknown,
-): Promise<WorkingImage> {
+): Promise<WorkingMedia<AudioVideoResource>> {
   return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const type = audioVideoType(opened.path);
     if (type === null) throw new AppError("not_found", 404, "Previewable media file was not found");
@@ -171,7 +171,12 @@ export async function openWorkingAudioVideo(
   project: Project,
   rawPath: unknown,
   version: string,
-): Promise<{ file: FileHandle; byteLength: number; mimeType: string; path: string }> {
+): Promise<{
+  file: FileHandle;
+  byteLength: number;
+  mimeType: AudioVideoType["mimeType"];
+  path: string;
+}> {
   const opened = await openCheckedWorkingFile(root, project, rawPath);
   try {
     const type = audioVideoType(opened.path);

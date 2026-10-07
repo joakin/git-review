@@ -20,7 +20,7 @@ import {
   readDiffImageBytes,
 } from "./media.ts";
 import { audioVideoResponse } from "./media-stream.ts";
-import { imageMimeType } from "./image-types.ts";
+import { imageMimeType } from "../shared/media-types.ts";
 import { searchProject } from "./search.ts";
 import { createTranscriptionHandler } from "./transcription.ts";
 import { isChangeLayer, type ChangeLayer } from "../shared/api.ts";

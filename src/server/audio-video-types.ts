@@ -1,26 +1,6 @@
 import { projectApiUrl } from "../shared/project-path.ts";
-import type { ChangeLayer, MediaResource } from "../shared/api.ts";
-
-export const maxAudioVideoBytes = 200 * 1024 * 1024;
-
-export type AudioVideoType = { kind: "audio" | "video"; mimeType: string };
-
-const byExtension = new Map<string, AudioVideoType>([
-  [".mp3", { kind: "audio", mimeType: "audio/mpeg" }],
-  [".m4a", { kind: "audio", mimeType: "audio/mp4" }],
-  [".wav", { kind: "audio", mimeType: "audio/wav" }],
-  [".ogg", { kind: "audio", mimeType: "audio/ogg" }],
-  [".oga", { kind: "audio", mimeType: "audio/ogg" }],
-  [".mp4", { kind: "video", mimeType: "video/mp4" }],
-  [".m4v", { kind: "video", mimeType: "video/mp4" }],
-  [".webm", { kind: "video", mimeType: "video/webm" }],
-  [".mov", { kind: "video", mimeType: "video/quicktime" }],
-]);
-
-export function audioVideoType(path: string): AudioVideoType | null {
-  const dot = path.lastIndexOf(".");
-  return dot === -1 ? null : (byExtension.get(path.slice(dot).toLowerCase()) ?? null);
-}
+import type { ChangeLayer } from "../shared/api.ts";
+import type { AudioVideoResource, AudioVideoType } from "../shared/media-types.ts";
 
 export function validAudioVideoHeader(bytes: Uint8Array, mimeType: string): boolean {
   const ascii = (start: number, end: number) =>
@@ -57,7 +37,7 @@ export function fileAudioVideoResource(
   version: string,
   type: AudioVideoType,
   byteLength: number,
-): MediaResource {
+): AudioVideoResource {
   return {
     ...type,
     byteLength,
@@ -74,7 +54,7 @@ export function diffAudioVideoResource(
   version: string,
   type: AudioVideoType,
   byteLength: number,
-): MediaResource {
+): AudioVideoResource {
   return {
     ...type,
     byteLength,

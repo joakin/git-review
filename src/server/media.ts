@@ -4,13 +4,15 @@ import type { ChangeEntry, DiffResult, MediaSide, Project } from "../shared/api.
 import type { CommitDetail, CommitFileChange, CommitFileSide, CommitDiff } from "../shared/git.ts";
 import { AppError, type ApprovedRoot } from "./paths.ts";
 import { inspectGitBlob, readGitBlob, resolveGitBlob } from "./git-objects.ts";
+import { diffImageResource, validImageHeader } from "./image-types.ts";
+import { diffAudioVideoResource } from "./audio-video-types.ts";
 import {
-  diffImageResource,
   imageMimeType,
   maxImageBytes,
-  validImageHeader,
-} from "./image-types.ts";
-import { audioVideoType, diffAudioVideoResource, maxAudioVideoBytes } from "./audio-video-types.ts";
+  audioVideoType,
+  maxAudioVideoBytes,
+  type ImageMimeType,
+} from "../shared/media-types.ts";
 import {
   inspectWorkingImage,
   inspectWorkingAudioVideo,
@@ -50,7 +52,7 @@ async function oidForSource(
 }
 
 type GitImageInfo =
-  | { kind: "ready"; oid: string; mimeType: string; byteLength: number }
+  | { kind: "ready"; oid: string; mimeType: ImageMimeType; byteLength: number }
   | { kind: "unavailable"; reason: "unsupported" | "too_large" | "missing" };
 
 async function gitImageInfo(
@@ -277,7 +279,7 @@ export async function readDiffImageBytes(
   entry: ChangeEntry,
   side: "old" | "new",
   version: string,
-): Promise<{ bytes: Buffer; mimeType: string; path: string }> {
+): Promise<{ bytes: Buffer; mimeType: ImageMimeType; path: string }> {
   const source = sourceForSide(entry, side);
   if (source.kind === "absent")
     throw new AppError("not_found", 404, "This change has no image on that side");
@@ -405,7 +407,7 @@ export async function commitMediaResponse(
 
 export function imageResponse(
   bytes: Buffer,
-  mimeType: string,
+  mimeType: ImageMimeType,
   path: string,
   head: boolean,
 ): Response {

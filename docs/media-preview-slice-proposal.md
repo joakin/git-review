@@ -17,12 +17,13 @@ untracked uses an empty Old side; [Git inspection](git-history-slice-proposal.md
 historical comparison blobs. Renames use each side's own path. Changed or missing versions require
 recovery instead of substituting current working-tree bytes.
 
-The supported containers, MIME types, signature checks, and preview budgets are defined in
-[image types](../src/server/image-types.ts) and
-[audio/video types](../src/server/audio-video-types.ts). These classify a supported resource;
-[the browser preview](../src/client/MediaPreview.tsx) still determines actual decoding and playback.
-PDF remains [optional](initial-implementation-plan.md#remaining-roadmap); HTML preview is outside
-the current scope.
+The [shared media catalog](../src/shared/media-types.ts) owns supported containers, MIME types,
+extension aliases, and preview budgets. Server-side [image signatures](../src/server/image-types.ts)
+and [audio/video signatures](../src/server/audio-video-types.ts) validate working-file headers.
+These classify a supported resource; [the browser preview](../src/client/MediaPreview.tsx) still
+determines actual decoding and playback. PDF remains
+[optional](initial-implementation-plan.md#remaining-roadmap); HTML preview is outside the current
+scope.
 
 ## Source and response boundaries
 

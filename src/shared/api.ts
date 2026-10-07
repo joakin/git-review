@@ -2,6 +2,7 @@ import { isProjectPath } from "./project-path.ts";
 import { validateChangeGroupTotals } from "./change-line-stats.ts";
 import { normalizeSearchQuery } from "./search-query.ts";
 import { parseChangeSnapshot, type ChangeSnapshot } from "./change-snapshot.ts";
+import { findMediaType, mediaByteLimits, type MediaResource } from "./media-types.ts";
 
 export type RootInfo = {
   label: string;
@@ -26,12 +27,6 @@ export type FileTreeEntry = {
 };
 export type FileTree = { path: string; parentPath: string | null; entries: FileTreeEntry[] };
 export type FileLine = { number: number; text: string; tokens: SyntaxToken[] };
-export type MediaResource = {
-  kind: "image" | "audio" | "video";
-  mimeType: string;
-  byteLength: number;
-  url: string;
-};
 export type MediaSide =
   | { kind: "absent" }
   | { kind: "ready"; path: string; resource: MediaResource }
@@ -262,31 +257,13 @@ function parseSyntaxTokens(value: unknown, source: string): SyntaxToken[] {
   return tokens;
 }
 
-const imageMimeTypes = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/svg+xml",
-]);
-const audioMimeTypes = new Set(["audio/mpeg", "audio/mp4", "audio/wav", "audio/ogg"]);
-const videoMimeTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
-
 function parseMediaResource(value: unknown): MediaResource {
   const raw = expectRecord(value, "media resource");
-  const kind = raw["kind"];
-  if (kind !== "image" && kind !== "audio" && kind !== "video")
-    throw new Error("Expected a media resource");
   const mimeType = expectString(raw["mimeType"], "media MIME type");
-  if (
-    !(kind === "image" ? imageMimeTypes : kind === "audio" ? audioMimeTypes : videoMimeTypes).has(
-      mimeType,
-    )
-  )
-    throw new Error("Expected a supported media MIME type");
+  const type = findMediaType(raw["kind"], mimeType);
+  if (type === null) throw new Error("Expected a supported media MIME type");
   const byteLength = expectNonNegativeInteger(raw["byteLength"], "media byte length");
-  if (byteLength === 0 || byteLength > (kind === "image" ? 25 : 200) * 1024 * 1024)
+  if (byteLength === 0 || byteLength > mediaByteLimits[type.kind])
     throw new Error("Expected bounded media bytes");
   const url = expectString(raw["url"], "media URL");
   if (!/^\/api\/project\/raw\/(file|diff|commit)\?/.test(url) || /[\r\n\\]/.test(url))
@@ -298,7 +275,7 @@ function parseMediaResource(value: unknown): MediaResource {
     !isProjectPath(parsedUrl.searchParams.get("projectPath"))
   )
     throw new Error("Expected an absolute project path in the media URL");
-  return { kind, mimeType, byteLength, url };
+  return { ...type, byteLength, url };
 }
 
 function parseMediaSide(value: unknown): MediaSide {
