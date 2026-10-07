@@ -34,7 +34,7 @@ const byExtension = new Map<string, MediaType>();
 for (const format of formats)
   for (const extension of format.extensions) byExtension.set(extension, format.type);
 
-function mediaTypeForPath(path: string): MediaType | null {
+export function mediaTypeForPath(path: string): MediaType | null {
   const dot = path.lastIndexOf(".");
   return dot === -1 ? null : (byExtension.get(path.slice(dot).toLowerCase()) ?? null);
 }

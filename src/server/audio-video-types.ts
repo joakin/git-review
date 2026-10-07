@@ -1,7 +1,3 @@
-import { projectApiUrl } from "../shared/project-path.ts";
-import type { ChangeLayer } from "../shared/api.ts";
-import type { AudioVideoResource, AudioVideoType } from "../shared/media-types.ts";
-
 export function validAudioVideoHeader(bytes: Uint8Array, mimeType: string): boolean {
   const ascii = (start: number, end: number) =>
     new TextDecoder().decode(bytes.subarray(start, end));
@@ -29,35 +25,4 @@ export function validAudioVideoHeader(bytes: Uint8Array, mimeType: string): bool
     default:
       return false;
   }
-}
-
-export function fileAudioVideoResource(
-  projectPath: string,
-  path: string,
-  version: string,
-  type: AudioVideoType,
-  byteLength: number,
-): AudioVideoResource {
-  return {
-    ...type,
-    byteLength,
-    url: projectApiUrl("/raw/file", projectPath, { path, version }),
-  };
-}
-
-export function diffAudioVideoResource(
-  projectPath: string,
-  layer: ChangeLayer,
-  path: string,
-  revision: string,
-  side: "old" | "new",
-  version: string,
-  type: AudioVideoType,
-  byteLength: number,
-): AudioVideoResource {
-  return {
-    ...type,
-    byteLength,
-    url: projectApiUrl("/raw/diff", projectPath, { layer, path, revision, side, version }),
-  };
 }

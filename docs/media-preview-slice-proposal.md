@@ -28,6 +28,10 @@ scope.
 ## Source and response boundaries
 
 [Media resolution](../src/server/media.ts) owns comparison/source validation and raw URLs.
+[Working media inspection](../src/server/project-files.ts) supplies validated type, size, and
+version metadata; its callers attach source-specific URLs. Git images also require valid headers,
+while supported nonempty Git audio/video blobs retain their existing inspection policy without
+header sniffing. Browser decoding can still fail and offer the raw fallback.
 [Checked working-file access](working-file-boundaries.md) pins validated working-tree descriptors;
 [Git object reads](git-read-boundaries.md) supply exact blobs. A selected project may be a
 repository subfolder: Old HEAD reads must preserve that scope rather than selecting a namesake at

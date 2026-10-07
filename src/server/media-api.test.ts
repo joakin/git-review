@@ -2,7 +2,7 @@ import { projectApiUrl } from "../shared/project-path.ts";
 import { projectRequestUrl } from "../test-support.ts";
 import { expect, test } from "bun:test";
 import { testGit as git, withTempDirectory } from "../test-support.ts";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   parseDiffResponse,
@@ -12,6 +12,8 @@ import {
 } from "../shared/api.ts";
 import { createApiHandler } from "./api.ts";
 import { approveRoot } from "./paths.ts";
+import { parseCommitDiff } from "../shared/git.ts";
+import { workingVersion } from "./image-types.ts";
 
 const mediaCases = [
   {
@@ -256,5 +258,141 @@ test("subfolder staged rename and deletion retain their scoped Old image", async
         expect(Buffer.from(await next.arrayBuffer())).toEqual(renamed);
       } else expect(diff.new.kind).toBe("absent");
     }
+  });
+});
+
+test("Git audio/video accepts nonempty supported blobs while working previews require headers", async () => {
+  await withTempDirectory("git-review-media-policies-", async (repository) => {
+    git(repository, "init", "-q");
+    const before = Buffer.from("nonempty bytes without a WAV header");
+    for (const [path, bytes] of [
+      ["rejected.wav", before],
+      ["empty.wav", Buffer.alloc(0)],
+      ["rejected.mp4", before],
+      ["empty.mp4", Buffer.alloc(0)],
+      ["rejected.svg", Buffer.from("not SVG")],
+      ["empty.svg", Buffer.alloc(0)],
+      ["renamed.wav", Buffer.from("RIFF____WAVErename")],
+    ] as const)
+      await writeFile(join(repository, path), bytes);
+    git(repository, "add", ".");
+    git(repository, "commit", "-qm", "media policies");
+    const oid = git(repository, "rev-parse", "HEAD").toString("utf8").trim();
+    git(repository, "mv", "renamed.wav", "now.txt");
+    const replacement = Buffer.from("different bytes without a recognized header");
+    const paths = [
+      "rejected.wav",
+      "empty.wav",
+      "rejected.mp4",
+      "empty.mp4",
+      "rejected.svg",
+      "empty.svg",
+    ];
+    for (const path of paths) await writeFile(join(repository, path), replacement);
+
+    const root = await approveRoot(repository);
+    const handle = createApiHandler(root);
+    const get = (suffix: string, fields: Record<string, string> = {}) =>
+      handle(new Request("http://localhost" + projectApiUrl(suffix, root.realPath, fields)));
+    const status = parseStatusResponse(await (await get("/status")).json());
+    if (status.kind !== "git") throw new Error("Expected Git status");
+    for (const path of paths) {
+      const response = await handle(
+        new Request(
+          "http://localhost" +
+            projectApiUrl("/diff", root.realPath, {
+              layer: "unstaged",
+              path,
+              revision: status.revision,
+              changeToken: status.changeToken,
+            }),
+        ),
+      );
+      expect(response.status).toBe(200);
+      const diff = parseDiffResponse(await response.json());
+      if (diff.kind !== "media") throw new Error("Expected media comparison");
+      expect(diff.new).toEqual({ kind: "unavailable", path, reason: "unsupported" });
+      const committed = parseCommitDiff(
+        await (await get(`/git/commits/${oid}/diff`, { path })).json(),
+      );
+      if (committed.kind !== "media") throw new Error("Expected immutable media comparison");
+      expect(committed.old).toEqual({ kind: "absent" });
+      if (path === "rejected.wav" || path === "rejected.mp4") {
+        if (diff.old.kind !== "ready" || committed.new.kind !== "ready")
+          throw new Error("Expected nonempty Git audio despite its unsupported working header");
+        for (const side of [diff.old, committed.new]) {
+          expect(side.resource.kind).toBe(path === "rejected.wav" ? "audio" : "video");
+          const raw = await handle(new Request("http://localhost" + side.resource.url));
+          expect(raw.status).toBe(200);
+          expect(Buffer.from(await raw.arrayBuffer())).toEqual(before);
+          const range = await handle(
+            new Request("http://localhost" + side.resource.url, {
+              headers: { range: "bytes=0-3" },
+            }),
+          );
+          expect(range.status).toBe(206);
+          expect(Buffer.from(await range.arrayBuffer())).toEqual(before.subarray(0, 4));
+        }
+      } else {
+        const reason = path === "empty.wav" || path === "empty.mp4" ? "missing" : "unsupported";
+        expect(diff.old).toEqual({ kind: "unavailable", path, reason });
+        expect(committed.new).toEqual({ kind: "unavailable", path, reason });
+        const version = git(repository, "rev-parse", `${oid}:${path}`).toString("utf8").trim();
+        const raw = await handle(
+          new Request(
+            "http://localhost" +
+              projectApiUrl("/raw/commit", root.realPath, {
+                commit: oid,
+                path,
+                side: "new",
+                version,
+              }),
+          ),
+        );
+        expect(raw.status).toBe(404);
+      }
+      const file = await handle(
+        new Request(
+          "http://localhost" + projectApiUrl("/file", root.realPath, { path, source: "worktree" }),
+        ),
+      );
+      expect(parseFileReadResponse(await file.json())).toEqual({
+        kind: "binary",
+        path,
+        byteLength: replacement.length,
+      });
+      const version = workingVersion(await stat(join(repository, path)));
+      expect(
+        (
+          await handle(
+            new Request(
+              "http://localhost" + projectApiUrl("/raw/file", root.realPath, { path, version }),
+            ),
+          )
+        ).status,
+      ).toBe(409);
+    }
+    const renamed = parseDiffResponse(
+      await (
+        await handle(
+          new Request(
+            "http://localhost" +
+              projectApiUrl("/diff", root.realPath, {
+                layer: "staged",
+                path: "now.txt",
+                revision: status.revision,
+                changeToken: status.changeToken,
+              }),
+          ),
+        )
+      ).json(),
+    );
+    if (renamed.kind !== "media" || renamed.old.kind !== "ready")
+      throw new Error("Expected supported rename origin");
+    expect(renamed.old.path).toBe("renamed.wav");
+    expect(renamed.new).toEqual({ kind: "unavailable", path: "now.txt", reason: "unsupported" });
+    const raw = await handle(new Request("http://localhost" + renamed.old.resource.url));
+    expect(raw.status).toBe(200);
+    expect(await raw.text()).toBe("RIFF____WAVErename");
   });
 });

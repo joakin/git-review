@@ -1,8 +1,5 @@
-import { projectApiUrl } from "../shared/project-path.ts";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
-import type { ChangeLayer } from "../shared/api.ts";
-import type { ImageMimeType, ImageResource } from "../shared/media-types.ts";
 
 export function validImageHeader(bytes: Uint8Array, mimeType: string): boolean {
   const ascii = (start: number, end: number) =>
@@ -46,37 +43,4 @@ export function workingVersion(metadata: Stats): string {
     )
     .digest("hex")
     .slice(0, 20);
-}
-
-export function fileImageResource(
-  projectPath: string,
-  path: string,
-  version: string,
-  mimeType: ImageMimeType,
-  byteLength: number,
-): ImageResource {
-  return {
-    kind: "image",
-    mimeType,
-    byteLength,
-    url: projectApiUrl("/raw/file", projectPath, { path, version }),
-  };
-}
-
-export function diffImageResource(
-  projectPath: string,
-  layer: ChangeLayer,
-  path: string,
-  revision: string,
-  side: "old" | "new",
-  version: string,
-  mimeType: ImageMimeType,
-  byteLength: number,
-): ImageResource {
-  return {
-    kind: "image",
-    mimeType,
-    byteLength,
-    url: projectApiUrl("/raw/diff", projectPath, { layer, path, revision, side, version }),
-  };
 }

@@ -33,7 +33,6 @@ slice are recorded below.
 
 | ID  | Finding                                                  | Area          | Risk       |
 | --- | -------------------------------------------------------- | ------------- | ---------- |
-| S17 | Simplify media inspection and result mapping             | Server        | Medium     |
 | S18 | Share repeated headings and selected working-file wiring | Client        | Medium     |
 | S19 | Resolve diff-row feedback side in one place              | Client        | Low–medium |
 | S20 | Group identical Files/diff code-pane CSS                 | Client/styles | Low–medium |
@@ -191,6 +190,20 @@ names, scored renames/copies, scope, and aggregation. The author also compared 2
 acceptance and result combinations. Independent client review found no actionable issues; static QA
 also passed.
 
+### S17 — Simplify media inspection and result mapping
+
+Working media inspection now returns correlated type, size, and version metadata. Files and
+comparison callers share ready/unavailable construction and attach their own raw URLs. Neutral
+source names replace image-only names. Image prefixes, buffering, and header checks remain distinct
+from audio/video prefixes and streaming; Git audio/video retains its nonempty-blob policy without
+header sniffing. The [media record](media-preview-slice-proposal.md) owns this source distinction.
+
+All five TypeScript configurations, static QA, the build, and 61 focused tests passed. New
+regressions cover exact budgets, empty/invalid content, prefix windows, Git versus working policies,
+raw failures, and unsupported rename destinations. Independent client review found no actionable
+issues. Isolated Chrome image/SVG, staged/Files playback and range checks, and Git source/navigation
+checks at four sizes passed. Physical-device playback remains unverified.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -207,21 +220,6 @@ remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) 
 reset and current-format behavior.
 
 ## Server organization and mechanisms
-
-### S17 — Simplify media inspection and result mapping
-
-**Evidence:** [project-files.ts](../src/server/project-files.ts), lines 84–166, repeats image and
-audio/video inspection, then repeats conversion to Files results at lines 218–246. Its
-`WorkingImage` type also represents audio/video. [media.ts](../src/server/media.ts), lines 104–207,
-repeats ready/unavailable decoration and source/type branching; `ImageSource` likewise serves all
-media.
-
-**Proposed slices:** first use neutral media names/descriptors and share Files result mapping. Then
-assess a common side-description flow built on S13's metadata. Keep image headers/buffering,
-audio/video streaming, source versions, and descriptor transfer distinct. Preserve current Git
-audio/video inspection policy, which differs from working-file header inspection. Verify media
-Old/New sources, scoped renames/deletions, historical blobs, HEAD/ranges, stale versions, and
-cleanup. Avoid a polymorphic media framework.
 
 ## Client presentation and types
 

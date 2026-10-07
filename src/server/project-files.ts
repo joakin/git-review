@@ -1,4 +1,5 @@
 import { opendir, type FileHandle } from "node:fs/promises";
+import { projectApiUrl } from "../shared/project-path.ts";
 import type {
   FileReadResult,
   FileTree,
@@ -16,18 +17,18 @@ import {
 } from "./working-files.ts";
 import { detectLanguage, highlightSource } from "./syntax.ts";
 import { maxSourceTextBytes, parseSourceText } from "./source-text.ts";
-import { fileImageResource, validImageHeader, workingVersion } from "./image-types.ts";
-import { fileAudioVideoResource, validAudioVideoHeader } from "./audio-video-types.ts";
+import { validImageHeader, workingVersion } from "./image-types.ts";
+import { validAudioVideoHeader } from "./audio-video-types.ts";
 import {
   imageMimeType,
   maxImageBytes,
   audioVideoType,
   maxAudioVideoBytes,
-  type AudioVideoResource,
+  mediaTypeForPath,
+  mediaByteLimits,
   type AudioVideoType,
   type ImageMimeType,
-  type ImageResource,
-  type MediaResource,
+  type MediaType,
 } from "../shared/media-types.ts";
 
 const maxEntries = 1000;
@@ -72,33 +73,40 @@ export async function readProjectTree(
   return { path: location.path, parentPath, entries };
 }
 
-type WorkingMedia<Resource extends MediaResource> =
+type WorkingMedia =
   | {
       kind: "ready";
       version: string;
-      resource: Resource;
+      type: MediaType;
+      byteLength: number;
     }
   | { kind: "too_large" | "unsupported"; byteLength: number };
 
-export async function inspectWorkingImage(
+export async function inspectWorkingMedia(
   root: ApprovedRoot,
   project: Project,
   rawPath: unknown,
-): Promise<WorkingMedia<ImageResource>> {
+): Promise<WorkingMedia> {
   return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
     const { metadata, file, path } = opened;
-    const mimeType = imageMimeType(path);
-    if (mimeType === null) throw new AppError("not_found", 404, "Previewable image was not found");
-    if (metadata.size > maxImageBytes) return { kind: "too_large", byteLength: metadata.size };
-    const prefix = Buffer.alloc(Math.min(metadata.size, 4096));
+    const type = mediaTypeForPath(path);
+    if (type === null) throw new AppError("not_found", 404, "Previewable media file was not found");
+    if (metadata.size > mediaByteLimits[type.kind])
+      return { kind: "too_large", byteLength: metadata.size };
+    const prefix = Buffer.alloc(Math.min(metadata.size, type.kind === "image" ? 4096 : 64));
     const { bytesRead } = await file.read(prefix, 0, prefix.length, 0);
-    if (!validImageHeader(prefix.subarray(0, bytesRead), mimeType))
-      return { kind: "unsupported", byteLength: metadata.size };
+    const bytes = prefix.subarray(0, bytesRead);
+    const valid =
+      type.kind === "image"
+        ? validImageHeader(bytes, type.mimeType)
+        : validAudioVideoHeader(bytes, type.mimeType);
+    if (!valid) return { kind: "unsupported", byteLength: metadata.size };
     const version = workingVersion(metadata);
     return {
       kind: "ready",
       version,
-      resource: fileImageResource(project.absolutePath, path, version, mimeType, metadata.size),
+      type,
+      byteLength: metadata.size,
     };
   });
 }
@@ -133,35 +141,6 @@ export async function readWorkingImageBytes(
       throw new AppError("not_found", 409, "This image changed. Refresh its preview.");
     }
     return { bytes, mimeType };
-  });
-}
-
-export async function inspectWorkingAudioVideo(
-  root: ApprovedRoot,
-  project: Project,
-  rawPath: unknown,
-): Promise<WorkingMedia<AudioVideoResource>> {
-  return withCheckedWorkingFile(root, project, rawPath, async (opened) => {
-    const type = audioVideoType(opened.path);
-    if (type === null) throw new AppError("not_found", 404, "Previewable media file was not found");
-    if (opened.metadata.size > maxAudioVideoBytes)
-      return { kind: "too_large", byteLength: opened.metadata.size };
-    const prefix = Buffer.alloc(Math.min(opened.metadata.size, 64));
-    const { bytesRead } = await opened.file.read(prefix, 0, prefix.length, 0);
-    if (!validAudioVideoHeader(prefix.subarray(0, bytesRead), type.mimeType))
-      return { kind: "unsupported", byteLength: opened.metadata.size };
-    const version = workingVersion(opened.metadata);
-    return {
-      kind: "ready",
-      version,
-      resource: fileAudioVideoResource(
-        project.absolutePath,
-        opened.path,
-        version,
-        type,
-        opened.metadata.size,
-      ),
-    };
   });
 }
 
@@ -219,29 +198,21 @@ async function readFile(
       path: location.path,
       byteLength: location.metadata.size,
     };
-  if (imageMimeType(location.path) !== null) {
-    const image = await inspectWorkingImage(root, project, location.path);
-    if (image.kind === "ready")
-      return {
-        kind: "media",
-        path: location.path,
-        byteLength: image.resource.byteLength,
-        resource: image.resource,
-      };
-    return {
-      kind: image.kind === "too_large" ? "too_large" : "binary",
-      path: location.path,
-      byteLength: image.byteLength,
-    };
-  }
-  if (audioVideoType(location.path) !== null) {
-    const media = await inspectWorkingAudioVideo(root, project, location.path);
+  if (mediaTypeForPath(location.path) !== null) {
+    const media = await inspectWorkingMedia(root, project, location.path);
     if (media.kind === "ready")
       return {
         kind: "media",
         path: location.path,
-        byteLength: media.resource.byteLength,
-        resource: media.resource,
+        byteLength: media.byteLength,
+        resource: {
+          ...media.type,
+          byteLength: media.byteLength,
+          url: projectApiUrl("/raw/file", project.absolutePath, {
+            path: location.path,
+            version: media.version,
+          }),
+        },
       };
     return {
       kind: media.kind === "too_large" ? "too_large" : "binary",

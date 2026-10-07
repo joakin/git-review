@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { approveRoot, resolveProject } from "./paths.ts";
 import { readProjectFile, readProjectTree } from "./project-files.ts";
 import { maxSourceTextBytes, maxSourceTextLines } from "./source-text.ts";
+import { maxAudioVideoBytes, maxImageBytes } from "../shared/media-types.ts";
 import { withTempDirectory } from "../test-support.ts";
 
 test("working-tree browsing stays in a non-Git project and never follows links", async () => {
@@ -88,6 +89,62 @@ test("file reader classifies binary, oversized, empty, and disappeared files", a
   } finally {
     await rm(base, { recursive: true, force: true });
   }
+});
+
+test("Files media keeps empty and rejected headers binary and uses the image prefix window", async () => {
+  await withTempDirectory("git-review-file-media-", async (directory) => {
+    const root = await approveRoot(directory);
+    const project = await resolveProject(root, root.realPath);
+    for (const path of ["empty.svg", "empty.wav", "rejected.png", "rejected.mp4"]) {
+      const bytes = path.startsWith("empty") ? Buffer.alloc(0) : Buffer.from("not a media header");
+      await writeFile(join(directory, path), bytes);
+      expect(await readProjectFile(root, project, path, null)).toEqual({
+        kind: "binary",
+        path,
+        byteLength: bytes.length,
+      });
+    }
+    const delayedSvg = `<!--${"x".repeat(100)}--><svg xmlns="http://www.w3.org/2000/svg"/>`;
+    await writeFile(join(directory, "delayed.svg"), delayedSvg);
+    const image = await readProjectFile(root, project, "delayed.svg", null);
+    if (image.kind !== "media") throw new Error("Expected image beyond the audio/video prefix");
+    expect(image.resource.kind).toBe("image");
+    expect(image.byteLength).toBe(Buffer.byteLength(delayedSvg));
+    const beyondPrefix = `<!--${"x".repeat(4096)}--><svg/>`;
+    await writeFile(join(directory, "beyond.svg"), beyondPrefix);
+    expect(await readProjectFile(root, project, "beyond.svg", null)).toEqual({
+      kind: "binary",
+      path: "beyond.svg",
+      byteLength: Buffer.byteLength(beyondPrefix),
+    });
+  });
+});
+
+test("working previews accept exact image and audio/video budgets and reject the next byte", async () => {
+  await withTempDirectory("git-review-media-limits-", async (directory) => {
+    const root = await approveRoot(directory);
+    const project = await resolveProject(root, root.realPath);
+    for (const [path, header, byteLimit, kind] of [
+      ["image.svg", "<svg></svg>", maxImageBytes, "image"],
+      ["sound.wav", "RIFF____WAVE", maxAudioVideoBytes, "audio"],
+    ] as const) {
+      const absolutePath = join(directory, path);
+      await writeFile(absolutePath, header);
+      // Sparse files exercise metadata limits without allocating or reading a full media body.
+      await truncate(absolutePath, byteLimit);
+      const preview = await readProjectFile(root, project, path, null);
+      if (preview.kind !== "media") throw new Error("Expected media at the exact byte limit");
+      expect(preview.resource.kind).toBe(kind);
+      expect(preview.byteLength).toBe(byteLimit);
+      expect(preview.resource.byteLength).toBe(byteLimit);
+      await truncate(absolutePath, byteLimit + 1);
+      expect(await readProjectFile(root, project, path, null)).toEqual({
+        kind: "too_large",
+        path,
+        byteLength: byteLimit + 1,
+      });
+    }
+  });
 });
 
 test("Files display normalizes only CRLF and preserves blank and unterminated lines", async () => {

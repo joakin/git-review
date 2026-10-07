@@ -4,31 +4,31 @@ import type { ChangeEntry, DiffResult, MediaSide, Project } from "../shared/api.
 import type { CommitDetail, CommitFileChange, CommitFileSide, CommitDiff } from "../shared/git.ts";
 import { AppError, type ApprovedRoot } from "./paths.ts";
 import { inspectGitBlob, readGitBlob, resolveGitBlob } from "./git-objects.ts";
-import { diffImageResource, validImageHeader } from "./image-types.ts";
-import { diffAudioVideoResource } from "./audio-video-types.ts";
+import { validImageHeader } from "./image-types.ts";
 import {
   imageMimeType,
   maxImageBytes,
   audioVideoType,
   maxAudioVideoBytes,
+  mediaTypeForPath,
+  type MediaType,
   type ImageMimeType,
 } from "../shared/media-types.ts";
 import {
-  inspectWorkingImage,
-  inspectWorkingAudioVideo,
+  inspectWorkingMedia,
   openWorkingAudioVideo,
   readWorkingImageBytes,
 } from "./project-files.ts";
 import { validateProjectFilePath } from "./working-files.ts";
 import { audioVideoResponse, type StreamableMedia } from "./media-stream.ts";
 
-type ImageSource =
+type MediaSource =
   | { kind: "absent" }
   | { kind: "worktree"; path: string }
   | { kind: "index" | "head"; path: string }
   | { kind: "commit"; path: string; oid: string };
 
-function sourceForSide(entry: ChangeEntry, side: "old" | "new"): ImageSource {
+function sourceForSide(entry: ChangeEntry, side: "old" | "new"): MediaSource {
   if (entry.layer === "untracked")
     return side === "old" ? { kind: "absent" } : { kind: "worktree", path: entry.path };
   if (entry.layer === "conflict") return { kind: "absent" };
@@ -42,7 +42,7 @@ function sourceForSide(entry: ChangeEntry, side: "old" | "new"): ImageSource {
 
 async function oidForSource(
   project: Project,
-  source: Exclude<ImageSource, { kind: "absent" }>,
+  source: Exclude<MediaSource, { kind: "absent" }>,
 ): Promise<string | null> {
   if (source.kind === "worktree") return null;
   return resolveGitBlob(
@@ -57,7 +57,7 @@ type GitImageInfo =
 
 async function gitImageInfo(
   project: Project,
-  source: Exclude<ImageSource, { kind: "absent" }>,
+  source: Exclude<MediaSource, { kind: "absent" }>,
 ): Promise<GitImageInfo> {
   const mimeType = imageMimeType(source.path);
   if (mimeType === null) return { kind: "unavailable", reason: "unsupported" };
@@ -86,7 +86,7 @@ type GitAudioVideoInfo =
 
 async function gitAudioVideoInfo(
   project: Project,
-  source: Exclude<ImageSource, { kind: "absent" }>,
+  source: Exclude<MediaSource, { kind: "absent" }>,
 ): Promise<GitAudioVideoInfo> {
   if (audioVideoType(source.path) === null) return { kind: "unavailable", reason: "unsupported" };
   const oid = await oidForSource(project, source);
@@ -103,6 +103,51 @@ async function gitAudioVideoInfo(
   }
 }
 
+type MediaInfo =
+  | { kind: "ready"; type: MediaType; version: string; byteLength: number }
+  | { kind: "unavailable"; reason: "unsupported" | "too_large" | "missing" };
+
+async function gitMediaInfo(
+  project: Project,
+  source: Exclude<MediaSource, { kind: "absent" | "worktree" }>,
+): Promise<MediaInfo> {
+  const type = mediaTypeForPath(source.path);
+  if (type === null) return { kind: "unavailable", reason: "unsupported" };
+  const info =
+    type.kind === "image"
+      ? await gitImageInfo(project, source)
+      : await gitAudioVideoInfo(project, source);
+  return info.kind === "unavailable"
+    ? info
+    : { kind: "ready", type, version: info.oid, byteLength: info.byteLength };
+}
+
+async function workingMediaInfo(
+  root: ApprovedRoot,
+  project: Project,
+  path: string,
+): Promise<MediaInfo> {
+  if (mediaTypeForPath(path) === null) return { kind: "unavailable", reason: "unsupported" };
+  try {
+    const media = await inspectWorkingMedia(root, project, path);
+    return media.kind === "ready" ? media : { kind: "unavailable", reason: media.kind };
+  } catch (error: unknown) {
+    if (error instanceof AppError && error.status === 404)
+      return { kind: "unavailable", reason: "missing" };
+    throw error;
+  }
+}
+
+function mediaSide(path: string, info: MediaInfo, rawUrl: (version: string) => string): MediaSide {
+  return info.kind === "unavailable"
+    ? { kind: "unavailable", path, reason: info.reason }
+    : {
+        kind: "ready",
+        path,
+        resource: { ...info.type, byteLength: info.byteLength, url: rawUrl(info.version) },
+      };
+}
+
 async function describeSide(
   root: ApprovedRoot,
   project: Project,
@@ -113,100 +158,19 @@ async function describeSide(
   const source = sourceForSide(entry, side);
   if (source.kind === "absent") return { kind: "absent" };
   const path = validateProjectFilePath(source.path);
-  if (imageMimeType(path) === null) {
-    const type = audioVideoType(path);
-    if (type === null) return { kind: "unavailable", path, reason: "unsupported" };
-    if (source.kind === "worktree") {
-      try {
-        const media = await inspectWorkingAudioVideo(root, project, path);
-        if (media.kind === "ready")
-          return {
-            kind: "ready",
-            path,
-            resource: diffAudioVideoResource(
-              project.absolutePath,
-              entry.layer,
-              entry.path,
-              revision,
-              side,
-              media.version,
-              type,
-              media.resource.byteLength,
-            ),
-          };
-        return {
-          kind: "unavailable",
-          path,
-          reason: media.kind === "too_large" ? "too_large" : "unsupported",
-        };
-      } catch (error: unknown) {
-        if (error instanceof AppError && error.status === 404)
-          return { kind: "unavailable", path, reason: "missing" };
-        throw error;
-      }
-    }
-    const media = await gitAudioVideoInfo(project, source);
-    if (media.kind === "unavailable") return { kind: "unavailable", path, reason: media.reason };
-    return {
-      kind: "ready",
-      path,
-      resource: diffAudioVideoResource(
-        project.absolutePath,
-        entry.layer,
-        entry.path,
-        revision,
-        side,
-        media.oid,
-        type,
-        media.byteLength,
-      ),
-    };
-  }
-  if (source.kind === "worktree") {
-    try {
-      const image = await inspectWorkingImage(root, project, path);
-      if (image.kind === "ready")
-        return {
-          kind: "ready",
-          path,
-          resource: diffImageResource(
-            project.absolutePath,
-            entry.layer,
-            entry.path,
-            revision,
-            side,
-            image.version,
-            image.resource.mimeType,
-            image.resource.byteLength,
-          ),
-        };
-      return {
-        kind: "unavailable",
-        path,
-        reason: image.kind === "too_large" ? "too_large" : "unsupported",
-      };
-    } catch (error: unknown) {
-      if (error instanceof AppError && error.status === 404)
-        return { kind: "unavailable", path, reason: "missing" };
-      throw error;
-    }
-  }
-  const image = await gitImageInfo(project, source);
-  if (image.kind === "unavailable") return { kind: "unavailable", path, reason: image.reason };
-  return {
-    kind: "ready",
-    path,
-    resource: diffImageResource(
-      project.absolutePath,
-      entry.layer,
-      entry.path,
+  const info =
+    source.kind === "worktree"
+      ? await workingMediaInfo(root, project, path)
+      : await gitMediaInfo(project, source);
+  return mediaSide(path, info, (version) =>
+    projectApiUrl("/raw/diff", project.absolutePath, {
+      layer: entry.layer,
+      path: entry.path,
       revision,
       side,
-      image.oid,
-      image.mimeType,
-      image.byteLength,
-    ),
-  };
+      version,
+    }),
+  );
 }
 
 export async function describeDiffMedia(
@@ -218,10 +182,8 @@ export async function describeDiffMedia(
   if (
     entry.layer === "conflict" ||
     entry.isSubmodule ||
-    (imageMimeType(entry.path) === null &&
-      imageMimeType(entry.oldPath ?? entry.path) === null &&
-      audioVideoType(entry.path) === null &&
-      audioVideoType(entry.oldPath ?? entry.path) === null)
+    (mediaTypeForPath(entry.path) === null &&
+      mediaTypeForPath(entry.oldPath ?? entry.path) === null)
   )
     return null;
   const old = await describeSide(root, project, entry, revision, "old");
@@ -295,7 +257,7 @@ export async function readDiffImageBytes(
   return { bytes, mimeType: image.mimeType, path };
 }
 
-function commitSource(side: CommitFileSide): ImageSource {
+function commitSource(side: CommitFileSide): Extract<MediaSource, { kind: "absent" | "commit" }> {
   return side.kind === "absent" ? side : { kind: "commit", path: side.path, oid: side.oid };
 }
 
@@ -307,43 +269,15 @@ async function describeCommitSide(
 ): Promise<MediaSide> {
   const source = commitSource(file[side]);
   if (source.kind === "absent") return source;
-  const rawUrl = (version: string) =>
+  const info = await gitMediaInfo(project, source);
+  return mediaSide(source.path, info, (version) =>
     projectApiUrl("/raw/commit", project.absolutePath, {
       commit: detail.oid,
       path: file.path,
       side,
       version,
-    });
-  const imageMime = imageMimeType(source.path);
-  if (imageMime !== null) {
-    const info = await gitImageInfo(project, source);
-    if (info.kind === "unavailable")
-      return { kind: "unavailable", path: source.path, reason: info.reason };
-    return {
-      kind: "ready",
-      path: source.path,
-      resource: {
-        kind: "image",
-        mimeType: info.mimeType,
-        byteLength: info.byteLength,
-        url: rawUrl(info.oid),
-      },
-    };
-  }
-  const type = audioVideoType(source.path);
-  if (type === null) return { kind: "unavailable", path: source.path, reason: "unsupported" };
-  const info = await gitAudioVideoInfo(project, source);
-  if (info.kind === "unavailable")
-    return { kind: "unavailable", path: source.path, reason: info.reason };
-  return {
-    kind: "ready",
-    path: source.path,
-    resource: {
-      ...type,
-      byteLength: info.byteLength,
-      url: rawUrl(info.oid),
-    },
-  };
+    }),
+  );
 }
 
 export async function describeCommitMedia(
@@ -356,11 +290,7 @@ export async function describeCommitMedia(
     sides.some(
       (side) => side.kind === "present" && side.mode !== "100644" && side.mode !== "100755",
     ) ||
-    !sides.some(
-      (side) =>
-        side.kind === "present" &&
-        (imageMimeType(side.path) !== null || audioVideoType(side.path) !== null),
-    )
+    !sides.some((side) => side.kind === "present" && mediaTypeForPath(side.path) !== null)
   )
     return null;
   const [old, next] = await Promise.all([
