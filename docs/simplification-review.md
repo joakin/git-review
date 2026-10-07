@@ -1,7 +1,7 @@
 # Simplification and readability review
 
-Status: S01–S07 accepted; documentation pass complete. S08–S23 remain findings for individual review
-and small implementation steps.
+Status: S01–S07 and S21 accepted. The remaining findings await individual review and small
+implementation steps.
 
 Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this research. The previous
 [maintenance pass](maintenance-plan.md) remains closed.
@@ -24,8 +24,8 @@ second specification of the code.
 ## Review queue
 
 The remaining code and QA items are unreviewed. Risk describes implementation risk, not defect
-severity. The proposed slices are deliberately smaller than a wholesale rewrite. Documentation
-dispositions follow the queue.
+severity. The proposed slices are deliberately smaller than a wholesale rewrite. Completed
+documentation and the implemented code slice are recorded below.
 
 | ID  | Finding                                                        | Area              | Risk       |
 | --- | -------------------------------------------------------------- | ----------------- | ---------- |
@@ -42,7 +42,6 @@ dispositions follow the queue.
 | S18 | Share repeated headings and selected working-file wiring       | Client            | Medium     |
 | S19 | Resolve diff-row feedback side in one place                    | Client            | Low–medium |
 | S20 | Group identical Files/diff code-pane CSS                       | Client/styles     | Low–medium |
-| S21 | Reuse the existing loading-state type                          | Client/types      | Low        |
 | S22 | Share QA dimensions without changing emulation options         | QA                | Medium     |
 | S23 | Reuse existing Git fixture helpers in older QA callers         | QA                | Low–medium |
 
@@ -64,6 +63,21 @@ Original investigation details are superseded by the current records below.
 Existing filenames remain stable. The documentation slice changed no screenshot assets, application
 source, or QA scripts, including the stale `legacy` variable name noted in S02; renaming it was
 outside that slice. No code finding or optional feature was implemented by it.
+
+## Completed code items
+
+### S21 — Reuse the existing loading-state type
+
+Accepted on 2026-10-07. Git, project connection, working-copy status, and Files now use
+[LoadState](../src/client/load-state.ts) directly. Search extends it with its meaningful idle
+variant. Git history uses the existing shared page type instead of a synonymous alias, and the
+sidebar imports the shared presentation type directly.
+
+This changes only type declarations, annotations, and type-only imports in six client files. Each
+resource retains its current identity, freshness, cancellation, caching, and rendering behavior. The
+full native type-check gate and client build passed. All four generated assets were byte-for-byte
+identical to a fresh build before the change. No new runtime tests or visual captures are needed for
+an erased-type change; final static/formatting checks are recorded in the handoff.
 
 ## Compatibility and shared boundaries
 
@@ -258,20 +272,6 @@ font choices, sticky gutters, native selection, and horizontal containment. Run 
 build, relevant Files/diff/selection checks, and inspect phone, both tablet orientations, and
 desktop captures in both wrap modes and a large font. No new component or class protocol is needed.
 
-### S21 — Reuse the existing loading-state type
-
-**Evidence:** [LoadState](../src/client/load-state.ts), line 2, already defines the same union as
-`GitLoad` in [git-browser.ts](../src/client/git-browser.ts), line 8, `HostRoot` in
-[project-session.ts](../src/client/project-session.ts), line 15, `Status` in
-[working-copy-review.ts](../src/client/working-copy-review.ts), line 8, and `FileState` in
-[FileViewer](../src/client/FileViewer.tsx), line 17. [SearchState](../src/client/SearchView.tsx),
-line 4, adds idle to that shape. `GitHistorySnapshot` is only a synonym for `GitHistoryPage`.
-
-**Proposed slice:** use the existing union and express Search's idle extension explicitly. Remove
-aliases that add no constraint; views can import the common presentation type directly. Preserve
-each resource owner's freshness/cancellation/cache behavior. Type checking and formatting suffice
-for an erased-type change; no new runtime tests are justified.
-
 ## QA support
 
 ### S22 — Share QA dimensions without changing emulation options
@@ -358,9 +358,9 @@ remove substantial repetition while keeping policy with each domain.
 
 ## Reviewing the remaining findings
 
-S21 is a small type consolidation; S09–S11 describe demonstrated contract differences. Select later
-items by practical payoff. The queue is not approval to execute them all. Review S13 before S17, and
-S14 before S15. S18 has two independently reviewable presentation extractions.
+S09–S11 describe demonstrated contract differences. Select later items by practical payoff. The
+queue is not approval to execute them all. Review S13 before S17, and S14 before S15. S18 has two
+independently reviewable presentation extractions.
 
 The [documentation map](README.md#what-belongs-where) now owns the organizing strategy. Further
 accepted changes should update the existing domain record, keep disposition concise, and let Git

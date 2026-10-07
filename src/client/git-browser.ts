@@ -4,12 +4,10 @@ import type { CommitDetail, GitHistoryPage, GitRefs } from "../shared/git.ts";
 import type { GitRoute } from "./navigation.ts";
 import { fetchCommit, fetchGitHistory, fetchGitRefs } from "./git-api.ts";
 import { ResourceCache } from "../shared/resource-cache.ts";
+import type { LoadState } from "./load-state.ts";
 
-export type GitLoad<T> =
-  { kind: "loading" } | { kind: "ready"; value: T } | { kind: "error"; message: string };
-export type GitHistorySnapshot = GitHistoryPage;
 const refsCache = new ResourceCache<GitRefs>(16, 1024 * 1024);
-const historyCache = new ResourceCache<GitHistorySnapshot>(16, 4 * 1024 * 1024);
+const historyCache = new ResourceCache<GitHistoryPage>(16, 4 * 1024 * 1024);
 const commitCache = new ResourceCache<CommitDetail>(64, 4 * 1024 * 1024);
 
 function message(error: unknown): string {
@@ -17,9 +15,9 @@ function message(error: unknown): string {
 }
 function state<T>(
   key: string | null,
-  loaded: { key: string; state: GitLoad<T> } | null,
+  loaded: { key: string; state: LoadState<T> } | null,
   cached: T | null,
-): GitLoad<T> {
+): LoadState<T> {
   return key !== null && loaded?.key === key
     ? loaded.state
     : cached === null
@@ -35,12 +33,12 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     projectPath === null || ref === null ? null : JSON.stringify([projectPath, ref]);
   const commitKey =
     projectPath === null || oid === null ? null : JSON.stringify([projectPath, oid]);
-  const [refsLoad, setRefs] = useState<{ key: string; state: GitLoad<GitRefs> } | null>(null);
+  const [refsLoad, setRefs] = useState<{ key: string; state: LoadState<GitRefs> } | null>(null);
   const [historyLoad, setHistory] = useState<{
     key: string;
-    state: GitLoad<GitHistorySnapshot>;
+    state: LoadState<GitHistoryPage>;
   } | null>(null);
-  const [commitLoad, setCommit] = useState<{ key: string; state: GitLoad<CommitDetail> } | null>(
+  const [commitLoad, setCommit] = useState<{ key: string; state: LoadState<CommitDetail> } | null>(
     null,
   );
   const [refresh, setRefresh] = useState(0);
@@ -50,7 +48,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
   const [pageRequest, setPageRequest] = useState<{
     projectPath: string;
     key: string;
-    snapshot: GitHistorySnapshot;
+    snapshot: GitHistoryPage;
   } | null>(null);
   const refs = state(
     projectPath,

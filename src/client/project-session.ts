@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project, RootInfo } from "../shared/api.ts";
 import { fetchRoot, lookupProject } from "./api.ts";
 import { parseNavigationSearch } from "./navigation.ts";
+import type { LoadState } from "./load-state.ts";
 import {
   emptyWorkspace,
   readActiveProject,
@@ -12,21 +13,19 @@ import {
   type SavedWorkspace,
 } from "./storage.ts";
 
-type HostRoot =
-  { kind: "loading" } | { kind: "ready"; value: RootInfo } | { kind: "error"; message: string };
 type ProjectOpening =
   | { kind: "idle" }
   | { kind: "opening"; path: string }
   | { kind: "error"; path: string; message: string };
 type SessionState = {
-  root: HostRoot;
+  root: LoadState<RootInfo>;
   workspace: SavedWorkspace;
   resolved: Project | null;
   opening: ProjectOpening;
 };
 type ProjectSession = {
   model: {
-    root: HostRoot;
+    root: LoadState<RootInfo>;
     project: Project | null;
     opening: boolean;
     openError: { path: string; message: string } | null;

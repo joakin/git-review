@@ -13,11 +13,7 @@ import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts"
 import { SelectableCode } from "./code-selection.tsx";
 import { MediaPreview } from "./MediaPreview.tsx";
 import { DelayedLoading } from "./DelayedLoading.tsx";
-
-type FileState =
-  | { kind: "loading" }
-  | { kind: "ready"; value: FileReadResult }
-  | { kind: "error"; message: string };
+import type { LoadState } from "./load-state.ts";
 
 export function FileViewer({
   projectPath,
@@ -44,7 +40,7 @@ export function FileViewer({
     path,
     languages,
   );
-  const [state, setState] = useState<FileState>({ kind: "loading" });
+  const [state, setState] = useState<LoadState<FileReadResult>>({ kind: "loading" });
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {

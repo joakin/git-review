@@ -1,11 +1,8 @@
 import type { SearchMatch, SearchResponse } from "../shared/api.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
+import type { LoadState } from "./load-state.ts";
 
-export type SearchState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "ready"; value: SearchResponse }
-  | { kind: "error"; message: string };
+export type SearchState = { kind: "idle" } | LoadState<SearchResponse>;
 
 export function SearchView({
   query,

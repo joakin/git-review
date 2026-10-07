@@ -2,12 +2,12 @@ import { useLayoutEffect, useRef } from "preact/hooks";
 import type { GitRoute } from "./navigation.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import type { GitRefs, GitHistoryPage } from "../shared/git.ts";
-import type { GitLoad } from "./git-browser.ts";
+import type { LoadState } from "./load-state.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
 
 type GitListModel = {
-  refs: GitLoad<GitRefs>;
-  history: GitLoad<GitHistoryPage>;
+  refs: LoadState<GitRefs>;
+  history: LoadState<GitHistoryPage>;
   unborn: boolean;
   refreshing: boolean;
   paging: boolean;

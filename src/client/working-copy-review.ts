@@ -4,14 +4,11 @@ import { fetchProjectChangeCheck, fetchProjectStatus } from "./api.ts";
 import { diffCardKey } from "./DiffCard.tsx";
 import { routeProjectPath, type Route } from "./navigation.ts";
 import { readOpenCards, saveOpenCards } from "./storage.ts";
+import type { LoadState } from "./load-state.ts";
 
-type Status =
-  | { kind: "loading" }
-  | { kind: "ready"; value: ProjectStatus }
-  | { kind: "error"; message: string };
 type ReviewState = {
   project: Project | null;
-  status: Status;
+  status: LoadState<ProjectStatus>;
   refreshing: boolean;
   pendingUpdate: boolean;
   checkError: boolean;
@@ -37,7 +34,7 @@ type ReviewInputs = {
 };
 type WorkingCopyReview = {
   model: {
-    status: Status;
+    status: LoadState<ProjectStatus>;
     refreshing: boolean;
     pendingUpdate: boolean;
     checkError: boolean;
@@ -56,7 +53,7 @@ type WorkingCopyReview = {
   };
 };
 
-const loading: Status = { kind: "loading" };
+const loading: LoadState<ProjectStatus> = { kind: "loading" };
 const emptyCards: ReadonlySet<string> = new Set();
 const pollIntervalMs = 10_000;
 
