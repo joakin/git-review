@@ -31,11 +31,10 @@ describes implementation risk, not defect severity. The proposed slices are deli
 than a wholesale rewrite. Completed documentation, accepted code changes, and the current review
 slice are recorded below.
 
-| ID  | Finding                                                | Area          | Risk       |
-| --- | ------------------------------------------------------ | ------------- | ---------- |
-| S20 | Group identical Files/diff code-pane CSS               | Client/styles | Low–medium |
-| S22 | Share QA dimensions without changing emulation options | QA            | Medium     |
-| S23 | Reuse existing Git fixture helpers in older QA callers | QA            | Low–medium |
+| ID  | Finding                                                | Area | Risk       |
+| --- | ------------------------------------------------------ | ---- | ---------- |
+| S22 | Share QA dimensions without changing emulation options | QA   | Medium     |
+| S23 | Reuse existing Git fixture helpers in older QA callers | QA   | Low–medium |
 
 ## Completed documentation items
 
@@ -237,6 +236,23 @@ default New actions, and Old-selection reattachment retaining identity, body, an
 Existing floating Old-context feedback/export and four-size Git inspection checks passed. No layout
 or physical-device behavior was changed or newly verified.
 
+### S20 — Group identical Files/diff code-pane CSS
+
+Six shared declaration sets now use existing Files/diff selectors. Source-specific padding, borders,
+positioning, targets, backgrounds, signs, gutters, word detail, selection, and mobile overrides keep
+their own rules. Comma grouping preserves specificity; the wrap selectors still outrank base rules.
+
+All five TypeScript configurations, static CSS/format checks, and the build passed. Independent
+client review found no actionable issues. Every computed CSS property matched the recorded baseline
+across sixteen Files/diff states: four sizes, both wrap modes, and large local typography. Files,
+diff, typography, and selected-feedback browser checks passed, including compact short rows and
+contained scrolling. The
+[Files wrapped](../qa/screenshots/simplification-s20-files-wrap/mobile.png),
+[Files unwrapped](../qa/screenshots/simplification-s20-files-nowrap/mobile.png),
+[diff wrapped](../qa/screenshots/simplification-s20-diff-wrap/mobile.png), and
+[diff unwrapped](../qa/screenshots/simplification-s20-diff-nowrap/mobile.png) milestone sets were
+inspected at all four sizes. Physical-device gestures remain unverified.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -255,18 +271,6 @@ reset and current-format behavior.
 ## Server organization and mechanisms
 
 ## Client presentation and types
-
-### S20 — Group identical Files/diff code-pane CSS
-
-**Evidence:** [styles.css](../src/client/styles.css), lines 875–895 versus 1380–1420, repeats scroll
-containment, content layout, row typography, and source colors. Wrap rules at lines 930–938 and
-1555–1563 match; code declarations at 921–928 and 1498–1505 differ primarily in padding.
-
-**Proposed slice:** group identical declarations using existing selectors. Keep source-specific
-padding, borders, targets, signs, row backgrounds, and gutters in their owners. Preserve wrapping,
-font choices, sticky gutters, native selection, and horizontal containment. Run CSS/token checks,
-build, relevant Files/diff/selection checks, and inspect phone, both tablet orientations, and
-desktop captures in both wrap modes and a large font. No new component or class protocol is needed.
 
 ## QA support
 
