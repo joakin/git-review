@@ -6,7 +6,7 @@ import type {
   ReviewChangeEntry,
 } from "../shared/api.ts";
 import type { ComponentChildren } from "preact";
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import { ChangeStats, ChangeGroupStats, ChangeGroupNotes } from "./ChangeStats.tsx";
 import type { CommentAnchor, DraftComment, ReviewSide } from "./comments.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
@@ -45,6 +45,7 @@ const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
   { key: "unstaged", label: "Unstaged" },
   { key: "untracked", label: "Untracked" },
 ];
+const noDrafts: readonly DraftComment[] = [];
 
 function ChangeGroups({
   entries,
@@ -221,6 +222,17 @@ export function ChangesView({
     reattachSide,
   } = model;
   const gitStatus = status.kind === "ready" && status.value.kind === "git" ? status.value : null;
+  const draftsByCard = useMemo(() => {
+    const grouped = new Map<string, DraftComment[]>();
+    for (const draft of drafts) {
+      if (draft.anchor.kind !== "diff") continue;
+      const key = diffCardKey(draft.anchor);
+      const group = grouped.get(key);
+      if (group === undefined) grouped.set(key, [draft]);
+      else group.push(draft);
+    }
+    return grouped;
+  }, [drafts]);
   return (
     <>
       <ContentHeading title="Changed files" onBack={commands.back}>
@@ -307,12 +319,7 @@ export function ChangesView({
                         }
                         onComment={commands.comment}
                         reattachSide={reattachSide}
-                        drafts={drafts.filter(
-                          (draft) =>
-                            draft.anchor.kind === "diff" &&
-                            draft.anchor.layer === entry.layer &&
-                            draft.anchor.path === entry.path,
-                        )}
+                        drafts={draftsByCard.get(diffCardKey(entry)) ?? noDrafts}
                       />
                     ))
                   )}

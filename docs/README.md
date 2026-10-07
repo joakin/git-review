@@ -22,6 +22,10 @@ New features can use a focused proposal until agreed, then fold the result into 
 record. Update the owner instead of adding correction banners or a second specification. Exact
 types, route fields, supported-value lists, constants, and script assertions belong in code.
 
+The [long diff performance investigation](long-diff-performance-investigation.md) records local
+measurements and the reviewed render-isolation implementation. CSS containment is the next
+authorized step.
+
 ## Behavior records
 
 | Area                                  | Authoritative record                                                                                                                                                                                                     |

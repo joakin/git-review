@@ -21,7 +21,7 @@ type DiffCardProps = ChangeSnapshot & {
   reattachSide: ReviewSide | null;
 };
 
-export function diffCardKey(entry: ChangeEntry): string {
+export function diffCardKey(entry: Pick<ChangeEntry, "layer" | "path">): string {
   return `${entry.layer}:${entry.path}`;
 }
 
