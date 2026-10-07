@@ -32,11 +32,13 @@ a card, so two layers of one file cannot share content or anchors. Rename origin
 may leave the selected subfolder; only origins within the approved root can enter a working-copy
 comparison.
 
-[git-diff.ts](../src/server/git-diff.ts) owns source-correct patches and bounded one-sided content.
-[Shared Git reads](git-read-boundaries.md) and [checked working files](working-file-boundaries.md)
-own safe access. Hunk counts, prefixes and line numbers must agree; source text, CRLF and missing
-final newlines remain exact. Empty and mode-only changes retain meaningful metadata. Binary files,
-links, submodules, conflicts and oversized content have explicit states.
+[Working-copy orchestration](../src/server/git-diff.ts) selects and reads the comparison sources.
+The pure [diff constructors](../src/server/diff-content.ts) build patches and bounded one-sided
+content for working and historical reads. [Shared Git reads](git-read-boundaries.md) and
+[checked working files](working-file-boundaries.md) own safe access. Hunk counts, prefixes and line
+numbers must agree; source text, CRLF and missing final newlines remain exact. Empty and mode-only
+changes retain meaningful metadata. Binary files, links, submodules, conflicts and oversized content
+have explicit states.
 
 Cards and individual fallback use the complete current snapshot required by the
 [batch contract](diff-batching-and-bulk-controls-proposal.md), including its before/after read
@@ -51,8 +53,9 @@ comments; request and cache identities remain with each source.
 
 ## Verification
 
-[Git-diff tests](../src/server/git-diff.test.ts) and [API tests](../src/server/api.test.ts) cover
-separate layers, renames, deletions, unusual names, exact anchors, binary/links, unborn
+[Diff-constructor tests](../src/server/diff-content.test.ts),
+[working-copy tests](../src/server/git-diff.test.ts), and [API tests](../src/server/api.test.ts)
+cover separate layers, renames, deletions, unusual names, exact anchors, binary/links, unborn
 repositories, limits, malformed hunks and stale requests. [Diff browser QA](../qa/check-diff.ts)
 exercises navigation, persistence, wrapping, sticky gutters and contained scrolling.
 

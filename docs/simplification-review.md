@@ -31,16 +31,15 @@ describes implementation risk, not defect severity. The proposed slices are deli
 than a wholesale rewrite. Completed documentation, accepted code changes, and the current review
 slice are recorded below.
 
-| ID  | Finding                                                    | Area          | Risk       |
-| --- | ---------------------------------------------------------- | ------------- | ---------- |
-| S15 | Separate pure diff parsing from working-copy orchestration | Server        | Low        |
-| S16 | Share the Git raw-record parser                            | Server        | Medium     |
-| S17 | Simplify media inspection and result mapping               | Server        | Medium     |
-| S18 | Share repeated headings and selected working-file wiring   | Client        | Medium     |
-| S19 | Resolve diff-row feedback side in one place                | Client        | Low–medium |
-| S20 | Group identical Files/diff code-pane CSS                   | Client/styles | Low–medium |
-| S22 | Share QA dimensions without changing emulation options     | QA            | Medium     |
-| S23 | Reuse existing Git fixture helpers in older QA callers     | QA            | Low–medium |
+| ID  | Finding                                                  | Area          | Risk       |
+| --- | -------------------------------------------------------- | ------------- | ---------- |
+| S16 | Share the Git raw-record parser                          | Server        | Medium     |
+| S17 | Simplify media inspection and result mapping             | Server        | Medium     |
+| S18 | Share repeated headings and selected working-file wiring | Client        | Medium     |
+| S19 | Resolve diff-row feedback side in one place              | Client        | Low–medium |
+| S20 | Group identical Files/diff code-pane CSS                 | Client/styles | Low–medium |
+| S22 | Share QA dimensions without changing emulation options   | QA            | Medium     |
+| S23 | Reuse existing Git fixture helpers in older QA callers   | QA            | Low–medium |
 
 ## Completed documentation items
 
@@ -166,6 +165,19 @@ byte/line bounds, line endings, source fidelity, syntax beyond the display line 
 deterministic real-filesystem growth checks with isolated descriptor gating. Independent review and
 the static gate are recorded at commit. No visible layout changed.
 
+### S15 — Separate pure diff parsing from working-copy orchestration
+
+The pure [diff-content owner](../src/server/diff-content.ts) now supplies patch and one-sided
+constructors to working-copy and historical readers. It depends only on diff types, exact source
+text, and word detail; it no longer brings working-copy access into historical inspection. The
+constructor bodies and result variants are unchanged. Pure tests moved beside the owner; working
+integration tests remain with their orchestration.
+
+All five TypeScript configurations, static QA, and 35 focused tests across eight files passed,
+including root/parent history, SHA-256, subtree renames, media, batching, syntax, and exact anchors.
+Independent server review found no actionable issues and confirmed the constructor and test bodies
+were unchanged. The [diff record](diff-slice.md) links the new owners.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -182,19 +194,6 @@ remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) 
 reset and current-format behavior.
 
 ## Server organization and mechanisms
-
-### S15 — Separate pure diff parsing from working-copy orchestration
-
-**Evidence:** [git-diff.ts](../src/server/git-diff.ts), lines 25–190, owns pure patch/content
-construction alongside working-copy source reads.
-[Historical inspection](../src/server/git-history.ts), line 26, imports those constructors and
-decoding from this working-copy module.
-
-**Proposed slice:** move pure diff constructors into a focused diff parser/content module, with
-decoding in S14's text owner. Keep working-copy source resolution in `git-diff.ts`. Preserve word
-detail, hunk completeness, source text, no-newline markers, and result variants. Verify existing
-working and root/parent historical diff tests. This is an organization improvement with no wire
-format or runtime-policy change; its payoff is dependency clarity, not a smaller line count.
 
 ### S16 — Share the Git raw-record parser
 

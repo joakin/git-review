@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { parseDiffResponse } from "../shared/api.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
-import { diffFromContent, parseGitPatch } from "./git-diff.ts";
+import { diffFromContent, parseGitPatch } from "./diff-content.ts";
 import { decodedText, maxSourceTextLines, parseSourceText } from "./source-text.ts";
 
 function editedDiff() {

@@ -23,7 +23,7 @@ import {
   type GitContext,
 } from "./git-context.ts";
 import { hasGitObject, readGitBlob } from "./git-objects.ts";
-import { diffFromContent, parseGitPatch } from "./git-diff.ts";
+import { diffFromContent, maxPatchBytes, parseGitPatch } from "./diff-content.ts";
 import { decodedText, maxSourceTextBytes } from "./source-text.ts";
 import { withDiffSyntax } from "./diff-syntax.ts";
 import { commitParents, readCommitStats, readHistoryStats } from "./git-stats.ts";
@@ -394,7 +394,7 @@ export async function readCommitDiff(
             file.old.oid,
             file.new.oid,
           ],
-          2 * 1024 * 1024 + 1024,
+          maxPatchBytes + 1024,
         ),
       );
     } else {
