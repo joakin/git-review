@@ -31,9 +31,8 @@ describes implementation risk, not defect severity. The proposed slices are deli
 than a wholesale rewrite. Completed documentation, accepted code changes, and the current review
 slice are recorded below.
 
-| ID  | Finding                                                | Area | Risk       |
-| --- | ------------------------------------------------------ | ---- | ---------- |
-| S23 | Reuse existing Git fixture helpers in older QA callers | QA   | Low–medium |
+| ID  | Finding | Area | Risk |
+| --- | ------- | ---- | ---- |
 
 ## Completed documentation items
 
@@ -271,6 +270,21 @@ and file feedback at their configured sizes, including plain-folder and clean-Gi
 produced the same four dimensions without horizontal overflow. No application behavior changed;
 physical devices were not checked.
 
+### S23 — Reused Git fixture execution in ordinary QA callers
+
+The inventory, image, audio/video, and live-change QA callers now reuse `testGit`, with an explicit
+owned working directory for every call. Redundant ordinary commit identities and local wrappers were
+removed. Specialized history identities/dates, FFmpeg arguments and generation order, fixture
+writes, nonrecursive overwrite refusal, and temporary-project cleanup remain unchanged.
+
+Independent review found no actionable issues. Fresh scratch-root generation exactly matched the
+pre-refactor status, HEAD/index trees, author/committer identities, and working-file bytes and
+modes. A second run of each generator refused overwrite with EEXIST, leaving those observations
+unchanged. Files, diff navigation/wrapping, image isolation, audio/video seeking and range reads,
+and live-change Chrome checks passed against the new fixtures. The live check removed its owned
+temporary project. Formatting, all five typechecks, static QA, and whitespace passed. No app source
+or visible layout changed; physical devices were not checked.
+
 ## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -291,21 +305,6 @@ reset and current-format behavior.
 ## Client presentation and types
 
 ## QA support
-
-### S23 — Reuse existing Git fixture helpers in older QA callers
-
-**Evidence:** [test-support.ts](../src/test-support.ts), lines 6–23, already owns byte/text Git
-execution with fixture identities; the new [count fixture](../qa/prepare-change-stats-fixture.ts)
-uses it. Older wrappers remain in [inventory](../qa/prepare-inventory-fixture.ts), line 8,
-[images](../qa/prepare-media-fixture.ts), line 8, [audio/video](../qa/prepare-media-av-fixture.ts),
-line 6, and [live-change QA](../qa/check-live-changes.ts), line 28, with repeated commit identity
-options.
-
-**Proposed slice:** reuse the existing helper for ordinary owned fixtures, preserving overwrite
-refusal, content, and cleanup. The [history fixture](../qa/prepare-git-fixture.ts), lines 9–22, has
-deliberate authors/dates and should retain that specialization. Generate under fresh scratch roots
-and verify observable status/source behavior plus affected feature checks. Do not introduce a
-fixture manager or a general FFmpeg wrapper for this change.
 
 ## Smaller options and candidates to defer
 

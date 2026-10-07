@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
+import { testGit as git } from "../src/test-support.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
@@ -30,10 +30,6 @@ function content(value: string): string {
       .join("\n") + "\n"
   );
 }
-function git(...args: string[]): void {
-  execFileSync("git", args, { cwd: project, stdio: "pipe" });
-}
-
 const views = [
   { name: "mobile", ...qaDimensions.phone, isMobile: true, hasTouch: true },
   { name: "tablet-portrait", ...qaDimensions.tabletPortrait, isMobile: true, hasTouch: true },
@@ -42,11 +38,11 @@ const views = [
 ] as const;
 
 try {
-  git("init", "-q");
+  git(project, "init", "-q");
   await mkdir(resolve(project, "src"));
   await writeFile(source, content("base"));
-  git("add", ".");
-  git("-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-qm", "baseline");
+  git(project, "add", ".");
+  git(project, "commit", "-qm", "baseline");
   await writeFile(source, content("first"));
   await writeFile(
     resolve(project, "src/reading.ts"),
