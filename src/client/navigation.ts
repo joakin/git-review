@@ -1,5 +1,6 @@
 import type { ChangeLayer } from "../shared/api.ts";
 import { isGitOid, validGitRef } from "../shared/git.ts";
+import { isNavigationPath } from "./navigation-path.ts";
 
 export type ChangesTarget =
   { kind: "all" } | { kind: "list" } | { kind: "file"; layer: ChangeLayer; path: string };
@@ -34,13 +35,6 @@ const keys = new Set([
   "commit",
 ]);
 const routeError = "This link has invalid navigation information. Choose a project to continue.";
-
-function validPath(value: string, allowRoot: boolean): boolean {
-  if (value.length > 4096 || /[\0\ufffd]/u.test(value)) return false;
-  if (value === "") return allowRoot;
-  if (value.startsWith("/") || value.endsWith("/")) return false;
-  return value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
-}
 
 function isChangeLayer(value: string): value is ChangeLayer {
   return (
@@ -85,7 +79,7 @@ export function parseNavigationSearch(search: string): RouteState {
       file !== null ||
       lineText !== null ||
       query !== null ||
-      !validPath(directory ?? "", true)
+      !isNavigationPath(directory ?? "", true)
     )
       return { kind: "invalid", message: routeError };
     return { kind: "ready", route: { section, directory: directory ?? "" } };
@@ -98,12 +92,12 @@ export function parseNavigationSearch(search: string): RouteState {
       file !== null ||
       lineText !== null ||
       query !== null ||
-      (project !== null && !validPath(project, true))
+      (project !== null && !isNavigationPath(project, true))
     )
       return { kind: "invalid", message: routeError };
     return { kind: "ready", route: { section, projectPath: project } };
   }
-  if (project === null || !validPath(project, true))
+  if (project === null || !isNavigationPath(project, true))
     return { kind: "invalid", message: routeError };
   if (section === "git") {
     if (
@@ -139,7 +133,7 @@ export function parseNavigationSearch(search: string): RouteState {
       layer !== null &&
       isChangeLayer(layer) &&
       file !== null &&
-      validPath(file, false)
+      isNavigationPath(file, false)
     )
       return {
         kind: "ready",
@@ -148,7 +142,12 @@ export function parseNavigationSearch(search: string): RouteState {
     return { kind: "invalid", message: routeError };
   }
   if (section === "files") {
-    if (layer !== null || query !== null || target !== null || !validPath(directory ?? "", true))
+    if (
+      layer !== null ||
+      query !== null ||
+      target !== null ||
+      !isNavigationPath(directory ?? "", true)
+    )
       return { kind: "invalid", message: routeError };
     if (file === null && lineText === null)
       return {
@@ -162,7 +161,7 @@ export function parseNavigationSearch(search: string): RouteState {
       };
     if (
       file === null ||
-      !validPath(file, false) ||
+      !isNavigationPath(file, false) ||
       (directory !== null && directory !== parentDirectory(file))
     )
       return { kind: "invalid", message: routeError };
@@ -191,7 +190,7 @@ export function parseNavigationSearch(search: string): RouteState {
         kind: "ready",
         route: { section, projectPath: project, query, target: { kind: "results" } },
       };
-    if (query === null || file === null || !validPath(file, false))
+    if (query === null || file === null || !isNavigationPath(file, false))
       return { kind: "invalid", message: routeError };
     const line = parseLine(lineText);
     if (line === false || line === null) return { kind: "invalid", message: routeError };

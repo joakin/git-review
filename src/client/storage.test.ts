@@ -9,11 +9,14 @@ import {
   saveWorkspace,
   withSelectedPath,
   parseActiveProject,
+  readActiveProject,
+  saveActiveProject,
   parseOpenCards,
   parseSavedWorkspace,
   parseWrapPreference,
 } from "./storage.ts";
 import { withTestStorage } from "./storage-test-support.ts";
+import { parseNavigationSearch, routeUrl, type Route } from "./navigation.ts";
 import {
   emptyCommentStore,
   readCommentStore,
@@ -118,6 +121,80 @@ test("invalid stored workspace and session data cannot become an active folder",
   expect(
     parseActiveProject({ version: 2, rootPath, activePath: "src" }, "/different/root"),
   ).toBeNull();
+});
+
+test("malformed relative folders cannot be restored from recents or tab storage", () => {
+  const rootPath = "/approved/root";
+  for (const path of [
+    "../escape",
+    "/absolute",
+    "safe//child",
+    "safe/",
+    "./safe",
+    "safe/../escape",
+    "safe/./child",
+    ".",
+    "..",
+    "safe\0child",
+    "safe\ufffd",
+    "safe\ud800",
+    "safe\udc00",
+    "x".repeat(4097),
+  ]) {
+    withTestStorage((local, session) => {
+      local.setItem(
+        "git-review:workspace:v4",
+        JSON.stringify({ version: 4, rootPath, recentPaths: ["valid", path] }),
+      );
+      session.setItem(
+        "git-review:active-project:v2",
+        JSON.stringify({ version: 2, rootPath, activePath: path }),
+      );
+      expect(readSavedWorkspace(rootPath).recentPaths).toEqual([]);
+      expect(readActiveProject(rootPath)).toBeNull();
+    });
+  }
+});
+
+test("valid stored folders round-trip through navigation, including the root and unusual names", () => {
+  const rootPath = "/approved/root";
+  for (const path of [
+    "",
+    "src",
+    "project ü",
+    "nested/名字 : #?%",
+    "emoji😀",
+    "notes\nfolder",
+    "a...b",
+    "x".repeat(4096),
+  ]) {
+    const saved = parseSavedWorkspace(
+      { version: 4, rootPath, recentPaths: [path, path] },
+      rootPath,
+    );
+    expect(saved.recentPaths).toEqual([path]);
+    expect(parseActiveProject({ version: 2, rootPath, activePath: path }, rootPath)).toBe(path);
+    const route: Route = { section: "changes", projectPath: path, target: { kind: "all" } };
+    expect(parseNavigationSearch(new URL(routeUrl(route), "https://example.test").search)).toEqual({
+      kind: "ready",
+      route,
+    });
+  }
+});
+
+test("invalid tab selections preserve the last accepted folder and root selection remains valid", () => {
+  withTestStorage(() => {
+    const rootPath = "/approved/root";
+    saveActiveProject(rootPath, "valid");
+    for (const path of ["../escape", "/absolute", "safe//child", "safe/", "safe\ud800"]) {
+      saveActiveProject(rootPath, path);
+      expect(readActiveProject(rootPath)).toBe("valid");
+    }
+    saveActiveProject(rootPath, "");
+    expect(readActiveProject(rootPath)).toBe("");
+    saveActiveProject(rootPath, null);
+    expect(readActiveProject(rootPath)).toBeNull();
+  });
 });
 
 test("only a saved boolean can change the default code wrapping", () => {

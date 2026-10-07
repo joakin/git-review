@@ -14,6 +14,11 @@ recents remain shared. A failed selection does not replace the last accepted fal
 review work. Missing/malformed tab data or a different approved root cannot silently select another
 folder.
 
+Saved folder paths share the [navigation-path rules](../src/client/navigation-path.ts), including
+the empty path for the approved root. Invalid tab paths return to the picker; a malformed recents
+record uses the empty-workspace fallback. Backup import rejects invalid recent paths before
+replacement instead of importing folders that cannot be navigated.
+
 The fallback uses root-relative navigation metadata in session storage. A duplicated tab may
 initially copy it, then diverges; closing a tab ends its selection subject to browser session
 restoration. Drafts and project preferences are keyed by canonical absolute folder path. Changing

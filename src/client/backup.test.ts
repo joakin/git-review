@@ -122,6 +122,20 @@ test("backups reject invalid ownership and duplicate project records", () => {
   ).toThrow("invalid comments");
 });
 
+test("backups reject recent folders that cannot round-trip through navigation", () => {
+  for (const path of ["../escape", "/absolute", "safe//child", "safe/", "safe\ud800"]) {
+    expect(() =>
+      parseReviewBackup(
+        { ...valid, workspace: { ...valid.workspace, recentPaths: ["valid", path] } },
+        rootPath,
+      ),
+    ).toThrow("Backup preferences are invalid");
+  }
+  const recentPaths = ["", "project : #?% 雪", "nested/emoji😀"];
+  const backup: ReviewBackup = { ...valid, workspace: { ...valid.workspace, recentPaths } };
+  expect(parseReviewBackup(JSON.parse(JSON.stringify(backup)), rootPath)).toEqual(backup);
+});
+
 test("export scopes review data to the current root after switching or narrowing roots", () => {
   for (const [currentRoot, otherProject] of [
     [rootPath, `${rootPath}-sibling/project`],

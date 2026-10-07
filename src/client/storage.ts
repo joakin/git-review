@@ -1,5 +1,6 @@
 import { isRecord } from "../shared/validation.ts";
 import { isCodeFontFamily, type CodeFontFamily } from "./code-fonts.ts";
+import { isNavigationPath } from "./navigation-path.ts";
 
 export const workspaceStorageKey = "git-review:workspace:v4";
 const activeProjectKey = "git-review:active-project:v2";
@@ -99,16 +100,16 @@ export function emptyWorkspace(rootPath: string): SavedWorkspace {
   return { version: 4, rootPath, recentPaths: [] };
 }
 
-function validPath(value: unknown): value is string {
-  return typeof value === "string" && value.length <= 4096 && !value.includes("\0");
-}
-
 export function validateSavedWorkspace(value: unknown, rootPath: string): SavedWorkspace | null {
   if (!isRecord(value)) return null;
   if (value["version"] !== 4) return null;
   if (value["rootPath"] !== rootPath) return null;
   const recentPaths = value["recentPaths"];
-  if (!Array.isArray(recentPaths) || !recentPaths.every(validPath)) return null;
+  if (
+    !Array.isArray(recentPaths) ||
+    !recentPaths.every((path: unknown) => isNavigationPath(path, true))
+  )
+    return null;
   return {
     version: 4,
     rootPath,
@@ -122,7 +123,7 @@ export function parseSavedWorkspace(value: unknown, rootPath: string): SavedWork
 
 export function parseActiveProject(value: unknown, rootPath: string): string | null {
   if (!isRecord(value) || value["version"] !== 2 || value["rootPath"] !== rootPath) return null;
-  return validPath(value["activePath"]) ? value["activePath"] : null;
+  return isNavigationPath(value["activePath"], true) ? value["activePath"] : null;
 }
 
 /** Explicitly retired project data; no values are read or migrated. */
@@ -172,7 +173,7 @@ export function readActiveProject(rootPath: string): string | null {
 export function saveActiveProject(rootPath: string, activePath: string | null): void {
   try {
     if (activePath === null) sessionStorage.removeItem(activeProjectKey);
-    else if (validPath(activePath))
+    else if (isNavigationPath(activePath, true))
       sessionStorage.setItem(
         activeProjectKey,
         JSON.stringify({ version: 2, rootPath, activePath }),

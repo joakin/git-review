@@ -1,6 +1,6 @@
 # Simplification and readability review
 
-Status: S01–S07 and S21 accepted. The remaining findings await individual review and small
+Status: S01–S07, S09, and S21 accepted. The remaining findings await individual review and small
 implementation steps.
 
 Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this research. The previous
@@ -25,12 +25,11 @@ second specification of the code.
 
 The remaining code and QA items are unreviewed. Risk describes implementation risk, not defect
 severity. The proposed slices are deliberately smaller than a wholesale rewrite. Completed
-documentation and the implemented code slice are recorded below.
+documentation, accepted code changes, and the current review slice are recorded below.
 
 | ID  | Finding                                                        | Area              | Risk       |
 | --- | -------------------------------------------------------------- | ----------------- | ---------- |
 | S08 | Retire the obsolete-storage deletion path after its cutover    | Compatibility     | Low        |
-| S09 | Align stored folder validation with navigable folder paths     | Shared boundaries | Medium     |
 | S10 | Give Search one query contract across its boundaries           | Shared boundaries | Medium     |
 | S11 | Require one complete working-copy snapshot for every diff read | Shared/API        | Medium     |
 | S12 | Share diff-request fields and existing language query parsing  | Shared/API        | Low        |
@@ -79,6 +78,24 @@ full native type-check gate and client build passed. All four generated assets w
 identical to a fresh build before the change. No new runtime tests or visual captures are needed for
 an erased-type change; final static/formatting checks are recorded in the handoff.
 
+### S09 — Align stored folder validation with navigable folder paths
+
+Accepted on 2026-10-07. Navigation and saved folder metadata now share a
+[navigation-path predicate](../src/client/navigation-path.ts). Invalid recents/tab values cannot
+restore an unnavigable destination, while the empty approved-root path, valid Unicode, and literal
+unusual filenames retain URL round-trips. Invalid tab writes preserve the last accepted selection;
+backup parsing rejects malformed recents before import. No storage format or namespace changed.
+
+The extraction stays within browser navigation metadata. Other path boundaries were assessed and
+retain their distinct policies: host containment/platform checks, Git-control exclusions, exact file
+anchor identity, and rename origins that can leave a selected subtree. A universal validator would
+erase those differences or change accepted inputs.
+
+The full type-check and static QA gates, client build, 208 unit/integration tests, and isolated
+Chrome tab and PWA/backup checks passed. Regression coverage includes invalid-state startup, root
+restoration, current-format imports, and Unicode/literal-name round-trips. Physical-device checks
+and new screenshots were not performed.
+
 ## Compatibility and shared boundaries
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
@@ -95,24 +112,6 @@ than deleted. Confirm that retirement condition during review; it has not been e
 audit. Preserve current namespaces, strict current-format parsing, unrelated settings, and storage
 denial behavior. Run storage/backup tests and tab QA. This does not justify removing format versions
 or accepting old imports.
-
-### S09 — Align stored folder validation with navigable folder paths
-
-**Evidence:** [storage.ts](../src/client/storage.ts), lines 102–125, checks only type, length, and
-NUL for saved root-relative recents/session paths. [Navigation](../src/client/navigation.ts), lines
-38–42, rejects absolute paths and empty/dot/traversal segments. A read-only probe confirmed that
-`../escape`, `/absolute`, `safe//child`, and `safe/` pass both storage readers but produce invalid
-Changes routes. Host containment still prevents reads outside the approved root.
-
-Relative-path checks also recur in [shared API parsing](../src/shared/api.ts), lines 169–181,
-[Git paths](../src/shared/git.ts), lines 72–85, file anchors, and the working-file boundary.
-
-**Proposed slice:** first share a canonical root-relative folder predicate between storage and
-navigation, preserving `""` for the approved root. Then assess a shared syntactic base for the other
-parsers with explicit domain policy. Preserve server filesystem checks, `.git` restrictions,
-platform handling, literal unusual filenames, and permissive relative rename origins where Git
-requires them. Cover malformed stored paths, root restoration, valid Unicode/names, and route
-round-trips. Do not replace every path boundary with one unconditional validator.
 
 ### S10 — Give Search one query contract across its boundaries
 
@@ -358,9 +357,9 @@ remove substantial repetition while keeping policy with each domain.
 
 ## Reviewing the remaining findings
 
-S09–S11 describe demonstrated contract differences. Select later items by practical payoff. The
-queue is not approval to execute them all. Review S13 before S17, and S14 before S15. S18 has two
-independently reviewable presentation extractions.
+S09 is ready for review; S10–S11 describe demonstrated contract differences. Select later items by
+practical payoff. The queue is not approval to execute them all. Review S13 before S17, and S14
+before S15. S18 has two independently reviewable presentation extractions.
 
 The [documentation map](README.md#what-belongs-where) now owns the organizing strategy. Further
 accepted changes should update the existing domain record, keep disposition concise, and let Git

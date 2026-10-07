@@ -153,6 +153,35 @@ await withQaBrowser(async (browser) => {
       }
     });
 
+    for (const invalidPath of ["../escape", "/absolute", "safe//child", "safe/"]) {
+      await withQaContext(browser, { serviceWorkers: "block" }, async (invalid) => {
+        invalid.setDefaultTimeout(10_000);
+        const page = await invalid.newPage();
+        await page.addInitScript(
+          ({ rootPath, invalidPath }) => {
+            localStorage.setItem(
+              "git-review:workspace:v4",
+              JSON.stringify({ version: 4, rootPath, recentPaths: [invalidPath] }),
+            );
+            sessionStorage.setItem(
+              "git-review:active-project:v2",
+              JSON.stringify({ version: 2, rootPath, activePath: invalidPath }),
+            );
+          },
+          { rootPath, invalidPath },
+        );
+        let lookups = 0;
+        page.on("request", (request) => {
+          if (new URL(request.url()).pathname === "/api/project") lookups += 1;
+        });
+        await page.goto(startUrl);
+        await page.locator(".folder-row", { hasText: "inventory-fixture" }).waitFor();
+        await page.locator(".welcome h1").waitFor();
+        if (page.url() !== new URL("/?section=projects", url).href || lookups !== 0)
+          throw new Error("Invalid saved paths restored a route or attempted to open a project");
+      });
+    }
+
     await withQaContext(browser, {}, async (context) => {
       context.setDefaultTimeout(10_000);
       const page = await context.newPage();
@@ -198,6 +227,6 @@ await withQaBrowser(async (browser) => {
     });
   });
   console.log(
-    "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, and scoped obsolete-data reset passed.",
+    "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, invalid-path recovery, and scoped obsolete-data reset passed.",
   );
 });

@@ -19,6 +19,12 @@ describe("browser navigation", () => {
         target: { kind: "file", path: "src/a ?#%.ts", line: 170 },
       },
       {
+        section: "files",
+        projectPath: "project ü",
+        directory: "src",
+        target: { kind: "file", path: "src/literal\\backslash😀.ts", line: null },
+      },
+      {
         section: "search",
         projectPath: "project ü",
         query: "a+b ?#%",
