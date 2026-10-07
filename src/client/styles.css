@@ -928,6 +928,7 @@ button:focus-visible {
   display: block;
   align-self: center;
   flex: 0 0 auto;
+  min-height: calc(1lh + var(--space-1));
   font-family: inherit;
   white-space: pre;
   tab-size: 4;

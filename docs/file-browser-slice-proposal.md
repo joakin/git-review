@@ -14,7 +14,8 @@ file, and optional line; the file's location bar remains visible while reading.
 
 Text files show numbered source lines with syntax highlighting and a language override. Wrap keeps
 code within the viewport; turning it off scrolls only the code pane, with line numbers still
-visible. Empty files have an explicit empty state. Refresh keeps loaded same-file content visible
+visible. Blank lines preserve the [shared source-row height](diff-slice.md), including vertical
+padding. Empty files have an explicit empty state. Refresh keeps loaded same-file content visible
 until the replacement arrives, while changing files never displays another file's content as the new
 one.
 

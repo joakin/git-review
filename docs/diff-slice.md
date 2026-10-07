@@ -11,6 +11,11 @@ visible at the left edge while code scrolls, and the page stays within the viewp
 actions and comment sides belong to the
 [line-action record](phone-portrait-gutter-slice-proposal.md).
 
+Empty and whitespace-only source lines retain the height of a normal single-line row, including
+vertical padding, in Changes, historical diffs and Files. The shared code style reserves that height
+from the current typography without inserting placeholder characters into source text. Hidden phone
+gutters therefore cannot collapse an empty diff row.
+
 [Line counts](changes-line-counts-proposal.md) own count and section-heading presentation;
 [bulk controls](diff-batching-and-bulk-controls-proposal.md) own Expand all / Collapse all.
 [Syntax](syntax-highlighting-slice.md), [word detail](diff-fidelity-slice-proposal.md),
@@ -58,6 +63,12 @@ comments; request and cache identities remain with each source.
 cover separate layers, renames, deletions, unusual names, exact anchors, binary/links, unborn
 repositories, limits, malformed hunks and stale requests. [Diff browser QA](../qa/check-diff.ts)
 exercises navigation, persistence, wrapping, sticky gutters and contained scrolling.
+[Blank-line browser QA](../qa/check-blank-lines.ts) checks empty and whitespace-only row heights,
+exact source text, CRLF display and typography across the four viewport profiles and wrapping modes.
+
+The [diff](../qa/screenshots/blank-lines-diff/mobile.png) and
+[Files](../qa/screenshots/blank-lines-files/mobile.png) blank-line milestone sets were inspected at
+phone, both tablet orientations and desktop sizes. Real-device rendering remains unverified.
 
 The [wrapped](../qa/screenshots/diff-marker-left-wrap/mobile.png),
 [scrolled](../qa/screenshots/diff-marker-left-scroll/mobile.png) and
