@@ -1,7 +1,8 @@
 # Simplification and readability review
 
-Status: S01–S07, S09–S11, and S21 complete. The remaining findings are authorized for autonomous
-implementation, independent review, correction, and staged commits as of 2026-10-07.
+Status: S01–S07, S09–S11, and S21 complete; S08 reviewed and retained. The remaining findings are
+authorized for autonomous implementation, independent review, correction, and staged commits as of
+2026-10-07.
 
 Reviewed: 2026-10-06, against `85c6d63`. The checkout was clean before this research. The previous
 [maintenance pass](maintenance-plan.md) remains closed.
@@ -33,7 +34,6 @@ slice are recorded below.
 
 | ID  | Finding                                                        | Area          | Risk       |
 | --- | -------------------------------------------------------------- | ------------- | ---------- |
-| S08 | Retire the obsolete-storage deletion path after its cutover    | Compatibility | Low        |
 | S12 | Share diff-request fields and existing language query parsing  | Shared/API    | Low        |
 | S13 | Share supported media metadata between server and parser       | Shared/API    | Low        |
 | S14 | Share text classification while retaining source-read policies | Server        | Medium     |
@@ -130,22 +130,22 @@ configurations, static QA, the build, 91 focused tests, and isolated feedback/tr
 checks passed. Regression coverage gates real Git reads and verifies stale recovery without losing
 drafts. See the [batching contract](diff-batching-and-bulk-controls-proposal.md).
 
-## Compatibility and shared boundaries
+## Reviewed item retained
 
 ### S08 — Retire the obsolete-storage deletion path after its cutover
 
-**Evidence:** [storage.ts](../src/client/storage.ts), lines 128–152, enumerates historical key names
-and scans localStorage whenever workspace data is read. Both project connection and backup export
-call that reader. Old comment/backup readers and migrations are already gone; this is deletion-only
-cutover machinery. [Storage tests](../src/client/storage.test.ts), lines 63–100, and
-[tab QA](../qa/check-tabs.ts), lines 159–198, specifically protect that one-time historical reset.
+Retirement is not valid under the unverified origin-cutover prerequisite. The independent QA review
+confirmed that current readers and backups exclude obsolete namespaces, but the existing scoped
+sweep also reclaims localStorage capacity for current saves. A bounded Storage probe showed a
+current comment write failing before cleanup and persisting after it. Retiring cleanup on an origin
+that still holds obsolete history can therefore turn persistent drafts into in-memory-only work.
 
-**Proposed slice:** once the maintainer's relevant browser origins have loaded the cutover, remove
-the obsolete-key sweep and its retirement-specific checks. Old keys would then be ignored rather
-than deleted. Confirm that retirement condition during review; it has not been established by this
-audit. Preserve current namespaces, strict current-format parsing, unrelated settings, and storage
-denial behavior. Run storage/backup tests and tab QA. This does not justify removing format versions
-or accepting old imports.
+Keep the small sweep without restoring old-format readers, migrations, or imports. A replacement
+retry/lifecycle abstraction would add complexity. No application change is needed; continue the
+remaining stages. The [local-data record](independent-tabs-and-pwa-proposal.md) owns the deliberate
+reset and current-format behavior.
+
+## Compatibility and shared boundaries
 
 ### S12 — Share diff-request fields and existing language query parsing
 
