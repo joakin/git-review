@@ -1,190 +1,184 @@
-# Line feedback and copy: first usable review loop
-
-Status: implemented, reviewed, and committed. The original line-number interaction was approved on
-2026-09-27; the later [phone line action](phone-portrait-gutter-slice-proposal.md) adds row
-tap/click access at every size.
-
-## Smallest useful slice
-
-This slice established the review loop: select a diff line, write a comment, preview comments, and
-copy a line-numbered summary into an editing session. Later slices add row actions, voice input, and
-URL navigation.
-[U03](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files), accepted
-and committed as `7632b4d`, extends the anchor and export model to working-tree text lines in Files
-and Search.
+# Feedback: lines, selected fragments, copy, and history
 
 ## User flow
 
-1. Open a text file in Files or a Search result, or a changed file card. Tap or click a code row,
-   then its floating Comment action. Files use Working tree lines and provide a keyboard-accessible
-   line-number button. In diffs, added and unchanged lines use New; removed lines use Old. Phones
-   hide diff gutters, while wider screens also offer direct old/new line-number buttons. Native text
-   selection takes precedence and offers Search or Comment; double tap is not a comment shortcut.
-2. A comment editor opens as a bottom sheet on a phone and a dialog on wider screens. It shows path,
-   Git layer and side for a diff anchor, or Working tree for a file anchor, plus line number and a
-   short source quote. Type a comment, save it, edit it, or delete it. Closing an edited sheet saves
-   the draft. The line and file show a comment count or marker.
-3. A sticky Feedback button shows the project draft count in every project view. It opens a preview
-   grouped by source and file. Each item shows its source, line, source quote, and comment text;
-   diff items also identify Old/New. The preview offers Copy feedback and a selectable text
-   fallback.
-4. After a confirmed clipboard write, save an immutable history entry and clear the copied drafts,
-   with immediate Undo. If writing fails or the clipboard API is unavailable, leave drafts intact
-   and reveal selectable text. History can be reopened and recopied.
+1. Open working-tree text in Files or a Search result, or a working-copy diff. Tap/click a source
+   row, then **Comment**, or select a fragment and choose **Comment** beside Search. Keyboard users
+   can use line controls or selection actions.
+2. The editor shows path, source, line, and quoted code; diffs also identify Old/New. Selected
+   fragments are highlighted inside the full source line. Write, dictate, save, edit, or delete the
+   comment. Closing or navigating away saves nonempty text on this device. Empty text is not a new
+   saved draft. The editor is a phone sheet and a wider-screen dialog.
+3. **Feedback** shows the project's draft count and opens drafts/copy history from every project
+   view, including lists and historical Git inspection. Line markers and counts include both line
+   and selection comments belonging to that source.
+4. Preview checks the current sources. Copy checks again, exports current comments, and on confirmed
+   success archives the exact copied text/batch and clears only that batch. **Undo last copy** can
+   restore it. Failed or unavailable clipboard access preserves drafts and offers selectable text;
+   archived entries can be opened and copied again.
 
-## Data and boundaries
+Feedback creation covers unchanged Git files and non-Git folders as well as changed files.
+Historical Git is inspection-only. Empty, media, binary, symbolic-link, unsupported, and oversized
+views have no anchorable source lines but retain access to existing project feedback. Whole-file or
+project notes and multi-line selections remain
+[optional backlog](initial-implementation-plan.md#remaining-roadmap).
+[Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion, Retry, and audio
+lifetime. Closing the editor stops recording and discards pending audio while preserving typed text.
 
-No comment-writing server API is needed. Drafts and bounded history live in versioned browser
-`localStorage` under the canonical absolute project path; state is local to each browser/device.
-Parse stored data as unknown at the boundary and discard invalid records. Keep the domain parser
-with the comment model and reuse generic helpers from `src/shared/validation.ts`.
+## Line actions and diff sides
 
-The [shared modal hook](../src/client/modal.ts) owns dialog presentation and dismissal, while the
-[feedback owner](../src/client/review-feedback.ts) saves non-empty editor text on close. Closing
-unmounts the editor so its voice owner can stop recording and discard pending audio. Installation
-uses the same modal hook independently of feedback.
+A completed short stationary tap reveals a transient action near the row. Long press, dragging,
+double-tap selection, and existing selected text keep native selection priority; pointer-down on
+code is not canceled. The line action shows available numbers and existing comment counts. It
+follows its row while scrolling, clamps to the visual viewport, avoids sticky headings and Feedback,
+and closes on outside input, Escape, wrapping, source/view changes, collapse, or loss of row
+visibility.
 
-The feedback owner keeps the loaded project session in memory even when the picker hides it.
-Navigation cancels pending ownership and saves the latest editor into its current store before the
-destination changes; an accepted project open explicitly loads that project’s store. App owns URL
-changes and polling policy, while dialogs consume feedback values and actions.
+Phones up to 600 px hide diff signs and both gutter columns in either wrap mode, retaining
+added/removed backgrounds and word highlights. A focusable keyboard path consumes no gutter width.
+Wider screens retain direct Old/New line-number buttons and the same row action. Files retain their
+working-tree line-number controls.
 
-A project store owns drafts and copy history. Each draft has a generated ID, an anchor, body text,
-creation/update times, and a current/outdated state. Its anchor carries the reviewable Git layer,
-folder-relative path, old/new side, positive line number, exact source text, and neighboring-line
-fingerprint. A discriminated `kind: "diff" | "file"` keeps these anchors distinct: file anchors
-carry `source: "worktree"`, path, line, exact text and neighboring context, without a Git layer or
-side. [ReviewLayer](../src/client/comments.ts) names only staged, unstaged, and untracked: storage
-parsing already rejects conflicts, and the broader line-anchor factory rejects conflict status
-entries before creating an anchor. Bound draft count, body length, path length, and history size.
-Empty text is not a saved comment.
+Old and New refer to the comparison in each card:
 
-Opening Feedback checks each source before making copy available. Diff drafts fetch current status
-and a plain-text diff per file/layer. File drafts reread each commented path once using the bounded
-working-tree file API with plain text. File-only batches need no Git status. Missing/non-text files
-are outdated; read or project errors retain drafts and disable export until a successful retry. A
-draft is current only if its source, line number, exact source text, and stored neighboring context
-still match; diff anchors also retain their side. Mark mismatches outdated and require reattachment
-before including them in copied feedback; never silently export a comment under a new line. Unique
-relocation by context is not implemented. This avoids relying on the status revision alone, which
-can remain unchanged when a modified file's content changes.
+| Card      | Old                                              | New          |
+| --------- | ------------------------------------------------ | ------------ |
+| Staged    | `HEAD`, or an empty tree before the first commit | Git index    |
+| Unstaged  | Git index                                        | Working tree |
+| Untracked | Empty file                                       | Working tree |
 
-Export plain text deterministically, grouped by source and path, with line number, quoted source,
-and comment. Diff sections retain their layer and old/new side; file sections use `[worktree]` and
-`line N`. Equal anchors sort by creation time and ID, keeping duplicate-comment ordering stable.
-Only a resolved clipboard write counts as a successful copy for history. The export formatter is a
-pure function so behavior tests can cover ordering, escaping, and stale exclusion.
+Added rows use New; removed rows use Old. A row action or selection on unchanged context defaults to
+New, including the index side in Staged. When reattaching an Old draft to context, keep Old.
+Wider-screen gutters allow either available side; phone context offers no separate Old action for a
+new comment. Context text may match on both sides while line numbers differ. Staged and unstaged
+versions of one path remain distinct sources.
 
-The [feedback transaction owner](../src/client/feedback-transactions.ts) keeps checks and clipboard
-operations in tab memory. Stored comments use version 4 at `git-review:comments:v2:` followed by the
-URI-encoded canonical absolute project path. Backup export/import uses version 6 with absolute
-project ownership. Old project data is discarded; obsolete comment and backup readers have been
-removed without migration. New copied history text remains exact. The
-[selection follow-up](selected-code-feedback-proposal.md) defines precise line/selection subjects. A
-check merges validity only into still-existing drafts with matching full anchors and subjects,
-preserving newer bodies, additions, deletions, reattachments, and history. The successful check
-carries its checked ID/anchor/subject set into both the selectable preview and the automatic copy
-snapshot. Drafts added or restored during a check need another check before entering that export.
-Copy always checks again and snapshots the latest saved bodies belonging to the checked anchors.
+## Selected fragments
 
-While a clipboard write is pending, show **Copying feedback…** and disable further feedback/history
-writes. Check/copy cancellation happens synchronously on navigation and before opening an existing
-draft editor, protecting unsaved editor text. An issued browser clipboard write cannot be stopped
-and may still reach the system clipboard; after cancellation, its late result does not archive or
-clear drafts or change Undo, notices, or errors. Keep the clipboard lease until it actually settles,
-including after returning to the same project. Closing Feedback alone permits an active copy to
+Comment supports one logical source line, including wrapped text and selections across syntax-token
+spans. Whitespace-only, cross-line, UI-label, gutter, dialog, or synthetic no-newline-annotation
+selections do not create a comment. A valid fragment longer than the Search query limit may offer
+Comment alone; [selected-code Search](search-slice-proposal.md#selected-code-search) owns query
+behavior.
+
+Fragment offsets are zero-based, end-exclusive UTF-16 positions in the exact source line, matching
+browser Range and JavaScript indexing. They must stay within bounds, preserve the exact sliced text,
+and never split a surrogate pair. Derive them from the actual selected range, including repeated
+text and leading/trailing whitespace; searching for the first occurrence of the string would attach
+feedback to the wrong fragment. Export uses one-based inclusive UTF-16 columns.
+
+Selection remains transient until Comment. Its action must still belong to the current project and
+rendered source snapshot, including the Git layer/side, when invoked. Tooltip focus may retain the
+captured range; source replacement, navigation, outside input, or Escape invalidates it. Scrolling,
+wrapping, and viewport movement update placement. Touch placement prefers below the visible range or
+the header-adjacent fallback; mouse placement prefers above. Opening the editor clears native
+selection and the tooltip without an extra source lookup.
+
+## Anchor identity and checking
+
+Diff and working-tree file anchors remain distinct even at the same path/line. Both retain exact
+source text and neighboring context; diff anchors additionally identify the reviewable Git layer and
+side. Conflicts cannot create feedback anchors. A line subject and a selection subject are also
+distinct, with fragment positions/text included in selection identity. The
+[comment model and validators](../src/client/comments.ts) define formats and bounds. A line or
+neighboring context beyond the saved-source bound cannot create an anchor. In working-tree Files,
+the direct line control explains that limit.
+
+Opening Feedback checks sources before making export available. Diff drafts use fresh status and
+plain-text diffs by path/layer. File drafts reread each commented working-tree path once as plain
+text; file-only batches need no Git status. These mutable reads bypass browser caching. The source,
+line number, exact source text, and neighboring context must still match, including the side for a
+diff. An unrelated edit elsewhere need not invalidate an unchanged file anchor. Git status revision
+alone is insufficient because content can change without changing it.
+
+A changed, missing, or non-text source makes the draft outdated and excludes it from export. A
+working-file `file_not_found` response represents that absence; project access, permission, network,
+and other read failures retain drafts and block export until a successful Retry. Never silently
+relocate a comment to another matching line or occurrence.
+
+Reattachment explicitly asks for a new line or fragment in the same project and source kind.
+Working-tree reattachment refreshes and opens the file at the anchored line; diff reattachment opens
+its card. A selection draft requires a fresh selection, while a line draft requires a line. An
+incompatible source/subject choice preserves the draft and explains what is needed. Reattachment
+retains draft identity and body; reopen Feedback to verify the new anchor before copying.
+
+## Copy transactions and recovery
+
+A check merges validity only into still-existing drafts whose full anchors and subjects match the
+checked versions. It preserves newer bodies, additions, deletions, reattachments, and history. The
+checked set constrains both selectable preview text and the automatic copy snapshot; drafts added or
+restored during a check require another check. Copy snapshots the latest saved bodies of those
+checked anchors.
+
+Navigation and opening an existing draft editor cancel pending check/copy ownership synchronously.
+An issued browser clipboard write cannot be stopped and may still reach the system clipboard, but
+its late canceled result cannot archive or clear drafts or change Undo, notices, or errors. Keep
+exclusive clipboard ownership until the write settles, including across a project switch and return.
+Further clipboard writes are disabled while copying. Closing Feedback alone allows an active copy to
 finish.
 
-On confirmed, uncanceled success, append the exact exported batch/text to the current history and
-remove only drafts whose ID, full anchor, body, creation/update times, and current state still match
-that exported version. Preserve later edits, reattachments, added drafts, deletions, and concurrent
-Undo/history changes. History stays bounded to 20 entries and 250,000 characters per export; a
-larger export retains drafts and offers selectable text without creating an invalid history record.
-Undo restores only missing IDs, preserving newer drafts with the same ID. If restoration would
-exceed 200 drafts, keep the history and Undo available and show an inline message to free capacity
-before retrying.
+Confirmed, uncanceled success archives the exact exported text and comments. It removes only drafts
+whose ID, anchor, subject, body, timestamps, and current state still match the copied version. Later
+edits, reattachments, additions, deletions, and Undo/history changes survive. Manual selectable-text
+copy does not imply a confirmed application clipboard write and does not clear drafts.
 
-## Edge cases and verification
+Export is deterministic, grouped by source then path. Diff groups identify their layer and Old/New
+line; file groups use Working tree lines. It quotes source text and selected fragments without
+regenerating archived exports. Equal anchors retain stable creation-time/ID ordering. Oversized
+exports preserve drafts and offer selectable text instead of creating an invalid history record.
+Undo restores only missing draft IDs, preserving newer drafts with the same ID. If restoration would
+exceed capacity, retain history and Undo and explain how to free capacity before retrying. The
+[transaction engine](../src/client/feedback-transactions.ts) and
+[comment operations](../src/client/comments.ts) define the executable contracts and limits.
 
-- Staged and unstaged versions of one path remain separate. Deleted lines anchor to old, added lines
-  to new, and context lines permit either side.
-- Reloads, switching folders, and closing the sheet retain drafts. Corrupt or oversized storage
-  fails closed without breaking the diff page.
-- Line text may contain tabs, CRLF, very long lines, or unusual characters in a filename; export
-  remains legible and unambiguous.
-- Clipboard denial, unavailable Clipboard API, and copy cancellation preserve drafts. History
-  records only confirmed success, and Undo restores the cleared batch.
-- Keyboard users can focus line buttons, open and close the editor, and copy feedback. The sheet
-  respects phone safe areas and the on-screen keyboard.
-- Test comment anchors, parser rejection, export text, success/failure history transitions, and key
-  browser flows. Capture and inspect phone, both tablet orientations, and desktop screenshots.
-  Verify actual gestures and clipboard behavior on iOS/Android before calling mobile copy complete.
+## Persistence and display
 
-## Phone access milestone
+Drafts and bounded copy history are local to this browser origin and canonical project path. Stored
+and imported data are validated; invalid data fails closed, and storage denial leaves the current
+review usable in memory. Two tabs editing the same project's drafts have no conflict resolution. The
+[local-data record](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns backups; the
+deliberate retirement of earlier formats is part of
+[stateless project access](stateless-project-access-plan.md). No comment-writing server API or
+repository write is involved.
 
-The first Tailscale URL used HTTP, so remote browsers could lack `navigator.clipboard.writeText()`.
-The selectable feedback text remains as a fallback. The app is now available through private HTTPS
-on port 8443; real-device clipboard verification is still needed. The direct HTTP URL remains
-available for local-data export.
-[Clipboard security](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText),
-[Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve).
+The textarea and voice footer form one bordered composer with a straight divider and continuous
+focus outline; its label remains associated with the input. Joined Search/Comment buttons round only
+outer corners and draw one divider. A single available action has all four outer corners. Each
+button retains its focus indicator and touch target.
 
-## Implemented behavior and review checkpoint
+## Verification and evidence
 
-- Tap a code row and its Comment action, or an old/new line-number button on wider screens, to open
-  the editor. Save, edit, or delete comments; a nonempty edit is saved when the sheet closes or
-  navigation leaves it. Line actions, visible gutters, and the fixed Feedback button show draft
-  presence. Drafts and copy history are stored per project in this browser.
-- Opening Feedback checks the current Git status and diff for each commented file. The export text
-  and Copy button appear only after that check succeeds. Changed or missing lines become outdated
-  and are excluded. Tap **Reattach to line**, then tap a code row and its Comment action (or a
-  visible line number on a wide screen) to move the comment; reopen Feedback to verify it.
-- Copying successfully creates one history entry and clears only the copied drafts. **Undo last
-  copy** restores that batch during the same page session. Clipboard failure preserves drafts and
-  shows selectable text. Past history entries expand to show selectable text and offer Copy again.
-- Browser QA covers a phone flow through save, immediate reload, preview, successful copy, history,
-  Undo, Clipboard API absence, and outdated-line exclusion. The diff QA still checks wrap, scroll
-  containment, and C syntax. Screenshot sets for
-  [feedback](../qa/screenshots/feedback-first-slice/mobile.png) and
-  [comment editing](../qa/screenshots/comment-editor-first-slice/mobile.png) include phone, tablet
-  portrait, tablet landscape, and desktop; their manifests report no page-wide horizontal overflow.
-- After Android feedback on the first build, draft and history IDs use `crypto.getRandomValues`,
-  which remains available on the HTTP Tailscale origin where `crypto.randomUUID` is absent. Comment
-  and feedback dialogs lock background scrolling and close from a backdrop tap. Expanded file
-  headings stick just below the top bar while their card is in view, so a long diff keeps its
-  filename visible. The browser QA simulates the missing UUID API and checks save, backdrop
-  dismissal, and long-file scrolling;
-  [sticky header captures](../qa/screenshots/sticky-file-header/mobile.png) show the four viewport
-  sizes.
+Existing tests cover anchor/subject identity and bounds, repeated text and surrogate boundaries,
+current-format rejection/round trips, deterministic exports, late check/copy merges, cancellation,
+exact archival, and Undo. Browser checks cover Files/Search identity, non-Git feedback, keyboard
+creation, reload, stale exclusion/reattachment, selection across tokens/wrapped text, unsupported
+sources, clipboard denial, and pending transactions. The [QA workflow](qa-workflow.md) owns commands
+and capture procedures.
 
-The current HTTPS URL uses port 8443. Dedicated iOS/Android keyboard, gesture, and clipboard checks
-remain for the device milestone. The current row action preserves native double-tap selection;
-adding another gesture would need a separate proposal.
+These inspected Chrome-emulation milestones cover all four sizes without page-wide overflow:
 
-## Maintenance verification — 2026-10-01
+| State                   | Phone                                                               | Tablet portrait                                                              | Tablet landscape                                                              | Desktop                                                              |
+| ----------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| File line action        | [Image](../qa/screenshots/usability-u03-file-action/mobile.png)     | [Image](../qa/screenshots/usability-u03-file-action/tablet-portrait.png)     | [Image](../qa/screenshots/usability-u03-file-action/tablet-landscape.png)     | [Image](../qa/screenshots/usability-u03-file-action/desktop.png)     |
+| Mixed feedback          | [Image](../qa/screenshots/usability-u03-mixed-feedback/mobile.png)  | [Image](../qa/screenshots/usability-u03-mixed-feedback/tablet-portrait.png)  | [Image](../qa/screenshots/usability-u03-mixed-feedback/tablet-landscape.png)  | [Image](../qa/screenshots/usability-u03-mixed-feedback/desktop.png)  |
+| Light selection actions | [Image](../qa/screenshots/joined-controls-light-actions/mobile.png) | [Image](../qa/screenshots/joined-controls-light-actions/tablet-portrait.png) | [Image](../qa/screenshots/joined-controls-light-actions/tablet-landscape.png) | [Image](../qa/screenshots/joined-controls-light-actions/desktop.png) |
+| Dark selection actions  | [Image](../qa/screenshots/joined-controls-dark-actions/mobile.png)  | [Image](../qa/screenshots/joined-controls-dark-actions/tablet-portrait.png)  | [Image](../qa/screenshots/joined-controls-dark-actions/tablet-landscape.png)  | [Image](../qa/screenshots/joined-controls-dark-actions/desktop.png)  |
+| Light composer          | [Image](../qa/screenshots/joined-controls-light-editor/mobile.png)  | [Image](../qa/screenshots/joined-controls-light-editor/tablet-portrait.png)  | [Image](../qa/screenshots/joined-controls-light-editor/tablet-landscape.png)  | [Image](../qa/screenshots/joined-controls-light-editor/desktop.png)  |
+| Dark composer           | [Image](../qa/screenshots/joined-controls-dark-editor/mobile.png)   | [Image](../qa/screenshots/joined-controls-dark-editor/tablet-portrait.png)   | [Image](../qa/screenshots/joined-controls-dark-editor/tablet-landscape.png)   | [Image](../qa/screenshots/joined-controls-dark-editor/desktop.png)   |
+| Pending copy            | [Image](../qa/screenshots/maintenance-m03-copying/mobile.png)       | [Image](../qa/screenshots/maintenance-m03-copying/tablet-portrait.png)       | [Image](../qa/screenshots/maintenance-m03-copying/tablet-landscape.png)       | [Image](../qa/screenshots/maintenance-m03-copying/desktop.png)       |
 
-M08a makes the existing layer restriction explicit in `CommentAnchor`: staged, unstaged, and
-untracked. The status-entry factory retains its conflict guard, while the formatter removes
-unreachable conflict ordering. Five new boundary tests and the extended export test verify factory
-rejection, valid-layer ordering/round-trips, atomic invalid draft/history rejection, and backup
-versions 1–3. Strict gates, the full 120-test suite, build, phone feedback QA, and all seven
-transaction browser scenarios pass. The change is accepted and committed as `acf06ca` on 2026-10-01
-after explicit approval. No new screenshots or actual device clipboard/gesture checks were
-performed.
+Earlier evidence remains in the [first preview](../qa/screenshots/feedback-first-slice/),
+[first editor](../qa/screenshots/comment-editor-first-slice/),
+[sticky file heading](../qa/screenshots/sticky-file-header/),
+[checked preview](../qa/screenshots/maintenance-m03-feedback/),
+[file editor](../qa/screenshots/usability-u03-file-editor/), and
+[initial selection preview](../qa/screenshots/usability-selected-preview/) folders; the initial
+selection [actions](../qa/screenshots/usability-selected-actions/) and
+[editor](../qa/screenshots/usability-selected-editor/) remain available alongside that preview.
 
-M03 is accepted and committed as `59cadf3`. It adds explicit check/copy ownership, current-store
-merges, checked manual export, exact copied-batch archival, and recovery guards for Undo/history
-limits. Twenty-five new regressions cover delayed requests/clipboard results and saved version-1
-invariants. The full suite passes 88 tests with 1,155 assertions; strict type checking, CSS token
-validation, and client build also pass.
-
-The [focused browser check](../qa/check-feedback-transactions.ts) reproduces the original
-overwritten-edit bug with the pre-fix client and passes all seven scenarios with the final client.
-The ordinary phone feedback flow also passes. Captured and inspected
-[checked preview](../qa/screenshots/maintenance-m03-feedback/mobile.png) and
-[pending copy](../qa/screenshots/maintenance-m03-copying/mobile.png) at phone, tablet portrait,
-tablet landscape, and desktop sizes show wrapping and available controls without page-wide overflow;
-sibling images and manifests are in each folder. Pending-copy captures and race checks use
-controlled clipboard promises in isolated QA. Actual iOS/Android clipboard permissions, native
-gestures, and keyboard behavior were not reverified. QA services were stopped, and the running
-review services serve the rebuilt client.
+The maintainer accepted the working-tree extension on 2026-10-04 and the selection/composer
+refinements on 2026-10-05. Browser file/selection copy checks used the granted Chrome Clipboard API;
+transaction races controlled promises and voice checks mocked recording/transcription. Dedicated
+physical Android/iOS native selection, clipboard permissions, keyboard, safe areas, and interruption
+checks were not newly verified by those milestones. HTTPS run/install guidance belongs in the
+[root README](../README.md#install-on-a-phone).

@@ -1,59 +1,41 @@
 # Git read boundaries
 
-Status: M11 accepted and committed as `e9da16a` on 2026-10-05
+The transport is shared across working-copy review, historical inspection, statistics, and media.
+Each domain retains command selection, parsing, scope, and freshness policy.
 
-The server shares subprocess execution, repository context and object access across working-copy
-review, historical inspection and media. The public APIs and domain source/version policies retain
-their existing contracts.
+## Transport and source scope
 
-## Shared ownership
+[Git execution](../src/server/git-execution.ts) uses fixed read commands with argument arrays and
+literal pathspecs. Its environment disables optional Git writes and fsmonitor hooks and stabilizes
+parsed output. Buffered reads enforce caller-selected output budgets and command deadlines; streamed
+reads enforce byte budgets and own EOF, error, and cancellation cleanup. A stream deadline applies
+while a read is awaited, so playback backpressure does not become a total playback deadline. Closing
+a stream is idempotent and revokes pending reads.
 
-[git-execution.ts](../src/server/git-execution.ts) owns buffered and streamed Git processes. Both
-use argument arrays, literal pathspecs, `core.fsmonitor=false`, `LC_ALL=C` and
-`GIT_OPTIONAL_LOCKS=0`. Buffered reads retain their caller-selected output budget (8 MiB by
-default), ten-second command deadline, optional batch input and typed `GitCommandError`. Streamed
-reads take an explicit byte budget, retain a bounded diagnostic message, and own
-EOF/error/cancellation cleanup. A ten-second deadline applies only while a read is awaited; it does
-not run while playback backpressure pauses the consumer. Closing a stream is idempotent and prevents
-a pending read from supplying more bytes.
+[Repository context](../src/server/git-context.ts) validates worktree detection, UTF-8 prefixes,
+object format, and complete object IDs. Project-relative source paths are translated within the
+repository. Rename origins may leave the selected subtree; they may not leave the repository, and
+working-copy callers also enforce the approved root. Context belongs to the current validated
+project, not a cached authorization.
 
-[git-context.ts](../src/server/git-context.ts) owns worktree detection, strict UTF-8 prefix parsing,
-repository object format and complete object-ID validation against that format. It translates
-project-relative source paths to repository paths. Rename origins can leave the selected subtree,
-but translation cannot leave the repository; the diff caller still checks the approved root before
-reading an origin. Context is read for the current validated project rather than globally cached.
-Status uses worktree detection and prefix lookup without adding an object-format subprocess.
+[Object access](../src/server/git-objects.ts) owns object-kind checks, safe-size inspection, and
+bounded blob reads. HEAD lookup from a selected subfolder must preserve that scope even when an
+outside file has the same name; index lookup must match the exact stage-zero literal path. Syntax
+reads use exact source objects without text conversion.
 
-[git-objects.ts](../src/server/git-objects.ts) owns object-type checks, safe byte sizes, bounded
-blob reads and HEAD/index/object lookup. It accepts complete SHA-1 or SHA-256 object IDs. HEAD media
-lookup retains `HEAD:./path` from the selected project's working directory; this preserves subfolder
-scope even when the repository root has an outside namesake. Index lookup retains literal pathspecs
-and exact stage-zero path matching. Syntax source reads take a checked repository-relative path and
-retain the existing no-textconv HEAD/index commands and byte budgets.
+## Domain policy
 
-## Domain ownership
+HTTP handlers first apply the [project contract](stateless-project-access-plan.md). No API accepts
+arbitrary subprocess commands. [Status](git-status-slice.md) owns mutable inventory/version parsing;
+[diffs](diff-slice.md) own patch/source results; [history](git-history-slice-proposal.md) owns
+immutable comparisons and unavailable parents; [working counts](changes-line-counts-proposal.md) and
+historical totals own their distinct failure and cache policies. They share
+[numstat parsing](../src/server/git-numstat.ts), not their semantics.
+[Media](media-preview-slice-proposal.md) owns source/version mapping and range responses.
 
-HTTP handlers still resolve the supplied canonical project path against its approved root before
-invoking Git. Callers choose fixed read commands; there is no endpoint accepting arbitrary
-subprocess arguments. The runner is a transport boundary, while each domain owns its command
-selection and parsing:
-
-- [Status](../src/server/git-status.ts) parses porcelain and computes revision/change tokens.
-- [Diffs](../src/server/git-diff.ts) parse patches and preserve source text, syntax fallback,
-  containment and mutable stale/size-limit policy.
-- [History](../src/server/git-history.ts) parses refs, metadata and raw file inventories, preserving
-  exact immutable comparisons, unborn/detached/shallow states and missing-parent behavior.
-- [Historical statistics](../src/server/git-stats.ts) owns batch-parent comparisons, limits and its
-  immutable totals cache. [Working-copy statistics](../src/server/change-stats.ts) owns mutable
-  layer comparisons, bounded untracked reads and combined inventory/statistics retry. They share
-  [numeric record parsing](../src/server/git-numstat.ts), while keeping version/cache policy
-  separate.
-- [Media](../src/server/media.ts) owns format/header checks, source mapping and version matching;
-  [media streaming](../src/server/media-stream.ts) owns range/HEAD responses and byte slicing.
-  [Checked working-file access](working-file-boundaries.md) shares containment and descriptor
-  identity/lifetime checks; media retains its content versions.
-
-Generic unknown-value guards come from [shared validation](../src/shared/validation.ts).
-Git-specific parsers stay at their domain boundaries. Filesystem `AppError` remains in
-[paths.ts](../src/server/paths.ts). [M12](working-file-boundaries.md) owns shared checked
-working-file opening separately from Git object access.
+Checked working-tree reads use the separate [file boundary](working-file-boundaries.md). Git object
+identity, filesystem identity, and mutable content versions are different guarantees and must not
+substitute for one another. Exact subprocess limits and environment settings belong in the linked
+source; [execution tests](../src/server/git-execution.test.ts),
+[object tests](../src/server/git-objects.test.ts), and domain tests protect the observable
+boundaries.

@@ -1,97 +1,47 @@
 # Git change inventory
 
-Current project access uses a canonical absolute `projectPath` query field on every project
-resource, including batch and raw-media routes. No registration is required. See the
-[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
-Dated implementation and compatibility checkpoints below remain historical evidence.
+Changes presents the current staged, unstaged, untracked and conflicted files. A path with both
+staged and unstaged edits has separate entries. Renames, deletions, mode changes and submodules keep
+their file metadata even when a text patch is unavailable. Non-Git folders open Files; an unborn
+repository can show untracked files and staged additions.
 
-Status: implemented and committed. [Diff cards](diff-slice.md),
-[media previews](media-preview-slice-proposal.md), and
-[live change detection](live-change-detection-slice-proposal.md) build on this inventory.
-[Bundled line counts](changes-line-counts-proposal.md) are implemented and accepted on 2026-10-06.
+The contextual list groups entries by layer and opens the corresponding [diff card](diff-slice.md).
+File counts and [line totals](changes-line-counts-proposal.md) arrive with the inventory. Navigation
+and responsive list/content behavior belong to the
+[navigation record](navigation-and-url-history-slice-proposal.md).
 
-## User flow
+## Inventory contract
 
-The Changes contextual list groups staged, unstaged, and untracked files with counts. Conflicts get
-a separate group when present. A path with both staged and unstaged edits appears in both groups.
-The list stays beside content at widths of 900 px and above, uses a drawer on narrower tablets, and
-is a full-width screen on phones. The shared content-heading back arrow reveals or returns to it.
-Project choice belongs to the global menu. Refresh rereads Git without changing the selected folder.
+[git-status.ts](../src/server/git-status.ts) parses Git porcelain v2 with NUL delimiters, preserving
+spaces, tabs and newlines in filenames. It validates record structure, status codes, modes, hashes
+and paths before returning typed entries. [shared/api.ts](../src/shared/api.ts) defines and
+validates the public status and lightweight check responses.
 
-Sidebar rows show state, path and line counts and open the corresponding diff card. Staged, unstaged
-and untracked groups show layer totals alongside their file counts. The main inventory has become
-the continuous card list described in [the diff slice](diff-slice.md).
+For a project inside a repository subfolder, the inventory is scoped to that subtree and paths are
+relative to the selected folder. Rename origins use the same relative basis and can contain `../`
+when outside the subtree; the diff reader checks the approved-root boundary before using them.
+Clients select an inventory entry by layer and path, never by a supplied rename origin.
 
-[Changes presentation](../src/client/ChangesView.tsx) keeps the ordered layers and compact list
-beside the card view. It consumes scoped values and review commands from the
-[working-copy owner](../src/client/working-copy-review.ts). App owns URL selection and one-time
-focus; toggling a card remains a separate review action.
+Two versions have different purposes: `revision` represents porcelain output, including branch
+information; `changeToken` adds working-path metadata so ordinary edits behind unchanged status
+codes can be detected. The [live-update record](live-change-detection-slice-proposal.md) explains
+that signal's limits and explicit Update behavior.
 
-## Data and API
-
-`GET /api/project/status?projectPath=…` resolves the canonical absolute path independently on every
-request. It checks directory existence and approved-root containment before invoking Git. No
-selection lookup or registration is a prerequisite; server restart recovery needs only a normal
-retry. Missing and changed project locations have distinct project errors.
-
-The response is one of:
-
-```json
-{ "kind": "not_git" }
-```
-
-```json
-{
-  "kind": "git",
-  "revision": "20-character-status-hash",
-  "changeToken": "20-character-metadata-hash",
-  "entries": [
-    {
-      "layer": "unstaged",
-      "kind": "modified",
-      "path": "src/view.ts",
-      "oldPath": null,
-      "isSubmodule": false,
-      "stats": { "kind": "text", "added": 3, "deleted": 1 }
-    }
-  ]
-}
-```
-
-Opening Changes and explicit Refresh/Update receive metadata and statistics together. Background
-polling uses `GET /api/project/status?mode=check` and receives only `kind`, `revision` and
-`changeToken`, without entries or statistics work. Internal diff/media checks also retain
-lightweight inventory reads. [The line-count record](changes-line-counts-proposal.md) defines
-exceptional states, per-layer comparisons, bounded reads and snapshot consistency.
-
-The revision is a digest of the raw status output, including branch information. The separate change
-token also includes metadata fingerprints for working-tree paths, so another edit can be detected
-even when its status code stays unchanged. It is not a content hash; see
-[live change detection](live-change-detection-slice-proposal.md). Git's porcelain v2 `-z` output is
-parsed with NUL delimiters, preserving spaces and newlines in names. For a selected subfolder,
-`-- .` scopes changes to that subtree, and returned paths are relative to that folder. Rename
-origins use the same relative basis and can include `../` when outside the selected subtree; the
-diff server checks containment before using them.
-
-Git uses the [shared execution and repository context](git-read-boundaries.md) with fixed argument
-arrays, a timeout, a bounded output buffer, and no shell. The parser validates record structure,
-modes, hashes, status codes, and paths before creating typed entries. The client validates the JSON
-response before rendering it.
-
-## Edge cases
-
-Non-Git folders open Files. A repository without a first commit can show untracked files or staged
-additions. Staged and unstaged edits on one path are separate entries. Renames, deletions,
-conflicts, and submodule states remain visible. Statistics classify text/binary/non-applicable
-entries independently of card preview choice. Active-page polling detects new edits and offers
-Update; it does not replace the reader's content until requested. Manual Refresh remains available.
+Opening Changes and Refresh/Update receive metadata and required statistics together. Background
+checks use the lightweight status mode without entries or statistics work. Diff and raw-media
+validation also use lightweight inventory reads. The
+[line-count record](changes-line-counts-proposal.md) owns count states and snapshot consistency;
+[stateless project access](stateless-project-access-plan.md#project-contract-and-validation) owns
+project identity and per-request resolution. Git reads use the
+[shared read boundaries](git-read-boundaries.md).
 
 ## Verification
 
-`src/server/git-status.test.ts` uses temporary Git repositories to cover layers, renames, deletion,
-unusual paths, subfolder scoping, non-Git folders, and a repository without commits. The mobile
-folder selection and reload flow still passes.
-[Inventory screenshots](../qa/screenshots/git-inventory-fixture/mobile.png) and
-[drawer screenshots](../qa/screenshots/git-inventory-fixture-drawer/mobile.png) were captured at
-phone, tablet portrait, tablet landscape, and desktop sizes using a stable ignored Git fixture. Real
-device touch behavior remains unverified.
+[Inventory tests](../src/server/git-status.test.ts) cover layers, renames, deletion, unusual names,
+subfolder scope, unborn/non-Git states and edits that change the metadata token without changing the
+porcelain revision. [API tests](../src/server/api.test.ts) cover project resolution and status
+modes.
+
+The [inventory](../qa/screenshots/git-inventory-fixture/mobile.png) and
+[drawer](../qa/screenshots/git-inventory-fixture-drawer/mobile.png) milestone sets were inspected at
+phone, tablet portrait, tablet landscape and desktop sizes. Real-device touch remains unverified.

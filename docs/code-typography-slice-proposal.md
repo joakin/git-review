@@ -1,47 +1,40 @@
-# Code typography settings slice
+# Code typography
 
-Current backups use version 6 only. Earlier backup formats and migrations recorded here are
-superseded by the [stateless project cutover](stateless-project-access-plan.md); preferences retain
-their current standalone storage formats.
+Typography is available in Settings before or after selecting a project. It applies immediately to
+diff and Files source, Search excerpts, feedback quotes, and the live preview; interface labels and
+file names keep their own typography. It does not change navigation, drafts, wrapping, or card
+state.
 
-Status: implemented and committed. Theme controls are complete in the
-[theme settings slice](theme-settings-slice-proposal.md).
+## Current behavior
 
-## User flow and smallest slice
+Choose a font size from the supported range and a local or Google monospace family. **Reset
+typography** restores the local default independently of
+[appearance](theme-settings-slice-proposal.md). The
+[storage parser and defaults](../src/client/storage.ts) define accepted sizes and values;
+[the font catalog](../src/client/code-fonts.ts) defines the choices, labels, and stylesheet URLs.
 
-Settings is reachable from the global menu, including before a project is open. It has its own URL
-and shows typography controls with a live code preview alongside Appearance and Install & local
-data. Back returns to the previous work. Choosing a font size or family applies immediately to diff
-rows, Files code, search excerpts, and feedback source excerpts. It does not change file names,
-controls, or other interface text.
+Settings and code surfaces share the selected preference. The
+[appearance preferences owner](../src/client/appearance-preferences.ts) applies it across navigation
+and follows changes from other tabs. Missing or malformed saved data falls back to the default;
+storage failure leaves the current in-memory choice usable. Backup transfer and format support
+belong in [local data and backups](independent-tabs-and-pwa-proposal.md#local-data-and-backups).
 
-The first choices are 11–20 px in 1 px steps, and two local monospace stacks: System mono (the
-existing default) and Courier. No font download or server endpoint is needed. Reset restores 12 px
-System mono.
+## Font loading
 
-The later [Google code fonts follow-up](google-code-fonts-followup.md) adds 20 optional web fonts
-while keeping both original local choices and the same storage format.
+System mono and Courier require no font request. Google families load their regular and bold
+stylesheet with swap behavior, and every font stack ends in local monospace fallback. Offline or
+failed font requests therefore retain readable code. Only those optional stylesheet and font-file
+requests leave the host; repository content remains served locally.
 
-## Data and boundaries
+Source code elements inherit the chosen family explicitly so the browser's default code font cannot
+override it. Removing per-row separators keeps continuous code readable; hunk labels and
+added/removed backgrounds retain their meaning. Largest-size code still wraps or scrolls inside its
+pane instead of widening the page.
 
-The frontend saves `{version: 1, fontSize, fontFamily}` under one versioned `localStorage` key for
-this browser origin. A boundary parser accepts only integer sizes in range and known font IDs (the
-two local choices plus the 20 Google families). Missing, malformed, or future versions fall back to
-the defaults. Storage failure leaves the current page usable. Changes in another tab update the
-current tab.
+## Evidence and device limits
 
-This slice introduced version 2 backups with required typography settings. The later
-[theme settings slice](theme-settings-slice-proposal.md) introduced version 3 exports and earlier
-imports; those formats have since been retired. Invalid typography rejects the import before any
-writes. The server continues to return semantic syntax roles; CSS design tokens and frontend
-settings supply the visual style.
-
-## Edge cases and checks
-
-- The Settings screen works without a selected project and on a narrow phone.
-- Switching projects or files while Settings is open closes Settings and follows the chosen
-  destination.
-- Code at 20 px remains contained by its wrap or horizontal code pane; it does not widen the page.
-- Reload, a second tab, backup export/import, and legacy backup import preserve the intended choice.
-- Browser checks cover the interaction and persistence; four viewport screenshots cover phone, both
-  tablet orientations, and desktop. Real device reading comfort remains for the maintainer to judge.
+The [QA catalog](qa-workflow.md) identifies typography checks for the actual source element, local
+defaults without requests, downloaded fonts, blocked-request fallback, persistence, and narrow
+layouts. [Typography in a diff](../qa/screenshots/code-typography-diff-review/mobile.png) is an
+inspected historical four-size milestone. Font rendering and reading comfort can differ on physical
+devices; browser emulation does not establish device-specific rendering.

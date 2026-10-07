@@ -2,13 +2,12 @@
 
 ## Project status
 
-The initial implementation stage is complete and closed as of 2026-09-30. The maintainer confirmed
-the app is usable and useful. The requested [maintenance pass](docs/maintenance-plan.md) is complete
-and closed as of 2026-10-06. Its plan records the outcome and stop boundary; keep it brief. Git
-preserves implementation and dated review history. Keep further work in small reviewed steps and
-preserve the commit-approval rule below. The
-[remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product
-backlog; start further features only when the maintainer requests them.
+The [initial implementation](docs/initial-implementation-plan.md#stage-closure--2026-09-30) and
+first [maintenance pass](docs/maintenance-plan.md) are complete and closed. Keep closure records
+brief; Git preserves original proposals, implementation sequences, and dated review history. Keep
+further work in small reviewed steps and preserve the commit-approval rule below. The
+[remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is optional; start
+further features only when the maintainer requests them.
 
 ## Collaboration
 
@@ -25,8 +24,10 @@ backlog; start further features only when the maintainer requests them.
 - Maintain `docs/` as the project record. Start with [the documentation map](docs/README.md), then
   read the relevant behavior record and
   [optional backlog](docs/initial-implementation-plan.md#remaining-roadmap). Update stale
-  descriptions and review status when implementation decisions change; add focused documents when
-  they clarify a real design decision.
+  descriptions and review status when implementation decisions change. Give each contract one owning
+  record and link to it; exact types, constants, supported values, and scenario assertions belong in
+  source. Fold accepted follow-ups into their owner instead of accumulating overlapping
+  specifications. Add focused documents when they clarify a real design decision.
 - Reuse [shared validation helpers](src/shared/validation.ts) for generic unknown-value checks,
   while keeping domain parsers at their boundaries. Tune visual design through
   [CSS design tokens](src/client/design-tokens.css); see
@@ -59,7 +60,7 @@ backlog; start further features only when the maintainer requests them.
 ## Tests and visual QA
 
 - Add tests for observable behavior and durable invariants: Git status/diff parsing, path
-  containment, comment anchoring, export text, persistence migrations, and key touch flows where
+  containment, comment anchoring, export text, current persisted formats, and key touch flows where
   appropriate. Cover important failure cases.
 - Do not add tests that merely repeat the implementation or snapshot incidental markup. A temporary
   test used to develop a feature may be removed if it does not guard a future regression.

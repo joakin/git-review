@@ -1,52 +1,26 @@
 # git-review
 
-A local, browser-based code review app. Choose a host folder within an approved root, review staged,
-unstaged, and untracked changes in expandable, syntax-highlighted diff cards, or browse and search
-current files in the working tree. Select text in one code line for contextual Search and Comment
-actions. Selection comments preserve the exact fragment in their source quote, export, and history.
-Tap a text row in Files, a Search result, or a working-copy diff to reveal its Comment action,
-dictate into the comment, check the source lines, and copy a line-numbered summary. The Git tab
-browses local and already-present remote branches and opens full commit messages with historical
-diff cards, without checking out a branch. Projects, directories, files, Search results, branches,
-and commits have URLs for direct links and browser Back/Forward. With no explicit URL, the selected
-folder is restored **in its own tab**; recent folders, code wrapping, working-copy open cards,
-language overrides, comments, and copy history survive reload in this browser. The
-[documentation map](docs/README.md) links current behavior and engineering records.
+A local, browser-based code review app. Choose a host folder within an approved root to review
+working-copy changes, browse and search files, or inspect branches and commits without changing the
+repository. Add line or selected-code comments, optionally dictate them, then check their source and
+copy a review summary. Responsive views and direct URLs support phones, tablets, desktop, and an
+installed window.
 
-Expanded diffs stay cached in tab memory across section navigation, preserving their content and
-height. The cache is bounded and is cleared by a page reload; preferences and drafts remain in
-browser storage. See [loading and screen transitions](docs/loading-and-transition-polish.md).
-
-Floating Back/Forward controls provide navigation in installed windows as well as browser tabs. They
-appear at the bottom left when a neighboring app destination is known, preserve availability across
-reload, and hide during menus and line actions. The heading arrow opens the parent list. See the
-[usability follow-up and review record](docs/pwa-navigation-and-file-feedback-proposal.md).
-
-On phones, choosing a project or restoring it from the bare app URL opens its contextual list and
-project tabs. **Review all changes** opens continuous review in one tap; selecting a file opens its
-diff. Non-Git folders open Files. Explicit links, reloads, history traversal, and resizing preserve
-the destination being read.
-
-Historical cards read exact commit/parent blobs, including media. Root commits compare with an empty
-tree; merges compare with their first parent. The list and commit summary show date and time plus
-added/deleted line totals for the same project scope and comparison. Git is an inspection view: line
-information is available, while comments and Search retain their working-copy meaning. Historical
-card state and loaded history pages stay in this tab's memory. See
-[Git inspection behavior and limits](docs/git-history-slice-proposal.md).
+Drafts and preferences stay in the browser; Git and file contents are read from the host. The
+[documentation map](docs/README.md) links current behavior, constraints, and engineering records.
 
 ## Project status
 
-The initial implementation stage is **complete and closed as of 2026-09-30**. The maintainer
-considers the app usable and useful; the final reviewed feature delivery is `22de40e`. The
-subsequent [maintenance pass](docs/maintenance-plan.md) is complete and closed as of 2026-10-06. Its
-plan records the outcome and stop boundary. The
+The [initial implementation](docs/initial-implementation-plan.md#stage-closure--2026-09-30) and
+first [maintenance pass](docs/maintenance-plan.md) are complete and closed. The
 [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product
-backlog. The [stage closure record](docs/initial-implementation-plan.md#stage-closure--2026-09-30)
-preserves acceptance and verification context.
+backlog. Further changes follow the review and commit-approval rules in [AGENTS.md](AGENTS.md).
 
 ## Run the app
 
-Requires Bun and Google Chrome (for optional visual QA).
+Requires Bun and Git. Search also needs ripgrep (`rg`) on the host; set `GIT_REVIEW_RG_PATH` to an
+absolute executable path if automatic discovery fails. Google Chrome is needed for optional browser
+QA.
 
 ```sh
 bun install
@@ -68,10 +42,10 @@ defaults to the current working directory and `--port` to `3000`. After client e
 Clipboard writes and microphone capture need HTTPS or localhost on most browsers. The HTTP Tailscale
 page keeps a selectable feedback text box when Copy is unavailable; copied drafts are cleared only
 after a successful Clipboard API write. Voice comments additionally require FFmpeg, Handy, and a
-downloaded Handy model on the host. The default paths are `/opt/homebrew/bin/ffmpeg` and
-`/Applications/Handy.app/Contents/MacOS/handy`; set `GIT_REVIEW_FFMPEG_PATH` or
-`GIT_REVIEW_HANDY_PATH` to an absolute executable path if yours differs. Voice remains optional;
-typed comments work without these tools.
+downloaded Handy model on the host. The server checks standard Homebrew FFmpeg locations and the
+installed Handy app; set `GIT_REVIEW_FFMPEG_PATH` or `GIT_REVIEW_HANDY_PATH` to an absolute
+executable path if automatic discovery fails. Voice remains optional; typed comments work without
+these tools.
 
 ## Install on a phone
 
@@ -103,12 +77,9 @@ matching project records are replaced while other projects are kept.
 
 ## Checks
 
-`bun install` installs the pinned development tools and activates the Husky pre-commit hook. Run
-`bun run format` to format source, styles, configuration, and Markdown, or `bun run format:check` to
-check without writing. Each commit automatically formats staged files with Prettier through
-lint-staged, preserving unstaged edits. Generated build output, QA artifacts/screenshots, raster
-icons, and Bun's lockfile retain their own formats. See the
-[formatting workflow](docs/formatting-workflow.md).
+`bun install` installs the pinned tools and activates the pre-commit hook. Run `bun run format`
+after edits and `bun run format:check` to check without writing. The
+[formatting workflow](docs/formatting-workflow.md) owns staged-file behavior and setup.
 
 ```sh
 bun run typecheck
@@ -120,5 +91,6 @@ bun run qa:capture --url http://127.0.0.1:3000/ --label <milestone>
 Run focused browser checks directly with Bun, for example
 `bun qa/check-files.ts http://127.0.0.1:3000/`. The scripts use the installed Chrome and an isolated
 fixture server. See [the QA workflow](docs/qa-workflow.md) for fixture setup, scenario arguments,
-screenshots, and device checks, and [the foundation slice](docs/foundation-slice.md) for the current
-API and boundaries.
+screenshots, and device checks. The
+[stateless project contract](docs/stateless-project-access-plan.md) owns project identity and
+restart behavior; [read boundaries](docs/README.md#behavior-records) link the domain policies.

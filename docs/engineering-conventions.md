@@ -1,10 +1,10 @@
 # Engineering conventions
 
 Use these principles when designing or changing code. Current user flows and domain contracts belong
-in the [behavior records](README.md#behavior-records); current status and unresolved decisions
-belong in the brief [maintenance plan](maintenance-plan.md). Use Git for implementation and dated
-review history, and the [QA workflow](qa-workflow.md) for verification procedures. Document a rule
-here when it guides future decisions across changes.
+in the [behavior records](README.md#behavior-records). Keep active work and unresolved decisions in
+the record for that work; closed plans retain scope, acceptance, and stop boundaries. Use Git for
+implementation and dated review history, and the [QA workflow](qa-workflow.md) for verification
+procedures. Document a rule here when it guides future decisions across changes.
 
 ## Code organization and interfaces
 
@@ -42,8 +42,11 @@ accepting partial or ambiguous data.
 
 Validate relationships as well as field shapes. Bound input size and expensive work before
 processing it. Keep paths within approved roots, avoid following untrusted links, and pass
-subprocess arguments as arrays without a shell. Preserve deliberate compatibility and migration
-paths until their supported inputs are explicitly retired.
+subprocess arguments as arrays without a shell. This unreleased app accepts its current persisted
+formats; it does not promise migrations or earlier-format import. Document an approved format break
+and its effect on user work in the owning
+[local-data record](independent-tabs-and-pwa-proposal.md#local-data-and-backups). Keep
+current-format validation and useful runtime recovery separate from obsolete-format support.
 
 Use the [shared Git read boundaries](git-read-boundaries.md) for subprocess execution, repository
 context and bounded object access. Domain callers choose fixed read commands and interpret results;
@@ -111,10 +114,19 @@ record which was performed.
 
 ## Documentation and verification
 
-Document decisions, constraints, and stable contracts that a future change needs to respect. Explain
-the reason for a convention; keep function walkthroughs, numeric budgets, and implementation
-inventories in code or a focused domain record. Link to the authoritative record instead of copying
-status or repeating a change history across documents.
+Document decisions, constraints, and stable contracts that a future change needs to respect. Give
+each domain one behavior record and explain non-obvious reasons there. Source owns exact schemas,
+supported values, constants, private function structure, and test assertions; link to those owners
+instead of copying them. A measurement or product limit can remain when it explains a reviewed
+tradeoff.
+
+Start with the [documentation map](README.md#what-belongs-where). Keep operation in the root README,
+shared principles here, current behavior in domain records, and runnable checks in the QA guide.
+After an accepted proposal is implemented, fold its current contract into the domain owner; retain a
+short pointer at an old path when useful links depend on it. Closed plans stay brief, and Git owns
+superseded text and chronological delivery logs. Keep selected screenshot/measurement evidence once
+with its domain and distinguish recorded evidence from new verification. Update the owner directly
+rather than adding correction banners or another summary of the same contract.
 
 Test observable behavior and durable invariants, including important failure paths. Avoid tests that
 mirror private structure or incidental markup. Scale checks to the change, keep review steps small,

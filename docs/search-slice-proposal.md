@@ -1,107 +1,61 @@
-# Working-tree search
+# Working-tree Search
 
-Current project access uses a canonical absolute `projectPath` query field on every project
-resource, including batch and raw-media routes. No registration is required. See the
-[stateless project contract](stateless-project-access-plan.md#project-contract-and-validation).
-Dated implementation and compatibility checkpoints below remain historical evidence.
-
-Status: working-tree Search and the
-[selected-code Search shortcut](selected-code-search-slice-proposal.md) are implemented. The
-maintainer confirmed the shortcut works on their phone; iOS selection behavior remains unverified.
-
-## Search tool investigation
-
-Use **ripgrep (`rg`) for both Git and non-Git projects**. This machine has Homebrew ripgrep 15.2.0
-at `/opt/homebrew/bin/rg`. Its `--json` output supplies a path, positive line number, matching line,
-and match offsets without parsing colon-delimited text. A local non-Git fixture confirmed that
-`--hidden -g '!.git/'` includes a hidden source file while excluding `.git`, an `.ignore`d file, and
-a symlink target. Ripgrep searches working-tree contents, including ordinary untracked files; its
-default ignore rules skip ignored paths.
-[Ripgrep guide](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md)
-
-The running HTTPS LaunchAgent has `PATH=/usr/bin:/bin:/usr/sbin:/sbin`, so `spawn("rg")` would not
-find the Homebrew binary there. The server accepts an absolute `GIT_REVIEW_RG_PATH` override, then
-checks `/opt/homebrew/bin/rg`, `/usr/local/bin/rg`, and `PATH`. It shows a clear Search error if
-none is executable. It does not rely on the copy bundled inside the Codex app.
-
-## Why this follows Files
-
-The Files viewer supplies the current-file reading surface. Bounded Search finds uses of text within
-the selected project and opens that same viewer in the Search route, retaining results as its parent
-list. It does not add Git history or index browsing.
+Search uses ripgrep for Git and non-Git folders and opens matches in the shared
+[working-tree file viewer](file-browser-slice-proposal.md). It searches current host contents; the
+browser does not download or index the codebase.
 
 ## Current user flow
 
-1. Choose **Search** beside Changes and Files in the contextual list's tabs. On a phone, the query
-   and result list fill the screen. A project without Git gets the same Search view.
-2. Submit a literal query. Keep the last query and results in this tab while switching views. Show
-   grouped file paths with line numbers and short matching excerpts, plus a clear empty, loading,
-   error, or truncated state. Do not search on every keystroke.
-3. Tap a result to open its **current working-tree file** in the Search content pane and scroll to
-   the matching line with a highlight. On a phone, this opens the full-width content screen. The
-   Search URL keeps the query, file, and line; browser Back or the content-heading back arrow
-   returns to the results. Refresh repeats the query when files change.
-4. The [selected-code Search action](selected-code-search-slice-proposal.md) uses native selection,
-   with a **Search selected text** tooltip beside a bounded selection inside one code line. Touch
-   placement is below the selection to clear Android's native menu; desktop placement prefers above.
-   The action follows page and code-pane scrolling. Android review confirmed it is usable; iOS
-   interaction remains for device checks.
-   [MDN selectionchange](https://developer.mozilla.org/en-US/docs/Web/API/Document/selectionchange_event)
+Submit a case-sensitive literal query in **Search**. Search runs on submission, with grouped paths,
+line numbers, and excerpts, plus explicit empty, loading, error, and truncated states. Refresh
+repeats the query. It does not expand identifiers or add whole-word matching.
 
-## API and data shape
+The URL owns the submitted query and selected result. Opening a result retains Search as its parent
+list and scrolls the current working-tree file to the matching line. Back/Forward restores the
+destination; cached matching results can be reused in the tab, while reload or a missing result set
+reruns the query. The file reader remains the authority when source changes: show current content
+and a stale-result notice rather than inventing a comment anchor. Files and Search share feedback
+identity; the query is not part of a file anchor.
 
-- `GET /api/project/search?query=<literal>` returns `{ query, matches, truncated }`, where each
-  match is `{ path, line, excerpt }` with a project-relative path and a positive working-tree line
-  number. No repository-wide file contents are sent to the browser.
-- Resolve the supplied absolute project path under the approved root on every request. Accept a
-  trimmed, nonempty query of at most 128 characters without NUL or line breaks. Search is case
-  sensitive fixed text in this checkpoint; a later control could add case or whole-word options.
-- Run `rg --json --no-config --hidden -g '!.git/' -F -n --max-filesize 1M -e <query> .` with an
-  argument array, no shell, and the validated project directory as `cwd`. `-e` keeps queries
-  beginning with `-` safe. Do not add `--follow` or `--no-ignore`. This covers Git and non-Git
-  folders with one subprocess and no TypeScript search walker. It searches hidden source files but
-  excludes `.git`; project ignore files and binary filtering still apply.
-  [Ripgrep guide](https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md)
-- Stream JSON Lines, accept only validated `match` records, and normalize `./` paths to
-  project-relative paths. Reject malformed records and apply the existing project path containment
-  rules before returning a result. Handle ripgrep's `bytes` variant for non-UTF-8 data by skipping
-  results Files cannot represent. Keep excerpts short. In JSON mode `--max-columns` does not bound
-  output, so cap raw output/record size in the server rather than relying on that flag.
-- Cap results at 100 matches, raw output at 8 MiB, a JSON record at 2 MiB, excerpts at 240
-  characters, and execution at 10 seconds. Kill the child when a limit is reached.
-  `--max-filesize 1M` excludes oversized individual files. Ripgrep has no exact total-files or
-  total-bytes-scanned cap. Return `truncated: true` for early result/output limits; surface a
-  timeout or process failure as an error, not as an empty search. Exit 1 means no matches, while
-  other nonzero exits need an error. Cancel stale client requests when the query or project changes,
-  and parse the API response at the client boundary.
+## Selected-code Search
 
-## Edge cases and QA
+Native selection within one logical code line offers **Search** beside
+[Comment](feedback-slice-proposal.md#selected-fragments) when the fragment meets query validation.
+Selections may cross syntax spans or wrapped visual lines, but not source rows, line numbers, dialog
+text, or unrelated page content. Search trims surrounding whitespace and submits only the literal
+fragment. Selecting removed or historical code still searches the current working tree.
 
-- Cover tracked and untracked matches, ignored and hidden files, a non-Git folder, nested project
-  folders, unusual paths, no matches, a changed or deleted result, a binary file, link escape, a
-  huge file, output that reaches a limit, and missing `rg` in the HTTPS service. Ripgrep's no-match
-  exit is a normal empty result; other failures are errors.
-- On result navigation, the file reader remains the source of truth. If the file or line has
-  changed, show the latest file and a small stale-result notice rather than inventing an anchor.
-- Check phone and tablet search entry, keyboard use, result taps, list/content navigation, wrap and
-  page overflow, and return to results. Capture and inspect the four standard viewports. Native
-  selected-text interactions also need real-device checks.
+The action preserves native handles and Copy. It follows page, code-pane, and visual-viewport
+movement and disappears when its source is replaced, its selection leaves view, or it is dismissed.
+On touch screens it prefers below the selection, with a header-adjacent fallback when needed; mouse
+placement prefers above. This placement came from Android review, where the native selection menu
+occupied the space above the text. Choosing the action performs Search; selection alone does not.
 
-## Review checkpoint
+[Code selection](../src/client/code-selection.tsx) validates the native Range against its registered
+source, and [selection actions](../src/client/CodeSelectionActions.tsx) own placement and
+activation. The feedback record owns exact comment offsets, source identity, and reattachment.
 
-From this repository on a phone, search for a symbol, open its current file at the matched line, and
-return to the same results. The same path works in a non-Git folder. Search is bounded and
-read-only. Its full-file viewer also supports
-[U03 working-tree line feedback](pwa-navigation-and-file-feedback-proposal.md#u03--line-feedback-while-reading-files),
-accepted and committed as `7632b4d`. Files and Search share file-anchor identity and markers; the
-Search query is not part of that identity.
+## Boundaries and rationale
 
-Search is an explicit project tab. Its URL records the submitted query and optional result
-file/line; the latest matching response stays in tab memory during section switches. Back/Forward
-and reload rerun a query when its data is not loaded. The file location bar stays visible during
-deep line jumps, and changed or deleted results show a stale notice. The selected-code tooltip is
-implemented and reviewed on the maintainer's phone; iOS selection remains unverified.
+[The server Search reader](../src/server/search.ts) owns query validation, executable discovery,
+fixed ripgrep arguments, result/output/file limits, and timeout. It honors project ignore rules,
+includes hidden source files, excludes Git control directories, and does not follow symlinks. JSON
+Lines are validated before becoming [Search response values](../src/shared/api.ts); non-UTF-8 paths
+or lines that Files cannot represent are skipped. Leading-dash queries remain literal because they
+are passed as arguments to the fixed query option, without a shell.
 
-The [selected-code feedback follow-up](selected-code-feedback-proposal.md), accepted on 2026-10-05,
-adds Comment beside Search for fragments within one logical code line. Files and Search resolve the
-same working-tree anchor and preserve exact selected offsets.
+A no-match exit is an empty result; timeout, invalid output, and subprocess failure are errors.
+Result/output limits produce a truncated result. Cancellation prevents a superseded project or query
+from replacing the current results. Ripgrep is a host dependency; executable overrides and run setup
+belong in the [root README](../README.md).
+
+## Evidence and device limits
+
+The [QA catalog](qa-workflow.md) identifies Search, selected-code Search, and feedback checks.
+[Search results](../qa/screenshots/search-results-first/mobile.png),
+[deep file jumps](../qa/screenshots/search-deep-jump-review/mobile.png), and
+[selected-code action placement](../qa/screenshots/selected-code-search-touch-placement/mobile.png)
+are inspected historical milestones with the other three viewport sizes and manifests in their
+folders. The maintainer confirmed selected-code Search on their phone, including the Android menu
+placement correction. Dedicated iOS selection-menu, gesture, and keyboard checks remain unverified;
+Chrome emulation does not establish those outcomes.

@@ -1,90 +1,47 @@
 # URL history and navigation
 
-Status: implemented, manually reviewed on phone, tablet, and desktop, and committed as `6c82a81`.
-Loading/cache and route-focus follow-ups are committed as `471521e`.
+## Navigation model
 
-## Why revisit navigation
+Navigation has three logical levels: the global menu chooses projects, recents, and Settings; the
+contextual list shows Changes, Files, Search, or Git; content shows the selected diff, working-tree
+file, or commit. Project tabs belong to the contextual list. Settings contains installation and
+local-data controls. A content-heading arrow labelled **Open list** opens that destination's parent
+list; it is distinct from history Back.
 
-The former app kept Changes / Files / Search, the folder or file sidebar, the selected file, and the
-Search query in component state. Opening a Search result switched to Files without adding a browser
-history entry. Browser Back therefore could not return to the result list. The sidebar also switched
-between unrelated jobs: choosing a host folder, listing changes, and browsing project files. That
-made the phone drawer feel like another screen without giving it normal screen navigation.
-
-The implemented navigation has **three distinct levels**:
-
-1. **Menu:** choose a project, revisit recent projects, and open Settings. Settings contains the
-   installation and local data controls.
-2. **List screen:** browse host folders, Git changes, project files, Search results, or branches and
-   commits. Its identity and selection come from the route.
-3. **Content screen:** read a diff, working-tree file, or full commit comparison, add working-copy
-   comments, and open feedback. The content keeps the list it came from as context.
-
-These are logical screens, not a fixed number of visible columns. A wide desktop shows menu, list,
-and content together. The list stays beside content at 900 px and above; narrower tablets reveal it
-as a drawer using the content-heading back arrow. Phones up to 600 px show one full-width list or
-content screen at a time. **Changes / Files / Search / Git tabs belong only to the contextual
-list**, separate from the global menu; phone content shows the shared back arrow instead of
-repeating the tabs. A guarded horizontal swipe remains optional after real-device testing. The code
-pane keeps its own horizontal scroll, text selection, and line gestures; the app must not take over
-browser edge Back gestures.
-[MDN touch-action](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/touch-action),
-[MDN overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior)
+The URL owns navigable destinations. Menus, drawers, unsent Search typing, card expansion, feedback,
+and preferences keep their own transient or persisted state. Opening or dismissing those controls
+does not create a route. [Loading and screen transitions](loading-and-transition-polish.md) owns
+request freshness, reading-position restoration, and one-time selected-card focus.
 
 ## Current user flow
 
-1. Open the installed app or a normal tab. With no explicit route, show the project menu/recent
-   projects or restore this tab's active project. An explicit project URL always wins over tab
-   storage.
-2. Choose a project. On phones up to 600 px, implicit entry from the picker/recents or bare `/`
-   restoration opens the Changes file list and project tabs. **Review all changes** opens continuous
-   review in one tap; selecting a file focuses its diff. Tablet and desktop entry still opens
-   continuous review with the contextual list available beside it or in its drawer. Non-Git folders
-   open the Files list. Explicit Changes URLs retain continuous review as their default.
-3. Open Files, walk directories, and select a file. The URL records the project, list context, file,
-   and optional line. On a phone, Files list and file content are separate full-width screens; on a
-   wide display they can sit side by side.
-4. Submit Search. The results list becomes a route. Tap a result: the file opens while Search
-   remains its parent list. Browser Back returns to those results and Forward reopens the file. On a
-   wide display, the Search results can remain visible next to the file.
-5. Open the host folder picker from the menu. It is a navigable list screen rather than a special
-   sidebar mode. Selecting a folder changes the active project in this tab.
-6. Open Git, choose a branch, and select a commit. Branch and commit destinations use the same
-   list/content and Back/Forward patterns. The
-   [Git inspection record](git-history-slice-proposal.md) describes immutable comparisons, paging,
-   and cached reading positions; it is reviewed and committed as `22de40e`.
+1. An explicit project URL takes precedence over tab storage. Bare `/` restores this tab's active
+   project when available, otherwise it opens the project picker.
+2. Choosing a project from the picker or recents opens the Changes list on phones. **Review all
+   changes** opens continuous review; choosing a changed file opens and focuses its card. Clean Git
+   folders retain tabs and access to Files. Non-Git folders open the Files list with Changes/Git
+   disabled. Tablet and desktop implicit entry opens continuous review.
+3. Files records the directory, selected file, and optional line. Search records the submitted
+   query; opening a match keeps Search results as the parent list. Back returns to those results and
+   Forward reopens the file.
+4. Git records the branch and optional commit. Its comparisons, pagination, and reading-position
+   behavior are defined in [Git inspection](git-history-slice-proposal.md).
+5. The host folder picker and Settings are destinations. Opening Settings from work allows Back to
+   return to that work. Project selection affects only this tab; local drafts and preferences follow
+   their [storage lifetimes](independent-tabs-and-pwa-proposal.md).
 
-Feedback drafts, copy history, wrap choice, theme preferences, and recent projects remain
-browser-local. Opening or dismissing a menu, drawer, keyboard, or comment sheet does not by itself
-create a new URL. Before a route transition, close or save an edited comment sheet through the
-existing draft rules.
-
-The [U01 usability follow-up](pwa-navigation-and-file-feedback-proposal.md#u01-handoff--2026-10-04)
-adds visible history controls, accepted and committed as `df92a53` on 2026-10-04. Back and Forward
-float at the bottom left in installed windows and ordinary tabs, with disabled unavailable
-directions. They follow known adjacent app entries in the browser history; the content-heading arrow
-is labelled **Open list** and retains its parent-list behavior. The floating pair hides during
-menus/drawers, dialogs, Comment actions, and selected-code Search. It restores availability across
-reload with validated per-tab metadata, without putting destinations under a second route owner.
-Unknown or cross-document history starts conservatively; at most 100 entries are retained.
-
-The [U02 follow-up](pwa-navigation-and-file-feedback-proposal.md#u02-handoff--2026-10-04) implements
-phone list entry and the Review all changes command, accepted and committed as `b9aeee3` on
-2026-10-04. Project selection and bare restoration choose `target=list` only at phone widths;
-explicit destinations and viewport changes keep their existing route. Project-open and host-root
-failures are visible in the list with project-picker recovery. No new route, API, or storage variant
-is needed.
+Implicit phone entry chooses the list only when the project is selected or restored from bare `/`.
+Explicit URLs, reloads, history traversal, and viewport changes retain the destination. In
+particular, an explicit plain Changes URL means continuous review at every size. Root or
+project-opening failures remain visible in the contextual list with **Choose another project**
+recovery, so phone entry cannot hide an error in an invisible content pane.
 
 ## URL and state shape
 
-Use the existing `/` page with validated query parameters and the browser History API; no router
-dependency is needed for this route set. This keeps direct links within the current server and
-installed PWA scope. `pushState` adds meaningful destinations; `replaceState` normalizes the first
-entry or corrects an invalid one; `popstate` restores the route on Back/Forward. The URL, rather
-than `history.state` or component state, is the source of truth for navigation.
-[MDN History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API/Working_with_the_History_API)
-
-Example URLs (values shown decoded for readability; construct them with `URLSearchParams`):
+Routes use the served `/` page, validated query parameters, and the browser History API. The
+[route parser and serializer](../src/client/navigation.ts) define accepted fields, route variants,
+and input limits. Examples below show decoded values for readability; construct URLs with
+`URLSearchParams`.
 
 ```text
 /?section=projects&dir=client-work
@@ -92,205 +49,96 @@ Example URLs (values shown decoded for readability; construct them with `URLSear
 /?project=git-review&section=changes&target=list
 /?project=git-review&section=changes&layer=unstaged&file=src/client/App.tsx
 /?project=git-review&section=files&dir=src/client&file=src/client/App.tsx&line=170
-/?project=git-review&section=search&q=selectedWord
 /?project=git-review&section=search&q=selectedWord&file=src/client/App.tsx&line=170
-/?project=git-review&section=git&ref=refs/heads/main
 /?project=git-review&section=git&ref=refs/heads/main&commit=<full-object-id>
 ```
 
-The Search URLs illustrate selecting a result: adding a file target keeps the result list as its
-parent. The plain Changes URL means continuous review; `target=list` opens its file list on a phone.
-Changes can also target an individual diff; Files can target a directory or file. A Git URL records
-the full branch ref (or `HEAD`) and an optional full commit ID. The
-[route parser](../src/client/navigation.ts) produces a precise discriminated union:
-
-```ts
-type Route =
-  | { section: "projects"; directory: string }
-  | { section: "changes"; projectPath: string; target: ChangesTarget }
-  | { section: "files"; projectPath: string; directory: string; target: FileTarget }
-  | { section: "search"; projectPath: string; query: string | null; target: SearchTarget }
-  | { section: "git"; projectPath: string; ref: string | null; target: GitTarget }
-  | { section: "settings"; projectPath: string | null };
-
-type ChangesTarget =
-  | { kind: "list" }
-  | { kind: "all" }
-  | { kind: "file"; layer: "staged" | "unstaged" | "untracked" | "conflict"; path: string };
-type FileTarget = { kind: "list" } | { kind: "file"; path: string; line: number | null };
-type SearchTarget = { kind: "results" } | { kind: "file"; path: string; line: number };
-type GitTarget = { kind: "list" } | { kind: "commit"; oid: string };
-```
-
-The URL stores a **root-relative project path** for navigation. A direct link or reload resolves
-that destination against the current approved root through `GET /api/project?projectPath=…` to
-obtain canonical metadata. Resource requests carry the resulting absolute path and validate it
-independently. Metadata lookup is not registration and is not repeated for restart recovery. File
-paths remain project-relative. No repository path becomes a server filesystem write. See the
-[stateless project contract](stateless-project-access-plan.md).
-
-Keep only navigable state in the URL. Search typing before submission, list filters, open cards,
-scroll positions, comment drafts, and preferences remain transient or in their current browser
-storage. Preserve the per-tab project selection: visiting an explicit project URL updates only that
-tab's `sessionStorage`; opening `/` may restore that tab's project. A link copied into a new tab or
-device opens the project named by the URL if that host allows it.
+Project names in URLs are root-relative navigation paths; file paths are project-relative. Direct
+links resolve project metadata against the approved host root. Resource requests then use the
+canonical absolute path and validate access independently under the
+[stateless project contract](stateless-project-access-plan.md). A restart needs no project
+registration. URLs expose project/file names and submitted Search text; feedback bodies and other
+source payloads stay outside them.
 
 ## History and responsive rules
 
-- Push an entry when changing project, section, directory, submitted Search query, Git branch, or
-  selected file/diff/commit. Do not push for each keystroke, wrap toggle, menu reveal, or drawer
-  toggle.
-- Back/Forward must parse the current URL and render it without writing another history entry. If
-  results are still cached in the tab, reuse them; after reload, rerun the bounded Search query.
-  Restore the prior list/content scroll position after asynchronous loading where practical.
-- A direct link to a file must work without prior navigation in this tab. Its visible List control
-  opens the route's parent list; browser Back follows the browser's actual previous entry. Never
-  assume that the previous entry belongs to this app.
-- The route describes the logical destination. Viewport width decides which panes are visible, so
-  rotating a phone or resizing a browser does not rewrite history.
-- On a phone, use explicit controls first. Add swipe between list and content only if real iOS and
-  Android checks show no conflict with code horizontal scrolling, browser navigation, selecting
-  text, or comment gestures. Use the same route transitions as the visible controls.
-- The plain Changes route remains continuous review. Switching project tabs on a phone stays on the
-  relevant list screen; selecting a changed file then opens the continuous content and focuses that
-  card. On wide screens, the list stays available beside content.
-- A selected diff URL expands and focuses its card once per navigation. Card toggles and Refresh do
-  not repeat that focus. Choosing the same file again or Back/Forward to its URL can focus it again.
-  Matching expanded diff payloads come from the tab cache on the first render; see
-  [loading and screen transitions](loading-and-transition-polish.md).
+Meaningful project, section, directory, query, branch, and file/diff/commit changes push history.
+Canonical replacements, including default Git-ref resolution, preserve the current entry's identity.
+Same-URL actions do not invent entries. Native Back/Forward parses the resulting URL without pushing
+another destination. Navigation saves nonempty editor text and cancels its pending feedback
+ownership before changing the route; [Feedback](feedback-slice-proposal.md) defines those
+transaction rules.
+
+| Width             | Visible panes and list action                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| 1200 px and above | Menu, contextual list, and content are adjacent.                                                       |
+| 900–1199 px       | The menu is a drawer; the list remains beside content.                                                 |
+| 601–899 px        | Menu and list are drawers; Open list reveals the contextual list. The picker is a static screen.       |
+| Up to 600 px      | The URL selects a full-width list or content screen. Tabs stay on the list; Open list navigates to it. |
+
+Resizing or rotating changes presentation without rewriting the route or history. The code pane
+retains its contained horizontal scroll and native selection. List/content swipe is deferred until
+real Android/iOS checks establish that it does not compete with code scrolling, selection, comment
+gestures, or browser edge Back; all transitions have visible controls.
+
+## Visible browser history
+
+The floating Back/Forward pair serves installed windows and ordinary browser tabs at every size. It
+appears at the bottom left with safe-area spacing, keyboard focus, accessible names, and 44 px
+targets. When a known neighbor exists, both buttons retain their positions and the unavailable
+direction is disabled; when neither is known, the pair is hidden. Menus, list drawers, dialogs, line
+Comment actions, and selected-code actions hide it to keep the active controls reachable. Opening an
+adjacent pane after resizing releases that overlay restriction.
+
+History availability is conservative because `history.length` cannot establish where a neighboring
+entry leads. App entries carry validated trail/position/entry metadata, checked against a bounded
+per-tab journal and the current URL. The journal survives reload but supplies availability only; it
+never replaces URL route ownership and is excluded from review backups. Storage denial leaves known
+history usable during the page lifetime.
+
+Pushes after Back discard the abandoned forward branch; replacements keep entry identity. Every
+history write, including normalization and Git-ref resolution, preserves the same metadata. Fresh
+direct links, unmarked entries, malformed or inconsistent metadata, and returns from another
+document start conservatively. Entries outside the retained journal or evicted by the browser are
+not advertised. Traversals are serialized, and ignored traversal recovers rather than leaving
+controls permanently pending. The [history owner](../src/client/navigation-history.ts) and
+[browser adapter](../src/client/use-navigation-history.ts) define validation and retention limits.
 
 ## Boundaries and failure cases
 
-- Parse URL data as untrusted: reject unknown or duplicate state parameters, malformed encodings,
-  invalid section/layer, out-of-range line numbers, oversized query/path, traversal, and impossible
-  combinations. Normalize harmless omissions with `replaceState`; show a recoverable error and
-  project picker for a route that cannot be opened. Do not silently substitute another project for
-  an explicit broken link.
-- Handle unusual filenames (spaces, Unicode, `?`, `#`, `%`, and newlines) through `URLSearchParams`;
-  do not concatenate raw path strings. The URL exposes root-relative names and Search terms in
-  browser history, so keep absolute host paths, comment text, and tokens out of it.
-- A project can move, be deleted, become inaccessible, or leave the approved root; the existing
-  open/read boundaries decide access on every reload. A file or matching line can change between
-  Search and opening it; show the current file and a stale-result notice.
-- Switching routes while a comment is open must preserve its draft. Back should never clear feedback
-  or copy history. Two tabs can show different project URLs and retain separate active projects.
-- Check installed PWA reload and deep links over the existing HTTPS origin. Query URLs use the
-  already served `/` path, so no new HTML route fallback is needed for this first design.
+Treat URLs and browser history/session data as untrusted. Reject unknown/duplicate parameters,
+malformed encoding, traversal, invalid sections or layers, invalid lines/refs/commit IDs, oversized
+values, and impossible combinations. Normalize harmless omissions; invalid routes show a recoverable
+error. Do not silently substitute another project for an explicit broken link.
 
-## Implementation sequence
+Unusual filenames use URL encoding. A project may move, disappear, become inaccessible, or leave the
+approved root; its read boundary decides access. Files or Search matches may change after selection;
+show current content with the relevant stale-result notice. Two tabs can keep different project URLs
+and active selections. Drafts and copy history survive navigation.
 
-1. **URL history checkpoint:** add one typed route parser/serializer and a small navigation adapter
-   in the Preact client. Derive Changes, Files, Search, project, selected file, and submitted query
-   from it while keeping the current visual shell. Prove Search → result → browser Back → results →
-   Forward → file, including reload/direct link and independent tabs. Do this before rearranging
-   panes so the history behavior is reviewable on its own.
-2. **Screen structure checkpoint:** separate the menu, list screens, and content screens. Keep
-   current feedback and continuous diff behavior. Show all three levels on a wide display, make the
-   tablet list toggleable, and give phone list/content full-width views with visible navigation.
-   Check narrow widths and both tablet orientations at every change.
-3. **Optional gesture checkpoint:** prototype list/content swipe on real phones, retain it only
-   where it does not compete with native gestures and code reading. Keep visible navigation
-   regardless of gesture support.
+## Verification and evidence
 
-Behavior tests should cover URL parsing/serialization, invalid and unusual paths, explicit URL
-versus tab storage, Search result Back/Forward, reload/direct link, and draft retention. Browser QA
-should capture phone, tablet portrait, tablet landscape, and desktop; test real Android and iOS for
-swipe and installed-app Back behavior. The [QA workflow](qa-workflow.md) remains the checklist.
+The maintainer reviewed navigation on phone, tablet, and desktop, then accepted visible history and
+phone list entry on 2026-10-04. Browser checks cover parser round trips and rejection, Search result
+Back/Forward, direct links/reload, independent tabs, draft retention, responsive boundaries,
+conservative history restoration, branching, rapid/ignored traversal, and project-entry failures.
+The [QA workflow](qa-workflow.md) owns runnable checks and capture procedures.
 
-## Maintainer review
+These inspected Chrome-emulation milestones report no page-wide overflow:
 
-The maintainer confirmed that continuous review is the default Changes content. The Search result
-flow keeps Search as its parent list. After reviewing the first implementation, the maintainer moved
-Changes / Files / Search tabs to the contextual list and the project name and path above them. The
-global menu now contains project choice, recents, and Settings; Install & local data moved into
-Settings. The main reading pane no longer repeats the project heading or host-status subtitles. A
-further review placed phone tabs only on the list screen and replaced view-specific list buttons
-with one back arrow beside the content title.
+| State              | Phone                                                             | Tablet portrait                                                            | Tablet landscape                                                            | Desktop                                                            |
+| ------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Visible history    | [Image](../qa/screenshots/usability-u01-history/mobile.png)       | [Image](../qa/screenshots/usability-u01-history/tablet-portrait.png)       | [Image](../qa/screenshots/usability-u01-history/tablet-landscape.png)       | [Image](../qa/screenshots/usability-u01-history/desktop.png)       |
+| Project entry      | [Image](../qa/screenshots/usability-u02-project-entry/mobile.png) | [Image](../qa/screenshots/usability-u02-project-entry/tablet-portrait.png) | [Image](../qa/screenshots/usability-u02-project-entry/tablet-landscape.png) | [Image](../qa/screenshots/usability-u02-project-entry/desktop.png) |
+| Review all changes | [Image](../qa/screenshots/usability-u02-review-all/mobile.png)    | [Image](../qa/screenshots/usability-u02-review-all/tablet-portrait.png)    | [Image](../qa/screenshots/usability-u02-review-all/tablet-landscape.png)    | [Image](../qa/screenshots/usability-u02-review-all/desktop.png)    |
 
-## Implementation record
+Earlier shell-cleanup evidence remains in the
+[picker](../qa/screenshots/maintenance-m05-obsolete-picker/),
+[Changes](../qa/screenshots/maintenance-m05-obsolete-changes/),
+[list](../qa/screenshots/maintenance-m05-obsolete-list/), and
+[Settings](../qa/screenshots/maintenance-m05-obsolete-settings/) milestone folders. Cancellation and
+focus captures are linked from the [loading record](loading-and-transition-polish.md#qa).
 
-- `src/client/navigation.ts` owns the URL parser, serializer, and route variants. It rejects
-  duplicate/unknown parameters, traversal, malformed encoding, invalid combinations, and
-  out-of-range lines. Direct links are normalized with `replaceState`; meaningful destinations use
-  `pushState`. `/` restores the active project in this tab or opens the project picker. Explicit
-  URLs take precedence over tab storage.
-- The route chooses the project, section, list context, selected file/diff, submitted Search query,
-  and optional file line. A direct project link reopens it through the existing validated project
-  endpoint. Search results remain the parent list when a result opens; Back and Forward restore each
-  route. Switching routes saves an open comment as a draft through the existing draft path.
-- At 1200 px and above, menu, contextual list, and content appear together. From 900 to 1199 px, the
-  menu becomes a drawer while the list stays beside content. Below 900 px, the list becomes a drawer
-  and the back arrow beside the content title reveals it. The list begins with the project name,
-  absolute path, and project tabs; a subdirectory breadcrumb appears only after entering a folder.
-  The project picker fills the tablet screen. On phones up to 600 px, the list and content are
-  separate full-width route screens: tabs appear only with the list, switching tabs stays there, and
-  the same content-heading arrow returns to it. Settings is a route so Back returns to the prior
-  work. Menu and drawer reveals remain transient.
-- A visual follow-up gives phone Changes groups rounded cards, uses shared local SVGs for folder,
-  file, link, and back icons, and keeps a selected file's path in its sticky location bar. The
-  working-tree card names the source and shows file metadata without repeating the path.
-  [Devicon](https://github.com/devicons/devicon) focuses on language and tool logos; generic
-  navigation icons use the small shared SVG set.
-- The optional swipe gesture is deferred until real iOS/Android tests can establish that it does not
-  interfere with browser Back, horizontal code scrolling, text selection, or line taps. Visible
-  controls implement every transition.
-- The later [loading and cache follow-up](loading-and-transition-polish.md) reuses the opened
-  project in the tab, restores expanded diff height before scroll, records the latest route during
-  rapid history changes, and limits selected-card focus to one action per navigation. The maintainer
-  approved the corrected card behavior on 2026-09-30.
-- `bun test src/client/navigation.test.ts` protects route round trips and invalid URL behavior.
-  `bun qa/check-navigation.ts <url>` checks Back/Forward, Search → result → Back, reload/direct
-  links, Files and Changes targets, a draft across Back, the phone list/content flow, tablet list
-  toggle, the 899/900 px sidebar boundary, desktop panes, and invalid-link recovery. Existing
-  feature QA was adapted to use routes. The [QA workflow](qa-workflow.md) has capture and device
-  checks.
-
-## Maintenance verification — 2026-10-01
-
-M05a is accepted and committed as `2d6879d`. It removes the unreachable folder-picker “Back to
-project” control and unused ready-panel/icon/footnote styles, sidebar-switch selectors, indent
-token, and Changes margin modifier. Current route, state, pane, and button behavior retain their
-existing owners and rules; M05b now gives that shell a dedicated stylesheet, as recorded below.
-
-Captured and inspected [picker](../qa/screenshots/maintenance-m05-obsolete-picker/mobile.png),
-[expanded Changes](../qa/screenshots/maintenance-m05-obsolete-changes/mobile.png),
-[Changes list](../qa/screenshots/maintenance-m05-obsolete-list/mobile.png), and
-[Settings](../qa/screenshots/maintenance-m05-obsolete-settings/mobile.png) at phone, tablet
-portrait, tablet landscape, and desktop sizes. All sixteen PNGs match their pre-cleanup captures
-byte for byte, and their manifests report no page-wide overflow. Four affected screens also fit at
-320 px. Strict type/CSS gates, navigation parser tests, build, loading checks, and touch
-diff/wrap/scroll checks passed. An initial concurrent navigation run timed out returning to the
-picker; both a diagnostic run and an unmodified rerun then passed, including the 899/900 px
-boundary, without code changes. M05b later reproduced the cancellation path described below. These
-checks use Chrome emulation; real-device gestures were not reverified. The QA server was stopped,
-and the maintained HTTP/HTTPS services serve the rebuilt client.
-
-M05b is accepted and committed as `1d28fc5`. [navigation.css](../src/client/navigation.css) owns
-header, menu, contextual list/tabs, content geometry, route visibility, breakpoints, and reduced
-motion; component styles remain in [styles.css](../src/client/styles.css). The active menu/list
-width tokens replace superseded two-column widths. Computed styles and geometry match committed M05a
-across 252 recorded states, including exact breakpoint widths, reduced motion, Search results,
-controlled non-Git tab disabling, and already-open drawers while resizing. Sixteen fresh four-size
-PNGs also match the curated images above byte for byte; comparison copies stay ignored rather than
-duplicating milestone assets. Strict gates, build, loading, diff, Search, live updates, a sequential
-navigation rerun, and 320 px checks passed.
-
-The earlier picker timeout now has a deterministic reproduction on both committed M05a and M05b:
-hold project opening, then use browser Back before it completes. The aborted request leaves the
-opening flag set, so the picker stays disabled with “Opening…”. The route-name label appears before
-completed project data and can expose this timing path in ordinary QA. M05c implements the focused
-reset and delayed-response regression, accepted and committed as `b20b514`. M05b leaves that state
-code unchanged, and successful navigation reruns do not eliminate the defect. These checks use
-Chrome emulation; actual iOS/Android behavior was not reverified.
-
-M05c clears the obsolete opening flag when leaving a pending open. Success and error completion also
-require the latest synchronous route to belong to that project, closing the interval before effect
-cleanup aborts the request. The picker returns to the same directory with “Open this folder”
-enabled; a retry can succeed, and abandoned results cannot acquire the current project's saved
-selection. `qa:loading` now calls the focused cancellation helper covering native abort/retry at
-five widths, buffered success during Back, late success/error around replacement completion, and
-normal failure recovery. Existing navigation and feedback transaction checks passed. Four-size
-[recovery captures](../qa/screenshots/maintenance-m05c-opening-recovery/mobile.png) show the picker
-only after a deliberately canceled open and Back; the manifest records no page overflow. The
-maintainer accepted the change and explicitly approved committing it on 2026-10-01; it is committed
-as `b20b514`.
+Maintainer acceptance does not establish every installed-PWA, safe-area, keyboard, clipboard, or
+native gesture scenario. Dedicated real-device iOS/Android interruption and selection checks remain
+unverified; browser emulation is distinct evidence.
