@@ -5,6 +5,7 @@ import type { CommitFileChange } from "../shared/git.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { DiffBody, type DiffInteraction } from "./DiffBody.tsx";
 import { LanguagePicker } from "./LanguagePicker.tsx";
+import { Chevron } from "./Icons.tsx";
 import type { DiffState } from "./diff-loading.ts";
 import type { DiffContextControl } from "./use-diff-context.ts";
 
@@ -136,7 +137,7 @@ export function DiffCardFrame({
         onClick={onToggle}
       >
         <span class="diff-card-chevron" aria-hidden="true">
-          {expanded ? "⌄" : "›"}
+          <Chevron direction={expanded ? "down" : "right"} />
         </span>
         <span class="diff-card-title">
           <strong>{path}</strong>

@@ -1,7 +1,7 @@
 import type { DirectoryListing, RootInfo } from "../shared/api.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { folderName } from "./folder-name.ts";
-import { Icon } from "./Icons.tsx";
+import { Chevron, Icon } from "./Icons.tsx";
 import type { LoadState } from "./load-state.ts";
 
 type ProjectPickerProps = {
@@ -99,7 +99,7 @@ export function ProjectPicker({
               </span>
               <span class="folder-row-name">{entry.name}</span>
               <span class="row-arrow" aria-hidden="true">
-                ›
+                <Chevron />
               </span>
             </button>
           ))}

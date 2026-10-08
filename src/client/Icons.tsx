@@ -1,5 +1,23 @@
 export type IconName = "back" | "forward" | "folder" | "file" | "link" | "other";
 
+export function Chevron({ direction = "right" }: { direction?: "right" | "down" | "up" }) {
+  return (
+    <svg
+      class={`app-chevron app-chevron-${direction}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
 export function Icon({ name }: { name: IconName }) {
   return (
     <svg

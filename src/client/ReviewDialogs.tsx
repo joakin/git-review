@@ -10,6 +10,7 @@ import { useVoiceComment, VoiceCommentFooter } from "./VoiceComment.tsx";
 import type { FeedbackState } from "./feedback-transactions.ts";
 import { useModal } from "./modal.ts";
 import type { EditorState } from "./review-feedback.ts";
+import { Chevron } from "./Icons.tsx";
 
 function anchorLabel(anchor: CommentAnchor): string {
   return anchor.kind === "file"
@@ -265,7 +266,10 @@ export function FeedbackDialog({
             {store.history.map((entry) => (
               <details class="review-history-item" key={entry.id}>
                 <summary>
-                  {new Date(entry.copiedAt).toLocaleString()} · {entry.comments.length} comments
+                  <Chevron />
+                  <span>
+                    {new Date(entry.copiedAt).toLocaleString()} · {entry.comments.length} comments
+                  </span>
                 </summary>
                 <textarea
                   readOnly

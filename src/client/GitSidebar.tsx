@@ -4,6 +4,7 @@ import { DelayedLoading } from "./DelayedLoading.tsx";
 import type { GitRefs, GitHistoryPage } from "../shared/git.ts";
 import type { LoadState } from "./load-state.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
+import { SelectControl } from "./SelectControl.tsx";
 
 type GitListModel = {
   refs: LoadState<GitRefs>;
@@ -72,46 +73,48 @@ export function GitSidebar({
       <div class="git-branch-controls">
         <label>
           Branch
-          <select
-            aria-label="Git branch"
-            value={route.ref ?? ""}
-            onChange={(event) => onBranch(event.currentTarget.value)}
-          >
-            {route.ref === null && (
-              <option value="" disabled>
-                Select a branch
-              </option>
-            )}
-            {detached && (
-              <option value="HEAD">
-                Detached HEAD · {git.head.kind === "detached" ? git.head.oid.slice(0, 8) : ""}
-              </option>
-            )}
-            {!detached && route.ref === "HEAD" && <option value="HEAD">HEAD</option>}
-            {git.head.kind === "unborn" && (
-              <option value={git.head.ref}>{git.head.ref.slice(11)} · no commits</option>
-            )}
-            {unavailableRef && (
-              <option value={route.ref ?? ""}>
-                Unavailable · {route.ref?.replace(/^refs\/(heads|remotes)\//, "")}
-              </option>
-            )}
-            {(["local", "remote"] as const).map((kind) => {
-              const branches = git.branches.filter((branch) => branch.kind === kind);
-              return branches.length === 0 ? null : (
-                <optgroup
-                  label={kind === "local" ? "Local branches" : "Remote branches"}
-                  key={kind}
-                >
-                  {branches.map((branch) => (
-                    <option key={branch.ref} value={branch.ref}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </select>
+          <SelectControl>
+            <select
+              aria-label="Git branch"
+              value={route.ref ?? ""}
+              onChange={(event) => onBranch(event.currentTarget.value)}
+            >
+              {route.ref === null && (
+                <option value="" disabled>
+                  Select a branch
+                </option>
+              )}
+              {detached && (
+                <option value="HEAD">
+                  Detached HEAD · {git.head.kind === "detached" ? git.head.oid.slice(0, 8) : ""}
+                </option>
+              )}
+              {!detached && route.ref === "HEAD" && <option value="HEAD">HEAD</option>}
+              {git.head.kind === "unborn" && (
+                <option value={git.head.ref}>{git.head.ref.slice(11)} · no commits</option>
+              )}
+              {unavailableRef && (
+                <option value={route.ref ?? ""}>
+                  Unavailable · {route.ref?.replace(/^refs\/(heads|remotes)\//, "")}
+                </option>
+              )}
+              {(["local", "remote"] as const).map((kind) => {
+                const branches = git.branches.filter((branch) => branch.kind === kind);
+                return branches.length === 0 ? null : (
+                  <optgroup
+                    label={kind === "local" ? "Local branches" : "Remote branches"}
+                    key={kind}
+                  >
+                    {branches.map((branch) => (
+                      <option key={branch.ref} value={branch.ref}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+          </SelectControl>
         </label>
         <button
           class="git-refresh"

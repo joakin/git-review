@@ -112,6 +112,28 @@ after visual changes and inspect phone, tablet, and desktop layouts through the
 [QA workflow](qa-workflow.md). Browser emulation and real-device checks provide different evidence;
 record which was performed.
 
+Use the shared SVG chevron in [Icons](../src/client/Icons.tsx) for disclosure, dropdown, and folder
+navigation indicators. Its fixed square box and centered path keep alignment independent of fonts
+and expansion state; rotate the same shape when the direction changes. Center it within the control
+with flex or grid alignment, and keep it decorative so the control owns its accessible name and
+expanded state. Native dropdowns use [SelectControl](../src/client/SelectControl.tsx) for the closed
+arrow while retaining native menus, labels, keyboard operation, and focus. Native copy-history
+disclosures similarly retain their `details`/`summary` behavior with the shared icon replacing the
+browser marker.
+
+The 2026-10-08 chevron pass captured and inspected
+[Changes](../qa/screenshots/chevrons-changes/mobile.png),
+[Settings](../qa/screenshots/chevrons-settings/mobile.png),
+[host folders](../qa/screenshots/chevrons-folders/mobile.png),
+[Files](../qa/screenshots/chevrons-files/mobile.png),
+[file folders](../qa/screenshots/chevrons-file-folders/mobile.png),
+[Git](../qa/screenshots/chevrons-git/mobile.png), and copy history
+[closed](../qa/screenshots/chevrons-history/mobile.png) and
+[open](../qa/screenshots/chevrons-history-open/mobile.png). Each folder contains phone, tablet
+portrait, tablet landscape, and desktop images with a manifest. Browser checks also verified
+centering through pointer and keyboard toggles, native select changes, dark appearance, and narrow
+layouts. These checks do not establish physical iOS/Android rendering or native picker behavior.
+
 ## Documentation and verification
 
 Document decisions, constraints, and stable contracts that a future change needs to respect. Give

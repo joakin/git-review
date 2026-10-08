@@ -54,6 +54,7 @@
   --radius-card: 12px;
   --radius-panel: 16px;
   --radius-hero: 23px;
+  --chevron-size: 16px;
   --topbar-height: 68px;
   --topbar-height-mobile: 62px;
   --review-top: var(--topbar-height);

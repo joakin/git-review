@@ -39,6 +39,38 @@ button:focus-visible {
   flex: 0 0 20px;
 }
 
+.app-chevron {
+  display: block;
+  width: var(--chevron-size);
+  height: var(--chevron-size);
+  flex: 0 0 var(--chevron-size);
+  pointer-events: none;
+}
+.app-chevron-down {
+  transform: rotate(90deg);
+}
+.app-chevron-up {
+  transform: rotate(-90deg);
+}
+.select-control {
+  display: inline-grid;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.select-control > * {
+  grid-area: 1 / 1;
+}
+span.select-control > select {
+  appearance: none;
+  padding-inline-end: calc(var(--chevron-size) + var(--space-4));
+}
+.select-control > .app-chevron {
+  justify-self: end;
+  margin-inline-end: var(--space-2);
+  color: var(--color-text-muted);
+}
+
 .eyebrow,
 .section-label {
   margin: 0;
@@ -213,9 +245,11 @@ button:focus-visible {
   white-space: nowrap;
 }
 .row-arrow {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
   margin-left: auto;
   color: var(--color-text-faint);
-  font-size: var(--font-size-19);
 }
 .recent-section {
   margin-top: 22px;
@@ -1263,8 +1297,6 @@ button:focus-visible {
   border-radius: 6px;
   background: var(--color-page);
   color: var(--color-text-muted);
-  font-size: var(--font-size-20);
-  line-height: 1;
 }
 .diff-card-title {
   flex: 1;
@@ -2155,6 +2187,20 @@ button:focus-visible {
 .review-history-item {
   padding: var(--space-2) 0;
   font-size: var(--font-size-12);
+}
+.review-history-item summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.review-history-item summary::-webkit-details-marker {
+  display: none;
+}
+.review-history-item[open] > summary .app-chevron {
+  transform: rotate(90deg);
 }
 .review-history-item textarea {
   margin: var(--space-2) 0;

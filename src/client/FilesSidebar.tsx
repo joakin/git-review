@@ -1,6 +1,6 @@
 import type { FileTree, FileTreeEntry } from "../shared/api.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
-import { Icon } from "./Icons.tsx";
+import { Chevron, Icon } from "./Icons.tsx";
 import type { LoadState } from "./load-state.ts";
 
 type FilesSidebarProps = {
@@ -77,7 +77,7 @@ export function FilesSidebar({
               <span>{entry.name}</span>
               {entry.kind === "directory" && (
                 <span class="row-arrow" aria-hidden="true">
-                  ›
+                  <Chevron />
                 </span>
               )}
             </button>

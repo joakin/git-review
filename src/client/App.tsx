@@ -13,7 +13,7 @@ import { ContentHeading } from "./ContentHeading.tsx";
 import { GitSidebar } from "./GitSidebar.tsx";
 import { useGitBrowser } from "./git-browser.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
-import { Icon } from "./Icons.tsx";
+import { Chevron, Icon } from "./Icons.tsx";
 import { CodeSelectionActions } from "./CodeSelectionActions.tsx";
 import { SearchView, type SearchState } from "./SearchView.tsx";
 import { useProjectSession } from "./project-session.ts";
@@ -626,7 +626,7 @@ export function App() {
           <span class="switch-label">
             {project?.name ?? (routeProject === null ? "Choose folder" : folderName(routeProject))}
           </span>
-          <span aria-hidden="true">⌄</span>
+          <Chevron direction={menuOpen ? "up" : "down"} />
         </button>
       </header>
 
