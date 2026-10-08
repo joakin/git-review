@@ -40,9 +40,9 @@ for newly revealed code.
 
 Loading and read errors stay beside the affected separator while visible code remains usable. Retry
 repeats the failed direction. A stale source offers the existing **New edits · Update** flow. The
-buttons stay visible during horizontal code scrolling, retain keyboard focus, and provide phone-size
-touch targets. Accepted insertions preserve a visible source row's position; when the last insertion
-removes the focused separator, focus moves to a visible line action.
+buttons use compact rounded controls, stay visible during horizontal code scrolling, and retain
+keyboard focus. Accepted insertions preserve a visible source row's position; when the last
+insertion removes the focused separator, focus moves to a visible line action.
 
 Expansion lives in bounded tab memory for the exact project, layer, path and snapshot. Collapse and
 reopen preserve it; Update, Refresh and page reload reset it. Wrapping and theme changes preserve
@@ -111,8 +111,8 @@ malformed input. [Client context tests](../src/client/diff-context.test.ts) cove
 source-side anchors and bounded checking. [Context browser QA](../qa/check-diff-context.ts)
 exercises expansion, retry, language replay, cancellation, reading position/focus, reload feedback
 and contained scrolling at the four standard sizes plus a narrow phone. The
-[context milestone](../qa/screenshots/diff-context-controls/mobile.png) was captured and inspected
-at all four standard sizes. Physical-device gestures remain unverified.
+[compact context milestone](../qa/screenshots/diff-context-compact/mobile.png) was captured and
+inspected at all four standard sizes. Physical-device gestures remain unverified.
 
 A local 581,780-byte, 4,000-line source with twenty changed hunks was measured with seven warm
 samples per operation. Median initial reads were 13.7 ms without context metadata and 21.7 ms with

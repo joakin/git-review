@@ -48,6 +48,7 @@
   --space-10: 48px;
   --space-11: 64px;
   --space-12: 80px;
+  --radius-compact: 4px;
   --radius-small: 8px;
   --radius-control: 10px;
   --radius-card: 12px;
@@ -62,6 +63,8 @@
   --drawer-width-max: 370px;
   --diff-gutter-width: 44px;
   --diff-sign-width: 20px;
+  --diff-context-button-width: 28px;
+  --diff-context-button-height: 18px;
 
   /* Surface and text */
   --color-ink: #192838;
