@@ -1,0 +1,1494 @@
+{
+  "measuredOn": "2026-10-08",
+  "baselineCommit": "266ca37",
+  "implementationCommit": "cf5f58e",
+  "browser": "Installed Google Chrome via playwright-core, headless, 390×844 touch emulation",
+  "transport": "HTTP loopback; 75ms rows add a fixed delay before each source-check API request, not a bandwidth limit",
+  "sampling": "One discarded warm-up, five samples per action and implementation, alternating before/after order",
+  "timing": "Capturing DOM click event to Copy enabled mutation; Copy click to resolution of an immediate controlled clipboard promise. Does not measure native clipboard, physical device or Tailscale latency.",
+  "fixtures": "Five tracked 500-line (~23KiB) text files, one replacement each. File-only has three working-file anchors; mixed has five canonical diff plus three file anchors; revealed has five New-side line40 anchors outside canonical hunks. Unrelated fixture additionally has 300 modified tracked and 300 untracked ~2–3KiB files.",
+  "bytes": "Uncompressed response body bytes from Content-Length, with response.body fallback; request bytes include URL pathname/query and body, excluding origin and HTTP headers. Both fresh opening and fresh copy checks counted independently.",
+  "correctness": "Every preview and controlled clipboard export equals formatFeedback for the saved batch; successful copy and Undo performed after each sample. Request counts asserted for every recorded action.",
+  "results": [
+    {
+      "case": "file-only",
+      "latencyPerRequestMs": 0,
+      "before": [
+        {
+          "opening": {
+            "ms": 24.299999952316284,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 15.100000143051147,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 23,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 15.299999952316284,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 23.90000009536743,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 15.299999952316284,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 24.299999952316284,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 15.299999952316284,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 24,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 15.200000047683716,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 18.90000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 11.100000143051147,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 19.300000190734863,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 10.400000095367432,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 20.100000143051147,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 10.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 19.799999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 10.700000047683716,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 20,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 10.400000095367432,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        }
+      ]
+    },
+    {
+      "case": "five-diff-files",
+      "latencyPerRequestMs": 0,
+      "before": [
+        {
+          "opening": {
+            "ms": 234.89999985694885,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 234,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 236.39999985694885,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 235.20000004768372,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 238.10000014305115,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 236.09999990463257,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 239.5,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 235.79999995231628,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 238.5,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 237.20000004768372,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 39.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 39.40000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 40.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 39.299999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 40.700000047683716,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 39.09999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 39.80000019073486,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 40,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 40.59999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 40.30000019073486,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        }
+      ]
+    },
+    {
+      "case": "mixed",
+      "latencyPerRequestMs": 0,
+      "before": [
+        {
+          "opening": {
+            "ms": 240.70000004768372,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 243.70000004768372,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 242.89999985694885,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 247.70000004768372,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 240.80000019073486,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 238.60000014305115,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 244.5,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 239.70000004768372,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 245.79999995231628,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 242.19999980926514,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 40.89999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 40,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 39.799999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 87.59999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 40.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 39.299999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 41.200000047683716,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 40.299999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 40.799999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 39.299999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        }
+      ]
+    },
+    {
+      "case": "revealed-context",
+      "latencyPerRequestMs": 0,
+      "before": [
+        {
+          "opening": {
+            "ms": 388.7999999523163,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 390.7000000476837,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 384.19999980926514,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 387.39999985694885,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 379.69999980926514,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 378.7999999523163,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 404.2000000476837,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 459.89999985694885,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 421.90000009536743,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 392,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 41.90000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 42.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 41.89999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 41.299999952316284,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 41.09999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 40.59999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 43.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 40.69999980926514,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 42.10000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 40.89999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        }
+      ]
+    },
+    {
+      "case": "five-diff-files-with-600-unrelated",
+      "latencyPerRequestMs": 0,
+      "before": [
+        {
+          "opening": {
+            "ms": 620.8000001907349,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 607.7000000476837,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 608.2999999523163,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 593.7000000476837,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 600.5999999046326,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 595.9000000953674,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 595.6000001430511,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 596.5,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 612.6000001430511,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 602.5,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 79.40000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 73.80000019073486,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 75.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 76.20000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 75.20000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 72.39999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 73.79999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 71.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 75.39999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 77.10000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        }
+      ]
+    },
+    {
+      "case": "file-only",
+      "latencyPerRequestMs": 75,
+      "before": [
+        {
+          "opening": {
+            "ms": 248.79999995231628,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 249,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 251.30000019073486,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 260.2999999523163,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 251.29999995231628,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 256.7999999523163,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 247.40000009536743,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 251,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        },
+        {
+          "opening": {
+            "ms": 255.29999995231628,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          },
+          "copy": {
+            "ms": 261.09999990463257,
+            "requests": 3,
+            "requestUrlAndBodyBytes": 492,
+            "responseBodyBytes": 234678
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 83,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 83.09999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 83.59999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 85.10000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 83.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 83.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 83.20000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 84.40000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        },
+        {
+          "opening": {
+            "ms": 86.09999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          },
+          "copy": {
+            "ms": 84.39999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 870,
+            "responseBodyBytes": 45
+          }
+        }
+      ]
+    },
+    {
+      "case": "five-diff-files",
+      "latencyPerRequestMs": 75,
+      "before": [
+        {
+          "opening": {
+            "ms": 736,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 736.2000000476837,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 731.6000001430511,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 733.5,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 733,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 733.7999999523163,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 727.3999998569489,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 734.5999999046326,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        },
+        {
+          "opening": {
+            "ms": 736.0999999046326,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          },
+          "copy": {
+            "ms": 734.2000000476837,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1250,
+            "responseBodyBytes": 12487
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 120.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 121.29999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 119.10000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 121.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 120.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 122.19999980926514,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 120,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 122.29999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 120.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 122.29999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1061,
+            "responseBodyBytes": 55
+          }
+        }
+      ]
+    },
+    {
+      "case": "mixed",
+      "latencyPerRequestMs": 75,
+      "before": [
+        {
+          "opening": {
+            "ms": 981.5999999046326,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 993.1000001430511,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 981.7999999523163,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 985.8000001907349,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 985.7999999523163,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 998.8999998569489,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 987.7999999523163,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 990.5,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        },
+        {
+          "opening": {
+            "ms": 986,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          },
+          "copy": {
+            "ms": 1003.2999999523163,
+            "requests": 9,
+            "requestUrlAndBodyBytes": 1742,
+            "responseBodyBytes": 247165
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 122.89999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 121.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 121.79999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 121.09999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 120.39999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 119.79999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 121.40000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 121.39999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        },
+        {
+          "opening": {
+            "ms": 122.20000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          },
+          "copy": {
+            "ms": 120.29999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1790,
+            "responseBodyBytes": 70
+          }
+        }
+      ]
+    },
+    {
+      "case": "revealed-context",
+      "latencyPerRequestMs": 75,
+      "before": [
+        {
+          "opening": {
+            "ms": 1300.7000000476837,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 1315.4000000953674,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 1305.7000000476837,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 1303.8999998569489,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 1311.9000000953674,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 1306.4000000953674,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 1307.7999999523163,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 1304.6999998092651,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        },
+        {
+          "opening": {
+            "ms": 1304.0999999046326,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          },
+          "copy": {
+            "ms": 1316.5,
+            "requests": 11,
+            "requestUrlAndBodyBytes": 3670,
+            "responseBodyBytes": 12662
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 123.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 124.20000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 121.89999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 124.90000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 121.09999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 124,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 122.39999985694885,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 123.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 121.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 125.60000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1416,
+            "responseBodyBytes": 55
+          }
+        }
+      ]
+    },
+    {
+      "case": "five-diff-files-with-600-unrelated",
+      "latencyPerRequestMs": 75,
+      "before": [
+        {
+          "opening": {
+            "ms": 1110.2000000476837,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 1115.2999999523163,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 1128.1000001430511,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 1116.6000001430511,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 1106.2999999523163,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 1253.8999998569489,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 1107,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 1219,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        },
+        {
+          "opening": {
+            "ms": 1308,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          },
+          "copy": {
+            "ms": 1267.7999999523163,
+            "requests": 6,
+            "requestUrlAndBodyBytes": 1274,
+            "responseBodyBytes": 101667
+          }
+        }
+      ],
+      "after": [
+        {
+          "opening": {
+            "ms": 157.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 158.79999995231628,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 163.90000009536743,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 163.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 174.30000019073486,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 163,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 158.10000014305115,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 157.5,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        },
+        {
+          "opening": {
+            "ms": 159.59999990463257,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          },
+          "copy": {
+            "ms": 158.70000004768372,
+            "requests": 1,
+            "requestUrlAndBodyBytes": 1065,
+            "responseBodyBytes": 55
+          }
+        }
+      ]
+    }
+  ]
+}

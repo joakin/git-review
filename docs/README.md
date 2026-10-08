@@ -29,6 +29,9 @@ iPad/Safari verification remains pending.
 The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
 behavior and its feedback, syntax and loading owners.
 
+The [feedback check performance closure](feedback-check-performance-proposal.md) links the accepted
+batch-check behavior, independent reviews, and measured work reduction.
+
 ## Behavior records
 
 | Area                                  | Authoritative record                                                                                                                                                                                                     |

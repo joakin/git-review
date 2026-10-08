@@ -84,12 +84,25 @@ distinct, with fragment positions/text included in selection identity. The
 neighboring context beyond the saved-source bound cannot create an anchor. In working-tree Files,
 the direct line control explains that limit.
 
-Opening Feedback checks sources before making export available. Diff drafts use fresh status and
-plain-text diffs by path/layer. File drafts reread each commented working-tree path once as plain
-text; file-only batches need no Git status. These mutable reads bypass browser caching. The source,
-line number, exact source text, and neighboring context must still match, including the side for a
-diff. An unrelated edit elsewhere need not invalidate an unchanged file anchor. Git status revision
-alone is insufficient because content can change without changing it.
+Opening Feedback checks sources before making export available. Opening, Check lines, and Copy each
+submit one deduplicated anchor batch to the [feedback checker](../src/server/feedback-check.ts).
+Empty drafts need no request. Only anchors leave the browser; comment bodies, subjects, IDs and copy
+history remain local. The server returns one match result per anchor, with no status statistics,
+display rows, syntax, word details or expandable context. These mutable reads bypass browser
+caching. The source, line number, exact source text, and neighboring context must still match,
+including the side for a diff. An unrelated edit elsewhere need not invalidate an unchanged file
+anchor. Git status revision alone is insufficient because content can change without changing it.
+
+Diff batches share two fresh project inventories, preserving rename origins and review-layer
+semantics. Additional working-path fingerprinting is confined to feedback sources. Canonical hunk
+matches need only one raw patch per path/layer; unmatched anchors read only the necessary source
+sides, shared within the batch. Working-file comments share one bounded read per distinct path, and
+file-only batches perform no Git operations. Mixed Files/diff checks can share raw working bytes
+while retaining Files' CRLF normalization and diffs' exact text semantics. A changed inventory or
+relevant working-path version during the batch blocks export for Retry. This detects intervening
+changes without claiming an atomic repository snapshot. The
+[shared API boundary](../src/shared/feedback-check.ts) and checker define request, source-work and
+concurrency limits; errors and cancellation preserve drafts.
 
 Revealing [diff context](diff-slice.md#revealing-unchanged-context) does not rewrite ordinary hunk
 anchors. Newly revealed rows use exact neighbors from the chosen source side, including neighbors
@@ -100,10 +113,10 @@ format. Source checks do not require the ordinary patch to fit its display budge
 bounded reads block export for Retry; missing/non-text sources and mismatched text or neighbors mark
 drafts outdated.
 
-A changed, missing, or non-text source makes the draft outdated and excludes it from export. A
-working-file `file_not_found` response represents that absence; project access, permission, network,
-and other read failures retain drafts and block export until a successful Retry. Never silently
-relocate a comment to another matching line or occurrence.
+A changed, missing, or non-text source makes the draft outdated and excludes it from export. The
+checker distinguishes working-file absence from project access, permission, network, and other read
+failures, which retain drafts and block export until a successful Retry. Never silently relocate a
+comment to another matching line or occurrence.
 
 Reattachment explicitly asks for a new line or fragment in the same project and source kind.
 Working-tree reattachment refreshes and opens the file at the anchored line; diff reattachment opens
@@ -163,6 +176,55 @@ exact archival, and Undo. Browser checks cover Files/Search identity, non-Git fe
 creation, reload, stale exclusion/reattachment, selection across tokens/wrapped text, unsupported
 sources, clipboard denial, and pending transactions. The [QA workflow](qa-workflow.md) owns commands
 and capture procedures.
+
+The source-check performance repair was accepted and completed on 2026-10-08 in three independently
+reviewed steps; the [closure](feedback-check-performance-proposal.md) records their outcomes. Server
+tests guard two inventories for five canonical diff files, no additional complete-source reads for
+canonical matches, no Git for file-only batches, selected working-path fingerprints, shared source
+reads, fallback beyond patch limits, mutation rejection and cancellation. Client tests guard one
+deduplicated request for both opening and copying, no request for empty drafts, validated responses
+and the existing transaction guarantees.
+
+Local before/after measurements compare the original app at `266ca37` with the implementation at
+`cf5f58e`, using identical fixtures and installed headless Chrome at 390 × 844 with touch emulation.
+Each action has one discarded warm-up and five recorded samples, with alternating before/after
+order. Opening is timed from its click event until Copy becomes enabled. Copy is timed from its
+click event until an immediate controlled clipboard promise resolves, excluding native clipboard
+delay. Each preview and clipboard export is checked against the saved batch, followed by successful
+archival and Undo. The [raw measurements](../qa/measurements/feedback-check-performance.json)
+contain every sample, request/body size and the complete fixture and timing description.
+
+These are median milliseconds over HTTP loopback without added latency. The request and response
+columns describe one fresh check, and the counts hold for both actions in every sample:
+
+| Batch                                      | Open before → after | Copy before → after | Requests before → after | Response bytes before → after |
+| ------------------------------------------ | ------------------- | ------------------- | ----------------------- | ----------------------------- |
+| Three working files                        | 24.0 → 19.8         | 15.3 → 10.5         | 3 → 1                   | 234,678 → 45                  |
+| Five canonical diff files                  | 238.1 → 40.5        | 235.8 → 39.4        | 6 → 1                   | 12,487 → 55                   |
+| Five diff and three file anchors           | 242.9 → 40.8        | 242.2 → 40.0        | 9 → 1                   | 247,165 → 70                  |
+| Five revealed-context anchors              | 388.8 → 41.9        | 390.7 → 40.9        | 11 → 1                  | 12,662 → 55                   |
+| Five diff files with 600 unrelated changes | 608.3 → 75.4        | 596.5 → 73.8        | 6 → 1                   | 101,667 → 55                  |
+
+The files have 500 lines and about 23 KiB each. The last case adds 300 modified tracked files and
+300 untracked files of about 2–3 KiB each; feedback excludes their explicit application source reads
+and statistics preparation. The two shared Git inventories still discover those entries, and Git may
+inspect tracked content internally. A separate run adds a fixed 75 ms delay before each source-check
+request. For five canonical diff files, opening changes from 733.0 to 120.5 ms and controlled
+copying from 734.2 to 122.2 ms. This illustrates round-trip savings without simulating bandwidth,
+native clipboard, a physical phone or Tailscale.
+
+The feedback, working-file, selected-fragment and pending-transaction browser checks passed against
+isolated fixture servers. Working-file and selection flows covered 320, 390, 820, 1180 and 1440
+pixel widths; clipboard checks used the granted Chrome Clipboard API, while transaction races
+controlled promises. The repair changes source-check work without changing visible layout, so no new
+screenshot milestone was captured. Physical iOS/Android clipboard and Tailscale timings remain
+unverified.
+
+The full suite passed 278 tests, and formatting, typecheck, CSS-token validation and the client
+build passed. After rebuilding the working app, the mobile feedback flow passed again, including
+native Chrome copy, history, Undo, fallback, outdated exclusion, reattachment and Delete. Both
+existing HTTP and HTTPS backends served the new no-store check with their previous root and origin
+configuration.
 
 These inspected Chrome-emulation milestones cover all four sizes without page-wide overflow:
 
