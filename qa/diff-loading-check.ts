@@ -187,11 +187,15 @@ export async function checkDiffLoading(browser: Browser, base: URL): Promise<voi
           return window.diffLoadingQa.statuses;
         });
         await picker.selectOption("python");
-        await page.locator(".changes-update").waitFor({ state: "visible" });
+        await page
+          .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+          .waitFor({ state: "visible" });
         await settle(page);
         if ((await page.evaluate(() => window.diffLoadingQa.statuses)) !== statuses)
           throw new Error("Stale cards automatically refreshed the displayed snapshot");
-        await page.locator(".changes-update").click();
+        await page
+          .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+          .click();
         await page.waitForFunction(
           (statuses) => window.diffLoadingQa.statuses > statuses,
           statuses,

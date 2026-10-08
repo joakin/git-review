@@ -43,6 +43,10 @@ current formats, previews matching-data replacement, and writes only after the e
 action. Matching records and global choices are replaced; other projects and the active tab stay in
 place. A failed write attempts rollback and reports when restoration may be incomplete.
 
+Install/backup failures and export confirmations use the
+[application notifications](application-notifications.md) above the open dialog. Import previews and
+replacement decisions remain in the dialog.
+
 Changing scheme, hostname, or port creates a different browser origin; review data does not sync or
 move automatically. Installed iOS storage can also be separate from Safari. Use explicit backup
 transfer between origins instead of assuming installation preserves drafts. Navigation history and

@@ -5,6 +5,7 @@ import type { GitRefs, GitHistoryPage } from "../shared/git.ts";
 import type { LoadState } from "./load-state.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
 import { SelectControl } from "./SelectControl.tsx";
+import { useNotification } from "./Notifications.tsx";
 
 type GitListModel = {
   refs: LoadState<GitRefs>;
@@ -30,6 +31,41 @@ export function GitSidebar({
   onBranch: (ref: string) => void;
   onCommit: (oid: string) => void;
 }) {
+  const resource = `${route.projectPath}:${route.ref}`;
+  useNotification(
+    `git-refs:${resource}`,
+    model.refs.kind === "error"
+      ? {
+          message: model.refs.message,
+          severity: "error",
+          action: { label: "Retry", run: commands.refreshHistory },
+        }
+      : null,
+  );
+  useNotification(
+    `git-history:${resource}`,
+    model.history.kind === "error" && model.refs.kind === "ready"
+      ? {
+          message: model.history.message,
+          severity: "error",
+          action: { label: "Retry", run: commands.refreshHistory },
+        }
+      : null,
+  );
+  useNotification(
+    `git-page:${resource}`,
+    model.pageError !== null
+      ? {
+          message: model.pageError,
+          severity: "error",
+          action: {
+            label: "Retry",
+            run: commands.loadOlder,
+            disabled: model.paging || model.refreshing,
+          },
+        }
+      : null,
+  );
   const container = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const sidebar = container.current?.closest(".sidebar");
@@ -50,15 +86,7 @@ export function GitSidebar({
   const refs = model.refs;
   if (refs.kind === "loading")
     return <DelayedLoading className="sidebar-message" message="Reading Git history…" />;
-  if (refs.kind === "error")
-    return (
-      <div class="sidebar-error" role="alert">
-        {refs.message}{" "}
-        <button type="button" onClick={commands.refreshHistory}>
-          Retry
-        </button>
-      </div>
-    );
+  if (refs.kind === "error") return <p class="sidebar-message">Git history unavailable.</p>;
   if (refs.value.kind === "not_git")
     return <p class="sidebar-message">This folder is not a Git worktree.</p>;
   const git = refs.value;
@@ -126,22 +154,12 @@ export function GitSidebar({
         </button>
       </div>
       {git.scope !== "" && <p class="git-scope">History scoped to /{git.scope}</p>}
-      {model.pageError !== null && (
-        <div class="sidebar-error" role="alert">
-          {model.pageError}
-        </div>
-      )}
       {model.unborn ? (
         <p class="sidebar-message">This branch has no commits yet.</p>
       ) : route.ref === null ? null : model.history.kind === "loading" ? (
         <DelayedLoading className="sidebar-message" message="Reading commits…" />
       ) : model.history.kind === "error" ? (
-        <div class="sidebar-error" role="alert">
-          {model.history.message}{" "}
-          <button type="button" onClick={commands.refreshHistory}>
-            Retry
-          </button>
-        </div>
+        <p class="sidebar-message">Commits unavailable.</p>
       ) : (
         <>
           {model.history.value.commits.length === 0 && (

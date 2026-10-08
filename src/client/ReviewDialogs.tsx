@@ -122,7 +122,6 @@ export function FeedbackDialog({
   store,
   projectPath,
   state,
-  undoError,
   onClose,
   onCheck,
   onCopy,
@@ -135,7 +134,6 @@ export function FeedbackDialog({
   store: CommentStore;
   projectPath: string;
   state: FeedbackState;
-  undoError: string | null;
   onClose: () => void;
   onCheck: () => void;
   onCopy: () => void;
@@ -185,14 +183,6 @@ export function FeedbackDialog({
           <p class="review-status" role="status">
             Copying feedback…
           </p>
-        )}
-        {state.check.kind === "error" && (
-          <div class="review-error" role="alert">
-            {state.check.message}{" "}
-            <button type="button" onClick={onCheck} disabled={state.copy.kind === "copying"}>
-              Retry
-            </button>
-          </div>
         )}
         {store.drafts.length === 0 && (
           <p class="review-empty">
@@ -249,16 +239,6 @@ export function FeedbackDialog({
               Select text
             </button>
           </div>
-        )}
-        {state.copy.kind === "error" && (
-          <p class="review-error" role="alert">
-            {state.copy.message}
-          </p>
-        )}
-        {undoError !== null && (
-          <p class="review-error" role="alert">
-            {undoError}
-          </p>
         )}
         {store.history.length > 0 && (
           <section class="review-history">

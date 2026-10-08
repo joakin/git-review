@@ -67,6 +67,10 @@
   --diff-context-button-width: 28px;
   --diff-context-button-height: 18px;
   --control-height-compact: 32px;
+  --notification-width: 560px;
+  --notification-control-size: 44px;
+  --notification-dock-offset: 72px;
+  --shadow-notification: 0 4px 24px #0a1c2a33;
   --language-picker-compact-width: 112px;
 
   /* Surface and text */

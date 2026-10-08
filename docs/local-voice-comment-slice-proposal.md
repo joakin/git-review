@@ -21,6 +21,10 @@ selected range, then returns to editable text. Failure preserves the body and in
 **Retry**; Cancel restores typing. A transcript that would exceed the comment limit is rejected
 without altering the body.
 
+Permission, recording and transcription failures use
+[application notifications](application-notifications.md). Recording progress and Retry/Cancel
+remain in the composer; dismissing a notice does not discard the saved clip.
+
 Closing the editor saves typed feedback through the [feedback owner](feedback-slice-proposal.md),
 stops the microphone, cancels pending requests, and discards audio. Late results cannot enter a
 reopened editor. Clips never enter browser storage or backups.

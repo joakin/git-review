@@ -27,6 +27,11 @@ lifetime. Closing the editor stops recording and discards pending audio while pr
 
 ## Line actions and diff sides
 
+Check/copy/Undo failures and copy confirmations use the
+[application notifications](application-notifications.md), including above an open feedback dialog.
+Pending transactions retain their ownership when the dialog closes; late current failures can still
+notify on the page. Outdated comment state and Reattach controls remain with each affected item.
+
 A completed short stationary tap reveals a transient action near the row. Long press, dragging,
 double-tap selection, and existing selected text keep native selection priority; pointer-down on
 code is not canceled. The line action shows available numbers and existing comment counts. It

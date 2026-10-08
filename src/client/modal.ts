@@ -1,5 +1,6 @@
 import type { RefObject } from "preact";
 import { useEffect, useRef } from "preact/hooks";
+import { useNotificationModal } from "./Notifications.tsx";
 
 type Modal = {
   ref: RefObject<HTMLDialogElement>;
@@ -7,6 +8,7 @@ type Modal = {
 };
 
 export function useModal(onClose: () => void): Modal {
+  const registerModal = useNotificationModal();
   const ref = useRef<HTMLDialogElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -17,8 +19,14 @@ export function useModal(onClose: () => void): Modal {
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     dialog?.showModal();
+    const unregisterModal = dialog === null ? () => {} : registerModal(dialog);
     const onPointerDown = (event: PointerEvent) => {
       if (dialog === null || !dialog.open) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".notification-viewport") !== null
+      )
+        return;
       const rect = dialog.getBoundingClientRect();
       if (
         event.clientX < rect.left ||
@@ -31,6 +39,7 @@ export function useModal(onClose: () => void): Modal {
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
+      unregisterModal();
       dialog?.close();
       document.body.style.overflow = previousBodyOverflow;
       document.documentElement.style.overflow = previousDocumentOverflow;

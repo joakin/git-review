@@ -18,6 +18,7 @@ import { SelectableCode } from "./code-selection.tsx";
 import { MediaPreview } from "./MediaPreview.tsx";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import type { LoadState } from "./load-state.ts";
+import { useNotification } from "./Notifications.tsx";
 
 export function FileViewer({
   projectPath,
@@ -72,6 +73,29 @@ export function FileViewer({
     result.lines[searchTarget.line - 1] !== undefined &&
     (searchTarget.query === null ||
       result.lines[searchTarget.line - 1]?.text.includes(searchTarget.query) === true);
+  useNotification(
+    `file-load:${projectPath}:${path}`,
+    state.kind === "error"
+      ? {
+          message: `${path}: ${
+            searchTarget?.query === undefined || searchTarget.query === null
+              ? state.message
+              : `This search result may have changed or been deleted. ${state.message} Refresh Search for updated results.`
+          }`,
+          severity: "error",
+          action: { label: "Retry", run: () => setRetry((value) => value + 1) },
+        }
+      : null,
+  );
+  useNotification(
+    `file-target:${projectPath}:${path}:${searchTarget?.line}:${searchTarget?.query}`,
+    result?.kind === "text" && searchTarget !== null && !targetMatches
+      ? {
+          message: `${path}: ${searchTarget.query === null ? "This line is no longer in the current file." : "This search result has changed. The current file is shown; refresh Search for an updated line."}`,
+          severity: "warning",
+        }
+      : null,
+  );
   useEffect(() => {
     if (result?.kind !== "text" || searchTarget === null) return;
     const frame = requestAnimationFrame(() => {
@@ -104,16 +128,7 @@ export function FileViewer({
       {state.kind === "loading" && (
         <DelayedLoading className="diff-message" message="Loading file…" />
       )}
-      {state.kind === "error" && (
-        <div class="diff-message" role="alert">
-          {searchTarget?.query === undefined || searchTarget.query === null
-            ? state.message
-            : `This search result may have changed or been deleted. ${state.message} Refresh Search for updated results.`}{" "}
-          <button type="button" onClick={() => setRetry((value) => value + 1)}>
-            Retry
-          </button>
-        </div>
-      )}
+      {state.kind === "error" && <p class="diff-message">File unavailable.</p>}
       {result?.kind === "binary" && (
         <p class="diff-message">
           This file contains binary or invalid UTF-8 content. There are no text lines to show.
@@ -132,13 +147,6 @@ export function FileViewer({
       )}
       {result?.kind === "unsupported" && (
         <p class="diff-message">This is not a regular file and cannot be shown as text.</p>
-      )}
-      {result?.kind === "text" && searchTarget !== null && !targetMatches && (
-        <p class="file-search-stale" role="status">
-          {searchTarget.query === null
-            ? "This line is no longer in the current file."
-            : "This search result has changed. The current file is shown; refresh Search for an updated line."}
-        </p>
       )}
       {result?.kind === "text" &&
         (result.lines.length === 0 ? (

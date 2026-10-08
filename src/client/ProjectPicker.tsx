@@ -3,6 +3,7 @@ import { DelayedLoading } from "./DelayedLoading.tsx";
 import { folderName } from "./folder-name.ts";
 import { Chevron, Icon } from "./Icons.tsx";
 import type { LoadState } from "./load-state.ts";
+import { useNotification } from "./Notifications.tsx";
 
 type ProjectPickerProps = {
   root: LoadState<RootInfo>;
@@ -23,6 +24,16 @@ export function ProjectPicker({
   onBrowseDirectory,
   onSelectFolder,
 }: ProjectPickerProps) {
+  useNotification(
+    `folders:${path}`,
+    listing.kind === "error" && root.kind !== "error"
+      ? {
+          message: listing.message,
+          severity: "error",
+          action: { label: "Back to root", run: () => onBrowseDirectory("") },
+        }
+      : null,
+  );
   const rootLabel = root.kind === "ready" ? root.value.label : "Host folders";
   const folderLabel = listing.kind === "ready" ? folderName(listing.value.path) : folderName(path);
   return (
@@ -34,7 +45,7 @@ export function ProjectPicker({
           {root.kind === "ready" ? (
             <span>{root.value.path}</span>
           ) : root.kind === "error" ? (
-            <span>{root.message}</span>
+            <span>Host unavailable.</span>
           ) : (
             <DelayedLoading className="root-loading" message="Connecting to the local server…" />
           )}
@@ -75,14 +86,7 @@ export function ProjectPicker({
         {listing.kind === "loading" && (
           <DelayedLoading key={path} className="sidebar-message" message="Loading folders…" />
         )}
-        {listing.kind === "error" && (
-          <div class="sidebar-error" role="alert">
-            <p>{listing.message}</p>
-            <button type="button" onClick={() => onBrowseDirectory("")}>
-              Back to root
-            </button>
-          </div>
-        )}
+        {listing.kind === "error" && <p class="sidebar-message">Folders unavailable.</p>}
         {listing.kind === "ready" && listing.value.entries.length === 0 && (
           <p class="sidebar-message">No subfolders here.</p>
         )}

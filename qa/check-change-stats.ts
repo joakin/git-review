@@ -174,7 +174,9 @@ try {
             typeof body === "object" && body !== null && !("entries" in body),
             "Polling returned the full review payload",
           );
-          await page.locator(".changes-update").waitFor({ state: "visible" });
+          await page
+            .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+            .waitFor({ state: "visible" });
           assert(
             (await page
               .locator(
@@ -188,7 +190,9 @@ try {
               new URL(response.url()).pathname.endsWith("/status") &&
               new URL(response.url()).search === "",
           );
-          await page.locator(".changes-update").click();
+          await page
+            .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+            .click();
           const snapshot = parseStatusResponse(await (await refreshed).json());
           assert(snapshot.kind === "git", "Update lost the Git inventory");
           await page.waitForFunction(

@@ -79,8 +79,10 @@ try {
     const phone = openPages[0];
     if (phone === undefined) throw new Error("Phone page was not created");
     let statusRequests = 0;
+    let feedbackChecks = 0;
     phone.page.on("request", (request) => {
       if (new URL(request.url()).pathname.endsWith("/status")) statusRequests += 1;
+      if (new URL(request.url()).pathname.endsWith("/feedback/check")) feedbackChecks += 1;
     });
     await phone.card.locator(".diff-row-added").filter({ hasText: "message" }).tap();
     await phone.card.locator(".diff-line-action").click();
@@ -99,9 +101,10 @@ try {
     await phone.page.getByRole("button", { name: "Save comment" }).click();
     await (await afterEditor).finished();
     const beforeFeedback = statusRequests;
+    const beforeFeedbackChecks = feedbackChecks;
     await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).click();
     await phone.page.locator("#review-export-text").waitFor({ state: "visible" });
-    if (statusRequests !== beforeFeedback + 1)
+    if (statusRequests !== beforeFeedback || feedbackChecks !== beforeFeedbackChecks + 1)
       throw new Error(
         "Opening Feedback should perform one explicit line check without background polling",
       );
@@ -133,7 +136,9 @@ try {
     await writeFile(source, content("other"));
     await Promise.all(
       openPages.map(async ({ page, card }) => {
-        await page.locator(".changes-update").waitFor({ state: "visible", timeout: 16_000 });
+        await page
+          .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+          .waitFor({ state: "visible", timeout: 16_000 });
         if (!(await card.textContent())?.includes('message = "first"'))
           throw new Error("Pending update replaced the displayed diff");
         if ((await card.textContent())?.includes('message = "other"'))
@@ -159,7 +164,11 @@ try {
 
     await phone.page.setViewportSize({ width: 320, height: 700 });
     const narrowFit = await phone.page.evaluate(() => {
-      const update = document.querySelector(".changes-update")?.getBoundingClientRect();
+      const update = document
+        .querySelector(
+          ".notification[data-notification-key^='changes-update:'] .notification-action",
+        )
+        ?.getBoundingClientRect();
       const feedback = document.querySelector(".feedback-launch")?.getBoundingClientRect();
       return {
         update,
@@ -177,7 +186,9 @@ try {
     await assertNoHorizontalOverflow(phone.page);
     await phone.page.setViewportSize(qaDimensions.phone);
 
-    await phone.page.locator(".changes-update").click();
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .click();
     await phone.card.getByText('export const message = "other";').waitFor({ state: "visible" });
     if ((await phone.card.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true")
       throw new Error("Update collapsed the open card");
@@ -204,7 +215,11 @@ try {
     });
     await writeFile(source, content("third"));
     await phone.page.clock.fastForward(11_000);
-    if (await phone.page.locator(".changes-update").isVisible())
+    if (
+      await phone.page
+        .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+        .isVisible()
+    )
       throw new Error("Hidden tab still showed an update");
     await phone.page.evaluate(() => {
       Object.defineProperty(document, "visibilityState", {
@@ -213,8 +228,12 @@ try {
       });
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    await phone.page.locator(".changes-update").waitFor({ state: "visible", timeout: 3_000 });
-    await phone.page.locator(".changes-update").click();
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .waitFor({ state: "visible", timeout: 3_000 });
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .click();
     await phone.card.getByText('export const message = "third";').waitFor({ state: "visible" });
 
     let activeChecks = 0;
@@ -241,7 +260,10 @@ try {
     if (maximumChecks !== 1 || !(await phone.card.textContent())?.includes('message = "third"'))
       throw new Error("Polling requests overlapped or a check failure replaced the review");
     await phone.page.unroute("**/api/project/status**");
-    await phone.page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await phone.page
+      .locator(".changes-heading")
+      .getByRole("button", { name: "Refresh", exact: true })
+      .click();
     await phone.page
       .getByRole("status")
       .filter({ hasText: "Could not check for new edits" })
@@ -279,7 +301,9 @@ try {
       });
     });
     await phone.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
-    await phone.page.locator(".changes-update").waitFor({ state: "visible" });
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .waitFor({ state: "visible" });
     const inventory = await phone.page
       .locator("main .diff-card")
       .evaluateAll((cards) =>
@@ -305,15 +329,17 @@ try {
         )
       );
     });
-    await phone.page.locator(".changes-update").click();
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .click();
     await refetched;
     await phone.page
       .getByRole("alert")
       .filter({ hasText: "QA update failure" })
       .waitFor({ state: "visible" });
     await phone.page
-      .locator(".changes-update")
-      .getByText("New edits · Update", { exact: true })
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .getByText("Update", { exact: true })
       .waitFor({ state: "visible" });
     await phone.card.getByText('export const message = "third";').waitFor({ state: "visible" });
     const retainedInventory = await phone.page
@@ -343,9 +369,13 @@ try {
       throw new Error("Failed Update collapsed a card or lost the draft");
     await phone.page.unroute("**/api/project/status**");
     await writeFile(source, content("recovered"));
-    await phone.page.locator(".changes-update").click();
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .click();
     await phone.card.getByText('export const message = "recovered";').waitFor({ state: "visible" });
-    await phone.page.locator(".changes-update").waitFor({ state: "detached" });
+    await phone.page
+      .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
+      .waitFor({ state: "detached" });
     if (
       !(await phone.page.getByRole("button", { name: "Feedback 1", exact: true }).isVisible()) ||
       (await readingCard.locator(".diff-card-toggle").getAttribute("aria-expanded")) !== "true"

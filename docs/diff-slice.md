@@ -61,8 +61,9 @@ Existing anchors retain their original hunk neighbors;
 [feedback](feedback-slice-proposal.md#anchor-identity-and-checking) owns source-neighbor checking
 for newly revealed code.
 
-Loading and read errors stay beside the affected separator while visible code remains usable. Retry
-repeats the failed direction. A stale source offers the existing **New edits · Update** flow. The
+Loading stays beside the affected separator while visible code remains usable. Read errors use a
+file-specific [notification](application-notifications.md) with Retry, which repeats the failed
+direction. A stale source offers the existing **New edits** notification with **Update**. The
 buttons use compact rounded controls, stay visible during horizontal code scrolling, and retain
 keyboard focus. Accepted insertions preserve a visible source row's position; when the last
 insertion removes the focused separator, focus moves to a visible line action.

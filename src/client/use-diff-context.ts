@@ -13,6 +13,7 @@ import {
   type ContextExpansion,
 } from "./diff-context-state.ts";
 import { useStableCallback } from "./use-stable-callback.ts";
+import { useNotification } from "./Notifications.tsx";
 
 type Activity =
   | { kind: "idle" }
@@ -68,6 +69,7 @@ export function useDiffContext(
   const pending = useRef<AbortController | null>(null);
   const pendingKey = useRef<string | null>(null);
   const afterLayout = useRef<(() => void) | null>(null);
+  const lastSeparator = useRef<HTMLElement | null>(null);
   const stale = useStableCallback(onStale);
   useLayoutEffect(() => {
     afterLayout.current?.();
@@ -189,6 +191,7 @@ export function useDiffContext(
       )
         return;
       const controller = new AbortController();
+      lastSeparator.current = separator;
       pending.current = controller;
       pendingKey.current = current.key;
       setState({
@@ -226,7 +229,33 @@ export function useDiffContext(
         });
     },
   );
-  return metadata === null
-    ? null
-    : { ...view, expand, retry: () => setRetry((value) => value + 1) };
+  const retryContext = () => {
+    const current = latest.current;
+    const activity = current.view.activity;
+    if (activity.kind !== "error") return;
+    if (activity.gap === null) {
+      setRetry((value) => value + 1);
+      return;
+    }
+    const gap = current.metadata?.gaps.find((gap) => gap.id === activity.gap);
+    const separator = lastSeparator.current;
+    if (
+      gap !== undefined &&
+      separator !== null &&
+      separator.isConnected &&
+      activity.direction !== null
+    )
+      expand(gap, activity.direction, separator);
+  };
+  useNotification(
+    `diff-context:${baseKey}`,
+    expanded && view.activity.kind === "error"
+      ? {
+          message: `${identity.path}: ${view.activity.message}`,
+          severity: "error",
+          action: { label: "Retry", run: retryContext },
+        }
+      : null,
+  );
+  return metadata === null ? null : { ...view, expand, retry: retryContext };
 }

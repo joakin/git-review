@@ -57,9 +57,15 @@ await withQaBrowser(async (browser) => {
         await route.fulfill({ status: 503, json: { error: "Context read failed" } });
       });
       await gap().getByRole("button", { name: "Show 20 lines above", exact: true }).click();
-      await gap().getByRole("button", { name: "Retry", exact: true }).waitFor();
+      await page
+        .locator(".notification")
+        .getByRole("button", { name: "Retry", exact: true })
+        .waitFor();
       await page.unroute("**/api/project/diff-context?*");
-      await gap().getByRole("button", { name: "Retry", exact: true }).click();
+      await page
+        .locator(".notification")
+        .getByRole("button", { name: "Retry", exact: true })
+        .click();
       await waitRows(page, initial + 20);
       await card.locator('.diff-row[data-new-line="109"]').waitFor();
       assert(
@@ -86,8 +92,8 @@ await withQaBrowser(async (browser) => {
       });
       await card.getByLabel("Language").selectOption("text");
       await waitRows(page, initial + 40);
-      await card
-        .locator(".diff-message")
+      await page
+        .locator(".notification")
         .getByRole("button", { name: "Retry", exact: true })
         .waitFor();
       assert(
@@ -96,8 +102,8 @@ await withQaBrowser(async (browser) => {
         `${name}: expansion allowed during failed language replay`,
       );
       await page.unroute("**/api/project/diff-context?*");
-      await card
-        .locator(".diff-message")
+      await page
+        .locator(".notification")
         .getByRole("button", { name: "Retry", exact: true })
         .click();
       await page.getByText("Updating context highlighting…").waitFor({ state: "hidden" });

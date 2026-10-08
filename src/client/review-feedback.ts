@@ -14,6 +14,8 @@ import {
   type DraftComment,
 } from "./comments.ts";
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
+import type { NotificationSeverity } from "./notification-store.ts";
+import { useNotification } from "./Notifications.tsx";
 
 export type EditorState = CommentTarget & { draftId: string | null; body: string };
 
@@ -30,7 +32,6 @@ type FeedbackPreview = {
   store: CommentStore;
   projectPath: string;
   state: FeedbackState;
-  undoError: string | null;
   canUndo: boolean;
 };
 
@@ -64,7 +65,7 @@ type FeedbackActions = {
 type FeedbackOwner = { model: FeedbackModel; actions: FeedbackActions };
 type FeedbackInputs = {
   project: Project | null;
-  onNotice: (message: string) => void;
+  onNotice: (message: string, severity?: NotificationSeverity) => void;
   onRevealAnchor: (anchor: CommentAnchor) => void;
 };
 
@@ -116,8 +117,9 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
           updateSession((current) => ({ ...current, undoCopyId: result.id, undoError: null }));
           inputsRef.current.onNotice(
             "Feedback copied. The copied comments are in history; Undo restores them.",
+            "success",
           );
-        } else inputsRef.current.onNotice("History feedback copied.");
+        } else inputsRef.current.onNotice("History feedback copied.", "success");
       },
       checkAnchors: checkFeedbackSources,
       writeText: async (text) => {
@@ -219,6 +221,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       updateSession((current) => ({ ...current, reattachId: null }));
       inputsRef.current.onNotice(
         "Comment reattached. Open Feedback to check the new line before copying.",
+        "success",
       );
       return;
     }
@@ -312,10 +315,40 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       return;
     }
     updateSession((current) => ({ ...current, undoCopyId: null, undoError: null }));
-    inputsRef.current.onNotice("Copied comments restored to your draft.");
+    inputsRef.current.onNotice("Copied comments restored to your draft.", "success");
   }
 
   const store = session.store?.projectPath === inputs.project?.absolutePath ? session.store : null;
+  useNotification(
+    `feedback-check:${store?.projectPath}`,
+    store !== null && state.check.kind === "error"
+      ? {
+          message: state.check.message,
+          severity: "error",
+          action: { label: "Retry", run: check, disabled: state.copy.kind === "copying" },
+        }
+      : null,
+  );
+  useNotification(
+    `feedback-copy:${store?.projectPath}`,
+    store !== null && state.copy.kind === "error"
+      ? {
+          message: state.copy.message,
+          severity: "error",
+          ...(!session.previewOpen ? { action: { label: "Open Feedback", run: openPreview } } : {}),
+        }
+      : null,
+  );
+  useNotification(
+    `feedback-undo:${store?.projectPath}`,
+    store !== null && session.undoError !== null
+      ? {
+          message: session.undoError,
+          severity: "error",
+          action: { label: "Retry Undo", run: undo },
+        }
+      : null,
+  );
   return {
     model: {
       drafts: store?.drafts ?? [],
@@ -326,7 +359,6 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
               store,
               projectPath: inputs.project.absolutePath,
               state,
-              undoError: session.undoError,
               canUndo: session.undoCopyId !== null && store.history[0]?.id === session.undoCopyId,
             }
           : null,

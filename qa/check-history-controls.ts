@@ -279,7 +279,7 @@ await withQaBrowser(async (browser) => {
     await input.waitFor({ state: "visible" });
     for (let index = 0; index < 60; index += 1) {
       await input.fill(`trail${index}`);
-      await page.locator(".search-form button").click();
+      await page.locator(".search-form button[type=submit]").click();
       await page.waitForURL((url) => url.searchParams.get("q") === `trail${index}`);
     }
     const retained = Math.min(61, await page.evaluate(() => history.length));

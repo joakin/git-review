@@ -19,8 +19,6 @@ type ChangesModel = {
   projectPath: string;
   status: LoadState<ProjectStatus>;
   refreshing: boolean;
-  pendingUpdate: boolean;
-  checkError: boolean;
   refreshKey: number;
   expandedKeys: ReadonlySet<string>;
   wrap: boolean;
@@ -129,11 +127,7 @@ export function ChangesSidebar({
       {status.kind === "loading" && (
         <DelayedLoading className="sidebar-message" message="Reading Git changes…" />
       )}
-      {status.kind === "error" && (
-        <p class="sidebar-error" role="alert">
-          {status.message}
-        </p>
-      )}
+      {status.kind === "error" && <p class="sidebar-message">Changes unavailable.</p>}
       {status.kind === "ready" && status.value.kind === "not_git" && (
         <p class="sidebar-message">This folder is not a Git worktree.</p>
       )}
@@ -213,8 +207,6 @@ export function ChangesView({
     projectPath,
     status,
     refreshing,
-    pendingUpdate,
-    checkError,
     refreshKey,
     expandedKeys,
     wrap,
@@ -250,36 +242,14 @@ export function ChangesView({
         <button type="button" aria-pressed={wrap} onClick={commands.toggleWrap}>
           {wrap ? "Wrap: on" : "Wrap: off"}
         </button>
-        <span class="visually-hidden" role="status">
-          {pendingUpdate && !refreshing ? "New edits are available. Use Update to load them." : ""}
-        </span>
-        {pendingUpdate && (
-          <button
-            class="changes-update"
-            type="button"
-            disabled={refreshing}
-            onClick={commands.refresh}
-          >
-            {refreshing ? "Updating…" : "New edits · Update"}
-          </button>
-        )}
         <button type="button" disabled={refreshing} onClick={commands.refresh}>
           {refreshing ? "Refreshing…" : "Refresh"}
         </button>
       </ContentHeading>
-      {checkError && (
-        <p class="changes-check-error" role="status">
-          Could not check for new edits. Refresh is still available.
-        </p>
-      )}
       {status.kind === "loading" && (
         <DelayedLoading className="status-message" message="Reading Git changes…" />
       )}
-      {status.kind === "error" && (
-        <p class="status-message" role="alert">
-          {status.message}
-        </p>
-      )}
+      {status.kind === "error" && <p class="status-message">Changes unavailable.</p>}
       {status.kind === "ready" && status.value.kind === "not_git" && (
         <p class="status-message">
           This folder is not a Git worktree. Use Files to browse its contents.

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { transcribeRecording } from "./api.ts";
 import { maxBodyLength } from "./comments.ts";
+import { useNotification } from "./Notifications.tsx";
 
 type VoiceState =
   | { kind: "idle"; error: string | null }
@@ -29,6 +30,12 @@ export function useVoiceComment(
   onBody: (body: string) => void,
 ) {
   const [state, setState] = useState<VoiceState>({ kind: "idle", error: null });
+  useNotification(
+    "voice-error",
+    (state.kind === "idle" || state.kind === "retry") && state.error !== null
+      ? { message: state.error, severity: "error" }
+      : null,
+  );
   const mounted = useRef(true);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -267,7 +274,7 @@ export function VoiceCommentFooter({ voice }: { voice: ReturnType<typeof useVoic
     <div class="voice-footer" aria-live="polite">
       {state.kind === "idle" && (
         <>
-          <span class="voice-status">{state.error ?? "Voice comment · transcribed locally"}</span>
+          <span class="voice-status">Voice comment · transcribed locally</span>
           <button
             type="button"
             class="voice-mic"
@@ -323,9 +330,7 @@ export function VoiceCommentFooter({ voice }: { voice: ReturnType<typeof useVoic
           <button type="button" class="voice-cancel" onClick={voice.cancel}>
             Cancel
           </button>
-          <span class="voice-status voice-error" role="alert">
-            {state.error}
-          </span>
+          <span class="voice-status">Recording ready to retry</span>
           <button type="button" class="voice-send" onClick={voice.retry}>
             Retry
           </button>

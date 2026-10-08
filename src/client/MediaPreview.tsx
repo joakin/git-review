@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import type { MediaSide } from "../shared/api.ts";
 import type { MediaResource } from "../shared/media-types.ts";
+import { useNotification } from "./Notifications.tsx";
 
 function sizeLabel(bytes: number): string {
   return bytes < 1024
@@ -20,6 +21,15 @@ export function MediaPreview({
   label: string;
 }) {
   const [failed, setFailed] = useState(false);
+  useNotification(
+    `media:${resource.url}`,
+    failed
+      ? {
+          message: `${label}: ${path} could not be displayed. You can open the raw file.`,
+          severity: "error",
+        }
+      : null,
+  );
   useEffect(() => setFailed(false), [resource.url]);
   const playable =
     resource.kind === "image" ||
@@ -35,10 +45,8 @@ export function MediaPreview({
         </a>
       </div>
       {failed || !playable ? (
-        <p class="media-preview-fallback" role="status">
-          {playable
-            ? "This media file could not be displayed."
-            : "This browser does not support this media format."}{" "}
+        <p class="media-preview-fallback">
+          {playable ? "Preview unavailable." : "This browser does not support this media format."}{" "}
           You can open the raw file.
         </p>
       ) : resource.kind === "image" ? (

@@ -75,7 +75,7 @@ async function checkSameFileSectionNavigation(page: Page): Promise<void> {
       if ((await file.locator(".file-code-row-target").count()) !== 0)
         throw new Error("Files retained the Search line target");
     }
-    if ((await file.locator(".file-search-stale").count()) !== 0)
+    if ((await page.locator(".notification[data-notification-key^='file-target:']").count()) !== 0)
       throw new Error("Fresh same-file navigation acquired a stale-result notice");
     await selectionAction.waitFor({ state: "hidden" });
     await assertNoHorizontalOverflow(page);
@@ -90,7 +90,7 @@ async function checkSameFileSectionNavigation(page: Page): Promise<void> {
 
   await chooseTab("Search");
   await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
-  await page.locator(".search-form button").click();
+  await page.locator(".search-form button[type=submit]").click();
   await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).click();
   await expectFreshFile(2, "search");
   const searchUrl = page.url();
@@ -117,6 +117,53 @@ async function checkSameFileSectionNavigation(page: Page): Promise<void> {
 }
 
 await withQaBrowser(async (browser) => {
+  for (const [name, profile] of Object.entries({
+    ...qaProfiles,
+    narrow: { viewport: { width: 320, height: 740 }, hasTouch: true },
+  })) {
+    await withQaContext(browser, profile, async (context) => {
+      const page = await context.newPage();
+      const destination = new URL(url);
+      destination.search = new URLSearchParams({
+        section: "search",
+        project: "inventory-fixture",
+        q: "working tree",
+      }).toString();
+      await page.goto(destination.href);
+      const openList = page.getByRole("button", { name: "Open list" });
+      if (await openList.isVisible()) await openList.click();
+      const form = page.locator(".search-form");
+      const refresh = form.getByRole("button", { name: "Refresh results" });
+      await refresh.waitFor();
+      const geometry = await form.evaluate((e) => {
+        const search = e.querySelector("button[type=submit]")?.getBoundingClientRect();
+        const refresh = e.querySelector("button[type=button]")?.getBoundingClientRect();
+        const input = e.querySelector("input")?.getBoundingClientRect();
+        return { search, refresh, input };
+      });
+      if (
+        geometry.search === undefined ||
+        geometry.refresh === undefined ||
+        geometry.input === undefined ||
+        Math.abs(geometry.search.top - geometry.refresh.top) > 1 ||
+        geometry.search.right > geometry.refresh.left ||
+        geometry.input.bottom > geometry.search.top ||
+        geometry.search.height < 44 ||
+        geometry.refresh.height < 44
+      )
+        throw new Error(`${name}: Search/Refresh row is not usable: ${JSON.stringify(geometry)}`);
+      const currentUrl = page.url();
+      const response = page.waitForResponse(
+        (response) => new URL(response.url()).pathname === "/api/project/search",
+      );
+      await refresh.click();
+      if ((await response).status() !== 200 || page.url() !== currentUrl)
+        throw new Error(`${name}: Refresh did not repeat the current Search destination`);
+      await refresh.waitFor();
+      await assertNoHorizontalOverflow(page);
+    });
+    console.log(`${name}: adjacent Search/Refresh controls and refresh passed`);
+  }
   await withQaContext(browser, qaProfiles.phone, async (context) => {
     const page = await context.newPage();
     await page.goto(url.href, { waitUntil: "load" });
@@ -127,7 +174,7 @@ await withQaBrowser(async (browser) => {
       .getByRole("button", { name: "Search" })
       .click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("  working tree  ");
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     await page
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });
@@ -140,7 +187,7 @@ await withQaBrowser(async (browser) => {
     const repeated = page.waitForResponse(
       (response) => new URL(response.url()).pathname === "/api/project/search",
     );
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     if ((await repeated).status() !== 200 || page.url() !== beforeRepeat)
       throw new Error("Repeating a Search query did not refresh the same destination");
     await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).click();
@@ -161,7 +208,7 @@ await withQaBrowser(async (browser) => {
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });
     await page.getByRole("searchbox", { name: "Find text" }).fill("item170");
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     await page.getByRole("button", { name: /^Open src\/tall-review\.ts at line 170:/ }).click();
     const target = page.locator(
       '.file-panel[data-path="src/tall-review.ts"] .file-code-row-target[data-line="170"]',
@@ -196,7 +243,7 @@ await withQaBrowser(async (browser) => {
       );
     await page.getByRole("button", { name: "Open list" }).click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     await page
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });

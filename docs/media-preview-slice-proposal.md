@@ -9,7 +9,9 @@ preview their actual comparison sides. The maintainer chose native controls and 
 Supported images, including SVG, fit their reading surface. Audio and video use native controls,
 load metadata without autoplay, and stop when their card closes. Video plays inline on phones. Each
 available preview has **Open raw ↗** for the same version in a new tab. Unsupported browser codecs
-and decode errors show a fallback while retaining that raw link.
+show a fallback while retaining that raw link. Decode/read errors use
+[application notifications](application-notifications.md) and leave an unavailable-preview
+placeholder with the raw link.
 
 Additions show only New and deletions only Old. Other sides distinguish available, absent, and
 unavailable resources. Staged compares HEAD to index, unstaged compares index to working tree, and

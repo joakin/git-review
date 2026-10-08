@@ -84,7 +84,7 @@ async function checkHistoryRefresh(page: Page, olderCount: number): Promise<void
     if ((await page.locator(".git-commit-row").count()) !== olderCount)
       throw new Error("Refreshing cleared the loaded history pages");
     release();
-    const error = page.locator(".sidebar-error", { hasText: "History refresh QA failure" });
+    const error = page.locator(".notification", { hasText: "History refresh QA failure" });
     await error.waitFor({ state: "visible" });
     await page.waitForFunction(
       () => document.querySelector<HTMLButtonElement>(".git-refresh")?.disabled === false,

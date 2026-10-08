@@ -2,6 +2,7 @@ import type { FileTree, FileTreeEntry } from "../shared/api.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import { Chevron, Icon } from "./Icons.tsx";
 import type { LoadState } from "./load-state.ts";
+import { useNotification } from "./Notifications.tsx";
 
 type FilesSidebarProps = {
   directory: string;
@@ -22,6 +23,12 @@ export function FilesSidebar({
   onSelect,
   onRetry,
 }: FilesSidebarProps) {
+  useNotification(
+    `files:${loadingKey}`,
+    state.kind === "error"
+      ? { message: state.message, severity: "error", action: { label: "Retry", run: onRetry } }
+      : null,
+  );
   return (
     <div class="sidebar-files">
       {directory !== "" && (
@@ -40,14 +47,7 @@ export function FilesSidebar({
       {state.kind === "loading" && (
         <DelayedLoading key={loadingKey} className="sidebar-message" message="Loading files…" />
       )}
-      {state.kind === "error" && (
-        <div class="sidebar-error" role="alert">
-          {state.message}{" "}
-          <button type="button" onClick={onRetry}>
-            Retry
-          </button>
-        </div>
-      )}
+      {state.kind === "error" && <p class="sidebar-message">Directory unavailable.</p>}
       {state.kind === "ready" && state.value.entries.length === 0 && (
         <p class="sidebar-message">This directory is empty.</p>
       )}

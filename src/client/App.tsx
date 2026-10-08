@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useNotification, useNotifications } from "./Notifications.tsx";
+import type { NotificationSeverity } from "./notification-store.ts";
 import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectTree } from "./api.ts";
 import { diffCardId } from "./DiffCard.tsx";
 import { ChangesSidebar, ChangesView } from "./ChangesView.tsx";
@@ -60,6 +62,7 @@ function projectEntryRoute(projectPath: string): Route {
 }
 
 export function App() {
+  const notifications = useNotifications();
   const [listingLoad, setListingLoad] = useState<{
     key: string;
     state: LoadState<DirectoryListing>;
@@ -109,7 +112,6 @@ export function App() {
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [installDataOpen, setInstallDataOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const session = useProjectSession({
@@ -122,7 +124,10 @@ export function App() {
         "replace",
       ),
     onSelectProject: (path) => navigate(projectEntryRoute(path)),
-    onNotice: setNotice,
+    onNotice: (message) => {
+      if (message === null) notifications.dismissKey("project-session");
+      else notifications.push({ key: "project-session", message, severity: "warning" });
+    },
     onOpening: () => {
       review.actions.beginProjectOpen();
       feedback.actions.beginProjectOpen();
@@ -162,7 +167,12 @@ export function App() {
   const lastGitRefs = useRef(new Map<string, string>());
   const feedback = useReviewFeedback({
     project,
-    onNotice: setNotice,
+    onNotice: (message, severity: NotificationSeverity = "warning") =>
+      notifications.push({
+        key: `feedback:${project?.absolutePath}:${message}`,
+        message,
+        severity,
+      }),
     onRevealAnchor: (anchor) => {
       if (project === null) return;
       if (anchor.kind === "file") {
@@ -182,6 +192,15 @@ export function App() {
     },
   });
   const { editor, preview, reattachment, drafts } = feedback.model;
+  useEffect(
+    () => () => {
+      for (const entry of notifications.read()) {
+        if (entry.key?.startsWith(`feedback:${project?.absolutePath}:`))
+          notifications.dismiss(entry.id);
+      }
+    },
+    [notifications, project?.absolutePath],
+  );
   const navigationHistory = useNavigationHistory(feedback.actions.prepareNavigation);
   const review = useWorkingCopyReview({
     project,
@@ -189,7 +208,6 @@ export function App() {
     readCurrentRoute: () => routeRef.current,
     pollingAllowed:
       viewMode === "changes" && editor === null && preview === null && !installDataOpen,
-    onNotice: setNotice,
     onNonGit: (project) => {
       const current = routeRef.current;
       if (current?.section === "changes" && current.projectPath === project.relativePath)
@@ -205,6 +223,108 @@ export function App() {
     },
   });
   const { status } = review.model;
+
+  useNotification(
+    `changes-target:${route?.section === "changes" && route.target.kind === "file" ? `${route.projectPath}:${route.target.layer}:${route.target.path}` : ""}`,
+    route?.section === "changes" &&
+      route.target.kind === "file" &&
+      project?.relativePath === route.projectPath &&
+      status.kind === "ready" &&
+      status.value.kind === "git" &&
+      !status.value.entries.some(
+        (entry) =>
+          route.target.kind === "file" &&
+          entry.layer === route.target.layer &&
+          entry.path === route.target.path,
+      )
+      ? {
+          message:
+            "This changed file is no longer in the current Git inventory. Refresh or choose another file.",
+          severity: "warning",
+          action: { label: "Refresh", run: review.actions.refresh },
+        }
+      : null,
+  );
+
+  useNotification(
+    "host-root",
+    root.kind === "error" ? { message: root.message, severity: "error" } : null,
+  );
+  useNotification(
+    `project-open:${routeProject}`,
+    projectOpenError?.path === routeProject && root.kind !== "error"
+      ? {
+          message: `This project could not be opened: ${projectOpenError.message}`,
+          severity: "error",
+          action: {
+            label: "Choose another project",
+            run: () => navigate({ section: "projects", directory: "" }, "replace"),
+          },
+        }
+      : null,
+  );
+  useNotification(
+    `changes-load:${project?.absolutePath}`,
+    viewMode === "changes" && status.kind === "error"
+      ? {
+          message: status.message,
+          severity: "error",
+          action: {
+            label: "Retry",
+            run: review.actions.refresh,
+            disabled: review.model.refreshing,
+          },
+        }
+      : null,
+  );
+  useNotification(
+    `changes-update:${project?.absolutePath}`,
+    viewMode === "changes" && review.model.pendingUpdate
+      ? {
+          message: "New edits are available.",
+          severity: "warning",
+          action: {
+            label: review.model.refreshing ? "Updating…" : "Update",
+            run: review.actions.refresh,
+            disabled: review.model.refreshing,
+          },
+        }
+      : null,
+  );
+  useNotification(
+    `changes-check:${project?.absolutePath}`,
+    viewMode === "changes" && review.model.checkError
+      ? {
+          message: "Could not check for new edits. Refresh is still available.",
+          severity: "warning",
+          action: {
+            label: "Refresh",
+            run: review.actions.refresh,
+            disabled: review.model.refreshing,
+          },
+        }
+      : null,
+  );
+  useNotification(
+    `git-detail:${project?.absolutePath}:${gitRoute?.target.kind === "commit" ? gitRoute.target.oid : ""}`,
+    viewMode === "git" && gitRoute?.target.kind === "commit" && git.detail.kind === "error"
+      ? {
+          message: git.detail.message,
+          severity: "error",
+          action: { label: "Retry", run: git.retryCommit },
+        }
+      : null,
+  );
+  useNotification(
+    `changes-refresh:${project?.absolutePath}`,
+    viewMode === "changes" && review.model.refreshError !== null
+      ? {
+          message: review.model.refreshError,
+          severity: "error",
+          action: { label: "Retry", run: review.actions.refresh },
+        }
+      : null,
+  );
 
   useEffect(() => {
     if (project === null || gitRoute === null) return;
@@ -335,9 +455,6 @@ export function App() {
       (candidate) => candidate.layer === target.layer && candidate.path === target.path,
     );
     if (entry === undefined) {
-      setNotice(
-        "This changed file is no longer in the current Git inventory. Refresh or choose another file.",
-      );
       return;
     }
     review.actions.expandEntry(entry);
@@ -777,6 +894,7 @@ export function App() {
             />
           ) : listSection === "search" && project !== null ? (
             <SearchView
+              notificationKey={searchKey ?? "search"}
               query={searchQuery}
               state={searchState}
               onQuery={setSearchQuery}
@@ -831,8 +949,8 @@ export function App() {
             />
           ) : listSection !== "projects" && project === null ? (
             projectOpenFailure !== null ? (
-              <div class="sidebar-error project-open-error" role="alert">
-                This project could not be opened: {projectOpenFailure}
+              <div class="sidebar-message project-open-error">
+                Project unavailable.
                 <button
                   type="button"
                   onClick={() => navigate({ section: "projects", directory: "" }, "replace")}
@@ -861,20 +979,6 @@ export function App() {
         </aside>
 
         <main class="main-content">
-          {notice !== null && (
-            <div class="notice" role="alert">
-              {notice}
-              <button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>
-                ×
-              </button>
-            </div>
-          )}
-          {root.kind === "error" && (
-            <div class="notice" role="alert">
-              {root.message}
-            </div>
-          )}
-
           <div hidden={settingsOpen}>
             {routeState.kind === "invalid" ? (
               <div class="welcome">
@@ -894,8 +998,8 @@ export function App() {
               />
             ) : project === null ? (
               projectOpenError?.path === routeProject ? (
-                <div class="status-message" role="alert">
-                  This project could not be opened: {projectOpenError.message}{" "}
+                <div class="status-message">
+                  Project unavailable.{" "}
                   <button
                     type="button"
                     onClick={() => navigate({ section: "projects", directory: "" }, "replace")}
@@ -938,12 +1042,7 @@ export function App() {
                         message="Reading commit…"
                       />
                     ) : git.detail.kind === "error" ? (
-                      <div class="status-message" role="alert">
-                        {git.detail.message}{" "}
-                        <button type="button" onClick={git.retryCommit}>
-                          Retry
-                        </button>
-                      </div>
+                      <p class="status-message">Commit unavailable.</p>
                     ) : (
                       <CommitViewer
                         key={JSON.stringify([project.absolutePath, git.detail.value.oid])}
@@ -1118,7 +1217,6 @@ export function App() {
           store={preview.store}
           projectPath={preview.projectPath}
           state={preview.state}
-          undoError={preview.undoError}
           onClose={feedback.actions.closePreview}
           onCheck={feedback.actions.check}
           onCopy={feedback.actions.copy}

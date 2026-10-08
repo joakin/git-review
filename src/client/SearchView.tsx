@@ -2,10 +2,12 @@ import type { SearchMatch, SearchResponse } from "../shared/api.ts";
 import { maxSearchQueryLength } from "../shared/search-query.ts";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import type { LoadState } from "./load-state.ts";
+import { useNotification } from "./Notifications.tsx";
 
 export type SearchState = { kind: "idle" } | LoadState<SearchResponse>;
 
 export function SearchView({
+  notificationKey,
   query,
   state,
   onQuery,
@@ -14,6 +16,7 @@ export function SearchView({
   canRefresh,
   onOpen,
 }: {
+  notificationKey: string;
   query: string;
   state: SearchState;
   onQuery: (query: string) => void;
@@ -22,6 +25,16 @@ export function SearchView({
   canRefresh: boolean;
   onOpen: (match: SearchMatch, query: string) => void;
 }) {
+  useNotification(
+    `search-error:${notificationKey}`,
+    state.kind === "error"
+      ? {
+          message: state.message,
+          severity: "error",
+          ...(canRefresh ? { action: { label: "Retry", run: onRefresh } } : {}),
+        }
+      : null,
+  );
   const groups = new Map<string, SearchMatch[]>();
   if (state.kind === "ready") {
     for (const match of state.value.matches) {
@@ -32,13 +45,6 @@ export function SearchView({
   }
   return (
     <section class="search-view" aria-label="Search project files">
-      {state.kind === "ready" && (
-        <div class="search-refresh-row">
-          <button type="button" onClick={onRefresh}>
-            Refresh results
-          </button>
-        </div>
-      )}
       <p class="search-scope">
         Search current text files in this folder, including untracked files. Ignored files and Git
         internals are skipped.
@@ -64,9 +70,21 @@ export function SearchView({
             placeholder="Symbol or text"
             onInput={(event) => onQuery(event.currentTarget.value)}
           />
-          <button type="submit" disabled={state.kind === "loading"}>
-            Search
-          </button>
+          <div class="search-form-actions">
+            <button type="submit" disabled={state.kind === "loading"}>
+              Search
+            </button>
+            {state.kind === "ready" && (
+              <button
+                class="search-refresh"
+                type="button"
+                aria-label="Refresh results"
+                onClick={onRefresh}
+              >
+                Refresh
+              </button>
+            )}
+          </div>
         </div>
       </form>
       {state.kind === "idle" && (
@@ -75,16 +93,7 @@ export function SearchView({
       {state.kind === "loading" && (
         <DelayedLoading className="status-message" message="Searching files…" />
       )}
-      {state.kind === "error" && (
-        <div class="status-message" role="alert">
-          {state.message}{" "}
-          {canRefresh && (
-            <button type="button" onClick={onRefresh}>
-              Retry
-            </button>
-          )}
-        </div>
-      )}
+      {state.kind === "error" && <p class="status-message">Search unavailable.</p>}
       {state.kind === "ready" && (
         <>
           <p class="search-count" role="status">

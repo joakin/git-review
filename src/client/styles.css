@@ -1,4 +1,5 @@
 @import "./design-tokens.css";
+@import "./notifications.css";
 @import "./navigation.css";
 
 :root {
@@ -196,19 +197,6 @@ span.select-control > select {
   padding: var(--space-2);
   color: var(--color-text-subtle);
   font-size: var(--font-size-13);
-}
-.sidebar-error {
-  padding: var(--space-3);
-  color: var(--color-error);
-  font-size: var(--font-size-12);
-  line-height: 1.4;
-}
-.sidebar-error button {
-  padding: 0;
-  border: 0;
-  color: var(--color-accent-strong);
-  background: none;
-  font-weight: var(--font-weight-semibold);
 }
 .project-open-error button {
   display: block;
@@ -494,26 +482,6 @@ span.select-control > select {
   font-size: var(--font-size-12);
   line-height: 1.5;
 }
-.notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  max-width: 680px;
-  margin-top: var(--space-6);
-  padding: var(--space-3) 15px;
-  border: 1px solid var(--color-error-border);
-  border-radius: var(--radius-control);
-  color: var(--color-error-text);
-  background: var(--color-error-surface);
-  font-size: var(--font-size-13);
-}
-.notice button {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: var(--font-size-20);
-}
 .welcome {
   display: flex;
   flex-direction: column;
@@ -641,20 +609,6 @@ span.select-control > select {
 }
 .diff-bulk-controls button {
   min-height: 44px;
-}
-.changes-heading .changes-update {
-  min-height: 44px;
-  border-color: var(--color-update-border);
-  background: var(--color-update-surface);
-  color: var(--color-update-text);
-}
-.changes-heading .changes-update:hover:not(:disabled) {
-  background: var(--color-update-border);
-}
-.changes-check-error {
-  margin: -8px 0 var(--space-5);
-  color: var(--color-error-text);
-  font-size: var(--font-size-12);
 }
 .visually-hidden {
   position: absolute;
@@ -1006,14 +960,6 @@ span.select-control > select {
 .file-code-row-target .file-line-number {
   background: var(--color-code-target);
 }
-.file-search-stale {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-error-border);
-  background: var(--color-error-surface);
-  color: var(--color-error-text);
-  font-size: var(--font-size-13);
-}
 .search-scope {
   margin: 0 0 var(--space-5);
   color: var(--color-text-muted);
@@ -1031,6 +977,10 @@ span.select-control > select {
   font-weight: var(--font-weight-semibold);
 }
 .search-form-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.search-form-actions {
   display: flex;
   gap: var(--space-2);
 }
@@ -1060,6 +1010,14 @@ span.select-control > select {
   color: var(--color-on-accent);
   font-size: var(--font-size-13);
   font-weight: var(--font-weight-semibold);
+}
+.search-form .search-refresh {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-accent);
+}
+.search-form .search-refresh:hover {
+  background: var(--color-mint-hover);
 }
 .search-count {
   margin: var(--space-4) 0;
@@ -1596,11 +1554,6 @@ span.select-control > select {
 .diff-context-label {
   overflow-wrap: anywhere;
 }
-.diff-context-error {
-  flex-basis: 100%;
-  max-width: calc(100vw - var(--space-6));
-  overflow-wrap: anywhere;
-}
 .diff-row {
   --diff-row-bg: var(--color-code-surface);
   position: relative;
@@ -1747,27 +1700,12 @@ span.select-control > select {
 .sidebar .search-view {
   min-width: 0;
 }
-.sidebar .search-refresh-row {
-  margin-bottom: var(--space-3);
-}
-.sidebar .search-refresh-row button {
-  min-height: 40px;
-  padding: 9px 13px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-small);
-  background: var(--color-surface);
-  color: var(--color-accent);
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-semibold);
-}
-.sidebar .search-refresh-row button:hover {
-  background: var(--color-mint-hover);
-}
 .sidebar .search-form-row {
   flex-direction: column;
 }
-.sidebar .search-form-row button {
-  width: 100%;
+.sidebar .search-form-actions button {
+  flex: 1;
+  padding-inline: var(--space-3);
 }
 .sidebar .search-results {
   gap: var(--space-3);
@@ -2101,9 +2039,6 @@ span.select-control > select {
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.voice-error {
-  color: var(--color-error-text);
-}
 .voice-footer button {
   min-height: 40px;
   flex: 0 0 auto;
@@ -2161,8 +2096,7 @@ span.select-control > select {
 .review-dialog-actions button,
 .review-item-actions button,
 .review-export button,
-.review-history button,
-.review-error button {
+.review-history button {
   min-height: 40px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
@@ -2214,7 +2148,6 @@ span.select-control > select {
   color: var(--color-text-muted);
   font-size: var(--font-size-13);
 }
-.review-error,
 .review-outdated {
   padding: var(--space-2);
   border-radius: var(--radius-small);
@@ -2455,14 +2388,6 @@ span.select-control > select {
   .feedback-launch {
     right: max(var(--space-3), env(safe-area-inset-right));
     bottom: max(var(--space-3), env(safe-area-inset-bottom));
-  }
-  .changes-heading .changes-update {
-    position: fixed;
-    z-index: 26;
-    right: max(var(--space-3), env(safe-area-inset-right));
-    bottom: calc(max(var(--space-3), env(safe-area-inset-bottom)) + 60px);
-    border-radius: 24px;
-    box-shadow: var(--shadow-action);
   }
   .diff-sign,
   .diff-number {

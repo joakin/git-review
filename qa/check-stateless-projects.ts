@@ -120,7 +120,7 @@ await withTempDirectory("git-review-restart-qa-", async (directory) => {
             .getByRole("button", { name, exact: true });
         await tab("Search").click();
         await page.getByRole("searchbox", { name: "Find text" }).fill("stable");
-        await page.locator(".search-form button").click();
+        await page.locator(".search-form button[type=submit]").click();
         await page.getByRole("button", { name: /^Open value.ts at line 2:/ }).waitFor();
         await tab("Changes").click();
         await page.getByRole("button", { name: "Refresh", exact: true }).click();

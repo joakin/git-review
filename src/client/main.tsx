@@ -1,9 +1,15 @@
 import { render } from "preact";
 import { App } from "./App.tsx";
+import { NotificationProvider } from "./Notifications.tsx";
 
 const root = document.getElementById("app");
 if (root === null) throw new Error("The application root is missing");
-render(<App />, root);
+render(
+  <NotificationProvider>
+    <App />
+  </NotificationProvider>,
+  root,
+);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

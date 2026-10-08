@@ -7,9 +7,10 @@ checks immediately. Files and Search retain manual refresh.
 
 ## Reader-controlled updates
 
-A detected edit shows persistent **New edits · Update**: above Feedback on phones and beside Refresh
-on wider layouts. The action stays clear of code and line controls, is keyboard accessible and has a
-polite announcement. Stale card batches use the same notice and never start automatic refresh loops.
+A detected edit shows a persistent **New edits are available** notification with **Update** through
+the [application notification system](application-notifications.md). Dismissal leaves the accepted
+snapshot in place; Refresh remains available in the heading. Stale card batches use the same notice
+and never start automatic refresh loops.
 
 Update or Refresh accepts fresh inventory/counts and reloads expanded diffs. Open choices, drafts
 and the current file/approximate reading position survive. If the card disappeared, restoration uses
@@ -19,8 +20,8 @@ only to the original Changes destination.
 A successful refresh clears the notice; further edits can be found by the next check. A failed
 refresh keeps the ready review and pending notice with a brief error. Its new refresh generation
 still renews expanded diff requests. Poll failures retain code/drafts and retry periodically,
-showing a small check-error state after repeated failures. Project switches discard the old baseline
-and notice; superseded results cannot alter the current review.
+showing a persistent check-error notification after repeated failures. Project switches discard the
+old baseline and notice; superseded results cannot alter the current review.
 
 Comments remain anchored to their original source and are rechecked before export. Applying an
 update does not silently relocate or export outdated feedback.

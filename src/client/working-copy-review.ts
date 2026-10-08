@@ -12,6 +12,7 @@ type ReviewState = {
   refreshing: boolean;
   pendingUpdate: boolean;
   checkError: boolean;
+  refreshError: string | null;
   refreshKey: number;
   expandedKeys: ReadonlySet<string>;
 };
@@ -29,7 +30,6 @@ type ReviewInputs = {
   route: Route | null;
   readCurrentRoute: () => Route | null;
   pollingAllowed: boolean;
-  onNotice: (message: string) => void;
   onNonGit: (project: Project) => void;
 };
 type WorkingCopyReview = {
@@ -38,6 +38,7 @@ type WorkingCopyReview = {
     refreshing: boolean;
     pendingUpdate: boolean;
     checkError: boolean;
+    refreshError: string | null;
     refreshKey: number;
     expandedKeys: ReadonlySet<string>;
   };
@@ -67,6 +68,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
     refreshing: false,
     pendingUpdate: false,
     checkError: false,
+    refreshError: null,
     refreshKey: 0,
     expandedKeys: emptyCards,
   }));
@@ -90,6 +92,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       refreshing: false,
       pendingUpdate: false,
       checkError: false,
+      refreshError: null,
       expandedKeys: emptyCards,
     }));
   }
@@ -102,6 +105,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       refreshing: false,
       pendingUpdate: false,
       checkError: false,
+      refreshError: null,
       expandedKeys: readOpenCards(project.absolutePath),
     }));
   }
@@ -197,7 +201,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
     const controller = new AbortController();
     const generation = state.refreshKey;
     statusRequest.current = controller;
-    update((current) => ({ ...current, refreshing: true }));
+    update((current) => ({ ...current, refreshing: true, refreshError: null }));
     const isCurrent = (): boolean =>
       !controller.signal.aborted &&
       statusRequest.current === controller &&
@@ -212,6 +216,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
           refreshing: false,
           pendingUpdate: false,
           checkError: false,
+          refreshError: null,
         }));
         if (value.kind === "not_git") inputsRef.current.onNonGit(project);
       },
@@ -222,8 +227,8 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
           ...current,
           status: current.status.kind === "ready" ? current.status : { kind: "error", message },
           refreshing: false,
+          refreshError: current.status.kind === "ready" ? message : null,
         }));
-        inputsRef.current.onNotice(message);
       },
     );
     return () => {
@@ -381,6 +386,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       refreshing: current && state.refreshing,
       pendingUpdate: current && state.pendingUpdate,
       checkError: current && state.checkError,
+      refreshError: current ? state.refreshError : null,
       refreshKey: state.refreshKey,
       expandedKeys: current ? state.expandedKeys : emptyCards,
     },

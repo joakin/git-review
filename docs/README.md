@@ -32,10 +32,14 @@ behavior and its feedback, syntax and loading owners.
 The [feedback check performance closure](feedback-check-performance-proposal.md) links the accepted
 batch-check behavior, independent reviews, and measured work reduction.
 
+The [application notifications record](application-notifications.md) owns shared bottom-centered
+notices, modal layering and notification lifetimes.
+
 ## Behavior records
 
 | Area                                  | Authoritative record                                                                                                                                                                                                     |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Application notifications             | [Shared notices, lifetimes and modal layering](application-notifications.md)                                                                                                                                             |
 | Folder selection                      | [Picker and approved host root](foundation-slice.md)                                                                                                                                                                     |
 | Project identity and restart behavior | [Stateless project contract](stateless-project-access-plan.md)                                                                                                                                                           |
 | Changes                               | [Inventory](git-status-slice.md), [diff cards](diff-slice.md), [line counts](changes-line-counts-proposal.md), [live updates](live-change-detection-slice-proposal.md)                                                   |

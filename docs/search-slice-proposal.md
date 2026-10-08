@@ -9,7 +9,9 @@ browser does not download or index the codebase.
 Submit a case-sensitive literal query in **Search**. Submission and direct links trim surrounding
 whitespace through the same query contract. Search runs on submission, with grouped paths, line
 numbers, and excerpts, plus explicit empty, loading, error, and truncated states. Refresh repeats
-the query. It does not expand identifiers or add whole-word matching.
+the query. Once results are available, Refresh appears beside Search in the same button row,
+directly below the query field in the contextual sidebar. It does not expand identifiers or add
+whole-word matching.
 
 The URL owns the submitted query and selected result. Opening a result retains Search as its parent
 list and scrolls the current working-tree file to the matching line. Back/Forward restores the
@@ -59,6 +61,9 @@ belong in the [root README](../README.md).
 ## Evidence and device limits
 
 The [QA catalog](qa-workflow.md) identifies Search, selected-code Search, and feedback checks.
+[Adjacent Search and Refresh controls](../qa/screenshots/search-adjacent-refresh/mobile.png) show
+the current form layout at the four standard viewport sizes; browser checks also cover a narrow
+phone and successful refresh without changing the destination.
 [Search results](../qa/screenshots/search-results-first/mobile.png),
 [deep file jumps](../qa/screenshots/search-deep-jump-review/mobile.png), and
 [selected-code action placement](../qa/screenshots/selected-code-search-touch-placement/mobile.png)

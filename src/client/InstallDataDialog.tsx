@@ -8,6 +8,7 @@ import {
 } from "./backup.ts";
 import { readCommentStore } from "./comments.ts";
 import { useModal } from "./modal.ts";
+import { useNotification, useNotifications } from "./Notifications.tsx";
 
 export type InstallPromptEvent = Event & { prompt: () => Promise<void> };
 
@@ -29,7 +30,11 @@ export function InstallDataDialog({
   const modal = useModal(onClose);
   const [preview, setPreview] = useState<ReviewBackup | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const notifications = useNotifications();
+  useNotification(
+    "local-data-error",
+    error !== null ? { message: error, severity: "error" } : null,
+  );
   const standalone = window.matchMedia("(display-mode: standalone)").matches;
   const replacedDrafts =
     preview?.comments.reduce(
@@ -68,9 +73,11 @@ export function InstallDataDialog({
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
-      setMessage(
-        `Backup downloaded: ${backup.comments.length} project review record${backup.comments.length === 1 ? "" : "s"}.`,
-      );
+      notifications.push({
+        key: "backup-export",
+        message: `Backup downloaded: ${backup.comments.length} project review record${backup.comments.length === 1 ? "" : "s"}.`,
+        severity: "success",
+      });
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "Could not export review data.");
     }
@@ -78,7 +85,7 @@ export function InstallDataDialog({
 
   async function chooseImport(file: File | undefined): Promise<void> {
     setPreview(null);
-    setMessage(null);
+    notifications.dismissKey("backup-export");
     setError(null);
     if (file === undefined || rootPath === null) return;
     if (file.size > maxBackupBytes) {
@@ -194,16 +201,6 @@ export function InstallDataDialog({
             </div>
           )}
         </section>
-        {message !== null && (
-          <p class="review-status" role="status">
-            {message}
-          </p>
-        )}
-        {error !== null && (
-          <p class="review-error" role="alert">
-            {error}
-          </p>
-        )}
       </div>
     </dialog>
   );

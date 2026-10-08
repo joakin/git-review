@@ -147,7 +147,7 @@ await withQaBrowser(async (browser) => {
       .click();
     await waitForRoute(page, "search");
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     await page
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });

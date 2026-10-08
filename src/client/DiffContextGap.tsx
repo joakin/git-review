@@ -16,10 +16,6 @@ export function DiffContextGap({
   const pending =
     control.activity.kind === "loading" ||
     (control.activity.kind === "error" && control.activity.gap === null);
-  const error =
-    control.activity.kind === "error" && control.activity.gap === gap.id
-      ? control.activity.message
-      : null;
   return (
     <div class="diff-context-gap" data-gap={gap.id}>
       <div class="diff-context-gap-content">
@@ -67,29 +63,6 @@ export function DiffContextGap({
             ? "Loading context…"
             : `${remaining} unchanged ${remaining === 1 ? "line" : "lines"} hidden`}
         </span>
-        {error !== null && (
-          <span class="diff-context-error" role="alert">
-            {error}{" "}
-            <button
-              type="button"
-              onClick={(event) => {
-                const separator = event.currentTarget.closest(".diff-context-gap");
-                if (separator instanceof HTMLElement)
-                  control.expand(
-                    gap,
-                    control.activity.kind === "error" && control.activity.direction !== null
-                      ? control.activity.direction
-                      : gap.id === 0
-                        ? "up"
-                        : "down",
-                    separator,
-                  );
-              }}
-            >
-              Retry
-            </button>
-          </span>
-        )}
       </div>
     </div>
   );

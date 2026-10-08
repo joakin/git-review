@@ -231,7 +231,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
           "Abandoned completion replaced the pending project",
         );
         assert(
-          (await page.locator("main [role=alert], .sidebar [role=alert]").count()) === 0,
+          (await page.locator("main [role=alert], .notification [role=alert]").count()) === 0,
           "Abandoned failure appeared on the replacement route",
         );
       }
@@ -312,7 +312,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
     await pickerReady(page, pickerUrl);
     await page.locator(".open-button").click();
     await page
-      .locator(".sidebar [role=alert]")
+      .locator(".notification [role=alert]")
       .filter({ hasText: "Controlled project-open failure" })
       .waitFor();
     assert(

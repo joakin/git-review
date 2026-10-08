@@ -344,11 +344,7 @@ export function DiffBody({
 
   if (result.kind === "media") return <MediaDiff old={result.old} next={result.new} />;
   if (result.kind === "stale")
-    return (
-      <p class="diff-message">
-        The file changed while loading. Choose Update or Refresh to read the latest edits.
-      </p>
-    );
+    return <p class="diff-message">Diff unavailable for the current snapshot.</p>;
   if (result.kind === "conflict")
     return (
       <p class="diff-message">
@@ -386,14 +382,6 @@ export function DiffBody({
       {context?.activity.kind === "loading" && context.activity.gap === null && (
         <p class="diff-message" role="status">
           Updating context highlighting…
-        </p>
-      )}
-      {context?.activity.kind === "error" && context.activity.gap === null && (
-        <p class="diff-message" role="alert">
-          {context.activity.message}{" "}
-          <button type="button" onClick={context.retry}>
-            Retry
-          </button>
         </p>
       )}
       <div

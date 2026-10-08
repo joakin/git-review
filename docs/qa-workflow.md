@@ -131,6 +131,13 @@ viewports plus a narrow phone.
 
 ## Screenshot procedure
 
+The [application notification check](../qa/check-notifications.ts) runs with
+`bun qa/check-notifications.ts <URL>` and creates/removes its own Git fixture beneath the isolated
+server's approved root. It covers standard sizes plus a narrow phone, dark appearance, simulated
+keyboard geometry and a popover-disabled fallback. An optional profile name selects one scenario
+group. [The notification record](application-notifications.md) owns the contract and milestone
+links.
+
 Capture a new, descriptive milestone after rebuilding the client:
 
 ```sh

@@ -8,6 +8,7 @@ import { LanguagePicker } from "./LanguagePicker.tsx";
 import { Chevron, Icon } from "./Icons.tsx";
 import type { DiffState } from "./diff-loading.ts";
 import type { DiffContextControl } from "./use-diff-context.ts";
+import { useNotification } from "./Notifications.tsx";
 
 type DiffCardMode =
   | (Extract<DiffInteraction, { kind: "review" }> & {
@@ -100,6 +101,16 @@ export function DiffCardFrame({
 }) {
   const sticky = usePinnedHeading(expanded && mode.kind === "review");
   const path = mode.kind === "review" ? mode.entry.path : mode.file.path;
+  useNotification(
+    `diff-load:${requestKey}`,
+    expanded && current.kind === "error"
+      ? {
+          message: `${path}: ${current.message}`,
+          severity: "error",
+          action: { label: "Retry", run: retry },
+        }
+      : null,
+  );
   const label = mode.kind === "review" ? mode.entry.layer : "commit";
   const kind = mode.kind === "review" ? mode.entry.kind : mode.file.kind;
   const oldPath =
@@ -206,14 +217,7 @@ export function DiffCardFrame({
           {current.kind === "loading" && (
             <DelayedLoading key={requestKey} className="diff-message" message="Loading diff…" />
           )}
-          {current.kind === "error" && (
-            <div class="diff-message" role="alert">
-              {current.message}{" "}
-              <button type="button" onClick={retry}>
-                Retry
-              </button>
-            </div>
-          )}
+          {current.kind === "error" && <p class="diff-message">Diff unavailable.</p>}
           {current.kind === "ready" && (
             <DiffBody result={current.value} wrap={wrap} interaction={mode} context={context} />
           )}

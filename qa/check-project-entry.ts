@@ -176,7 +176,7 @@ await withQaBrowser(async (browser) => {
         new URL("/?section=changes&project=inventory-fixture&target=list", base).href,
       );
       await page
-        .locator(".sidebar [role=alert]")
+        .locator(".notification [role=alert]")
         .filter({ hasText: "Controlled host-root failure" })
         .waitFor({ state: "visible" });
       await page.getByRole("button", { name: "Choose another project", exact: true }).click();

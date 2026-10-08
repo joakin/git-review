@@ -112,7 +112,7 @@ await withQaBrowser(async (browser) => {
       .getByRole("button", { name: "Search" })
       .click();
     await page.getByRole("searchbox", { name: "Find text" }).fill("working tree");
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     await page
       .getByRole("button", { name: /^Open src\/view\.ts at line 1:/ })
       .waitFor({ state: "visible" });
@@ -131,7 +131,7 @@ await withQaBrowser(async (browser) => {
       },
     );
     await page.getByRole("searchbox", { name: "Find text" }).fill("no-match-loading-check");
-    await page.locator(".search-form button").click();
+    await page.locator(".search-form button[type=submit]").click();
     if ((await page.getByRole("button", { name: /^Open src\/view\.ts at line 1:/ }).count()) !== 0)
       throw new Error("Results from the previous query remained visible after submission");
     if ((await page.getByText("Searching files…").count()) !== 0)
