@@ -16,6 +16,10 @@ The entire title area toggles the card without a hover background. Its transpare
 the header's corners so keyboard focus follows the card shape; the sticky header owns the
 background, shadow and pinned-corner behavior.
 
+The expanded code pane inherits the body's inner bottom corners, so its existing scroll boundary
+clips code-row and collapsed-context backgrounds to the card. The sticky header and fixed line
+actions stay outside that boundary.
+
 **Open** is available on collapsed and expanded cards. It navigates to the same project's
 [Files view](file-browser-slice-proposal.md), selects the current path and its parent directory, and
 reads the whole current working file even for a staged comparison. Renames open their new path.
@@ -128,9 +132,13 @@ and sticky actions at the four standard sizes and a narrow phone. The
 [refined header](../qa/screenshots/changes-card-header-left-counts/mobile.png) and
 [long-path header](../qa/screenshots/changes-card-header-left-counts-long/mobile.png) milestones
 were captured and inspected at all four standard sizes. Physical-device selection and touch remain
-unverified. [Blank-line browser QA](../qa/check-blank-lines.ts) checks empty and whitespace-only row
-heights, exact source text, CRLF display and typography across the four viewport profiles and
-wrapping modes.
+unverified. The [added-row](../qa/screenshots/diff-card-rounded-added/mobile.png),
+[deleted-row](../qa/screenshots/diff-card-rounded-deleted/mobile.png) and
+[collapsed-context](../qa/screenshots/diff-card-rounded-context/mobile.png) bottom corners were
+captured and inspected at all four standard sizes; focused browser hit checks verified clipping and
+the final row's floating line action. [Blank-line browser QA](../qa/check-blank-lines.ts) checks
+empty and whitespace-only row heights, exact source text, CRLF display and typography across the
+four viewport profiles and wrapping modes.
 
 [Context tests](../src/server/diff-context.test.ts) cover exact gaps, side offsets, zero-count
 coordinates, CRLF/final-newline handling, mixed expansion and exhaustion, limits, stale sources and

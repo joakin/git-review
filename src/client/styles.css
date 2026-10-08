@@ -1415,6 +1415,10 @@ span.select-control > select {
 .diff-card-body {
   min-width: 0;
   border-top: 1px solid var(--color-border);
+  border-radius: 0 0 calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px);
+}
+.diff-card-body > .diff-scroll {
+  border-radius: inherit;
 }
 .diff-language-row {
   display: flex;
