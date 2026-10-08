@@ -5,6 +5,25 @@ otherwise start collapsed. Selecting a file in the contextual list changes its U
 and focuses it once. Later toggles and Refresh do not repeat route focus. Expanded cards load on
 demand and render an accepted cached result immediately.
 
+Changes card headers keep the chevron and path on the left, with the status and
+[line counts](changes-line-counts-proposal.md#presentation) together beneath the path. Compact
+language and **Open** controls sit on the right; Open uses a file icon before its label. Expanded
+text cards put their [language selector](syntax-highlighting-slice.md) in the header instead of a
+separate body row. The entire expanded header stays sticky below the section heading; controls act
+independently of the collapse button and wrap within narrow layouts.
+
+The entire title area toggles the card without a hover background. Its transparent button inherits
+the header's corners so keyboard focus follows the card shape; the sticky header owns the
+background, shadow and pinned-corner behavior.
+
+**Open** is available on collapsed and expanded cards. It navigates to the same project's
+[Files view](file-browser-slice-proposal.md), selects the current path and its parent directory, and
+reads the whole current working file even for a staged comparison. Renames open their new path.
+Deleted entries and submodules disable this action with an explanation; a recreated file after a
+staged deletion can be opened from its separate Changes entry or Files. Later disappearance or read
+failure uses the Files error and Retry behavior. Open preserves card choices and uses the existing
+app/browser Back and reading-position lifetimes.
+
 Wrap switches between wrapped lines and one horizontal scroll surface for all hunks in a file. Short
 rows stay compact; wrapped rows grow with content. Signs, line-number gutters and hunk labels remain
 visible at the left edge while code scrolls, and the page stays within the viewport. Phone row
@@ -102,8 +121,16 @@ Changes, historical diffs and Files.
 cover separate layers, renames, deletions, unusual names, exact anchors, binary/links, unborn
 repositories, limits, malformed hunks and stale requests. [Diff browser QA](../qa/check-diff.ts)
 exercises navigation, persistence, wrapping, sticky gutters and contained scrolling.
-[Blank-line browser QA](../qa/check-blank-lines.ts) checks empty and whitespace-only row heights,
-exact source text, CRLF display and typography across the four viewport profiles and wrapping modes.
+[Header browser QA](../qa/check-changes-card-header.ts) exercises Open navigation, current-file
+identity, independent controls, automatic/manual language choices, persistence, left-aligned counts,
+stable picker width, transparent title hover, loading/read failures, exceptional files, long paths
+and sticky actions at the four standard sizes and a narrow phone. The
+[refined header](../qa/screenshots/changes-card-header-left-counts/mobile.png) and
+[long-path header](../qa/screenshots/changes-card-header-left-counts-long/mobile.png) milestones
+were captured and inspected at all four standard sizes. Physical-device selection and touch remain
+unverified. [Blank-line browser QA](../qa/check-blank-lines.ts) checks empty and whitespace-only row
+heights, exact source text, CRLF display and typography across the four viewport profiles and
+wrapping modes.
 
 [Context tests](../src/server/diff-context.test.ts) cover exact gaps, side offsets, zero-count
 coordinates, CRLF/final-newline handling, mixed expansion and exhaustion, limits, stale sources and

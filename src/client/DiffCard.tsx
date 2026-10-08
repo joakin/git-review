@@ -16,6 +16,7 @@ type DiffCardProps = ChangeSnapshot & {
   wrap: boolean;
   languages: readonly LanguageOption[];
   onToggle: () => void;
+  onOpenFile: () => void;
   onStale: () => void;
   onComment: (anchor: CommentAnchor) => void;
   drafts: readonly DraftComment[];
@@ -40,6 +41,7 @@ export function DiffCard({
   wrap,
   languages,
   onToggle,
+  onOpenFile,
   onStale,
   onComment,
   drafts,
@@ -90,7 +92,7 @@ export function DiffCard({
   );
   return (
     <DiffCardFrame
-      mode={{ kind: "review", projectPath, entry, onComment, drafts, reattachSide }}
+      mode={{ kind: "review", projectPath, entry, onComment, drafts, reattachSide, onOpenFile }}
       id={diffCardId(entry)}
       expanded={expanded}
       onToggle={onToggle}

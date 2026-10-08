@@ -1021,6 +1021,13 @@ export function App() {
                       expandAll: review.actions.expandAll,
                       collapseAll: review.actions.collapseAll,
                       comment: feedback.actions.chooseLine,
+                      openFile: (path) =>
+                        navigate({
+                          section: "files",
+                          projectPath: project.relativePath,
+                          directory: parentDirectory(path),
+                          target: { kind: "file", path, line: null },
+                        }),
                     }}
                   />
                 )}

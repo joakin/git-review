@@ -124,6 +124,11 @@ Server/shared tests cover parsing, containment, exact source reads and invalid-i
 browser checks cannot exhaust. Source links in the relevant boundary record identify those tests. No
 catalog entry claims physical-device verification.
 
+The [Changes header check](../qa/check-changes-card-header.ts) runs with
+`bun qa/check-changes-card-header.ts <URL>`. It creates and removes its own Git fixture beneath the
+isolated server's approved root and covers the [header and Open flow](diff-slice.md) at all standard
+viewports plus a narrow phone.
+
 ## Screenshot procedure
 
 Capture a new, descriptive milestone after rebuilding the client:

@@ -37,6 +37,7 @@ type ChangesCommands = {
   expandAll: () => void;
   collapseAll: () => void;
   comment: (anchor: CommentAnchor) => void;
+  openFile: (path: string) => void;
 };
 
 const changeLayers: readonly { key: ChangeLayer; label: string }[] = [
@@ -310,6 +311,7 @@ export function ChangesView({
                         wrap={wrap}
                         languages={languages}
                         onToggle={() => commands.toggleEntry(entry)}
+                        onOpenFile={() => commands.openFile(entry.path)}
                         onStale={() =>
                           commands.notifyStale(
                             gitStatus.revision,

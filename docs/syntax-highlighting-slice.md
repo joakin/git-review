@@ -12,6 +12,16 @@ Plain text and bundled grammars, resolving ambiguous cases such as C headers and
 Overrides are saved per project/path; only an installed grammar ID or plain text is accepted.
 [syntax.ts](../src/server/syntax.ts) owns detection and role mapping.
 
+Expanded Changes text cards use the compact variant of the language picker in their
+[card header](diff-slice.md). Its closed display shows the detected language's readable name while
+automatic mode remains selected; the native menu still offers an explicit Auto detect choice.
+Loading uses Auto, and unknown or unavailable automatic highlighting uses Plain text. Manual choices
+show their grammar name. The closed control has a fixed compact width, with long names truncated
+visually and available in its tooltip and native menu, so neighboring actions stay aligned across
+language choices. A keyboard focus indicator and accessible description identify automatic mode
+without a second visible language label. Collapsed cards do not load diffs to detect a language, and
+ready non-text cards have no picker. Files and historical Git use the standard language row.
+
 ## Source fidelity and fallback
 
 Diffs tokenize bounded complete Old/New snapshots separately so multiline comments and strings

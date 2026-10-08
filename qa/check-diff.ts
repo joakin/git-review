@@ -210,8 +210,8 @@ async function main(): Promise<void> {
       const languageSelect = cCard.getByLabel("Language");
       await languageSelect.selectOption("cpp");
       await cCard
-        .locator(".diff-language-row > span")
-        .getByText("cpp")
+        .locator(".language-picker-value")
+        .filter({ hasText: /^C\+\+$/ })
         .waitFor({ state: "visible" });
 
       await page.reload({ waitUntil: "load" });

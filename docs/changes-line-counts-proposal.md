@@ -7,11 +7,12 @@ the reader requests an update; a failed refresh retains the accepted snapshot.
 ## Presentation
 
 Each contextual-list row and card heading shows localized added/deleted counts beside its change
-kind. Paths have their own line, rename origins can wrap and each count pair stays together. Counts
-remain visible in collapsed, expanded and sticky headings. Layer totals appear before file-count
-badges in Staged, Unstaged and Untracked groups. Partial text totals are labeled Known, with
-separate binary, non-text and unavailable summaries; Conflicts retains its explicit state and file
-count.
+kind. Card headings group the status and counts on the left beneath the path, separated by a spaced
+middle dot; the language and Open controls occupy the right. Paths have their own line, rename
+origins can wrap and each count pair stays together. Counts remain visible in collapsed, expanded
+and sticky headings. Layer totals appear before file-count badges in Staged, Unstaged and Untracked
+groups. Partial text totals are labeled Known, with separate binary, non-text and unavailable
+summaries; Conflicts retains its explicit state and file count.
 
 Section headings remain below the app bar, with the expanded card heading beneath them. They hand
 off at layer boundaries and accommodate wrapping without overlapping content. Activating a section

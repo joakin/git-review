@@ -66,6 +66,8 @@
   --diff-sign-width: 20px;
   --diff-context-button-width: 28px;
   --diff-context-button-height: 18px;
+  --control-height-compact: 32px;
+  --language-picker-compact-width: 112px;
 
   /* Surface and text */
   --color-ink: #192838;
