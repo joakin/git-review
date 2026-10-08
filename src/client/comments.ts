@@ -2,22 +2,19 @@ import { isProjectPath } from "../shared/project-path.ts";
 import type { ChangeLayer, DiffHunk, DiffResult, FileLine, FileReadResult } from "../shared/api.ts";
 import { isRecord } from "../shared/validation.ts";
 
+import {
+  maxFeedbackCheckAnchors,
+  type CommentAnchor,
+  type DiffCommentAnchor,
+  type FileCommentAnchor,
+} from "../shared/feedback-check.ts";
 export type ReviewSide = "old" | "new";
 export type ReviewLayer = "staged" | "unstaged" | "untracked";
-type LineContext = {
-  path: string;
-  line: number;
-  sourceText: string;
-  before: string | null;
-  after: string | null;
-};
-export type DiffCommentAnchor = LineContext & {
-  kind: "diff";
-  layer: ReviewLayer;
-  side: ReviewSide;
-};
-export type FileCommentAnchor = LineContext & { kind: "file"; source: "worktree" };
-export type CommentAnchor = DiffCommentAnchor | FileCommentAnchor;
+export type {
+  CommentAnchor,
+  DiffCommentAnchor,
+  FileCommentAnchor,
+} from "../shared/feedback-check.ts";
 export type SelectionSubject = { kind: "selection"; start: number; end: number; text: string };
 export type CommentSubject = { kind: "line" } | SelectionSubject;
 export type CommentTarget = { anchor: CommentAnchor; subject: CommentSubject };
@@ -50,7 +47,7 @@ export type FeedbackSnapshot = { projectPath: string; text: string; drafts: Draf
 
 export const commentStoragePrefix = "git-review:comments:v2:";
 export const maxBodyLength = 5000;
-export const maxDrafts = 200;
+export const maxDrafts = maxFeedbackCheckAnchors;
 export const maxFeedbackLength = 250_000;
 const maxHistory = 20;
 

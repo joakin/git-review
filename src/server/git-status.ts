@@ -182,8 +182,8 @@ async function workingPathFingerprint(projectPath: string, path: string): Promis
   }
 }
 
-export async function readProjectStatus(projectPath: string): Promise<ProjectInventory> {
-  if (!(await isGitWorktree(projectPath))) return { kind: "not_git" };
+export async function readGitInventory(projectPath: string) {
+  if (!(await isGitWorktree(projectPath))) return { kind: "not_git" as const };
   const [prefix, output] = await Promise.all([
     readGitPrefix(projectPath),
     runGit(projectPath, [
@@ -208,6 +208,40 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectInv
           : posix.relative(prefix === "" ? "." : prefix.slice(0, -1), entry.oldPath),
     };
   });
+  return {
+    kind: "git" as const,
+    output,
+    prefix,
+    entries,
+    revision: createHash("sha256").update(output).digest("hex").slice(0, 20),
+  };
+}
+
+/** Versions only for caller-selected working sources; not a public Changes token. */
+export async function readWorkingPathVersions(
+  projectPath: string,
+  paths: readonly string[],
+): Promise<string> {
+  const tokenHash = createHash("sha256");
+  const workingPaths = [...new Set(paths)].sort();
+  const realProjectPath = await realpath(projectPath);
+  for (let offset = 0; offset < workingPaths.length; offset += 16) {
+    const fingerprints = await Promise.all(
+      workingPaths.slice(offset, offset + 16).map(async (path) => ({
+        path,
+        value: await workingPathFingerprint(realProjectPath, path),
+      })),
+    );
+    for (const fingerprint of fingerprints)
+      tokenHash.update("\0").update(fingerprint.path).update("\0").update(fingerprint.value);
+  }
+  return tokenHash.digest("hex");
+}
+
+export async function readProjectStatus(projectPath: string): Promise<ProjectInventory> {
+  const inventory = await readGitInventory(projectPath);
+  if (inventory.kind === "not_git") return inventory;
+  const { output, entries, revision } = inventory;
   const tokenHash = createHash("sha256").update(output);
   const workingPaths = [
     ...new Set(entries.filter((entry) => entry.layer !== "staged").map((entry) => entry.path)),
@@ -223,10 +257,5 @@ export async function readProjectStatus(projectPath: string): Promise<ProjectInv
     for (const fingerprint of fingerprints)
       tokenHash.update("\0").update(fingerprint.path).update("\0").update(fingerprint.value);
   }
-  return {
-    kind: "git",
-    revision: createHash("sha256").update(output).digest("hex").slice(0, 20),
-    changeToken: tokenHash.digest("hex").slice(0, 20),
-    entries,
-  };
+  return { kind: "git", revision, changeToken: tokenHash.digest("hex").slice(0, 20), entries };
 }

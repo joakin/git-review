@@ -22,7 +22,7 @@ function hunkNumber(value: string | undefined): number {
   return number;
 }
 
-export function parseGitPatch(output: Buffer): ParsedDiff {
+export function parseGitPatchHunks(output: Buffer): ParsedDiff {
   if (output.byteLength > maxPatchBytes) return { kind: "too_large" };
   const patch = decodedText(output, maxPatchBytes);
   if (patch === null) return { kind: "binary", reason: "binary" };
@@ -140,7 +140,12 @@ export function parseGitPatch(output: Buffer): ParsedDiff {
   }
   if (symlink) return { kind: "binary", reason: "symlink" };
   if (binary) return { kind: "binary", reason: "binary" };
-  return withWordDetails({ kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks });
+  return { kind: "text", syntax: { kind: "plain", reason: "unavailable" }, hunks };
+}
+
+export function parseGitPatch(output: Buffer): ParsedDiff {
+  const parsed = parseGitPatchHunks(output);
+  return parsed.kind === "text" ? withWordDetails(parsed) : parsed;
 }
 
 export function diffFromContent(content: Buffer, side: "old" | "new" = "new"): ParsedDiff {

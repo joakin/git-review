@@ -1,3 +1,5 @@
+import { parseFeedbackCheckRequest, maxFeedbackCheckBodyBytes } from "../shared/feedback-check.ts";
+import { checkFeedbackAnchors } from "./feedback-check.ts";
 import type { ApprovedRoot } from "./paths.ts";
 import { AppError, listDirectory, resolveProject } from "./paths.ts";
 import { readProjectStatus } from "./git-status.ts";
@@ -298,6 +300,19 @@ async function handleApiRequest(
         );
       }
       return Response.json(await readReviewStatus(root, current));
+    }
+    if (url.pathname === "/api/project/feedback/check" && request.method === "POST") {
+      onlyQueryKeys(url, []);
+      const body = await readJsonBody(request, maxFeedbackCheckBodyBytes);
+      let check;
+      try {
+        check = parseFeedbackCheckRequest(body);
+      } catch {
+        throw new AppError("invalid_request", 400, "Invalid feedback check request");
+      }
+      const current = await resolveProject(root, oneQueryValue(url, "projectPath"));
+      const result = await checkFeedbackAnchors(root, current, check, request.signal);
+      return Response.json(result, { headers: { "cache-control": "no-store" } });
     }
     if (url.pathname === "/api/project/diff-context" && request.method === "POST") {
       onlyQueryKeys(url, []);

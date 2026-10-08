@@ -62,6 +62,7 @@ export async function readProjectPatch(
   root: ApprovedRoot,
   project: Project,
   entry: ChangeEntry,
+  parsePatch: typeof parseGitPatch = parseGitPatch,
 ): Promise<DiffResult> {
   if (entry.layer === "conflict") return { kind: "conflict" };
   if (entry.isSubmodule) return { kind: "binary", reason: "submodule" };
@@ -80,7 +81,7 @@ export async function readProjectPatch(
     ...workingDiffPaths(root, project, entry),
   ];
   try {
-    return parseGitPatch(await runGit(project.absolutePath, args, maxPatchBytes + 1024));
+    return parsePatch(await runGit(project.absolutePath, args, maxPatchBytes + 1024));
   } catch (error: unknown) {
     if (error instanceof GitCommandError && error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
       return { kind: "too_large" };
