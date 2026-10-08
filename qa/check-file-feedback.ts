@@ -415,10 +415,12 @@ try {
             await preview(p);
             await closePreview(p);
             const beforeFailure = await readStore(p);
-            await p.route("**/api/project/file?*", async (route) => {
+            await p.route("**/api/project/feedback/check?*", async (route) => {
               await route.fulfill({
                 status: 403,
-                json: { error: { code: "forbidden", message: "Test read denied" } },
+                json: {
+                  error: { code: "forbidden", message: "Could not check file. Test read denied" },
+                },
               });
             });
             await p.locator(".feedback-launch").click();
@@ -431,7 +433,7 @@ try {
               !(await p.getByRole("button", { name: "Copy feedback", exact: true }).isEnabled()),
               "Read failure allowed copy",
             );
-            await p.unroute("**/api/project/file?*");
+            await p.unroute("**/api/project/feedback/check?*");
             await p.getByRole("button", { name: "Retry", exact: true }).click();
             await p.locator("#review-export-text").waitFor({ state: "visible" });
             await closePreview(p);

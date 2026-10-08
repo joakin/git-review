@@ -1,3 +1,4 @@
+import { parseFeedbackCheckRequest } from "../src/shared/feedback-check.ts";
 import { projectLookupResponse } from "./browser-support.ts";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -6,6 +7,7 @@ import { parseReviewBackup } from "../src/client/backup.ts";
 import { responseBody } from "../src/client/api.ts";
 import {
   anchorForLine,
+  anchorMatches,
   emptyCommentStore,
   selectionSubject,
   validateCommentStore,
@@ -178,6 +180,15 @@ async function checkContextFeedback(page: Page, touch: boolean): Promise<void> {
   await page.addInitScript(({ key, store }) => localStorage.setItem(key, JSON.stringify(store)), {
     key,
     store,
+  });
+  await page.route("**/api/project/feedback/check?*", async (route) => {
+    const request = parseFeedbackCheckRequest(route.request().postDataJSON() as unknown);
+    await route.fulfill({
+      json: {
+        kind: "checked",
+        matches: request.anchors.map((anchor) => anchorMatches(diff, anchor)),
+      },
+    });
   });
   await page.route("**/api/project/diff?*", async (route) => {
     const params = new URL(route.request().url()).searchParams;

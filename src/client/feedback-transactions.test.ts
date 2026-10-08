@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { DiffResult, Project, ProjectStatus } from "../shared/api.ts";
-import type { ChangeSnapshot } from "../shared/change-snapshot.ts";
+import type { Project } from "../shared/api.ts";
 import {
   emptyCommentStore,
   formatFeedback,
@@ -24,45 +23,6 @@ const otherProject: Project = {
   name: "Other",
   absolutePath: "/repo/other",
 };
-const status: ProjectStatus = {
-  kind: "git",
-  revision: "a".repeat(20),
-  changeToken: "b".repeat(20),
-  entries: [
-    {
-      layer: "unstaged",
-      path: "file.ts",
-      kind: "modified",
-      oldPath: null,
-      isSubmodule: false,
-      stats: { kind: "text", added: 1, deleted: 0 },
-    },
-  ],
-};
-const diff: DiffResult = {
-  kind: "text",
-  syntax: { kind: "plain", reason: "selected" },
-  hunks: [
-    {
-      oldStart: 1,
-      oldCount: 0,
-      newStart: 1,
-      newCount: 1,
-      lines: [
-        {
-          kind: "added",
-          oldLine: null,
-          newLine: 1,
-          text: "source",
-          tokens: [{ text: "source", role: "plain" }],
-          detail: { kind: "none" },
-          noNewlineAtEnd: false,
-        },
-      ],
-    },
-  ],
-};
-
 function draft(id: string): DraftComment & { anchor: DiffCommentAnchor } {
   return {
     id,
@@ -103,9 +63,7 @@ function deferred<T>() {
 type Ports = ConstructorParameters<typeof FeedbackTransactions>[0];
 function harness(
   drafts: DraftComment[] = [draft("one")],
-  overrides: Partial<
-    Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchContext" | "fetchFile" | "writeText">
-  > = {},
+  overrides: Partial<Pick<Ports, "checkAnchors" | "writeText">> = {},
 ) {
   let current: CommentStore | null = { ...emptyCommentStore(project.absolutePath), drafts };
   const states: FeedbackState[] = [];
@@ -119,15 +77,7 @@ function harness(
     },
     onState: (value) => states.push(value),
     onCopied: (value) => copied.push(value),
-    fetchStatus: overrides.fetchStatus ?? (async () => status),
-    fetchDiff: overrides.fetchDiff ?? (async () => diff),
-    fetchContext:
-      overrides.fetchContext ?? (async (_project, _file, anchors) => anchors.map(() => false)),
-    fetchFile:
-      overrides.fetchFile ??
-      (async () => {
-        throw new Error("Unexpected file read");
-      }),
+    checkAnchors: overrides.checkAnchors ?? (async (_project, anchors) => anchors.map(() => true)),
     writeText: async (text) => {
       written.push(text);
       await overrides.writeText?.(text);
@@ -167,7 +117,7 @@ function heldClipboard() {
 }
 
 describe("owned feedback transactions", () => {
-  test("revealed-line feedback survives fresh checks without saved expansion state, and read failures block copying", async () => {
+  test("revealed-line feedback uses the anchor check and read failures block copying", async () => {
     const revealed = draft("revealed");
     revealed.anchor = {
       ...revealed.anchor,
@@ -177,17 +127,9 @@ describe("owned feedback transactions", () => {
       after: "after",
     };
     const success = harness([revealed], {
-      fetchContext: async (_project, file, anchors) => {
-        expect(file.language).toBe("text");
-        expect(anchors).toEqual([
-          {
-            side: "new",
-            line: 40,
-            sourceText: "revealed source",
-            before: "before",
-            after: "after",
-          },
-        ]);
+      checkAnchors: async (path, anchors) => {
+        expect(path).toBe(project.absolutePath);
+        expect(anchors).toEqual([revealed.anchor]);
         return [true];
       },
     });
@@ -195,7 +137,7 @@ describe("owned feedback transactions", () => {
     expect(success.written[0]).toContain("revealed source");
     expect(success.store.drafts).toHaveLength(0);
     const failure = harness([revealed], {
-      fetchContext: async () => {
+      checkAnchors: async () => {
         throw new Error("Permission denied");
       },
     });
@@ -204,25 +146,16 @@ describe("owned feedback transactions", () => {
     expect(failure.store.drafts).toHaveLength(1);
     expect(failure.state.check.kind).toBe("error");
   });
-  test("feedback checks both snapshot tokens and retries an edit behind unchanged status", async () => {
-    let changeToken = status.changeToken;
-    const snapshots: ChangeSnapshot[] = [];
+
+  test("a stale batch blocks copying and a fresh retry checks the anchors again", async () => {
+    let calls = 0;
     const h = harness([draft("one")], {
-      fetchStatus: async () => ({ ...status, changeToken }),
-      fetchDiff: async (projectPath, layer, path, snapshot, language, signal) => {
-        expect([projectPath, layer, path, language]).toEqual([
-          project.absolutePath,
-          "unstaged",
-          "file.ts",
-          "text",
-        ]);
+      checkAnchors: async (path, anchors, signal) => {
+        expect(path).toBe(project.absolutePath);
+        expect(anchors).toEqual([draft("one").anchor]);
         expect(signal.aborted).toBe(false);
-        snapshots.push({ revision: snapshot.revision, changeToken: snapshot.changeToken });
-        if (snapshot.changeToken === status.changeToken) {
-          changeToken = "c".repeat(20);
-          return { kind: "stale" };
-        }
-        return diff;
+        if (++calls === 1) throw new Error("The files changed during checking. Try again.");
+        return [true];
       },
     });
     const current = h.store;
@@ -234,24 +167,20 @@ describe("owned feedback transactions", () => {
     expect(h.store).toEqual(current);
     expect(h.written).toEqual([]);
     expect(h.copied).toEqual([]);
-
     await h.transactions.copy(project);
-    expect(snapshots).toEqual([
-      { revision: status.revision, changeToken: status.changeToken },
-      { revision: status.revision, changeToken },
-    ]);
+    expect(calls).toBe(2);
     expect(h.written).toEqual([formatFeedback(project.absolutePath, [draft("one")])]);
     expect(h.store.drafts).toEqual([]);
     expect(h.store.history[0]?.comments).toEqual([draft("one")]);
   });
 
   test("a late line check preserves edits, deletion, reattachment, new drafts and history", async () => {
-    const result = deferred<DiffResult>();
+    const result = deferred<boolean[]>();
     const started = deferred<void>();
     const edited = draft("edited");
     const moved = draft("moved");
     const h = harness([edited, moved, draft("deleted")], {
-      fetchDiff: async () => {
+      checkAnchors: async () => {
         started.resolve();
         return result.promise;
       },
@@ -265,7 +194,7 @@ describe("owned feedback transactions", () => {
       { id: "concurrent-history", copiedAt: 3, text: "Existing feedback", comments: [edited] },
     ];
     h.store = { ...h.store, drafts: [newBody, reattached, added], history };
-    result.resolve({ kind: "binary", reason: "binary" });
+    result.resolve([false]);
     await checking;
     expect(h.store.drafts).toEqual([{ ...newBody, state: "outdated" }, reattached, added]);
     expect(h.store.history).toEqual(history);
@@ -273,18 +202,18 @@ describe("owned feedback transactions", () => {
   });
 
   test("copy uses the latest checked body and excludes drafts added during its precheck", async () => {
-    const latest = deferred<ProjectStatus>();
+    const latest = deferred<boolean[]>();
     const clipboard = heldClipboard();
     const original = draft("one");
     const h = harness([original], {
-      fetchStatus: async () => latest.promise,
+      checkAnchors: async () => latest.promise,
       writeText: clipboard.writeText,
     });
     const copying = h.transactions.copy(project);
     const edited = { ...original, body: "Latest saved body", updatedAt: 2 };
     const added = draft("unchecked");
     h.store = { ...h.store, drafts: [edited, added] };
-    latest.resolve(status);
+    latest.resolve([true]);
     await clipboard.started.promise;
     expect(h.written).toEqual([formatFeedback(project.absolutePath, [edited])]);
     expect(h.state.copy).toEqual({ kind: "copying" });
@@ -296,20 +225,20 @@ describe("owned feedback transactions", () => {
   });
 
   test("manual export excludes an unchecked draft restored by Undo while checking", async () => {
-    const latest = deferred<ProjectStatus>();
+    const latest = deferred<boolean[]>();
     const original = draft("one");
     const restored = {
       ...draft("restored"),
       anchor: { ...original.anchor, sourceText: "Stale archived source" },
     };
-    const h = harness([original], { fetchStatus: async () => latest.promise });
+    const h = harness([original], { checkAnchors: async () => latest.promise });
     h.store = {
       ...h.store,
       history: [{ id: "undo-entry", copiedAt: 2, text: "Archived feedback", comments: [restored] }],
     };
     const pending = h.transactions.check(project);
     h.store = undoSuccessfulCopy(h.store, "undo-entry");
-    latest.resolve(status);
+    latest.resolve([true]);
     await pending;
     const checked = h.state.check;
     if (checked.kind !== "ready") throw new Error("Expected a successful check");
@@ -321,13 +250,13 @@ describe("owned feedback transactions", () => {
   });
 
   test("copy cannot export a reattached anchor using the old precheck", async () => {
-    const latest = deferred<ProjectStatus>();
+    const latest = deferred<boolean[]>();
     const original = draft("one");
-    const h = harness([original], { fetchStatus: async () => latest.promise });
+    const h = harness([original], { checkAnchors: async () => latest.promise });
     const copying = h.transactions.copy(project);
     const reattached = { ...original, anchor: { ...original.anchor, line: 9 }, updatedAt: 2 };
     h.store = { ...h.store, drafts: [reattached] };
-    latest.resolve(status);
+    latest.resolve([true]);
     await copying;
     expect(h.written).toEqual([]);
     expect(h.store.drafts).toEqual([reattached]);
@@ -377,22 +306,22 @@ describe("owned feedback transactions", () => {
 
   for (const outcome of ["success", "failure"] as const) {
     test(`a superseded check's late ${outcome} cannot replace the newer result`, async () => {
-      const older = deferred<ProjectStatus>();
+      const older = deferred<boolean[]>();
       let first = true;
       const h = harness([draft("one")], {
-        fetchStatus: async () => {
+        checkAnchors: async () => {
           if (first) {
             first = false;
             return older.promise;
           }
-          return { kind: "not_git" };
+          return [false];
         },
       });
       const pending = h.transactions.check(project);
       await h.transactions.check(project);
       const currentStore = h.store;
       const currentState = h.state;
-      if (outcome === "success") older.resolve(status);
+      if (outcome === "success") older.resolve([true]);
       else older.reject(new Error("Older request failed"));
       await pending;
       expect(h.store).toEqual(currentStore);
@@ -403,14 +332,14 @@ describe("owned feedback transactions", () => {
 
   for (const destination of [project, otherProject]) {
     test(`cancel and return to ${destination.absolutePath} ignores late check results`, async () => {
-      const latest = deferred<ProjectStatus>();
-      const h = harness([draft("one")], { fetchStatus: async () => latest.promise });
+      const latest = deferred<boolean[]>();
+      const h = harness([draft("one")], { checkAnchors: async () => latest.promise });
       const pending = h.transactions.check(project);
       h.transactions.cancel();
       h.clearStore();
       h.store = { ...emptyCommentStore(destination.absolutePath), drafts: [draft("new-session")] };
       const current = h.store;
-      latest.resolve(status);
+      latest.resolve([true]);
       await pending;
       expect(h.store).toEqual(current);
       expect(h.state).toEqual({ check: { kind: "idle" }, copy: { kind: "idle" } });
@@ -418,18 +347,18 @@ describe("owned feedback transactions", () => {
     });
   }
 
-  test("cancel aborts a held diff and its late error cannot replace the next check", async () => {
-    const older = deferred<DiffResult>();
+  test("cancel aborts a held anchor check and its late error cannot replace the next check", async () => {
+    const older = deferred<boolean[]>();
     const started = deferred<AbortSignal>();
     let first = true;
     const h = harness([draft("one")], {
-      fetchDiff: async (_id, _layer, _path, _snapshot, _language, signal) => {
+      checkAnchors: async (_id, _anchors, signal) => {
         if (first) {
           first = false;
           started.resolve(signal);
           return older.promise;
         }
-        return diff;
+        return [true];
       },
     });
     const pending = h.transactions.check(project);
@@ -437,7 +366,7 @@ describe("owned feedback transactions", () => {
     h.transactions.cancel();
     expect(signal.aborted).toBe(true);
     await h.transactions.check(project);
-    older.reject(new Error("Aborted diff responded late"));
+    older.reject(new Error("Aborted anchor check responded late"));
     await pending;
     expect(h.state.check.kind).toBe("ready");
     expect(h.store.drafts).toEqual([draft("one")]);
@@ -510,9 +439,9 @@ describe("owned feedback transactions", () => {
     const clipboard = heldClipboard();
     const h = harness([draft("one")], {
       writeText: clipboard.writeText,
-      fetchStatus: async (id) => {
+      checkAnchors: async (id) => {
         if (id === otherProject.absolutePath) throw new Error("New project's check failed");
-        return status;
+        return [true];
       },
     });
     const pending = h.transactions.copy(project);
@@ -588,11 +517,11 @@ describe("owned feedback transactions", () => {
     ).toEqual(h.store);
   });
 
-  test("stale diff and check failures do not write or archive feedback", async () => {
+  test("stale batch and check failures do not write or archive feedback", async () => {
     let stale = true;
     const h = harness([draft("one")], {
-      fetchDiff: async () => {
-        if (stale) return { kind: "stale" };
+      checkAnchors: async () => {
+        if (stale) throw new Error("The files changed during checking. Try again.");
         throw new Error("Diff unavailable");
       },
     });

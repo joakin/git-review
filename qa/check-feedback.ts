@@ -1,6 +1,7 @@
+import { parseFeedbackCheckRequest } from "../src/shared/feedback-check.ts";
 import type { Route } from "playwright-core";
 import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
-import { validateCommentStore } from "../src/client/comments.ts";
+import { anchorMatches, validateCommentStore } from "../src/client/comments.ts";
 import { parseDiffResponse } from "../src/shared/api.ts";
 import {
   parseChangeDiffBatchRequest,
@@ -118,17 +119,12 @@ await withQaBrowser(async (browser) => {
         throw new Error("Clipboard failure removed selectable text");
       await fallbackPage.getByRole("button", { name: "Close feedback" }).click();
       const emptyStatus = async (route: Route): Promise<void> => {
+        const request = parseFeedbackCheckRequest(route.request().postDataJSON() as unknown);
         await route.fulfill({
-          contentType: "application/json",
-          body: JSON.stringify({
-            kind: "git",
-            revision: "00000000000000000000",
-            changeToken: "00000000000000000000",
-            entries: [],
-          }),
+          json: { kind: "checked", matches: request.anchors.map(() => false) },
         });
       };
-      await fallbackPage.route("**/api/project/status?*", emptyStatus);
+      await fallbackPage.route("**/api/project/feedback/check?*", emptyStatus);
       await fallbackPage.getByRole("button", { name: "Feedback 1" }).click();
       await fallbackPage
         .getByText("Line changed or disappeared.", { exact: false })
@@ -204,7 +200,16 @@ await withQaBrowser(async (browser) => {
           });
         } else await route.continue();
       });
-      await fallbackPage.unroute("**/api/project/status?*", emptyStatus);
+      await fallbackPage.unroute("**/api/project/feedback/check?*", emptyStatus);
+      await fallbackPage.route("**/api/project/feedback/check?*", async (route) => {
+        const request = parseFeedbackCheckRequest(route.request().postDataJSON() as unknown);
+        await route.fulfill({
+          json: {
+            kind: "checked",
+            matches: request.anchors.map((anchor) => anchorMatches(reattachmentDiff, anchor)),
+          },
+        });
+      });
       await fallbackPage.reload({ waitUntil: "load" });
       await fallbackPage.getByRole("button", { name: "Feedback 1", exact: true }).click();
       await fallbackPage.getByRole("button", { name: "Reattach to line", exact: true }).click();
@@ -246,12 +251,12 @@ await withQaBrowser(async (browser) => {
         throw new Error("Checked export did not use the reattached removed-row anchor");
 
       await fallbackPage.getByRole("button", { name: "Close feedback", exact: true }).click();
-      await fallbackPage.route("**/api/project/status?*", emptyStatus);
+      await fallbackPage.route("**/api/project/feedback/check?*", emptyStatus);
       await fallbackPage.getByRole("button", { name: "Feedback 1", exact: true }).click();
       await fallbackPage
         .getByRole("button", { name: "Reattach to line", exact: true })
         .waitFor({ state: "visible" });
-      await fallbackPage.unroute("**/api/project/status?*", emptyStatus);
+      await fallbackPage.unroute("**/api/project/feedback/check?*", emptyStatus);
       await fallbackPage.getByRole("button", { name: "Reattach to line", exact: true }).click();
       await fallbackCard.locator(".diff-row-context .diff-code").tap();
       await fallbackCard.getByRole("button", { name: /Comment on old line 1/ }).click();

@@ -1,3 +1,4 @@
+import { parseFeedbackCheckRequest } from "../src/shared/feedback-check.ts";
 import { projectApiUrl } from "../src/shared/project-path.ts";
 import { projectLookupResponse } from "./browser-support.ts";
 import { mkdir } from "node:fs/promises";
@@ -174,7 +175,7 @@ await withQaBrowser(async (browser) => {
     name: string,
     run: (
       page: Page,
-      hold: (kind: "status" | "diff") => Promise<() => Promise<void>>,
+      hold: (kind: "feedback/check") => Promise<() => Promise<void>>,
     ) => Promise<void>,
   ) {
     await withQaContext(
@@ -248,7 +249,7 @@ await withQaBrowser(async (browser) => {
           page.setDefaultTimeout(10_000);
           await page.goto(reviewUrl, { waitUntil: "networkidle" });
           await page.getByRole("button", { name: /^Feedback 1$/ }).waitFor();
-          async function hold(kind: "status" | "diff"): Promise<() => Promise<void>> {
+          async function hold(kind: "feedback/check"): Promise<() => Promise<void>> {
             await openFeedback(page);
             await ready(page);
             await networkSettled(page);
@@ -296,7 +297,7 @@ await withQaBrowser(async (browser) => {
     console.log(`Passed: ${name}`);
   }
 
-  for (const kind of ["status", "diff"] as const)
+  for (const kind of ["feedback/check"] as const)
     await scenario(`editing during a held ${kind} check`, async (page, hold) => {
       const release = await hold(kind);
       await edit(page, `Newest ${kind} draft`);
@@ -366,7 +367,7 @@ await withQaBrowser(async (browser) => {
   );
 
   await scenario("navigation away and back cancels a held check", async (page, hold) => {
-    const release = await hold("diff");
+    const release = await hold("feedback/check");
     await awayAndBack(page);
     await ready(page);
     await edit(page, "Edit after returning to project");
@@ -464,6 +465,10 @@ await withQaBrowser(async (browser) => {
       // This empty picker fixture uses controlled Git responses; its project identity and SPA transition stay real.
       await page.route("**/api/project/status?*", (route) => route.fulfill({ json: status }));
       await page.route("**/api/project/diff?*", (route) => route.fulfill({ json: diff }));
+      await page.route("**/api/project/feedback/check?*", (route) => {
+        const body = parseFeedbackCheckRequest(route.request().postDataJSON() as unknown);
+        return route.fulfill({ json: { kind: "checked", matches: body.anchors.map(() => true) } });
+      });
       await openFeedback(page);
       await ready(page);
       await page.getByRole("button", { name: "Copy feedback", exact: true }).click();

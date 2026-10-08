@@ -75,30 +75,19 @@ const diffDraft: DraftComment = {
 type Ports = ConstructorParameters<typeof FeedbackTransactions>[0];
 function harness(
   drafts: DraftComment[],
-  overrides: Partial<Pick<Ports, "fetchStatus" | "fetchDiff" | "fetchFile" | "writeText">> = {},
+  overrides: Partial<Pick<Ports, "checkAnchors" | "writeText">> = {},
 ) {
   let store: CommentStore = { ...emptyCommentStore(project.absolutePath), drafts };
   let state: FeedbackState = { check: { kind: "idle" }, copy: { kind: "idle" } };
   const written: string[] = [];
   const engine = new FeedbackTransactions({
-    fetchContext: async (_project, _file, anchors) => anchors.map(() => false),
     readStore: () => store,
     updateStore: (change) => (store = change(store)),
     onState: (next) => {
       state = next;
     },
     onCopied: () => {},
-    fetchStatus:
-      overrides.fetchStatus ??
-      (async () => {
-        throw new Error("File-only checks must not fetch Git status");
-      }),
-    fetchDiff:
-      overrides.fetchDiff ??
-      (async () => {
-        throw new Error("Unexpected diff read");
-      }),
-    fetchFile: overrides.fetchFile ?? (async () => source),
+    checkAnchors: overrides.checkAnchors ?? (async (_path, anchors) => anchors.map(() => true)),
     writeText: async (text) => {
       written.push(text);
       await overrides.writeText?.(text);
@@ -256,60 +245,39 @@ test("backup six round-trips mixed stores and rejects obsolete formats", () => {
   expect(() => parseReviewBackup({ ...backup, version: 7 }, "/repo")).toThrow("unsupported format");
 });
 
-test("file-only check and copy read each path once using plain text without Git", async () => {
-  const calls: string[] = [];
+test("check and copy each submit one deduplicated anchor batch", async () => {
+  const calls: number[] = [];
   const h = harness([draft("one"), draft("duplicate"), draft("blank", 1)], {
-    fetchFile: async (id, path, language, signal) => {
-      expect(id).toBe(project.absolutePath);
-      expect(language).toBe("text");
+    checkAnchors: async (path, anchors, signal) => {
+      expect(path).toBe(project.absolutePath);
       expect(signal.aborted).toBe(false);
-      calls.push(path);
-      return source;
+      expect(anchors).toEqual([draft("one").anchor, draft("blank", 1).anchor]);
+      calls.push(anchors.length);
+      return anchors.map(() => true);
     },
   });
   await h.engine.check(project);
-  expect(calls).toEqual([source.path]);
-  expect(h.state.check.kind).toBe("ready");
+  expect(calls).toEqual([2]);
   await h.engine.copy(project);
-  expect(calls).toEqual([source.path, source.path]);
+  expect(calls).toEqual([2, 2]);
   expect(h.written).toHaveLength(1);
   expect(h.store.drafts).toEqual([]);
   expect(h.store.history[0]?.comments).toHaveLength(3);
+  const empty = harness([], {
+    checkAnchors: async () => {
+      throw new Error("Empty feedback must not make a request");
+    },
+  });
+  await empty.engine.check(project);
+  expect(empty.state.check.kind).toBe("ready");
 });
 
-test("mixed source checking retains valid file feedback when Git changes have disappeared", async () => {
-  const h = harness([draft(), diffDraft], { fetchStatus: async () => ({ kind: "not_git" }) });
+test("mixed checked results retain current file feedback and exclude outdated diff feedback", async () => {
+  const h = harness([draft(), diffDraft], { checkAnchors: async () => [true, false] });
   await h.engine.copy(project);
   expect(h.written[0]).toContain("[worktree]");
   expect(h.written[0]).not.toContain("[unstaged]");
   expect(h.store.drafts).toEqual([{ ...diffDraft, state: "outdated" }]);
-});
-
-test("missing and non-text files become outdated without writing or losing their drafts", async () => {
-  const unavailable: FileReadResult[] = [
-    { kind: "binary", path: source.path, byteLength: 5 },
-    { kind: "symlink", path: source.path, byteLength: 5 },
-    { kind: "too_large", path: source.path, byteLength: 5 },
-    { kind: "unsupported", path: source.path, byteLength: 5 },
-    file([]),
-    file(["changed", ""]),
-  ];
-  for (const value of unavailable) {
-    const h = harness([draft()], { fetchFile: async () => value });
-    await h.engine.copy(project);
-    expect(h.written).toEqual([]);
-    expect(h.store.drafts[0]?.state).toBe("outdated");
-    expect(h.store.drafts[0]?.body).toBe("Question file");
-  }
-  const h = harness([draft()], {
-    fetchFile: async () => {
-      throw new ApiRequestError("File missing", "file_not_found", 404);
-    },
-  });
-  await h.engine.copy(project);
-  expect(h.written).toEqual([]);
-  expect(h.state.check.kind).toBe("ready");
-  expect(h.store.drafts[0]?.state).toBe("outdated");
 });
 
 test("API errors preserve their code and read failures retain all drafts until a successful retry", async () => {
@@ -327,9 +295,9 @@ test("API errors preserve their code and read failures retain all drafts until a
   ]) {
     let fail = true;
     const h = harness([draft(), draft("second", 2)], {
-      fetchFile: async () => {
+      checkAnchors: async () => {
         if (fail) throw error;
-        return source;
+        return [true, true];
       },
     });
     const original = h.store;
@@ -345,14 +313,14 @@ test("API errors preserve their code and read failures retain all drafts until a
 });
 
 test("a delayed file read merges validity without replacing edits, new drafts or reattached anchors", async () => {
-  let release: (result: FileReadResult) => void = () => {
+  let release: (result: boolean[]) => void = () => {
     throw new Error("Read not started");
   };
-  const pending = new Promise<FileReadResult>((resolve) => {
+  const pending = new Promise<boolean[]>((resolve) => {
     release = resolve;
   });
   const original = draft();
-  const h = harness([original, draft("moved")], { fetchFile: async () => pending });
+  const h = harness([original, draft("moved")], { checkAnchors: async () => pending });
   const checking = h.engine.check(project);
   const moved = draft("moved", 4);
   h.store = {
@@ -363,7 +331,7 @@ test("a delayed file read merges validity without replacing edits, new drafts or
       draft("added", 1),
     ],
   };
-  release(file(["changed", "", "third", "fourth", "last"]));
+  release([false]);
   await checking;
   expect(h.store.drafts).toEqual([
     { ...original, body: "New learning question", updatedAt: 20, state: "outdated" },
@@ -373,23 +341,23 @@ test("a delayed file read merges validity without replacing edits, new drafts or
 });
 
 test("source changes after preview are rechecked on copy and cancellation rejects late file results", async () => {
-  let current: FileReadResult = source;
-  const h = harness([draft()], { fetchFile: async () => current });
+  let current = [true];
+  const h = harness([draft()], { checkAnchors: async () => current });
   await h.engine.check(project);
   expect(h.state.check.kind).toBe("ready");
-  current = file(["changed", ""]);
+  current = [false];
   await h.engine.copy(project);
   expect(h.written).toEqual([]);
   expect(h.store.drafts[0]?.state).toBe("outdated");
-  let release: (result: FileReadResult) => void = () => {};
-  const pending = new Promise<FileReadResult>((resolve) => {
+  let release: (result: boolean[]) => void = () => {};
+  const pending = new Promise<boolean[]>((resolve) => {
     release = resolve;
   });
-  const late = harness([draft()], { fetchFile: async () => pending });
+  const late = harness([draft()], { checkAnchors: async () => pending });
   const checking = late.engine.check(project);
   late.engine.cancel();
   late.store = emptyCommentStore("another");
-  release(source);
+  release([true]);
   await checking;
   expect(late.store.projectPath).toBe("another");
   expect(late.store.drafts).toEqual([]);
@@ -403,14 +371,14 @@ test("selection reattachment during a file check or clipboard write preserves th
   if (first === null || second === null) throw new Error("Missing selection fixture");
   const original = { ...draft("fragment", 0, value), subject: first };
   const moved = { ...original, subject: second };
-  let finishRead: (result: FileReadResult) => void = () => {};
-  const pendingRead = new Promise<FileReadResult>((resolve) => {
+  let finishRead: (result: boolean[]) => void = () => {};
+  const pendingRead = new Promise<boolean[]>((resolve) => {
     finishRead = resolve;
   });
-  const checking = harness([original], { fetchFile: async () => pendingRead });
+  const checking = harness([original], { checkAnchors: async () => pendingRead });
   const pendingCopy = checking.engine.copy(project);
   checking.store = { ...checking.store, drafts: [moved] };
-  finishRead(value);
+  finishRead([true]);
   await pendingCopy;
   expect(checking.written).toEqual([]);
   expect(checking.store.drafts).toEqual([moved]);
@@ -424,7 +392,7 @@ test("selection reattachment during a file check or clipboard write preserves th
     startedWrite = resolve;
   });
   const copying = harness([original], {
-    fetchFile: async () => value,
+    checkAnchors: async () => [true],
     writeText: async () => {
       startedWrite();
       await pendingWrite;
