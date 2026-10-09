@@ -130,9 +130,9 @@ test("late checks and copy do not validate or clear a reattached selection shari
   expect(undoSuccessfulCopy(archived, "copy").drafts).toEqual([original]);
 });
 
-test("backup six retains selections and rejects obsolete formats", () => {
+test("backup seven retains selections and rejects obsolete formats", () => {
   const backup = {
-    version: 6,
+    version: 7,
     rootPath: "/repo",
     workspace: { version: 4, rootPath: "/repo", recentPaths: [] },
     wrap: true,

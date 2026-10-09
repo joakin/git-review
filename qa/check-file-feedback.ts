@@ -65,7 +65,7 @@ const savedDraft = {
   state: "current",
 };
 const seed = {
-  version: 4,
+  version: 5,
   projectPath: project.absolutePath,
   drafts: [savedDraft],
   history: [
@@ -77,7 +77,7 @@ const seed = {
     },
   ],
 };
-const key = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`;
+const key = `git-review:comments:v3:${encodeURIComponent(project.absolutePath)}`;
 const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const views = [
   { width: 320, height: 740, touch: true },
@@ -171,7 +171,7 @@ try {
           key,
         );
         assert(
-          typeof saved === "object" && saved !== null && "version" in saved && saved.version === 4,
+          typeof saved === "object" && saved !== null && "version" in saved && saved.version === 5,
           "Current store did not load",
         );
         assert(
@@ -277,7 +277,7 @@ try {
               resolve("qa/.artifacts"),
             );
             assert(
-              backup.version === 6 &&
+              backup.version === 7 &&
                 backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "file") === true &&
                 backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "diff") === true,
               "Export omitted mixed comment sources",

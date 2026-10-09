@@ -4,7 +4,12 @@ import { isRecord } from "../shared/validation.ts";
 
 import {
   maxFeedbackCheckAnchors,
+  maxFeedbackCheckLines,
+  maxFeedbackRangeText,
+  maxFeedbackRangeLines,
+  parseRangeCommentAnchor,
   type CommentAnchor,
+  type FeedbackAnchor,
   type DiffCommentAnchor,
   type FileCommentAnchor,
 } from "../shared/feedback-check.ts";
@@ -16,7 +21,14 @@ export type {
   FileCommentAnchor,
 } from "../shared/feedback-check.ts";
 export type SelectionSubject = { kind: "selection"; start: number; end: number; text: string };
-export type CommentSubject = { kind: "line" } | SelectionSubject;
+export type RangeSelectionPart = {
+  anchors: CommentAnchor[];
+  start: number;
+  end: number;
+  text: string;
+};
+export type RangeSubject = { kind: "range"; parts: RangeSelectionPart[] };
+export type CommentSubject = { kind: "line" } | SelectionSubject | RangeSubject;
 export type CommentTarget = { anchor: CommentAnchor; subject: CommentSubject };
 export type DraftComment = {
   id: string;
@@ -34,7 +46,7 @@ export type FeedbackHistory = {
   comments: DraftComment[];
 };
 export type CommentStore = {
-  version: 4;
+  version: 5;
   projectPath: string;
   drafts: DraftComment[];
   history: FeedbackHistory[];
@@ -45,7 +57,8 @@ export type CheckedComments = {
 };
 export type FeedbackSnapshot = { projectPath: string; text: string; drafts: DraftComment[] };
 
-export const commentStoragePrefix = "git-review:comments:v2:";
+export const commentStoragePrefix = "git-review:comments:v3:";
+export const previousCommentStoragePrefix = "git-review:comments:v2:";
 export const maxBodyLength = 5000;
 export const maxDrafts = maxFeedbackCheckAnchors;
 export const maxFeedbackLength = 250_000;
@@ -57,7 +70,7 @@ export function newLocalId(): string {
 }
 
 export function emptyCommentStore(projectPath: string): CommentStore {
-  return { version: 4, projectPath, drafts: [], history: [] };
+  return { version: 5, projectPath, drafts: [], history: [] };
 }
 
 function validText(value: unknown, max: number): value is string {
@@ -106,11 +119,6 @@ export function selectionSubject(
   start: number,
   end: number,
 ): SelectionSubject | null {
-  const splitsPair = (offset: number): boolean =>
-    offset > 0 &&
-    offset < source.length &&
-    /[\uD800-\uDBFF]/.test(source.charAt(offset - 1)) &&
-    /[\uDC00-\uDFFF]/.test(source.charAt(offset));
   if (
     !validText(source, 20_000) ||
     !Number.isSafeInteger(start) ||
@@ -118,8 +126,8 @@ export function selectionSubject(
     start < 0 ||
     end <= start ||
     end > source.length ||
-    splitsPair(start) ||
-    splitsPair(end)
+    splitsSurrogatePair(source, start) ||
+    splitsSurrogatePair(source, end)
   )
     return null;
   const text = source.slice(start, end);
@@ -127,8 +135,107 @@ export function selectionSubject(
   return { kind: "selection", start, end, text };
 }
 
-function parseSubject(value: unknown, source: string): CommentSubject | null {
+export function rangeSourceText(part: RangeSelectionPart): string {
+  return part.anchors.map((anchor) => anchor.sourceText).join("\n");
+}
+
+export function rangeSubject(parts: readonly RangeSelectionPart[]): RangeSubject | null {
+  try {
+    const anchor = parseRangeCommentAnchor({
+      kind: "range",
+      parts: parts.map((part) => part.anchors),
+    });
+    const parsed: RangeSelectionPart[] = [];
+    for (const [index, part] of parts.entries()) {
+      const anchors = anchor.parts[index];
+      const first = anchors?.[0];
+      const last = anchors?.at(-1);
+      if (anchors === undefined || first === undefined || last === undefined) return null;
+      const source = anchors.map((line) => line.sourceText).join("\n");
+      const lastStart = source.length - last.sourceText.length;
+      if (
+        !Number.isSafeInteger(part.start) ||
+        !Number.isSafeInteger(part.end) ||
+        part.start < 0 ||
+        part.start > first.sourceText.length ||
+        part.end < part.start ||
+        part.end > source.length ||
+        part.end < lastStart ||
+        (part.end === lastStart && last.sourceText.length > 0) ||
+        splitsSurrogatePair(source, part.start) ||
+        splitsSurrogatePair(source, part.end) ||
+        source.slice(part.start, part.end) !== part.text
+      )
+        return null;
+      parsed.push({ anchors, start: part.start, end: part.end, text: part.text });
+    }
+    if (parsed.every((part) => part.text.trim().length === 0)) return null;
+    return { kind: "range", parts: parsed };
+  } catch {
+    return null;
+  }
+}
+
+function splitsSurrogatePair(source: string, offset: number): boolean {
+  return (
+    offset > 0 &&
+    offset < source.length &&
+    /[\uD800-\uDBFF]/.test(source.charAt(offset - 1)) &&
+    /[\uDC00-\uDFFF]/.test(source.charAt(offset))
+  );
+}
+
+export function commentCheckAnchor(
+  comment: Pick<DraftComment, "anchor" | "subject">,
+): FeedbackAnchor {
+  return comment.subject.kind === "range"
+    ? { kind: "range", parts: comment.subject.parts.map((part) => part.anchors) }
+    : comment.anchor;
+}
+
+export function commentLineAnchors(
+  comment: Pick<DraftComment, "anchor" | "subject">,
+): CommentAnchor[] {
+  return comment.subject.kind === "range"
+    ? comment.subject.parts.flatMap((part) => part.anchors)
+    : [comment.anchor];
+}
+
+export function isSelectionSubject(subject: CommentSubject): boolean {
+  return subject.kind !== "line";
+}
+
+export function commentSourceLineCount(drafts: readonly DraftComment[]): number {
+  return drafts.reduce((count, draft) => count + commentLineAnchors(draft).length, 0);
+}
+
+function parseSubject(value: unknown, source: string, allowRange: boolean): CommentSubject | null {
   if (!isRecord(value)) return null;
+  if (value["kind"] === "range" && allowRange) {
+    const raw = value["parts"];
+    if (!Array.isArray(raw) || raw.length < 1 || raw.length > 2) return null;
+    const parts: RangeSelectionPart[] = [];
+    for (const item of raw) {
+      if (
+        !isRecord(item) ||
+        !Array.isArray(item["anchors"]) ||
+        item["anchors"].length > maxFeedbackRangeLines ||
+        typeof item["start"] !== "number" ||
+        typeof item["end"] !== "number" ||
+        typeof item["text"] !== "string" ||
+        item["text"].length > maxFeedbackRangeText
+      )
+        return null;
+      const anchors: CommentAnchor[] = [];
+      for (const rawAnchor of item["anchors"]) {
+        const anchor = parseAnchor(rawAnchor);
+        if (anchor === null) return null;
+        anchors.push(anchor);
+      }
+      parts.push({ anchors, start: item["start"], end: item["end"], text: item["text"] });
+    }
+    return rangeSubject(parts);
+  }
   if (value["kind"] === "line")
     return "start" in value || "end" in value || "text" in value ? null : { kind: "line" };
   if (
@@ -141,7 +248,7 @@ function parseSubject(value: unknown, source: string): CommentSubject | null {
   return subject?.kind === "selection" && subject.text === value["text"] ? subject : null;
 }
 
-function parseDraft(value: unknown): DraftComment | null {
+function parseDraft(value: unknown, allowRange: boolean): DraftComment | null {
   if (!isRecord(value)) return null;
   const { id, body, createdAt, updatedAt, state } = value;
   const anchor = parseAnchor(value["anchor"]);
@@ -163,15 +270,23 @@ function parseDraft(value: unknown): DraftComment | null {
   )
     return null;
   if (state !== "current" && state !== "outdated") return null;
-  const subject = parseSubject(value["subject"], anchor.sourceText);
+  const subject = parseSubject(value["subject"], anchor.sourceText, allowRange);
   if (subject === null) return null;
+  if (subject.kind === "range") {
+    const first = subject.parts[0]?.anchors[0];
+    if (first === undefined || !sameAnchor(anchor, first)) return null;
+  }
   return { id, anchor, subject, body, createdAt, updatedAt, state };
 }
 
-export function validateCommentStore(value: unknown, projectPath: string): CommentStore | null {
+function validateStoreVersion(
+  value: unknown,
+  projectPath: string,
+  version: 4 | 5,
+): CommentStore | null {
   if (
     !isRecord(value) ||
-    value["version"] !== 4 ||
+    value["version"] !== version ||
     !isProjectPath(projectPath) ||
     value["projectPath"] !== projectPath
   )
@@ -186,11 +301,12 @@ export function validateCommentStore(value: unknown, projectPath: string): Comme
   const drafts: DraftComment[] = [];
   const ids = new Set<string>();
   for (const item of value["drafts"]) {
-    const draft = parseDraft(item);
+    const draft = parseDraft(item, version === 5);
     if (draft === null || ids.has(draft.id)) return null;
     ids.add(draft.id);
     drafts.push(draft);
   }
+  if (commentSourceLineCount(drafts) > maxFeedbackCheckLines) return null;
   const history: FeedbackHistory[] = [];
   for (const item of value["history"]) {
     if (
@@ -207,23 +323,52 @@ export function validateCommentStore(value: unknown, projectPath: string): Comme
       return null;
     const comments: DraftComment[] = [];
     for (const raw of item["comments"]) {
-      const comment = parseDraft(raw);
+      const comment = parseDraft(raw, version === 5);
       if (comment === null || comment.state !== "current") return null;
       comments.push(comment);
     }
+    if (commentSourceLineCount(comments) > maxFeedbackCheckLines) return null;
     history.push({ id: item["id"], copiedAt: item["copiedAt"], text: item["text"], comments });
   }
-  return { version: 4, projectPath, drafts, history };
+  return { version: 5, projectPath, drafts, history };
+}
+
+export function validateCommentStore(value: unknown, projectPath: string): CommentStore | null {
+  return validateStoreVersion(value, projectPath, 5);
+}
+
+export function upgradeCommentStore(value: unknown, projectPath: string): CommentStore | null {
+  return validateStoreVersion(value, projectPath, 4);
 }
 
 export function parseCommentStore(value: unknown, projectPath: string): CommentStore {
   return validateCommentStore(value, projectPath) ?? emptyCommentStore(projectPath);
 }
 
-export function readCommentStore(projectPath: string): CommentStore {
+export function readCommentStore(
+  projectPath: string,
+  onNotice: (message: string) => void = () => {},
+): CommentStore {
   try {
     const raw = localStorage.getItem(`${commentStoragePrefix}${encodeURIComponent(projectPath)}`);
-    if (raw === null) return emptyCommentStore(projectPath);
+    if (raw === null) {
+      const previousKey = `${previousCommentStoragePrefix}${encodeURIComponent(projectPath)}`;
+      const previous = localStorage.getItem(previousKey);
+      if (previous === null) return emptyCommentStore(projectPath);
+      const converted = upgradeCommentStore(JSON.parse(previous) as unknown, projectPath);
+      if (converted === null) return emptyCommentStore(projectPath);
+      if (saveCommentStore(converted)) {
+        try {
+          localStorage.removeItem(previousKey);
+        } catch {
+          /* The converted store is already safe. */
+        }
+      } else
+        onNotice(
+          "Previous feedback was loaded in memory, but its upgraded format could not be saved. The previous saved data is preserved.",
+        );
+      return converted;
+    }
     const value: unknown = JSON.parse(raw);
     const store = validateCommentStore(value, projectPath);
     if (store === null) return emptyCommentStore(projectPath);
@@ -233,14 +378,16 @@ export function readCommentStore(projectPath: string): CommentStore {
   }
 }
 
-export function saveCommentStore(store: CommentStore): void {
+export function saveCommentStore(store: CommentStore): boolean {
   try {
     localStorage.setItem(
       `${commentStoragePrefix}${encodeURIComponent(store.projectPath)}`,
       JSON.stringify(store),
     );
+    return true;
   } catch {
     /* Storage denial does not stop the current review session. */
+    return false;
   }
 }
 
@@ -279,7 +426,9 @@ export function anchorForLine(
   };
 }
 
-export function anchorMatches(result: DiffResult, anchor: CommentAnchor): boolean {
+export function anchorMatches(result: DiffResult, anchor: FeedbackAnchor): boolean {
+  if (anchor.kind === "range")
+    return anchor.parts.flat().every((line) => anchorMatches(result, line));
   if (anchor.kind !== "diff" || result.kind !== "text") return false;
   for (const hunk of result.hunks) {
     for (let index = 0; index < hunk.lines.length; index += 1) {
@@ -359,6 +508,23 @@ export function formatFeedback(projectPath: string, drafts: readonly DraftCommen
       lines.push("", `[${source}] ${quote(draft.anchor.path)}`);
       group = nextGroup;
     }
+    if (draft.subject.kind === "range") {
+      for (const part of draft.subject.parts) {
+        const first = part.anchors[0];
+        const last = part.anchors.at(-1);
+        if (first === undefined || last === undefined) continue;
+        const source = rangeSourceText(part);
+        const endColumn = part.end - (source.length - last.sourceText.length);
+        lines.push(
+          `  ${first.kind === "diff" ? `${first.side} ` : ""}${first.line === last.line ? `line ${first.line}` : `lines ${first.line}–${last.line}`}  ${quote(source)}`,
+        );
+        lines.push(
+          `    selected ${quote(part.text)} (from line ${first.line}, column ${part.start + 1} to ${endColumn === 0 ? `the start of line ${last.line}` : `line ${last.line}, column ${endColumn}`})`,
+        );
+      }
+      for (const bodyLine of draft.body.trim().split(/\r?\n/)) lines.push(`    ${bodyLine}`);
+      continue;
+    }
     lines.push(
       `  ${draft.anchor.kind === "diff" ? `${draft.anchor.side} ` : ""}line ${draft.anchor.line}  ${quote(draft.anchor.sourceText)}`,
     );
@@ -385,6 +551,25 @@ function sameAnchor(first: CommentAnchor, second: CommentAnchor): boolean {
 }
 
 export function sameSubject(first: CommentSubject, second: CommentSubject): boolean {
+  if (first.kind === "range")
+    return (
+      second.kind === "range" &&
+      first.parts.length === second.parts.length &&
+      first.parts.every((part, index) => {
+        const other = second.parts[index];
+        return (
+          other !== undefined &&
+          part.start === other.start &&
+          part.end === other.end &&
+          part.text === other.text &&
+          part.anchors.length === other.anchors.length &&
+          part.anchors.every((anchor, line) => {
+            const next = other.anchors[line];
+            return next !== undefined && sameAnchor(anchor, next);
+          })
+        );
+      })
+    );
   return (
     first.kind === second.kind &&
     (first.kind === "line" ||
@@ -393,6 +578,18 @@ export function sameSubject(first: CommentSubject, second: CommentSubject): bool
         first.end === second.end &&
         first.text === second.text))
   );
+}
+
+function cloneSubject(subject: CommentSubject): CommentSubject {
+  return subject.kind === "range"
+    ? {
+        kind: "range",
+        parts: subject.parts.map((part) => ({
+          ...part,
+          anchors: part.anchors.map((anchor) => ({ ...anchor })),
+        })),
+      }
+    : { ...subject };
 }
 
 export function mergeCheckedComments(store: CommentStore, checked: CheckedComments): CommentStore {
@@ -433,7 +630,7 @@ export function snapshotFeedback(
           .map((draft) => ({
             ...draft,
             anchor: { ...draft.anchor },
-            subject: { ...draft.subject },
+            subject: cloneSubject(draft.subject),
           }));
   return { projectPath: store.projectPath, text: formatFeedback(projectPath, drafts), drafts };
 }
@@ -476,6 +673,10 @@ export function undoSuccessfulCopy(store: CommentStore, id: string): CommentStor
   if (entry?.id !== id) return store;
   const existing = new Set(store.drafts.map((draft) => draft.id));
   const restored = entry.comments.filter((draft) => !existing.has(draft.id));
-  if (store.drafts.length + restored.length > maxDrafts) return store;
+  if (
+    store.drafts.length + restored.length > maxDrafts ||
+    commentSourceLineCount([...store.drafts, ...restored]) > maxFeedbackCheckLines
+  )
+    return store;
   return { ...store, drafts: [...store.drafts, ...restored], history: store.history.slice(1) };
 }

@@ -43,13 +43,13 @@ await withQaBrowser(async (browser) => {
       await page.locator(".comment-editor").waitFor({ state: "detached" });
       await page.waitForFunction(() => document.documentElement.style.overflow !== "hidden");
       const savedDraft = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v2:")),
+        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v3:")),
       );
       await page.getByRole("button", { name: "Collapse all", exact: true }).click();
       await page.getByRole("button", { name: "Expand all", exact: true }).click();
       await card.locator(".diff-code").first().waitFor();
       const afterBulk = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v2:")),
+        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v3:")),
       );
       if (JSON.stringify(afterBulk) !== JSON.stringify(savedDraft))
         throw new Error("Bulk actions changed saved feedback");
@@ -135,7 +135,7 @@ await withQaBrowser(async (browser) => {
         throw new Error("Outdated feedback remained selectable for export");
 
       const storedKey = await fallbackPage.evaluate(() =>
-        Object.keys(localStorage).find((key) => key.startsWith("git-review:comments:v2:")),
+        Object.keys(localStorage).find((key) => key.startsWith("git-review:comments:v3:")),
       );
       if (storedKey === undefined) throw new Error("Missing persisted review for reattachment");
       const commentKey: string = storedKey;
@@ -146,7 +146,7 @@ await withQaBrowser(async (browser) => {
         );
         const store = validateCommentStore(
           value,
-          decodeURIComponent(commentKey.slice("git-review:comments:v2:".length)),
+          decodeURIComponent(commentKey.slice("git-review:comments:v3:".length)),
         );
         if (store === null) throw new Error("Reattachment produced an invalid persisted review");
         return store;

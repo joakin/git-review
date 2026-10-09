@@ -1,7 +1,8 @@
 import type { Project } from "../shared/api.ts";
 import { checkFeedbackSources } from "./feedback-check-api.ts";
-import { feedbackAnchorKey, type CommentAnchor } from "../shared/feedback-check.ts";
+import { feedbackAnchorKey, type FeedbackAnchor } from "../shared/feedback-check.ts";
 import {
+  commentCheckAnchor,
   maxFeedbackLength,
   mergeCheckedComments,
   newLocalId,
@@ -74,13 +75,14 @@ export class FeedbackTransactions {
     snapshot: CommentStore,
     signal: AbortSignal,
   ): Promise<CheckedComments> {
-    const anchors: CommentAnchor[] = [];
+    const anchors: FeedbackAnchor[] = [];
     const indices = new Map<string, number>();
     for (const draft of snapshot.drafts) {
-      const key = feedbackAnchorKey(draft.anchor);
+      const anchor = commentCheckAnchor(draft);
+      const key = feedbackAnchorKey(anchor);
       if (!indices.has(key)) {
         indices.set(key, anchors.length);
-        anchors.push(draft.anchor);
+        anchors.push(anchor);
       }
     }
     const matches =
@@ -91,7 +93,7 @@ export class FeedbackTransactions {
     return {
       projectPath: snapshot.projectPath,
       drafts: snapshot.drafts.map((draft) => {
-        const index = indices.get(feedbackAnchorKey(draft.anchor));
+        const index = indices.get(feedbackAnchorKey(commentCheckAnchor(draft)));
         return {
           id: draft.id,
           anchor: draft.anchor,

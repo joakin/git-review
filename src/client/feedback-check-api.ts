@@ -1,16 +1,27 @@
 import { responseBody } from "./api.ts";
 import { projectApiUrl } from "../shared/project-path.ts";
-import { parseFeedbackCheckResponse, type CommentAnchor } from "../shared/feedback-check.ts";
+import {
+  maxFeedbackCheckBodyBytes,
+  parseFeedbackCheckRequest,
+  parseFeedbackCheckResponse,
+  type FeedbackAnchor,
+} from "../shared/feedback-check.ts";
 
 export async function checkFeedbackSources(
   projectPath: string,
-  anchors: readonly CommentAnchor[],
+  anchors: readonly FeedbackAnchor[],
   signal: AbortSignal,
 ): Promise<boolean[]> {
+  const request = parseFeedbackCheckRequest({ anchors });
+  const body = JSON.stringify(request);
+  if (new Blob([body]).size > maxFeedbackCheckBodyBytes)
+    throw new Error(
+      "Feedback contains too much saved source to check together. Remove some drafts and retry.",
+    );
   const response = await fetch(projectApiUrl("/feedback/check", projectPath), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ anchors }),
+    body,
     signal,
     cache: "no-store",
   });

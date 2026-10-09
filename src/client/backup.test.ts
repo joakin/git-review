@@ -43,7 +43,7 @@ const store = {
   history: [{ id: "copy", copiedAt: 2, text: "Exact previous feedback  \n", comments: drafts }],
 };
 const valid: ReviewBackup = {
-  version: 6,
+  version: 7,
   rootPath,
   workspace: emptyWorkspace(rootPath),
   wrap: true,
@@ -56,7 +56,7 @@ const valid: ReviewBackup = {
 
 test("current path-based backups retain every review layer and exact history", () => {
   expect(parseReviewBackup(JSON.parse(JSON.stringify(valid)), rootPath)).toEqual(valid);
-  for (const version of [1, 2, 3, 4, 5, 7])
+  for (const version of [1, 2, 3, 4, 5, 8])
     expect(() => parseReviewBackup({ ...valid, version }, rootPath)).toThrow("unsupported format");
 });
 

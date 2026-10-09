@@ -215,14 +215,14 @@ test("mixed export separates working-tree feedback, sorts duplicate anchors dete
   ).toEqual([diffDraft]);
 });
 
-test("backup six round-trips mixed stores and rejects obsolete formats", () => {
+test("backup seven round-trips mixed stores and rejects obsolete formats", () => {
   const store = {
     ...emptyCommentStore(project.absolutePath),
     drafts: [diffDraft, draft()],
     history: [{ id: "copy", copiedAt: 12, text: "Old copy text", comments: [draft("history")] }],
   };
   const backup = {
-    version: 6,
+    version: 7,
     rootPath: "/repo",
     workspace: { version: 4, rootPath: "/repo", recentPaths: ["project"] },
     wrap: true,
@@ -242,7 +242,7 @@ test("backup six round-trips mixed stores and rejects obsolete formats", () => {
     ).toThrow("unsupported format");
   }
   expect(() => parseReviewBackup(backup, "/other")).toThrow("different host root");
-  expect(() => parseReviewBackup({ ...backup, version: 7 }, "/repo")).toThrow("unsupported format");
+  expect(() => parseReviewBackup({ ...backup, version: 8 }, "/repo")).toThrow("unsupported format");
 });
 
 test("check and copy each submit one deduplicated anchor batch", async () => {

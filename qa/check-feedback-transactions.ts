@@ -70,14 +70,14 @@ const draft: DraftComment = {
   state: "current",
 };
 const seed: CommentStore = {
-  version: 4,
+  version: 5,
   projectPath: project.absolutePath,
   drafts: [draft],
   history: [{ id: "previous-copy", copiedAt: 1, text: "Previous feedback", comments: [draft] }],
 };
 if (validateCommentStore(seed, project.absolutePath) === null)
   throw new Error("Invalid regression seed");
-const storageKey = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`;
+const storageKey = `git-review:comments:v3:${encodeURIComponent(project.absolutePath)}`;
 // Files keeps the changes view's background status polling out of held-request scenarios.
 const reviewUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: anchor.path })}`;
 
@@ -105,7 +105,7 @@ function deferred() {
 async function readStore(page: Page, target: Project = project): Promise<CommentStore> {
   const raw: unknown = await page.evaluate(
     (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
-    `git-review:comments:v2:${encodeURIComponent(target.absolutePath)}`,
+    `git-review:comments:v3:${encodeURIComponent(target.absolutePath)}`,
   );
   const store = validateCommentStore(raw, target.absolutePath);
   if (store === null) throw new Error("Persisted comments became invalid");
@@ -445,7 +445,7 @@ await withQaBrowser(async (browser) => {
         await responseBody(await projectLookupResponse(origin, "other-project")),
       );
       const otherSeed: CommentStore = {
-        version: 4,
+        version: 5,
         projectPath: other.absolutePath,
         drafts: [{ ...draft, id: "other-draft", body: "Other project draft" }],
         history: [],
@@ -457,7 +457,7 @@ await withQaBrowser(async (browser) => {
       await page.evaluate(
         (store) =>
           localStorage.setItem(
-            `git-review:comments:v2:${encodeURIComponent(store.projectPath)}`,
+            `git-review:comments:v3:${encodeURIComponent(store.projectPath)}`,
             JSON.stringify(store),
           ),
         otherSeed,

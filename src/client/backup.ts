@@ -1,5 +1,11 @@
 import { isProjectPath } from "../shared/project-path.ts";
-import { commentStoragePrefix, validateCommentStore, type CommentStore } from "./comments.ts";
+import {
+  commentStoragePrefix,
+  previousCommentStoragePrefix,
+  upgradeCommentStore,
+  validateCommentStore,
+  type CommentStore,
+} from "./comments.ts";
 import {
   appearanceStorageKey,
   codeTypographyStorageKey,
@@ -38,7 +44,7 @@ type ReviewBackupData = {
   languages: SavedLanguage[];
 };
 export type ReviewBackup = ReviewBackupData & {
-  version: 6;
+  version: 7;
   codeTypography: CodeTypography;
   appearance: Appearance;
 };
@@ -75,7 +81,7 @@ function uniqueProjectPath(value: unknown, seen: Set<string>, rootPath: string):
 export function parseReviewBackup(value: unknown, rootPath: string): ReviewBackup {
   if (
     !isRecord(value) ||
-    value["version"] !== 6 ||
+    (value["version"] !== 6 && value["version"] !== 7) ||
     !isProjectPath(rootPath) ||
     value["rootPath"] !== rootPath
   )
@@ -113,7 +119,10 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   for (const item of rawComments) {
     if (!isRecord(item) || !uniqueProjectPath(item["projectPath"], commentIds, rootPath))
       throw new Error("Backup contains an invalid or duplicate project comment record.");
-    const store = validateCommentStore(item, item["projectPath"]);
+    const store =
+      value["version"] === 6
+        ? upgradeCommentStore(item, item["projectPath"])
+        : validateCommentStore(item, item["projectPath"]);
     if (store === null) throw new Error("Backup contains invalid comments or copy history.");
     comments.push(store);
   }
@@ -153,7 +162,7 @@ export function parseReviewBackup(value: unknown, rootPath: string): ReviewBacku
   }
 
   return {
-    version: 6,
+    version: 7,
     rootPath,
     workspace,
     wrap: value["wrap"],
@@ -170,20 +179,22 @@ export function createReviewBackup(rootPath: string): ReviewBackup {
   const comments: CommentStore[] = [];
   const openCards: SavedCards[] = [];
   const languages: SavedLanguage[] = [];
+  const commentRecords = new Map<string, { value: string; previous: boolean }>();
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
     if (key === null) continue;
     const value = localStorage.getItem(key);
     if (value === null) continue;
-    if (key.startsWith(commentStoragePrefix)) {
-      const projectPath = decodeURIComponent(key.slice(commentStoragePrefix.length));
+    if (key.startsWith(commentStoragePrefix) || key.startsWith(previousCommentStoragePrefix)) {
+      const previous = key.startsWith(previousCommentStoragePrefix);
+      const projectPath = decodeURIComponent(
+        key.slice((previous ? previousCommentStoragePrefix : commentStoragePrefix).length),
+      );
       if (!isProjectPath(projectPath))
         throw new Error("Stored comment key is invalid; export stopped.");
       if (!projectInRoot(projectPath, rootPath)) continue;
-      const store = validateCommentStore(JSON.parse(value) as unknown, projectPath);
-      if (store === null)
-        throw new Error(`Stored comments for ${projectPath} are invalid; export stopped.`);
-      comments.push(store);
+      if (!previous || !commentRecords.has(projectPath))
+        commentRecords.set(projectPath, { value, previous });
     } else if (key.startsWith(openCardsStoragePrefix)) {
       const projectPath = decodeURIComponent(key.slice(openCardsStoragePrefix.length));
       if (!isProjectPath(projectPath))
@@ -209,9 +220,18 @@ export function createReviewBackup(rootPath: string): ReviewBackup {
       languages.push({ projectPath, path, language: value });
     }
   }
+  for (const [projectPath, record] of commentRecords) {
+    const value: unknown = JSON.parse(record.value);
+    const store = record.previous
+      ? upgradeCommentStore(value, projectPath)
+      : validateCommentStore(value, projectPath);
+    if (store === null)
+      throw new Error(`Stored comments for ${projectPath} are invalid; export stopped.`);
+    comments.push(store);
+  }
   const backup = parseReviewBackup(
     {
-      version: 6,
+      version: 7,
       rootPath,
       workspace,
       wrap: readWrapPreference(),

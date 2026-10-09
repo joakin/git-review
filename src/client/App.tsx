@@ -1196,7 +1196,7 @@ export function App() {
       )}
       {reattachment !== null && (
         <div class="reattach-banner" role="status">
-          {reattachment.subject.kind === "selection"
+          {reattachment.subject.kind !== "line"
             ? "Select a fresh fragment from this feedback source, then Comment to reattach."
             : "Choose a line from this feedback source, then Comment to reattach."}{" "}
           <button type="button" onClick={feedback.actions.cancelReattachment}>

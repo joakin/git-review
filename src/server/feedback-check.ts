@@ -1,6 +1,7 @@
 import type { ChangeEntry, DiffResult, Project } from "../shared/api.ts";
 import {
   feedbackAnchorKey,
+  feedbackLineAnchors,
   type CommentAnchor,
   type DiffCommentAnchor,
   type FeedbackCheckRequest,
@@ -80,6 +81,13 @@ export async function checkFeedbackAnchors(
   signal: AbortSignal,
   reads: typeof defaultReads = defaultReads,
 ): Promise<FeedbackCheckResponse> {
+  const anchors = [
+    ...new Map(
+      request.anchors
+        .flatMap(feedbackLineAnchors)
+        .map((anchor) => [feedbackAnchorKey(anchor), anchor]),
+    ).values(),
+  ];
   let readBytes = 0;
   const deadline = Date.now() + 30_000;
   function ensureActive(): void {
@@ -102,11 +110,11 @@ export async function checkFeedbackAnchors(
     return true;
   }
   ensureActive();
-  const hasDiff = request.anchors.some((anchor) => anchor.kind === "diff");
+  const hasDiff = anchors.some((anchor) => anchor.kind === "diff");
   const inventory = hasDiff ? await reads.inventory(project.absolutePath) : null;
   ensureActive();
   const entries = inventory?.kind === "git" ? inventory.entries : [];
-  const mutablePaths = request.anchors
+  const mutablePaths = anchors
     .filter(
       (anchor) =>
         anchor.kind === "file" ||
@@ -198,7 +206,7 @@ export async function checkFeedbackAnchors(
       : objectSource(side === "old" && entry.layer === "staged" ? "head" : "index", gitPath);
   }
   const groups = new Map<string, CommentAnchor[]>();
-  for (const anchor of request.anchors) {
+  for (const anchor of anchors) {
     const key = JSON.stringify([
       anchor.kind,
       anchor.kind === "diff" ? anchor.layer : "worktree",
@@ -303,6 +311,8 @@ export async function checkFeedbackAnchors(
     return { kind: "stale" };
   return {
     kind: "checked",
-    matches: request.anchors.map((anchor) => matches.has(feedbackAnchorKey(anchor))),
+    matches: request.anchors.map((anchor) =>
+      feedbackLineAnchors(anchor).every((line) => matches.has(feedbackAnchorKey(line))),
+    ),
   };
 }

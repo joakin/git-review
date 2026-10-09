@@ -33,7 +33,17 @@ handling.
 storage uses encoded canonical paths. Obsolete project data is deleted only from known app keys,
 without preservation or migration; unrelated storage and global preferences remain. The scoped
 cleanup also reclaims capacity that current saves may need; retain it while an origin may still
-contain obsolete records. No earlier-format readers or legacy backup imports are supported.
+contain obsolete records. Formats retired during stateless project access have no readers or
+imports.
+
+The accepted [multi-line feedback extension](multi-line-feedback-proposal.md) adds a scoped
+conversion of the immediately preceding comment store and backup formats. Validate before
+converting, retain draft identity/body/timestamps and exact copied history text, and write converted
+comments into a new namespace. Prefer that namespace once present so an older tab's save code cannot
+overwrite it. Remove the preceding record only after confirmed persistence; failed persistence
+preserves it, keeps the converted review usable in memory and reports the failure. Later writes by
+an older tab are not repeatedly imported, and older tabs should reload before continuing review.
+This conversion does not provide cross-tab conflict resolution or revive retired project formats.
 
 Open **Settings → Install & local data** to export or import. Backups contain saved drafts, exact
 copy history, recents, card/language preferences, wrapping, typography, and appearance. They stay on

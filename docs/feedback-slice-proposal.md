@@ -20,8 +20,9 @@
 Feedback creation covers unchanged Git files and non-Git folders as well as changed files.
 Historical Git is inspection-only. Empty, media, binary, symbolic-link, unsupported, and oversized
 views have no anchorable source lines but retain access to existing project feedback. Whole-file or
-project notes and multi-line selections remain
-[optional backlog](initial-implementation-plan.md#remaining-roadmap).
+project notes remain outside the current scope. The
+[multi-line selection proposal](multi-line-feedback-proposal.md) is accepted and being implemented;
+current comments still anchor to one logical source line.
 [Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion, Retry, and audio
 lifetime. Closing the editor stops recording and discards pending audio while preserving typed text.
 

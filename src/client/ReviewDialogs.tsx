@@ -2,6 +2,8 @@ import { useRef } from "preact/hooks";
 import {
   maxBodyLength,
   snapshotFeedback,
+  isSelectionSubject,
+  rangeSourceText,
   type CommentAnchor,
   type CommentSubject,
   type CommentStore,
@@ -12,13 +14,48 @@ import { useModal } from "./modal.ts";
 import type { EditorState } from "./review-feedback.ts";
 import { Chevron } from "./Icons.tsx";
 
-function anchorLabel(anchor: CommentAnchor): string {
+function anchorLabel(anchor: CommentAnchor, subject: CommentSubject): string {
+  if (subject.kind === "range")
+    return subject.parts
+      .map((part) => {
+        const first = part.anchors[0];
+        const last = part.anchors.at(-1);
+        if (first === undefined || last === undefined) return "";
+        return `${first.kind === "file" ? "Working tree" : `${first.layer} · ${first.side}`} · ${first.line === last.line ? `line ${first.line}` : `lines ${first.line}–${last.line}`}`;
+      })
+      .join(" / ");
   return anchor.kind === "file"
     ? `Working tree · line ${anchor.line}`
     : `${anchor.layer} · ${anchor.side} line ${anchor.line}`;
 }
 
 function SourceQuote({ anchor, subject }: { anchor: CommentAnchor; subject: CommentSubject }) {
+  if (subject.kind === "range")
+    return (
+      <div class="review-range-source">
+        {subject.parts.map((part, index) => {
+          const first = part.anchors[0];
+          const last = part.anchors.at(-1);
+          if (first === undefined || last === undefined) return null;
+          const source = rangeSourceText(part);
+          return (
+            <section key={index}>
+              <p class="review-range-label">
+                {first.kind === "file" ? "Working tree" : first.side === "old" ? "Old" : "New"} ·{" "}
+                {first.line === last.line
+                  ? `line ${first.line}`
+                  : `lines ${first.line}–${last.line}`}
+              </p>
+              <pre class="review-source" aria-label="Source range with selected text highlighted">
+                {source.slice(0, part.start)}
+                <mark class="review-selected-text">{part.text}</mark>
+                {source.slice(part.end)}
+              </pre>
+            </section>
+          );
+        })}
+      </div>
+    );
   return (
     <pre
       class="review-source"
@@ -63,7 +100,7 @@ export function CommentEditor({
       <div class="review-dialog-head">
         <div>
           <p class="eyebrow">
-            {editor.subject.kind === "selection" ? "SELECTION FEEDBACK" : "LINE FEEDBACK"}
+            {isSelectionSubject(editor.subject) ? "SELECTION FEEDBACK" : "LINE FEEDBACK"}
           </p>
           <h2 id="comment-editor-title">
             {editor.draftId === null ? "Add a comment" : "Edit comment"}
@@ -81,8 +118,8 @@ export function CommentEditor({
       <p class="review-anchor">
         <strong>{editor.anchor.path}</strong>
         <span>
-          {anchorLabel(editor.anchor)}
-          {editor.subject.kind === "selection" ? " · selection" : ""}
+          {anchorLabel(editor.anchor, editor.subject)}
+          {isSelectionSubject(editor.subject) ? " · selection" : ""}
         </span>
       </p>
       <SourceQuote anchor={editor.anchor} subject={editor.subject} />
@@ -197,8 +234,8 @@ export function FeedbackDialog({
             <div class="review-item-top">
               <strong>{draft.anchor.path}</strong>
               <span>
-                {anchorLabel(draft.anchor)}
-                {draft.subject.kind === "selection" ? " · selection" : ""}
+                {anchorLabel(draft.anchor, draft.subject)}
+                {isSelectionSubject(draft.subject) ? " · selection" : ""}
               </span>
             </div>
             <SourceQuote anchor={draft.anchor} subject={draft.subject} />
@@ -212,7 +249,7 @@ export function FeedbackDialog({
               </button>
               {draft.state === "outdated" && (
                 <button type="button" onClick={() => onReattach(draft.id)}>
-                  {draft.subject.kind === "selection" ? "Reattach selection" : "Reattach to line"}
+                  {isSelectionSubject(draft.subject) ? "Reattach selection" : "Reattach to line"}
                 </button>
               )}
             </div>

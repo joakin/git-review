@@ -1979,6 +1979,23 @@ span.select-control > select {
 .review-source {
   margin: 0 var(--space-6) var(--space-4);
 }
+.review-range-source {
+  max-height: 35vh;
+  overflow-y: auto;
+  min-height: var(--space-10);
+}
+.comment-editor[open]:has(.review-range-source) {
+  display: flex;
+  flex-direction: column;
+}
+.comment-editor:has(.review-range-source) > :not(.review-range-source) {
+  flex-shrink: 0;
+}
+.review-range-label {
+  margin: 0 var(--space-6) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-13);
+}
 .review-field {
   display: flex;
   flex-direction: column;

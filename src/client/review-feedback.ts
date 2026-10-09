@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project } from "../shared/api.ts";
 import { checkFeedbackSources } from "./feedback-check-api.ts";
 import {
+  isSelectionSubject,
+  commentSourceLineCount,
+  commentLineAnchors,
   canReattachAnchor,
   maxDrafts,
   newLocalId,
@@ -13,6 +16,7 @@ import {
   type CommentStore,
   type DraftComment,
 } from "./comments.ts";
+import { maxFeedbackCheckLines } from "../shared/feedback-check.ts";
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
 import type { NotificationSeverity } from "./notification-store.ts";
 import { useNotification } from "./Notifications.tsx";
@@ -147,6 +151,15 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
                 : draft,
             ),
           };
+        if (
+          commentSourceLineCount(current.drafts) + commentLineAnchors(editor).length >
+          maxFeedbackCheckLines
+        ) {
+          inputsRef.current.onNotice(
+            "This project has reached its saved source-line limit. Copy or remove some drafts before adding this range.",
+          );
+          return current;
+        }
         if (current.drafts.length >= maxDrafts) {
           inputsRef.current.onNotice(`This project has reached the ${maxDrafts} comment limit.`);
           return current;
@@ -183,7 +196,10 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function loadProject(project: Project): void {
-    updateSession(() => ({ ...emptySession, store: readCommentStore(project.absolutePath) }));
+    updateSession(() => ({
+      ...emptySession,
+      store: readCommentStore(project.absolutePath, inputsRef.current.onNotice),
+    }));
   }
 
   function chooseLine(anchor: CommentAnchor): void {
@@ -202,11 +218,21 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
         );
         return;
       }
-      if (draft.subject.kind !== subject.kind) {
+      if (isSelectionSubject(draft.subject) !== isSelectionSubject(subject)) {
         inputsRef.current.onNotice(
-          draft.subject.kind === "selection"
+          isSelectionSubject(draft.subject)
             ? "Select a fresh fragment, then Comment to reattach this selection."
             : "Choose a line, then Comment to reattach this line comment.",
+        );
+        return;
+      }
+      const nextDrafts =
+        sessionRef.current.store?.drafts.map((current) =>
+          current.id === id ? { ...current, anchor, subject } : current,
+        ) ?? [];
+      if (commentSourceLineCount(nextDrafts) > maxFeedbackCheckLines) {
+        inputsRef.current.onNotice(
+          "This range would exceed the project's saved source-line limit. Remove some drafts and retry.",
         );
         return;
       }
@@ -222,6 +248,18 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       inputsRef.current.onNotice(
         "Comment reattached. Open Feedback to check the new line before copying.",
         "success",
+      );
+      return;
+    }
+    const current = sessionRef.current.store;
+    if (current === null) return;
+    if (
+      current.drafts.length >= maxDrafts ||
+      commentSourceLineCount(current.drafts) + commentLineAnchors({ anchor, subject }).length >
+        maxFeedbackCheckLines
+    ) {
+      inputsRef.current.onNotice(
+        "This project has reached its feedback capacity. Copy or remove some drafts before adding this comment.",
       );
       return;
     }
@@ -310,7 +348,8 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       if (before?.history[0]?.id === id)
         updateSession((current) => ({
           ...current,
-          undoError: `Undo would exceed the ${maxDrafts} comment limit. Remove a draft and try again.`,
+          undoError:
+            "Undo would exceed the project's comment or saved source-line limit. Remove a draft and try again.",
         }));
       return;
     }

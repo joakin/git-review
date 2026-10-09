@@ -40,7 +40,7 @@ const original = `${first}\n\tconst spanning = repeated + 1;\n${long}\n   \nlast
 const project = parseProjectResponse(
   await responseBody(await projectLookupResponse(origin, "inventory-fixture")),
 );
-const key = `git-review:comments:v2:${encodeURIComponent(project.absolutePath)}`;
+const key = `git-review:comments:v3:${encodeURIComponent(project.absolutePath)}`;
 const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const previous = await readFile(location, "utf8").catch((error: unknown) => {
   if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
@@ -563,7 +563,7 @@ try {
             const raw: unknown = JSON.parse(bytes.toString("utf8"));
             const backup = parseReviewBackup(raw, resolve("qa/.artifacts"));
             assert(
-              backup.version === 6 &&
+              backup.version === 7 &&
                 JSON.stringify(backup.comments[0]) === JSON.stringify(beforeExport),
               "Backup omitted selections",
             );
