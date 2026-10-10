@@ -2,9 +2,9 @@
 
 A local, browser-based code review app. Choose a host folder within an approved root to review
 working-copy changes, browse and search files, or inspect branches and commits without changing the
-repository. Add line or selected-code comments, optionally dictate them, then check their source and
-copy a review summary. Responsive views and direct URLs support phones, tablets, desktop, and an
-installed window.
+repository. Add comments to a line or selected range of code, optionally dictate them, then check
+their source and copy a review summary. Responsive views and direct URLs support phones, tablets,
+desktop, and an installed window.
 
 Drafts and preferences stay in the browser; Git and file contents are read from the host. The
 [documentation map](docs/README.md) links current behavior, constraints, and engineering records.

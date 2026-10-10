@@ -100,6 +100,8 @@ function diffRows(preferOld = false): Extract<SelectionSourceRow, { kind: "diff"
       lineKind,
       text,
       anchors,
+      preferredSide:
+        lineKind === "removed" || (lineKind === "context" && preferOld) ? "old" : "new",
       anchor:
         anchors[lineKind === "removed" || (lineKind === "context" && preferOld) ? "old" : "new"],
     };
@@ -205,6 +207,7 @@ test("diff gaps, cross-layer sources, missing side anchors and doubled context l
         lineKind: kind,
         anchor: old ?? next,
         anchors: { old, new: next },
+        preferredSide: kind === "removed" ? "old" : "new",
       };
     },
   );
@@ -217,4 +220,12 @@ test("diff gaps, cross-layer sources, missing side anchors and doubled context l
     anchors: { old: { ...extra.anchors.old, line: 101 }, new: { ...extra.anchors.new, line: 101 } },
   });
   expect(selectionComment(many, 0, 1)?.kind).toBe("unavailable");
+});
+
+test("Old context preference survives an unavailable first Old anchor instead of silently choosing New", () => {
+  const rows = diffRows(true).slice(6);
+  const first = rows[0];
+  if (first === undefined) throw new Error("Missing context");
+  rows[0] = { ...first, anchor: null, anchors: { ...first.anchors, old: null } };
+  expect(selectionComment(rows, 0, 5)?.kind).toBe("unavailable");
 });

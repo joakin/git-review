@@ -168,6 +168,7 @@ const DiffRow = memo(function DiffRow({
             kind: "diff",
             text: line.text,
             lineKind: line.kind,
+            preferredSide: preferredSide(line.kind, source.reattachSide),
             anchors,
             anchor: anchors[preferredSide(line.kind, source.reattachSide)],
           }

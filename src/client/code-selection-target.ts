@@ -19,6 +19,7 @@ export type SelectionSourceRow = { text: string } & (
   | {
       kind: "diff";
       anchor: DiffCommentAnchor | null;
+      preferredSide: ReviewSide;
       lineKind: "context" | "added" | "removed";
       anchors: Record<ReviewSide, DiffCommentAnchor | null>;
     }
@@ -28,6 +29,19 @@ export type SelectionComment =
   { kind: "target"; target: CommentTarget } | { kind: "unavailable"; reason: string };
 const unavailable = (reason: string): SelectionComment => ({ kind: "unavailable", reason });
 const limitReason = `Select at most ${maxFeedbackRangeLines} source lines and ${maxFeedbackRangeText.toLocaleString()} characters.`;
+
+function rangeSides(
+  first: Exclude<SelectionSourceRow, { kind: "inspect" }>,
+  rows: readonly SelectionSourceRow[],
+): readonly (ReviewSide | null)[] {
+  if (first.kind === "file") return [null];
+  const removed = rows.some((row) => row.kind === "diff" && row.lineKind === "removed");
+  const added = rows.some((row) => row.kind === "diff" && row.lineKind === "added");
+  if (removed && added) return ["old", "new"];
+  if (removed) return ["old"];
+  if (added) return ["new"];
+  return [first.preferredSide];
+}
 
 /** DOM controls never contribute to the selected source fragment. */
 export function selectionComment(
@@ -50,21 +64,10 @@ export function selectionComment(
   if (rows.length > maxFeedbackRangeLines) return unavailable(limitReason);
   if (rows.some((row) => row.kind !== first.kind) || first.kind === "inspect")
     return unavailable("Select consecutive lines in one source view.");
-  const sides: (ReviewSide | null)[] =
-    first.kind === "file"
-      ? [null]
-      : rows.some((row) => row.kind === "diff" && row.lineKind === "removed")
-        ? rows.some((row) => row.kind === "diff" && row.lineKind === "added")
-          ? ["old", "new"]
-          : ["old"]
-        : [first.anchor?.side ?? "new"];
-  // Context-only reattachment keeps Old; added rows always require New.
-  if (sides.length === 1 && rows.some((row) => row.kind === "diff" && row.lineKind === "added"))
-    sides[0] = "new";
   const parts: RangeSelectionPart[] = [];
   let count = 0;
   let characters = 0;
-  for (const side of sides) {
+  for (const side of rangeSides(first, rows)) {
     const selected = rows.flatMap<{
       row: SelectionSourceRow;
       index: number;

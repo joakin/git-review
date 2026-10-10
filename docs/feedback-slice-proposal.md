@@ -1,10 +1,10 @@
-# Feedback: lines, selected fragments, copy, and history
+# Feedback: lines, selected ranges, copy, and history
 
 ## User flow
 
 1. Open working-tree text in Files or a Search result, or a working-copy diff. Tap/click a source
-   row, then **Comment**, or select a fragment and choose **Comment** beside Search. Keyboard users
-   can use line controls or selection actions.
+   row, then **Comment**, or select a fragment or consecutive lines and choose **Comment**. Keyboard
+   users can use line controls or selection actions.
 2. The editor shows path, source, line, and quoted code; diffs also identify Old/New. Selected
    fragments are highlighted inside the complete source lines. Write, dictate, save, edit, or delete
    the comment. Closing or navigating away saves nonempty text on this device. Empty text is not a
@@ -21,10 +21,10 @@ Feedback creation covers unchanged Git files and non-Git folders as well as chan
 Historical Git is inspection-only. Empty, media, binary, symbolic-link, unsupported, and oversized
 views have no anchorable source lines but retain access to existing project feedback. Whole-file or
 project notes remain outside the current scope. The
-[multi-line selection record](multi-line-feedback-proposal.md) links the reviewed implementation
-stages and evidence. [Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion,
-Retry, and audio lifetime. Closing the editor stops recording and discards pending audio while
-preserving typed text.
+[multi-line selection closure](multi-line-feedback-proposal.md) links the reviewed implementation
+stages. [Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion, Retry, and
+audio lifetime. Closing the editor stops recording and discards pending audio while preserving typed
+text.
 
 ## Line actions and diff sides
 
@@ -202,6 +202,36 @@ cannot push Save or closing controls beyond reach.
 
 ## Verification and evidence
 
+Multi-line feedback was completed on 2026-10-10 in three implementation stages and a final cleanup
+pass, each independently reviewed under the maintainer's autonomous stage/commit authorization. The
+[closure](multi-line-feedback-proposal.md) records their outcomes. The final full suite passed 297
+tests; strict TypeScript, formatting, CSS-token validation and the client build passed. Tests cover
+exact range validation and snapshots, full mixed-side checking, deterministic export, protected
+predecessor conversion, transaction identity, covered-line counts and Old context preference when an
+anchor is unavailable.
+
+Own Files/Search and diff browser checks passed at 320, 390, 820, 1180 and 1440 pixel widths. They
+exercise partial/reversed/element endpoints, blank/no-newline sources, Unicode, wrapped and long
+code, source limits, reload, interior mutation, staged index identity, revealed context, hidden
+gaps, source replacement, markers, reattachment, granted Chrome Clipboard API writes, exact history
+and Undo. Existing single-line selection, context and rendering-isolation checks passed. Independent
+review additionally exercised actual desktop dragging and keyboard invocation, reversed mixed ranges
+and joins across revealed chunks. The final correctness/simplification review independently passed
+52 focused tests and found no remaining actionable issues.
+
+These milestones were captured and inspected at phone, tablet portrait, tablet landscape and desktop
+sizes, without page-wide overflow or unreachable editor controls. Source quotes scroll in short
+viewports; physical iOS/Android handles, gestures, keyboards and clipboard permissions remain
+unverified.
+
+| Multi-line state            | Captured evidence                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| Range editor and quote      | [Four-size manifest](../qa/screenshots/multi-line-stage1-editor-final/manifest.json)      |
+| Files selection action      | [Four-size manifest](../qa/screenshots/multi-line-stage2-file-action/manifest.json)       |
+| Files range editor          | [Four-size manifest](../qa/screenshots/multi-line-stage2-file-editor-final/manifest.json) |
+| Mixed diff selection action | [Four-size manifest](../qa/screenshots/multi-line-stage3-mixed-action/manifest.json)      |
+| Mixed Old/New editor        | [Four-size manifest](../qa/screenshots/multi-line-stage3-mixed-editor/manifest.json)      |
+
 Existing tests cover anchor/subject identity and bounds, repeated text and surrogate boundaries,
 current-format rejection/round trips, deterministic exports, late check/copy merges, cancellation,
 exact archival, and Undo. Browser checks cover Files/Search identity, non-Git feedback, keyboard
@@ -252,11 +282,11 @@ controlled promises. The repair changes source-check work without changing visib
 screenshot milestone was captured. Physical iOS/Android clipboard and Tailscale timings remain
 unverified.
 
-The full suite passed 278 tests, and formatting, typecheck, CSS-token validation and the client
-build passed. After rebuilding the working app, the mobile feedback flow passed again, including
-native Chrome copy, history, Undo, fallback, outdated exclusion, reattachment and Delete. Both
-existing HTTP and HTTPS backends served the new no-store check with their previous root and origin
-configuration.
+At the performance repair's completion, the full suite passed 278 tests, and formatting, typecheck,
+CSS-token validation and the client build passed. After rebuilding the working app, the mobile
+feedback flow passed again, including native Chrome copy, history, Undo, fallback, outdated
+exclusion, reattachment and Delete. Both existing HTTP and HTTPS backends served the new no-store
+check with their previous root and origin configuration.
 
 These inspected Chrome-emulation milestones cover all four sizes without page-wide overflow:
 

@@ -74,8 +74,8 @@ function endpoint(range: Range, start: boolean): { code: HTMLElement; offset: nu
   const container = start ? range.startContainer : range.endContainer;
   const offset = start ? range.startOffset : range.endOffset;
   const element = container instanceof Element ? container : container.parentElement;
-  if (element?.closest(".diff-no-newline") !== null) return null;
-  const code = element?.closest("code.diff-code, code.file-code-line");
+  if (element === null || element.closest(".diff-no-newline") !== null) return null;
+  const code = element.closest("code.diff-code, code.file-code-line");
   if (!(code instanceof HTMLElement) || !code.isConnected) return null;
   const prefix = document.createRange();
   prefix.selectNodeContents(code);
@@ -126,7 +126,7 @@ export function selectedCode(range: Range, projectPath: string): SelectedCode | 
     last.offset > endpointSource.text.length
   )
     return null;
-  const normalized = range.cloneRange();
+  const capturedRange = range.cloneRange();
   let end = last.offset;
   // An untouched next row must not acquire a comment marker for the structural newline.
   if (reachedEnd && rows.length > 1 && end === 0) {
@@ -164,7 +164,7 @@ export function selectedCode(range: Range, projectPath: string): SelectedCode | 
     code: head.code,
     source: head.source,
     rows,
-    range: normalized,
+    range: capturedRange,
     start: first.offset,
     end,
     text: selectedText,

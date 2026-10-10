@@ -35,9 +35,9 @@ batch-check behavior, independent reviews, and measured work reduction.
 The [application notifications record](application-notifications.md) owns shared bottom-centered
 notices, modal layering and notification lifetimes.
 
-The [multi-line feedback record](multi-line-feedback-proposal.md) links the reviewed implementation
-stages and evidence. The Feedback behavior record owns consecutive multi-line comments in Files,
-Search and working-copy diffs, including mixed Old/New selections.
+The [multi-line feedback closure](multi-line-feedback-proposal.md) links the reviewed stages and
+owning records. The Feedback behavior record owns consecutive multi-line comments in Files, Search
+and working-copy diffs, including mixed Old/New selections.
 
 ## Behavior records
 
