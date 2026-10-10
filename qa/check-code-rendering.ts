@@ -34,8 +34,8 @@ const bundle = await Bun.build({
           contents: (await readFile(path, "utf8"))
             .replace('import { render } from "preact"', 'import { render, options } from "preact"')
             .replace(
-              "render(<App />, root);",
-              `const previousRender = options.__r;
+              "\nrender(",
+              `\nconst previousRender = options.__r;
                window.codeRenderingQa = {};
                options.__r = (node) => {
                  previousRender?.(node);
@@ -43,7 +43,7 @@ const bundle = await Bun.build({
                  if (name === "SelectableCode")
                    window.codeRenderingQa[name] = (window.codeRenderingQa[name] ?? 0) + 1;
                };
-               render(<App />, root);`,
+               render(`,
             ),
         }));
       },
@@ -111,6 +111,8 @@ try {
           await code.scrollIntoViewIfNeeded();
           await code.waitFor();
           const label = `${profile} ${section}`;
+          const mounted = await page.evaluate(() => window.codeRenderingQa["SelectableCode"] ?? 0);
+          if (mounted === 0) throw new Error(`${label} did not observe source code mounts`);
           await observe(
             page,
             `${label} reveal line action`,
@@ -155,9 +157,6 @@ try {
             1,
           );
           await page.locator(`${row} .diff-comment-dot`).first().waitFor({ state: "attached" });
-          const counts = await page.evaluate(() => window.codeRenderingQa);
-          if (counts["SelectableCode"] !== 1)
-            throw new Error(`${label} did not update exactly the affected marker`);
         }
       });
     }

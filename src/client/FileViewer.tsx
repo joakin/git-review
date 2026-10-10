@@ -16,6 +16,7 @@ import {
 } from "./comments.ts";
 import { lineActionPosition, useLineAction, useLineTap } from "./line-action.ts";
 import { SelectableCode } from "./code-selection.tsx";
+import type { SelectionSourceRow } from "./code-selection-target.ts";
 import { MediaPreview } from "./MediaPreview.tsx";
 import { DelayedLoading } from "./DelayedLoading.tsx";
 import type { LoadState } from "./load-state.ts";
@@ -282,6 +283,10 @@ const FileRow = memo(function FileRow({
     () => anchorForFileLine(result.path, result.lines, index),
     [result, index],
   );
+  const selectionRow = useMemo<SelectionSourceRow>(
+    () => ({ kind: "file", text: line.text, anchor }),
+    [line, anchor],
+  );
   const tokens = useMemo(
     () =>
       line.tokens.map((token, tokenIndex) => (
@@ -319,8 +324,7 @@ const FileRow = memo(function FileRow({
         className="file-code-line"
         projectPath={projectPath}
         resource={result}
-        anchor={anchor}
-        text={line.text}
+        row={selectionRow}
       >
         {tokens}
       </SelectableCode>

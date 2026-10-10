@@ -21,10 +21,10 @@ Feedback creation covers unchanged Git files and non-Git folders as well as chan
 Historical Git is inspection-only. Empty, media, binary, symbolic-link, unsupported, and oversized
 views have no anchorable source lines but retain access to existing project feedback. Whole-file or
 project notes remain outside the current scope. The
-[multi-line selection proposal](multi-line-feedback-proposal.md) records the accepted stages; Files
-and Search support consecutive multi-line fragments. Diff range creation follows in the next stage.
-[Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion, Retry, and audio
-lifetime. Closing the editor stops recording and discards pending audio while preserving typed text.
+[multi-line selection record](multi-line-feedback-proposal.md) links the reviewed implementation
+stages and evidence. [Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion,
+Retry, and audio lifetime. Closing the editor stops recording and discards pending audio while
+preserving typed text.
 
 ## Line actions and diff sides
 
@@ -59,16 +59,28 @@ Wider-screen gutters allow either available side; phone context offers no separa
 new comment. Context text may match on both sides while line numbers differ. Staged and unstaged
 versions of one path remain distinct sources.
 
+Ranges choose a side available for every selected row: removed/context uses Old; added/context uses
+New; context alone defaults to New or retains Old during Old reattachment. A selection containing
+both removed and added rows saves an Old range and a New range under one comment, including selected
+context on both sides. Both parts must check current. Export quotes each part's exact source and
+fragment with its own line numbers, then includes the body once. Each covered gutter shows its
+side's marker; the shared row action and project/card totals count the mixed comment once.
+
 ## Selected fragments
 
-Comment supports consecutive working-file source lines, including partially selected endpoints,
-blank interior lines, wrapped text, selections across syntax-token spans and render-block
-boundaries. Diff selections currently support one source line. Whitespace-only, UI-label, gutter,
-dialog, or synthetic no-newline-annotation selections do not create a comment. A valid fragment
-longer than the Search query limit may offer Comment alone;
+Comment supports consecutive source lines in Files, Search and working-copy diffs, including
+partially selected endpoints, blank interior lines, wrapped text, selections across syntax-token
+spans and render-block boundaries. Whitespace-only, UI-label, gutter, dialog, or synthetic
+no-newline-annotation selections do not create a comment. A valid fragment longer than the Search
+query limit may offer Comment alone;
 [selected-code Search](search-slice-proposal.md#selected-code-search) owns query behavior.
 Multi-line fragments offer Comment alone. Unsupported source ranges explain the consecutive-source
 or saved-source limit beside the selection.
+
+Diff parts must belong to one file/card and Git layer, with consecutive source numbers and every
+included row displayed. Hidden context gaps need revealing first. Revealed context and fully joined
+chunks participate without treating rendering wrappers as source boundaries. Remaining hidden-gap
+controls cannot be crossed even when the endpoint is the untouched start of the next hunk.
 
 Fragment offsets are zero-based, end-exclusive UTF-16 positions in the exact source line, matching
 browser Range and JavaScript indexing. They must stay within bounds, preserve the exact sliced text,
@@ -81,10 +93,10 @@ that untouched row. Export uses one-based inclusive UTF-16 columns and line rang
 Selection remains transient until Comment. Its action must still belong to the current project and
 rendered source snapshot, including the Git layer/side, when invoked. Tooltip focus may retain the
 captured range; every selected row belongs to the captured snapshot, so interior source replacement,
-navigation, outside input, or Escape invalidates it. Scrolling, wrapping, and viewport movement
-update placement. Touch placement prefers below the visible range or the header-adjacent fallback;
-mouse placement prefers above. Opening the editor clears native selection and the tooltip without an
-extra source lookup.
+navigation, context expansion/replay, collapse, outside input, or Escape invalidates it. Scrolling,
+wrapping, and viewport movement update placement. Touch placement prefers below the visible range or
+the header-adjacent fallback; mouse placement prefers above. Opening the editor clears native
+selection and the tooltip without an extra source lookup.
 
 ## Anchor identity and checking
 
@@ -95,6 +107,10 @@ distinct, with fragment positions/text included in selection identity. The
 [comment model and validators](../src/client/comments.ts) define formats and bounds. A line or
 neighboring context beyond the saved-source bound cannot create an anchor. In working-tree Files,
 the direct line control explains that limit.
+
+Range subjects retain a bounded collection of the existing line anchors, preserving each line's
+context semantics. Saved-source limits cover both Old/New parts together; comment capacity remains
+separate from expanded source-check capacity. The shared boundary defines those limits in source.
 
 Opening Feedback checks sources before making export available. Opening, Check lines, and Copy each
 submit one deduplicated anchor batch to the [feedback checker](../src/server/feedback-check.ts).
@@ -159,7 +175,7 @@ edits, reattachments, additions, deletions, and Undo/history changes survive. Ma
 copy does not imply a confirmed application clipboard write and does not clear drafts.
 
 Export is deterministic, grouped by source then path. Diff groups identify their layer and Old/New
-line; file groups use Working tree lines. It quotes source text and selected fragments without
+line/range; file groups use Working tree lines. It quotes source text and selected fragments without
 regenerating archived exports. Equal anchors retain stable creation-time/ID ordering. Oversized
 exports preserve drafts and offer selectable text instead of creating an invalid history record.
 Undo restores only missing draft IDs, preserving newer drafts with the same ID. If restoration would
@@ -180,7 +196,9 @@ repository write is involved.
 The textarea and voice footer form one bordered composer with a straight divider and continuous
 focus outline; its label remains associated with the input. Joined Search/Comment buttons round only
 outer corners and draw one divider. A single available action has all four outer corners. Each
-button retains its focus indicator and touch target.
+button retains its focus indicator and touch target. Range source quotes scroll independently in the
+editor, with a minimum visible height and outer-dialog scrolling when the viewport is short; source
+cannot push Save or closing controls beyond reach.
 
 ## Verification and evidence
 

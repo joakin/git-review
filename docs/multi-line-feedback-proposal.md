@@ -209,3 +209,25 @@ All four standard [range actions](../qa/screenshots/multi-line-stage2-file-actio
 [range editors](../qa/screenshots/multi-line-stage2-file-editor-final/manifest.json) were captured
 and inspected without page-wide overflow. Physical-device selection and keyboard behavior remains
 unverified.
+
+## Stage 3 completed — working-copy diffs
+
+Diff range capture resolves both side anchors on context rows, selects a common side for one-sided
+ranges, and preserves an Old/New pair for mixed selections. Each part has independent source numbers
+and exact partial endpoints; export writes the body once. Covered gutters show each side's markers,
+while row actions union draft IDs. The capture belongs to the displayed context snapshot, including
+expansion/replay, and hidden gaps explain why more context is needed.
+
+Independent review found no blockers. It additionally verified reversed mixed ranges, joins across
+expanded chunks, collapse/language invalidation, checking after reload with expansion hidden again,
+and the untouched blank endpoint beyond a hidden gap. Own QA passed the complete diff flows at 320,
+390, 820, 1180 and 1440 px, including staged index identity, one-side mutations, copy/history/Undo,
+mixed-to-fragment reattachment and untracked blank/no-newline sources. Existing selection and
+context checks passed. Long-code rendering checks passed after repairing a stale observer and adding
+a mount sanity gate. The full suite passed 296 tests; strict TypeScript and formatting/CSS gates
+passed.
+
+All four [mixed actions](../qa/screenshots/multi-line-stage3-mixed-action/manifest.json) and
+[mixed editors](../qa/screenshots/multi-line-stage3-mixed-editor/manifest.json) were captured and
+inspected without page-wide overflow. Physical mobile selection remains unverified. The final
+cleanup/simplification review follows this stage.

@@ -1,15 +1,13 @@
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
-import { type CommentAnchor, type CommentTarget } from "./comments.ts";
+import { type CommentTarget } from "./comments.ts";
 import { normalizeSearchQuery } from "../shared/search-query.ts";
 import { maxFeedbackRangeLines } from "../shared/feedback-check.ts";
-import { selectionComment } from "./code-selection-target.ts";
+import { selectionComment, type SelectionSourceRow } from "./code-selection-target.ts";
 
-type CodeSource = {
+type CodeSource = SelectionSourceRow & {
   projectPath: string | null;
   resource: object;
-  text: string;
-  anchor: CommentAnchor | null;
 };
 const sources = new WeakMap<HTMLElement, CodeSource>();
 const listeners = new Set<() => void>();
@@ -27,33 +25,20 @@ export function onCodeSourceChange(listener: () => void): () => void {
 export function SelectableCode({
   projectPath,
   resource,
-  anchor,
-  text,
+  row,
   className,
   children,
 }: {
   projectPath: string | null;
   resource: object;
-  anchor: CommentAnchor | null;
-  text: string;
+  row: SelectionSourceRow;
   className: string;
   children: ComponentChildren;
 }) {
   const ref = useRef<HTMLElement>(null);
   const source = useMemo<CodeSource>(
-    () => ({ projectPath, resource, text, anchor }),
-    [
-      projectPath,
-      resource,
-      text,
-      anchor?.kind,
-      anchor?.path,
-      anchor?.line,
-      anchor?.before,
-      anchor?.after,
-      anchor?.kind === "diff" ? anchor.layer : null,
-      anchor?.kind === "diff" ? anchor.side : null,
-    ],
+    () => ({ projectPath, resource, ...row }),
+    [projectPath, resource, row],
   );
   useLayoutEffect(() => {
     const element = ref.current;
@@ -161,13 +146,18 @@ export function selectedCode(range: Range, projectPath: string): SelectedCode | 
     first.offset,
     end,
   );
-  const reason = !reachedEnd
-    ? `Select at most ${maxFeedbackRangeLines} source lines.`
-    : rows.some((row) => row.source.resource !== head.source.resource)
-      ? "Select consecutive lines from one source view."
-      : comment?.kind === "unavailable"
-        ? comment.reason
-        : null;
+  const crossesHiddenContext = Array.from(pane.querySelectorAll(".diff-context-gap")).some((gap) =>
+    range.intersectsNode(gap),
+  );
+  const reason = crossesHiddenContext
+    ? "Select consecutive source lines. Reveal hidden context first."
+    : !reachedEnd
+      ? `Select at most ${maxFeedbackRangeLines} source lines.`
+      : rows.some((row) => row.source.resource !== head.source.resource)
+        ? "Select consecutive lines from one source view."
+        : comment?.kind === "unavailable"
+          ? comment.reason
+          : null;
   const target = reason === null && comment?.kind === "target" ? comment.target : null;
   if (query === null && target === null && reason === null) return null;
   return {
@@ -178,7 +168,7 @@ export function selectedCode(range: Range, projectPath: string): SelectedCode | 
     start: first.offset,
     end,
     text: selectedText,
-    query,
+    query: reason === null ? query : null,
     target,
     reason,
   };

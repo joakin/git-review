@@ -82,6 +82,12 @@ review service available.
 
 ## Focused checks
 
+Multi-line diff feedback uses `bun qa/check-multi-line-diff-feedback.ts <URL>` with the multi-line
+and diff-context fixtures under the `qa/.artifacts` QA root. The
+[check](../qa/check-multi-line-diff-feedback.ts) covers Old/New/mixed ranges, revealed context,
+source identity, markers, copy and reattachment; the [Feedback record](feedback-slice-proposal.md)
+owns behavior.
+
 Run these scripts directly with Bun. The command column supplies required arguments; links to the
 scripts expose exact scenarios and any optional arguments. Catalog coverage is a selection guide,
 not a second assertion list.

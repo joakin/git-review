@@ -3,6 +3,10 @@ import {
   selectionSubject,
   type CommentAnchor,
   type CommentTarget,
+  type FileCommentAnchor,
+  type DiffCommentAnchor,
+  type RangeSelectionPart,
+  type ReviewSide,
 } from "./comments.ts";
 import {
   maxFeedbackRangeLines,
@@ -10,9 +14,20 @@ import {
   sameCommentSource,
 } from "../shared/feedback-check.ts";
 
-export type SelectionSourceRow = { text: string; anchor: CommentAnchor | null };
+export type SelectionSourceRow = { text: string } & (
+  | { kind: "file"; anchor: FileCommentAnchor | null }
+  | {
+      kind: "diff";
+      anchor: DiffCommentAnchor | null;
+      lineKind: "context" | "added" | "removed";
+      anchors: Record<ReviewSide, DiffCommentAnchor | null>;
+    }
+  | { kind: "inspect"; anchor: null }
+);
 export type SelectionComment =
   { kind: "target"; target: CommentTarget } | { kind: "unavailable"; reason: string };
+const unavailable = (reason: string): SelectionComment => ({ kind: "unavailable", reason });
+const limitReason = `Select at most ${maxFeedbackRangeLines} source lines and ${maxFeedbackRangeText.toLocaleString()} characters.`;
 
 /** DOM controls never contribute to the selected source fragment. */
 export function selectionComment(
@@ -32,34 +47,69 @@ export function selectionComment(
       ? { kind: "target", target: { anchor: first.anchor, subject } }
       : null;
   }
-  if (rows.length > maxFeedbackRangeLines || full.length > maxFeedbackRangeText)
-    return {
-      kind: "unavailable",
-      reason: `Select at most ${maxFeedbackRangeLines} lines and ${maxFeedbackRangeText.toLocaleString()} characters.`,
-    };
-  if (first.anchor === null)
-    return {
-      kind: "unavailable",
-      reason: "A source line is too long to save. Select a smaller range.",
-    };
-  if (first.anchor.kind !== "file")
-    return { kind: "unavailable", reason: "Select one source line in this diff." };
-  const anchors: CommentAnchor[] = [];
-  for (const [index, row] of rows.entries()) {
-    if (row.anchor === null)
-      return {
-        kind: "unavailable",
-        reason: "A source line is too long to save. Select a smaller range.",
-      };
-    if (
-      !sameCommentSource(first.anchor, row.anchor) ||
-      row.anchor.line !== first.anchor.line + index
-    )
-      return { kind: "unavailable", reason: "Select consecutive lines in one file." };
-    anchors.push(row.anchor);
+  if (rows.length > maxFeedbackRangeLines) return unavailable(limitReason);
+  if (rows.some((row) => row.kind !== first.kind) || first.kind === "inspect")
+    return unavailable("Select consecutive lines in one source view.");
+  const sides: (ReviewSide | null)[] =
+    first.kind === "file"
+      ? [null]
+      : rows.some((row) => row.kind === "diff" && row.lineKind === "removed")
+        ? rows.some((row) => row.kind === "diff" && row.lineKind === "added")
+          ? ["old", "new"]
+          : ["old"]
+        : [first.anchor?.side ?? "new"];
+  // Context-only reattachment keeps Old; added rows always require New.
+  if (sides.length === 1 && rows.some((row) => row.kind === "diff" && row.lineKind === "added"))
+    sides[0] = "new";
+  const parts: RangeSelectionPart[] = [];
+  let count = 0;
+  let characters = 0;
+  for (const side of sides) {
+    const selected = rows.flatMap<{
+      row: SelectionSourceRow;
+      index: number;
+      anchor: CommentAnchor | null;
+    }>((row, index) => {
+      if (side === null && row.kind === "file") return [{ row, index, anchor: row.anchor }];
+      if (
+        side !== null &&
+        row.kind === "diff" &&
+        (row.lineKind === "context" || row.lineKind === (side === "old" ? "removed" : "added"))
+      )
+        return [{ row, index, anchor: row.anchors[side] }];
+      return [];
+    });
+    const anchors: CommentAnchor[] = [];
+    for (const item of selected) {
+      if (item.anchor === null)
+        return unavailable("A source line is too long to save. Select a smaller range.");
+      const head = anchors[0];
+      if (
+        head !== undefined &&
+        (!sameCommentSource(head, item.anchor) || item.anchor.line !== head.line + anchors.length)
+      )
+        return unavailable("Select consecutive source lines. Reveal hidden context first.");
+      anchors.push(item.anchor);
+    }
+    const head = selected[0];
+    const tail = selected.at(-1);
+    if (head === undefined || tail === undefined)
+      return unavailable("Select consecutive lines in one source view.");
+    const source = selected.map((item) => item.row.text).join("\n");
+    count += anchors.length;
+    characters += source.length;
+    if (count > maxFeedbackRangeLines || characters > maxFeedbackRangeText)
+      return unavailable(limitReason);
+    const from = head.index === 0 ? start : 0;
+    const to =
+      source.length -
+      tail.row.text.length +
+      (tail.index === rows.length - 1 ? end : tail.row.text.length);
+    parts.push({ anchors, start: from, end: to, text: source.slice(from, to) });
   }
-  const subject = rangeSubject([{ anchors, start, end: stop, text: full.slice(start, stop) }]);
-  return subject === null
-    ? { kind: "unavailable", reason: "Select complete characters within the source code." }
-    : { kind: "target", target: { anchor: first.anchor, subject } };
+  const subject = rangeSubject(parts);
+  const anchor = subject?.parts[0]?.anchors[0];
+  return subject === null || anchor === undefined
+    ? unavailable("Select complete characters within one source range.")
+    : { kind: "target", target: { anchor, subject } };
 }

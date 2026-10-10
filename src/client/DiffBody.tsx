@@ -12,6 +12,12 @@ import {
   type ReviewSide,
 } from "./comments.ts";
 import { SelectableCode } from "./code-selection.tsx";
+import type { SelectionSourceRow } from "./code-selection-target.ts";
+import {
+  diffDraftCounts,
+  diffRowDraftCount,
+  type DiffDraftCounts,
+} from "./diff-feedback-counts.ts";
 import { MediaDiff } from "./MediaPreview.tsx";
 import { decorateDiffTokens } from "./diff-detail.ts";
 import type { DiffContextLine } from "../shared/diff-context.ts";
@@ -50,7 +56,6 @@ type LineReveal = (
   clientX: number,
   context: DiffContextLine | null,
 ) => void;
-type DraftCounts = Record<ReviewSide, ReadonlyMap<number, number>>;
 
 function preferredSide(kind: DiffLine["kind"], reattachSide: ReviewSide | null): ReviewSide {
   return kind === "removed" || (kind === "context" && reattachSide === "old") ? "old" : "new";
@@ -79,7 +84,7 @@ const DiffRow = memo(function DiffRow({
   onComment,
   contextLine,
 }: {
-  resource: DiffResult;
+  resource: object;
   hunk: DiffHunk;
   index: number;
   line: DiffLine;
@@ -156,6 +161,19 @@ const DiffRow = memo(function DiffRow({
       </button>
     );
   };
+  const selectionRow = useMemo<SelectionSourceRow>(
+    () =>
+      source.kind === "review" && anchors !== null
+        ? {
+            kind: "diff",
+            text: line.text,
+            lineKind: line.kind,
+            anchors,
+            anchor: anchors[preferredSide(line.kind, source.reattachSide)],
+          }
+        : { kind: "inspect", text: line.text, anchor: null },
+    [source, line, anchors],
+  );
   return (
     <div
       class={`diff-row diff-row-${line.kind}`}
@@ -185,12 +203,7 @@ const DiffRow = memo(function DiffRow({
         className="diff-code"
         resource={resource}
         projectPath={source.kind === "review" ? source.projectPath : null}
-        text={line.text}
-        anchor={
-          source.kind === "review"
-            ? (anchors?.[preferredSide(line.kind, source.reattachSide)] ?? null)
-            : null
-        }
+        row={selectionRow}
       >
         {tokens}
         {line.noNewlineAtEnd && <span class="diff-no-newline"> No newline at end</span>}
@@ -209,10 +222,10 @@ const HunkRows = memo(function HunkRows({
   contextLines,
   heading,
 }: {
-  resource: DiffResult;
+  resource: object;
   hunk: DiffHunk;
   source: DiffSource;
-  draftCounts: DraftCounts;
+  draftCounts: DiffDraftCounts;
   onReveal: LineReveal;
   onComment: (anchor: DiffCommentAnchor) => void;
   contextLines: readonly DiffContextLine[] | null;
@@ -235,8 +248,8 @@ const HunkRows = memo(function HunkRows({
             line={line}
             contextLine={contextLines?.[index] ?? null}
             source={source}
-            oldCount={line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)}
-            newCount={line.newLine === null ? 0 : (draftCounts.new.get(line.newLine) ?? 0)}
+            oldCount={line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine)?.size ?? 0)}
+            newCount={line.newLine === null ? 0 : (draftCounts.new.get(line.newLine)?.size ?? 0)}
             onReveal={onReveal}
             onComment={onComment}
           />
@@ -258,10 +271,8 @@ export function DiffBody({
   context?: DiffContextControl | null;
 }) {
   const [action, setAction] = useLineAction<LineAction>(result, wrap);
-  const codePane = useCodeRendering(
-    contextDisplayResource(result, context?.data ?? emptyContext),
-    wrap,
-  );
+  const displayResource = contextDisplayResource(result, context?.data ?? emptyContext);
+  const codePane = useCodeRendering(displayResource, wrap);
   const rowCount = useMemo(
     () =>
       result.kind === "text"
@@ -270,19 +281,17 @@ export function DiffBody({
     [result],
   );
   const drafts = interaction.kind === "review" ? interaction.drafts : noDrafts;
-  const draftCounts = useMemo<DraftCounts>(() => {
-    const counts = { old: new Map<number, number>(), new: new Map<number, number>() };
-    for (const draft of drafts) {
-      if (draft.anchor.kind !== "diff") continue;
-      const side = counts[draft.anchor.side];
-      side.set(draft.anchor.line, (side.get(draft.anchor.line) ?? 0) + 1);
-    }
-    return counts;
-  }, [drafts]);
   const projectPath = interaction.kind === "review" ? interaction.projectPath : null;
   const layer = interaction.kind === "review" ? interaction.entry.layer : null;
   const path = interaction.kind === "review" ? interaction.entry.path : null;
   const reattachSide = interaction.kind === "review" ? interaction.reattachSide : null;
+  const draftCounts = useMemo<DiffDraftCounts>(
+    () =>
+      layer === null || layer === "conflict" || path === null
+        ? { old: new Map(), new: new Map() }
+        : diffDraftCounts(drafts, layer, path),
+    [drafts, layer, path],
+  );
   const source = useMemo<DiffSource>(
     () =>
       projectPath !== null && layer !== null && path !== null
@@ -325,9 +334,7 @@ export function DiffBody({
                 preferredSide(line.kind, interaction.reattachSide),
               );
         if (anchor === null) return;
-        const count =
-          (line.oldLine === null ? 0 : (draftCounts.old.get(line.oldLine) ?? 0)) +
-          (line.newLine === null ? 0 : (draftCounts.new.get(line.newLine) ?? 0));
+        const count = diffRowDraftCount(draftCounts, line.oldLine, line.newLine);
         action = { kind: "comment", anchor, count };
       }
       setAction({
@@ -412,7 +419,7 @@ export function DiffBody({
                 .filter((chunk) => chunk.direction === direction)
                 .map((chunk) => (
                   <HunkRows
-                    resource={result}
+                    resource={displayResource}
                     hunk={chunk.hunk}
                     source={source}
                     onComment={onComment}
@@ -436,7 +443,7 @@ export function DiffBody({
               ...rows("up"),
               hunk === undefined ? null : (
                 <HunkRows
-                  resource={result}
+                  resource={displayResource}
                   hunk={hunk}
                   source={source}
                   onComment={onComment}
