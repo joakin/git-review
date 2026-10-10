@@ -6,9 +6,9 @@
    row, then **Comment**, or select a fragment and choose **Comment** beside Search. Keyboard users
    can use line controls or selection actions.
 2. The editor shows path, source, line, and quoted code; diffs also identify Old/New. Selected
-   fragments are highlighted inside the full source line. Write, dictate, save, edit, or delete the
-   comment. Closing or navigating away saves nonempty text on this device. Empty text is not a new
-   saved draft. The editor is a phone sheet and a wider-screen dialog.
+   fragments are highlighted inside the complete source lines. Write, dictate, save, edit, or delete
+   the comment. Closing or navigating away saves nonempty text on this device. Empty text is not a
+   new saved draft. The editor is a phone sheet and a wider-screen dialog.
 3. **Feedback** shows the project's draft count and opens drafts/copy history from every project
    view, including lists and historical Git inspection. Line markers and counts include both line
    and selection comments belonging to that source.
@@ -21,8 +21,8 @@ Feedback creation covers unchanged Git files and non-Git folders as well as chan
 Historical Git is inspection-only. Empty, media, binary, symbolic-link, unsupported, and oversized
 views have no anchorable source lines but retain access to existing project feedback. Whole-file or
 project notes remain outside the current scope. The
-[multi-line selection proposal](multi-line-feedback-proposal.md) is accepted and being implemented;
-current comments still anchor to one logical source line.
+[multi-line selection proposal](multi-line-feedback-proposal.md) records the accepted stages; Files
+and Search support consecutive multi-line fragments. Diff range creation follows in the next stage.
 [Voice](local-voice-comment-slice-proposal.md) owns recording, caret insertion, Retry, and audio
 lifetime. Closing the editor stops recording and discards pending audio while preserving typed text.
 
@@ -61,24 +61,30 @@ versions of one path remain distinct sources.
 
 ## Selected fragments
 
-Comment supports one logical source line, including wrapped text and selections across syntax-token
-spans. Whitespace-only, cross-line, UI-label, gutter, dialog, or synthetic no-newline-annotation
-selections do not create a comment. A valid fragment longer than the Search query limit may offer
-Comment alone; [selected-code Search](search-slice-proposal.md#selected-code-search) owns query
-behavior.
+Comment supports consecutive working-file source lines, including partially selected endpoints,
+blank interior lines, wrapped text, selections across syntax-token spans and render-block
+boundaries. Diff selections currently support one source line. Whitespace-only, UI-label, gutter,
+dialog, or synthetic no-newline-annotation selections do not create a comment. A valid fragment
+longer than the Search query limit may offer Comment alone;
+[selected-code Search](search-slice-proposal.md#selected-code-search) owns query behavior.
+Multi-line fragments offer Comment alone. Unsupported source ranges explain the consecutive-source
+or saved-source limit beside the selection.
 
 Fragment offsets are zero-based, end-exclusive UTF-16 positions in the exact source line, matching
 browser Range and JavaScript indexing. They must stay within bounds, preserve the exact sliced text,
 and never split a surrogate pair. Derive them from the actual selected range, including repeated
 text and leading/trailing whitespace; searching for the first occurrence of the string would attach
-feedback to the wrong fragment. Export uses one-based inclusive UTF-16 columns.
+feedback to the wrong fragment. Multi-line source text joins registered rows with a logical newline;
+gutters and controls never contribute to the quote. An endpoint at the next row's start excludes
+that untouched row. Export uses one-based inclusive UTF-16 columns and line ranges.
 
 Selection remains transient until Comment. Its action must still belong to the current project and
 rendered source snapshot, including the Git layer/side, when invoked. Tooltip focus may retain the
-captured range; source replacement, navigation, outside input, or Escape invalidates it. Scrolling,
-wrapping, and viewport movement update placement. Touch placement prefers below the visible range or
-the header-adjacent fallback; mouse placement prefers above. Opening the editor clears native
-selection and the tooltip without an extra source lookup.
+captured range; every selected row belongs to the captured snapshot, so interior source replacement,
+navigation, outside input, or Escape invalidates it. Scrolling, wrapping, and viewport movement
+update placement. Touch placement prefers below the visible range or the header-adjacent fallback;
+mouse placement prefers above. Opening the editor clears native selection and the tooltip without an
+extra source lookup.
 
 ## Anchor identity and checking
 
@@ -93,11 +99,13 @@ the direct line control explains that limit.
 Opening Feedback checks sources before making export available. Opening, Check lines, and Copy each
 submit one deduplicated anchor batch to the [feedback checker](../src/server/feedback-check.ts).
 Empty drafts need no request. Only anchors leave the browser; comment bodies, subjects, IDs and copy
-history remain local. The server returns one match result per anchor, with no status statistics,
-display rows, syntax, word details or expandable context. These mutable reads bypass browser
-caching. The source, line number, exact source text, and neighboring context must still match,
-including the side for a diff. An unrelated edit elsewhere need not invalidate an unchanged file
-anchor. Git status revision alone is insufficient because content can change without changing it.
+history remain local. The server returns one match result per comment target, with no status
+statistics, display rows, syntax, word details or expandable context. These mutable reads bypass
+browser caching. The source, line number, exact source text, and neighboring context must still
+match, including the side for a diff. Ranges flatten and deduplicate their component line anchors
+within that same check; every line must match for the comment to remain current. An unrelated edit
+elsewhere need not invalidate an unchanged file anchor. Git status revision alone is insufficient
+because content can change without changing it.
 
 Diff batches share two fresh project inventories, preserving rename origins and review-layer
 semantics. Additional working-path fingerprinting is confined to feedback sources. Canonical hunk
@@ -126,8 +134,8 @@ comment to another matching line or occurrence.
 
 Reattachment explicitly asks for a new line or fragment in the same project and source kind.
 Working-tree reattachment refreshes and opens the file at the anchored line; diff reattachment opens
-its card. A selection draft requires a fresh selection, while a line draft requires a line. An
-incompatible source/subject choice preserves the draft and explains what is needed. Reattachment
+its card. A selection draft requires a fresh fragment or range, while a line draft requires a line.
+An incompatible source/subject choice preserves the draft and explains what is needed. Reattachment
 retains draft identity and body; reopen Feedback to verify the new anchor before copying.
 
 ## Copy transactions and recovery

@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright-core";
 import { qaDimensions } from "./browser-support.ts";
-import { selectCodeText } from "./select-code-text.ts";
+import { selectCodeText, selectCodeRange } from "./select-code-text.ts";
 
 type CaptureOptions = {
   url: URL;
@@ -19,6 +19,7 @@ type CaptureOptions = {
   scrollOffset: number;
   scrollXToEnd: string | null;
   selectText: { selector: string; text: string } | null;
+  selectRange: { first: string; start: number; last: string; end: number } | null;
   fakeMicrophone: boolean;
   mediaReady: boolean;
   revealList: boolean;
@@ -54,6 +55,7 @@ Options:
   --scroll-offset <pixels> Adjust position after --scroll-to (default: 320; negative scrolls up)
   --scroll-x-to-end <CSS selector> Scroll a code pane fully right before capture
   --select-text <CSS selector> <text> Select code text and show its contextual action
+  --select-range <first selector> <start offset> <last selector> <end offset> Select source rows
   --fake-microphone       Grant Chrome's synthetic microphone for recording UI captures
   --media-ready           Wait for audio/video metadata before each screenshot
   --reveal-list           Open the contextual list drawer on narrow tablets
@@ -86,6 +88,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   let scrollOffset = 320;
   let scrollXToEnd: string | null = null;
   let selectText: CaptureOptions["selectText"] = null;
+  let selectRange: CaptureOptions["selectRange"] = null;
   let fakeMicrophone = false;
   let mediaReady = false;
   let revealList = false;
@@ -152,6 +155,17 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         };
         index += 2;
         break;
+      case "--select-range": {
+        const first = readValue(args, index, flag);
+        const start = Number(readValue(args, index + 1, flag));
+        const last = readValue(args, index + 2, flag);
+        const end = Number(readValue(args, index + 3, flag));
+        if (!Number.isSafeInteger(start) || start < 0 || !Number.isSafeInteger(end) || end < 0)
+          throw new Error("--select-range needs nonnegative integer offsets");
+        selectRange = { first, start, last, end };
+        index += 4;
+        break;
+      }
       case "--full-page":
         fullPage = true;
         break;
@@ -205,6 +219,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       scrollOffset,
       scrollXToEnd,
       selectText,
+      selectRange,
       fakeMicrophone,
       mediaReady,
       revealList,
@@ -310,6 +325,18 @@ async function capture(options: CaptureOptions): Promise<void> {
           await selectCodeText(
             page.locator(options.selectText.selector).first(),
             options.selectText.text,
+          );
+          await page
+            .locator(".code-selection-action")
+            .waitFor({ state: "visible", timeout: 5_000 });
+        }
+        if (options.selectRange !== null) {
+          const range = options.selectRange;
+          await selectCodeRange(
+            page.locator(range.first).first(),
+            range.start,
+            page.locator(range.last).first(),
+            range.end,
           );
           await page
             .locator(".code-selection-action")

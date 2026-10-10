@@ -36,8 +36,8 @@ The [application notifications record](application-notifications.md) owns shared
 notices, modal layering and notification lifetimes.
 
 The [multi-line feedback proposal](multi-line-feedback-proposal.md) records the investigation and
-accepted implementation stages. Current selected-code comments still support one logical source
-line.
+accepted implementation stages. Consecutive multi-line comments are available in Files and Search;
+diff range creation is the next stage.
 
 ## Behavior records
 

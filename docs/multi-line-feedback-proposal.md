@@ -189,3 +189,23 @@ range passed real Chrome source checking, export, clipboard, archival, Undo and 
 standard [editor captures](../qa/screenshots/multi-line-stage1-editor-final/manifest.json) were
 captured and inspected. Physical-device behavior remains unverified. Native range creation follows
 in the next stages.
+
+## Stage 2 completed — Files and Search
+
+Native selections now resolve every registered source row, preserve exact partial endpoints and
+blank lines, and cross render-block wrappers. The action checks complete captured row/snapshot
+identity on invocation and explains oversized or unsupported ranges locally. Covered file lines show
+markers while project totals count one comment. Reattachment accepts a fresh fragment or range from
+the same source kind.
+
+Independent review found no blockers and additionally verified an actual desktop mouse drag and
+keyboard invocation after native selection collapsed. Own browser QA passed Files/Search flows at
+320, 390, 820, 1180 and 1440 px, including persistence, all-line checking, exact copy/history/Undo,
+interior mutation, reattachment, reverse and element endpoints, blank-row normalization, Unicode,
+block crossings and limits. Existing single-line selection/Search checks passed. The full suite
+passed 291 tests, strict TypeScript and formatting/CSS gates passed, and the client was rebuilt.
+
+All four standard [range actions](../qa/screenshots/multi-line-stage2-file-action/manifest.json) and
+[range editors](../qa/screenshots/multi-line-stage2-file-editor-final/manifest.json) were captured
+and inspected without page-wide overflow. Physical-device selection and keyboard behavior remains
+unverified.

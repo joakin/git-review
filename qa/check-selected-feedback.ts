@@ -19,7 +19,7 @@ import {
   changeDiffRequestKey,
   parseChangeDiffBatchRequest,
 } from "../src/shared/change-diff-batch.ts";
-import { selectCodeText } from "./select-code-text.ts";
+import { selectCodeText, selectCodeRange } from "./select-code-text.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
@@ -650,6 +650,22 @@ try {
       await untracked.locator(".diff-card-toggle").click();
       const noNewline = untracked.locator(".diff-no-newline");
       await noNewline.waitFor({ state: "visible" });
+      const finalCode = untracked.locator(".diff-code:has(.diff-no-newline)");
+      await selectCodeText(finalCode, "last");
+      await page
+        .getByRole("button", { name: "Comment on selected text: last", exact: true })
+        .click();
+      assert(
+        (await page.locator(".comment-editor mark").textContent()) === "last",
+        "Source beside the annotation lost selection feedback",
+      );
+      await page.getByRole("button", { name: "Close comment editor", exact: true }).click();
+      await selectCodeRange(finalCode, 0, finalCode, 10);
+      await page.waitForTimeout(80);
+      assert(
+        (await page.locator(".code-selection-action").count()) === 0,
+        "Source plus synthetic annotation offered a selection action",
+      );
       await selectCodeText(noNewline, "No newline at end");
       await page.waitForTimeout(80);
       assert(

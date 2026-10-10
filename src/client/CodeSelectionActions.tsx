@@ -3,6 +3,7 @@ import {
   onCodeSourceChange,
   selectedCode,
   selectionIsCurrent,
+  sameSelection,
   type SelectedCode,
 } from "./code-selection.tsx";
 import type { CommentTarget } from "./comments.ts";
@@ -106,9 +107,7 @@ function positionSelection(selected: SelectedCode): SelectionAction | null {
 function sameAction(first: SelectionAction | null, second: SelectionAction | null): boolean {
   if (first === null || second === null) return first === second;
   return (
-    first.selected.source === second.selected.source &&
-    first.selected.start === second.selected.start &&
-    first.selected.end === second.selected.end &&
+    sameSelection(first.selected, second.selected) &&
     first.left === second.left &&
     first.top === second.top &&
     first.width === second.width &&
@@ -219,9 +218,7 @@ export function CodeSelectionActions({
     const valid =
       selected !== null &&
       captured !== null &&
-      selected.source === captured.source &&
-      selected.start === captured.start &&
-      selected.end === captured.end &&
+      sameSelection(selected, captured) &&
       selectionIsCurrent(selected, projectPath) &&
       positionSelection(selected) !== null;
     holdRef.current = false;
@@ -251,6 +248,11 @@ export function CodeSelectionActions({
       class={`code-selection-action code-selection-action-${action.placement}`}
       style={{ left: `${action.left}px`, top: `${action.top}px`, width: `${action.width}px` }}
     >
+      {action.selected.reason !== null && (
+        <span class="code-selection-reason" role="status">
+          {action.selected.reason}
+        </span>
+      )}
       {action.selected.query !== null && (
         <button
           type="button"

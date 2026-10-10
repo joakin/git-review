@@ -9,6 +9,7 @@ import { useLanguageOverride } from "./language-override.ts";
 import { LanguagePicker } from "./LanguagePicker.tsx";
 import {
   anchorForFileLine,
+  commentLineAnchors,
   type CommentAnchor,
   type DraftComment,
   type FileCommentAnchor,
@@ -194,8 +195,9 @@ function FileLines({
   const counts = useMemo(() => {
     const counts = new Map<number, number>();
     for (const draft of drafts)
-      if (draft.anchor.kind === "file" && draft.anchor.path === result.path)
-        counts.set(draft.anchor.line, (counts.get(draft.anchor.line) ?? 0) + 1);
+      for (const anchor of commentLineAnchors(draft))
+        if (anchor.kind === "file" && anchor.path === result.path)
+          counts.set(anchor.line, (counts.get(anchor.line) ?? 0) + 1);
     return counts;
   }, [drafts, result.path]);
   const comment = useStableCallback((anchor: CommentAnchor) => {
