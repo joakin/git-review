@@ -14,6 +14,9 @@
     "typecheck": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.test.json && tsc -p tsconfig.qa.json",
     "test": "bun test",
     "qa:capture": "bun qa/capture.ts",
+    "qa:probe": "bun qa/feasibility.ts",
+    "qa:probe:agent": "bun qa/feasibility-agent.ts",
+    "qa:probe:fixture": "bun qa/prepare-feasibility-fixture.ts",
     "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts && bun run format:check"
   },
   "lint-staged": {

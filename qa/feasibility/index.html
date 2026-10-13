@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*; img-src https: http://127.0.0.1:* http://localhost:*; media-src https: http://127.0.0.1:* http://localhost:*; base-uri 'none'; form-action 'none'"
+    />
+    <title>git-review feasibility probe</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./probe.js"></script>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">git-review · architecture feasibility</p>
+      <h1>Connect directly to an agent</h1>
+      <p>
+        Test the browser path before splitting the app. Use the disposable probe fixture. Reports
+        stay in this page until you download them.
+      </p>
+      <form id="connection">
+        <label for="endpoint">Agent URL</label>
+        <input
+          id="endpoint"
+          type="url"
+          required
+          placeholder="https://review-workspace.your-tailnet.ts.net"
+          autocapitalize="none"
+          spellcheck="false"
+        />
+        <label for="project">Canonical project path <span>(optional)</span></label>
+        <input
+          id="project"
+          placeholder="Leave empty to use the approved fixture root"
+          autocapitalize="none"
+          spellcheck="false"
+        />
+        <div class="actions">
+          <button id="run" type="submit">Run checks</button
+          ><button id="cancel" type="button" disabled>Stop</button>
+        </div>
+      </form>
+      <p id="summary" role="status">
+        Ready. HTTPS cloud testing is separate from localhost simulation.
+      </p>
+      <ul id="results" aria-label="Check results"></ul>
+      <section id="media" hidden>
+        <h2>Native media</h2>
+        <p>
+          The checks load and seek media automatically. Use the playback controls to verify sound
+          and picture on this device.
+        </p>
+        <img id="image" alt="Disposable agent image" />
+        <label
+          >Audio<audio id="audio" controls preload="metadata" crossorigin="anonymous"></audio
+        ></label>
+        <label
+          >Video<video
+            id="video"
+            controls
+            muted
+            playsinline
+            preload="metadata"
+            crossorigin="anonymous"
+          ></video
+        ></label>
+        <div class="actions">
+          <button id="play" type="button">Play media</button
+          ><button id="seek" type="button">Seek media</button>
+        </div>
+      </section>
+      <section>
+        <h2>Lifecycle observations</h2>
+        <p>
+          Keep this page open while the cloud task finishes, then check from another device with the
+          laptop closed. Backgrounded browsers can suspend polling; record each phase explicitly.
+        </p>
+        <label for="phase">Phase / observation</label>
+        <input
+          id="phase"
+          placeholder="For example: task complete; laptop closed; 10 minutes later"
+        />
+        <div class="actions">
+          <button id="sample" type="button" disabled>Check reachability</button
+          ><button id="download" type="button">Download report</button>
+        </div>
+      </section>
+      <details>
+        <summary>Report</summary>
+        <pre id="report">No checks run yet.</pre>
+      </details>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,154 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  --page: #f4f6f5;
+  --surface: #fff;
+  --text: #172622;
+  --muted: #58665f;
+  --line: #cad4cd;
+  --accent: #246b56;
+  --error: #992f23;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #14201b;
+    --surface: #1d2b24;
+    --text: #eaf1ec;
+    --muted: #b6c5bb;
+    --line: #4a5d50;
+    --accent: #8edbb6;
+    --error: #ffb3a8;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+}
+main {
+  width: min(100%, 800px);
+  margin: auto;
+  padding: 32px 20px 64px;
+}
+h1 {
+  font-size: clamp(1.7rem, 5vw, 2.5rem);
+  line-height: 1.15;
+  margin: 8px 0 20px;
+}
+h2 {
+  font-size: 1.2rem;
+}
+p {
+  line-height: 1.55;
+}
+.eyebrow,
+label span {
+  color: var(--muted);
+}
+form,
+section {
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-top: 24px;
+}
+label {
+  display: block;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 10px;
+  font: inherit;
+  color: inherit;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+button {
+  min-height: 44px;
+  padding: 10px 16px;
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+#run {
+  background: var(--accent);
+  color: var(--page);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+#results {
+  padding: 0;
+  list-style: none;
+}
+#results li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+[data-outcome="pass"] {
+  color: var(--accent);
+}
+[data-outcome="fail"] {
+  color: var(--error);
+}
+img,
+video,
+audio {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  margin-top: 8px;
+}
+img,
+video {
+  max-height: 230px;
+  object-fit: contain;
+  background: var(--page);
+}
+details {
+  margin-top: 24px;
+}
+summary {
+  padding: 12px 0;
+  cursor: pointer;
+}
+pre {
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 450px) {
+  main {
+    padding: 24px 14px 40px;
+  }
+  form,
+  section {
+    padding: 14px;
+  }
+}

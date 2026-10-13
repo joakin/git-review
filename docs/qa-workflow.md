@@ -83,6 +83,209 @@ review service available.
 
 ## Focused checks
 
+### Split-host feasibility probe
+
+Step 1 of the
+[split-host plan](split-host-architecture-proposal.md#1-prove-the-target-cloud-and-browser-path)
+uses disposable code/media and an experimental CORS wrapper around the existing read-only API. It
+does not change production origin policy, app storage, or project identity. The harness only exposes
+the route families required by this experiment. Its source, configuration validation, and checks
+live in [the agent](../qa/feasibility-agent.ts), [HTTP boundary/tests](../qa/feasibility-http.ts),
+[browser probe](../qa/feasibility/browser.ts), and
+[fixture creator](../qa/prepare-feasibility-fixture.ts).
+
+The static probe checks root/project lookup, a Git inventory and small source read, a JSON POST
+checking one freshly read anchor, a rejected traversal with readable error headers, native image
+loading, and audio/video HEAD/range/metadata/seek behavior. Play media additionally exercises
+user-triggered playback requests; an accepted request does not prove audible output. Reports record
+the frontend/agent origins, browser, project, secure-context state, UTC observations, and agent
+start/sample times. The start time is a restart diagnostic, not a project identity. Data stays in
+page memory until downloaded, and includes paths/device details. Download before reloading.
+
+#### Local simulation
+
+Requirements are the normal installed Bun/Git/dependencies and Chrome for optional captures. The
+fixture includes a generated WAV, SVG, and a tiny generated H.264 MP4; FFmpeg is not needed to
+prepare or serve it. `qa/feasibility/clip.mp4` was created with FFmpeg's solid-color source, four
+seconds at 320 × 180, H.264/yuv420p, GOP 12 and faststart. No user media is included.
+
+From the repository root:
+
+```sh
+mkdir -p qa/.artifacts
+bun run qa:probe:fixture
+```
+
+The creator refuses existing directories. Reuse the already-prepared fixture while it still matches
+the script; use `--root <new-directory>` for a separate experiment. In two separate terminals:
+
+```sh
+bun run qa:probe:agent --root qa/.artifacts/feasibility-fixture --origin http://127.0.0.1:39962 --port 39961
+```
+
+```sh
+bun run qa:probe --port 39962
+```
+
+Open `http://127.0.0.1:39962/`, enter `http://127.0.0.1:39961` as Agent URL, leave the project empty
+to use the fixture root, and Run checks. These are separate origins and processes. Only HTTPS
+targets or explicit HTTP localhost origins are accepted; same-origin targets fail configuration. The
+normal app remains on its own port and its assets are not rebuilt by this experiment.
+
+Use Play media and Seek media, then enter a phase and Check reachability. Stop only the probe agent,
+sample again to record failure, restart it on the same port, and sample to record the new start
+time. A fresh page pointed at an unused port tests initial unreachability; correcting its URL and
+running again tests retry. Serving the page through `http://localhost:39962/` deliberately changes
+Origin, so the agent configured for `127.0.0.1` rejects it. This demonstrates rejection without
+broadening the allowlist. Download report saves the accumulated observations as JSON.
+
+Loopback HTTP qualifies as a browser secure context but does not exercise public HTTPS to Tailscale,
+DNS/certificates, Local Network Access prompts, provider networking, or cloud process lifetime. It
+cannot demonstrate laptop-closed operation: both simulated processes are on this laptop. No Docker
+runtime was available in the preparation session, so this is a process/transport simulation, not a
+Linux VM test or a reproduction of OpenAI's network policy.
+
+#### Prepare the static and cloud source artifacts
+
+```sh
+bun run qa:probe --build-only
+```
+
+Publish only the three files in `dist/feasibility/` to the chosen static HTTPS host. Relative assets
+allow a project subpath. The page has no dynamic backend, service worker, registry, or enrollment
+credential. Set the agent's allowed origin to the site's scheme/hostname/port without its path. For
+example, a probe at `https://example.github.io/review-probe/` uses `https://example.github.io`. This
+experiment does not yet test app installation or offline startup.
+
+`dist/feasibility-cloud.tar.gz` contains an explicit list of server/shared source, probe harness,
+fixture tooling/media, and the dependency manifest/lockfile. It excludes the review app frontend,
+local fixtures/repositories, reports, node_modules, and `.git`. It permits cloud testing of this
+uncommitted slice. It is an experimental source bundle requiring Bun and dependency installation,
+not the independently packaged production agent from step 4. Transfer it through the chosen cloud
+workspace's normal file mechanism; it has not been uploaded in this session.
+
+In a new cloud test directory, extract the bundle and install its locked dependencies:
+
+```sh
+tar -xzf /path/to/feasibility-cloud.tar.gz
+bun install --frozen-lockfile --ignore-scripts
+mkdir -p qa/.artifacts
+bun run qa:probe:fixture
+```
+
+The ignored install hooks are unnecessary for this source-only probe. The generated Git repository
+is the only approved read root in the following command. Substitute the actual static origin:
+
+```sh
+PROBE_FRONTEND_ORIGIN=https://example.github.io
+nohup bun run qa:probe:agent --root qa/.artifacts/feasibility-fixture --origin "$PROBE_FRONTEND_ORIGIN" --port 39961 > qa/.artifacts/probe-agent.log 2>&1 < /dev/null &
+probe_agent_pid=$!
+printf '%s\n' "$probe_agent_pid" > qa/.artifacts/probe-agent.pid
+curl --fail http://127.0.0.1:39961/probe/health
+```
+
+Wait for the health check to succeed after startup; a first immediate request can race the process.
+`nohup` avoids terminal hangup, but does not make a provider keep the VM/process alive. Start the
+agent in the actual task VM, not in a reusable prepared/cached image.
+
+#### Private HTTPS in a cloud workspace
+
+Provision a disposable ephemeral Tailscale node through the cloud provider's supported networking
+mechanism. Permit the testing device/user to reach that node, enable tailnet HTTPS/Serve, and use a
+unique task-specific hostname. Do not bake an enrolled node or a shared hostname into a cached
+environment. Enrollment credentials belong in the provider's secret configuration, never the page or
+connection URL. Use [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) for
+private HTTPS and its actual returned hostname; the agent remains loopback-bound.
+
+When the VM has a usable enrolled Tailscale CLI, on that disposable node:
+
+```sh
+tailscale serve --bg --https=443 http://127.0.0.1:39961
+tailscale serve status
+```
+
+Enter the resulting `https://<actual-node>.<tailnet>.ts.net` URL in the static page. Check from a
+different tailnet device, not merely by curling localhost inside the VM. Do not use Funnel or
+disable certificate validation. A Serve-enable/admin prompt is a prerequisite to resolve in the
+tailnet; do not treat it as successful automatic startup.
+
+For a Linux container without TUN, Tailscale documents
+[userspace networking](https://tailscale.com/docs/concepts/userspace-networking). If the provider
+allows running your own daemon and has no existing managed node, a per-task experiment can start:
+
+```sh
+probe_ts_dir="$(mktemp -d "${TMPDIR:-/tmp}/git-review-probe-ts.XXXXXX")"
+probe_hostname="review-probe-$(bun -e 'console.log(crypto.randomUUID())')"
+tailscaled --tun=userspace-networking --state=mem: --socket="$probe_ts_dir/tailscaled.sock" > "$probe_ts_dir/daemon.log" 2>&1 < /dev/null &
+probe_ts_pid=$!
+tailscale --socket="$probe_ts_dir/tailscaled.sock" up --auth-key="${TS_AUTHKEY:?Supply an ephemeral auth key through provider secrets}" --hostname="$probe_hostname" --accept-dns=false
+tailscale --socket="$probe_ts_dir/tailscaled.sock" serve --bg --https=443 http://127.0.0.1:39961
+tailscale --socket="$probe_ts_dir/tailscaled.sock" serve status
+```
+
+Supply `TS_AUTHKEY` as an ephemeral enrollment secret and keep command tracing disabled. Wait for
+the daemon socket to be ready before `up`. The CLI inherits that secret rather than printing it.
+This userspace/inbound-Serve recipe has not been run here: outbound VPN connectivity alone is not
+proof of inbound HTTPS reachability. Verify it in the target VM. On completion, stop only the owned
+agent PID and log out the owned disposable node; for the separate userspace daemon, use its socket
+for logout and terminate only `probe_ts_pid`. Keep reports before workspace deletion. Do not reset
+Serve or log out a shared pre-existing node as probe cleanup.
+
+#### Codex / OpenAI cloud target
+
+The current
+[OpenAI cloud-environment guide](https://learn.chatgpt.com/docs/environments/cloud-environments)
+documents prepared environments, per-task working state, startup configuration, internet policy, and
+a native Tailscale VPN setting using reusable ephemeral keys. It describes that VPN for access from
+cloud tasks to private services. It does not establish inbound Serve/daemon control or an idle
+process-lifetime guarantee. Its network-secret placeholders also differ from raw values required by
+a standalone Tailscale process. Inspect the actual account's supported setup first; avoid starting a
+duplicate daemon on a managed connection. The legacy setup-script guide is not the current cloud
+environment workflow.
+
+For the real Codex experiment, sign in, select a disposable private environment, make this source
+bundle available, and have its startup/task hook launch the fixture agent. Check whether the managed
+VPN exposes a usable inbound endpoint; if not, determine whether a separate per-task daemon/Serve
+process is supported. Test package/control/relay connectivity during the task as well as setup. Do
+not claim native VPN settings alone solve inbound serving.
+
+The preparation session's in-app browser was signed out of OpenAI; the available task projects
+provided no cloud execution environment, and the local Tailscale CLI could not load preferences. No
+OpenAI environment, account/network settings, keys, or public static deployment were changed. Local
+simulation can proceed without these inputs. A real cloud pass needs account/environment access, the
+static HTTPS URL, tailnet enrollment/Serve permission, and a physical testing device.
+
+#### Lifecycle gate and recorded evidence
+
+Run the page's checks during the live task. Record manual reachability phases after setup, after
+task completion, after the desired idle interval, and on an iPad/phone with the laptop closed. Keep
+each observation's phase, elapsed interval, actual browser/OS, agent start time, and any permission
+prompts. Backgrounded browsers can stop executing, so a silent timer or saved filesystem does not
+establish a continuously running daemon. If the VM is suspended, source reads should fail; sample
+again after resume to determine whether the agent persisted or restarted.
+
+On 2026-10-13, the in-app browser passed all ten transport/source/media checks between
+`127.0.0.1:39962` and `127.0.0.1:39961`, plus user-triggered playback requests/seeking, initial
+failure and retry, a deliberately rejected frontend origin, and stop/restart reachability
+observations. The downloaded local report is retained under ignored QA artifacts. Five HTTP boundary
+tests cover preflight/no repository work, origin rejection, allowed-origin errors/containment, and
+media headers. The four Chrome-emulation captures were inspected with no page-wide overflow:
+[phone](../qa/screenshots/feasibility-probe-ready/mobile.png),
+[tablet portrait](../qa/screenshots/feasibility-probe-ready/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/feasibility-probe-ready/tablet-landscape.png), and
+[desktop](../qa/screenshots/feasibility-probe-ready/desktop.png).
+
+The source bundle was extracted into a separate temporary directory, its frozen dependencies were
+installed with hooks disabled, and its fixture/agent were started with no frontend files present.
+All ten browser checks passed against that extracted copy as well. Strict type checks, the QA/format
+gate, and all 302 unit/integration tests passed. This extraction test ran on macOS, not a cloud
+Linux VM; no cloud networking or lifetime inference follows from it.
+
+These results establish local browser transport and probe readiness. They do not close the plan's
+cloud/Tailscale/physical-device/laptop-closed gate. Later feature steps remain unstarted.
+
+### Existing focused scenarios
+
 Run these scripts directly with Bun. The command column supplies required arguments; links to the
 scripts expose exact scenarios and any optional arguments. Catalog coverage is a selection guide,
 not a second assertion list.

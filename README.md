@@ -78,6 +78,12 @@ matching project records are replaced while other projects are kept.
 
 ## Checks
 
+The experimental [split-host feasibility probe](docs/qa-workflow.md#split-host-feasibility-probe)
+tests a static page against a separate read-only agent using a disposable Git/media fixture. It is
+separate from the normal app and needs no client build. `bun run qa:probe --build-only` produces
+`dist/feasibility/` for static hosting and `dist/feasibility-cloud.tar.gz` for cloud setup without a
+commit. The QA guide owns local commands, cloud/Tailscale setup, and the limits of simulation.
+
 `bun install` installs the pinned tools and activates the pre-commit hook. Run `bun run format`
 after edits and `bun run format:check` to check without writing. The
 [formatting workflow](docs/formatting-workflow.md) owns staged-file behavior and setup.
