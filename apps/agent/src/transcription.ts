@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { accessSync, constants } from "node:fs";
 import { mkdtemp, open, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { delimiter, isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 import { isRecord } from "@git-review/shared/validation";
 import { AppError } from "./paths.ts";
@@ -119,7 +119,14 @@ export function createTranscriptionHandler(): (request: Request) => Promise<Resp
       await saveBoundedAudio(request, input);
       const ffmpeg = executable(
         "GIT_REVIEW_FFMPEG_PATH",
-        ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"],
+        [
+          "/opt/homebrew/bin/ffmpeg",
+          "/usr/local/bin/ffmpeg",
+          ...(process.env["PATH"] ?? "")
+            .split(delimiter)
+            .filter(isAbsolute)
+            .map((directory) => join(directory, "ffmpeg")),
+        ],
         "FFmpeg",
       );
       const handy = executable(

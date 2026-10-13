@@ -2,6 +2,10 @@
   "name": "@git-review/agent",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "bun ../../scripts/build-agent.ts",
+    "start": "bun ../../dist/agent/agent.js"
+  },
   "dependencies": {
     "@git-review/shared": "workspace:*",
     "shiki": "^4.4.3"

@@ -37,6 +37,12 @@ limits, cues, cleanup, and insertion.
 active host job, normalizes it to mono PCM WAV, and invokes Handy with fixed argument arrays.
 Handy's selected installed model performs inference locally.
 
+Tool resolution is lazy: typed-review startup does not require voice executables or a model. The
+standalone agent packages the same adapter. Absolute executable overrides take precedence; FFmpeg
+discovery retains standard local locations and also checks absolute PATH entries. Missing or invalid
+tools return a request-local unavailable error. Capability reporting for direct-agent clients is the
+next protocol step in the [split host plan](split-host-architecture-proposal.md).
+
 The adapter bounds subprocess time and output, validates nonempty transcript JSON, removes temporary
 audio in failure and cancellation paths, and releases the job slot. Unsupported or undecodable
 audio, unavailable executables/model, silence, timeout, concurrent jobs, and cancellation return

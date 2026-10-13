@@ -106,6 +106,28 @@ The inspected standalone subpath UI is captured at
 [desktop](../qa/screenshots/static-web-subpath/desktop.png). Its API-unavailable notice is expected:
 the preview serves only the publish files, and direct-agent configuration is a later slice.
 
+### Independent agent artifact
+
+Run `bun qa/check-agent-package.ts` from the repository root. It builds the agent, copies only
+`dist/agent/` to a disposable directory outside the checkout, and starts owned loopback subprocesses
+with a separate Git fixture. No frontend files, package installation, or source modules are present
+beside the copy. The script cleans up its agents, copies, tools and fixture in `finally`.
+
+The script owns assertions for approved-root/project access, unusual canonical paths, file/tree
+reads, cold lazy syntax including embedded grammars, literal Search, Git status/diff/history,
+API-only routing, outside-root and symlink rejection, invalid startup configuration, and unchanged
+fixture/Git contents and timestamps. It starts with voice configuration unset, simulates absent
+tools through explicit missing overrides, and tests configured transcription with bounded stub
+executables, fixed arguments, validated text and temporary-audio cleanup. Those stubs verify the
+adapter; they do not perform decoding or model inference.
+
+The artifact check passed on macOS with Bun 1.3.1. It establishes independence from the checkout and
+frontend, not Linux/provider execution, cloud lifecycle, complete CORS or browser transport. This
+backend slice has no intended visible UI change. Operation belongs in the
+[root README](../README.md#build-and-run-the-independent-agent); the
+[voice owner](local-voice-comment-slice-proposal.md#host-and-request-boundaries) retains request and
+model behavior. Recheck the existing local composition after changing shared startup configuration.
+
 ### Split-host feasibility probe
 
 Step 1 of the

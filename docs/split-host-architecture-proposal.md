@@ -1,12 +1,12 @@
 # Split host implementation plan
 
 Status: architecture agreed on 2026-10-13; step 1 probe preparation and local HTTP/private HTTPS
-simulation are complete, with the cloud/device feasibility gate pending. Steps 2 and 3 are approved
-for commit; the maintainer requested step 4 on 2026-10-13. Research began on 2026-10-12. The
-accepted direction is a static frontend, direct private agents, manual URL or startup-generated
-connection links, URL plus canonical project path ownership, and saved-feedback recovery. Discovery
-is optional and deferred. This record owns the implementation sequence and release gate; existing
-behavior records remain authoritative until each change is implemented.
+simulation are complete, with the cloud/device feasibility gate pending. Steps 2 and 3 are
+committed; step 4 is approved for commit and the maintainer requested step 5 on 2026-10-13. Research
+began on 2026-10-12. The accepted direction is a static frontend, direct private agents, manual URL
+or startup-generated connection links, URL plus canonical project path ownership, and saved-feedback
+recovery. Discovery is optional and deferred. This record owns the implementation sequence and
+release gate; existing behavior records remain authoritative until each change is implemented.
 
 ## First release and agreed boundaries
 
@@ -149,18 +149,41 @@ remain unverified. No public deployment or cloud environment was changed.
 
 ### 4. Produce the independent agent runtime
 
-Separate API configuration/startup from static serving. Add `build:agent` and `start:agent`, and
-keep the old local development composition working. The packaged runtime includes Shiki's required
-assets/dependencies and documents Bun/Git/rg prerequisites. Binding and error messages must describe
-cloud/Linux hosts as well as local use. Keep loopback plus Serve as the default cloud topology.
+Implemented and approved for commit on 2026-10-13. The slice packages a Bun-targeted
+`dist/agent/agent.js`, with Shiki's language loaders and inlined Oniguruma engine bundled rather
+than resolved from a checkout at runtime. Copying that directory to a workspace requires Bun, Git
+and ripgrep, but no frontend, package installation or application source. A workspace `build` target
+and root `build:agent` produce the same artifact; `start:agent` runs it with an explicit approved
+root. The current same-origin app continues to use its local composition. This step does not publish
+a package or executable for each OS/architecture.
 
-Make optional transcription configuration independent of typed-review startup. Starting an agent
-without Handy/FFmpeg must not fail or imply microphone transcription is available. Tailscale
-enrollment and Serve remain the startup recipe's responsibility, outside request handlers.
+The existing root/port/bind/proxy-origin configuration is shared so both entrypoints validate it in
+one place. The standalone entrypoint serves the existing API only; static paths return 404. Invalid
+configuration or an unavailable approved root fails before listening. Loopback remains the default;
+the existing explicit Tailscale IPv4 option remains available. CLI/help and startup output describe
+an API-only agent and optional transcription without promising that a model is usable. FFmpeg
+discovery also checks PATH for Linux installations; explicit executable overrides retain precedence
+and errors stay request-local. No protocol, project identity, CORS or browser request shape changes
+here.
 
-Review checkpoint: run the packaged agent away from the checkout, with frontend output absent.
-Exercise approved-root reads, syntax highlighting, Search, Git, and configured/unconfigured voice
-behavior. Preserve stateless project access and filesystem/subprocess constraints.
+Root `build` now produces the local assets and both independent artifacts; `dev` builds only the
+local assets before starting the existing composition. Tailscale enrollment, Serve and supervision
+remain external to the runtime. The [README](../README.md#build-and-run-the-independent-agent) owns
+operation and prerequisites; the [voice owner](local-voice-comment-slice-proposal.md) owns request
+and model behavior.
+
+The [artifact check](qa-workflow.md#independent-agent-artifact) passed against a copied package and
+disposable Git fixture outside the checkout. It exercises roots, canonical projects, files/trees,
+actual cold syntax including embedded TypeScript, Search, Git status/diff/history, API-only routing,
+outside-root and symlink rejection, invalid startup, and unchanged fixture/Git data. Startup with
+unset voice configuration and unavailable-tool requests passed; configured voice uses stub tools to
+verify arguments, text validation and temporary cleanup. This does not establish real model
+inference, Linux/provider execution or physical-device behavior. Strict TypeScript, all 313 tests,
+QA/format, and local/static/agent builds passed. The existing browser restart scenario passed across
+Changes, Files, Search, Git, media, checked copy and retry with saved drafts/editor/history
+retained. The current app was restarted with the existing approved root, port and proxy origin, and
+its private HTTPS root read passed. Cloud/device lifetime and direct-agent deployment remain later
+gates.
 
 ### 5. Add protocol information and the CORS boundary
 
@@ -462,7 +485,7 @@ Illustrative root commands, to be finalized in source:
 | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `bun run build:web`                                     | Produce a complete static publish directory, including base-path-aware PWA files |
 | `bun run build:agent`                                   | Produce the agent's deployable runtime and required runtime assets               |
-| `bun run build`                                         | Build both deployment artifacts explicitly                                       |
+| `bun run build`                                         | Build both deployment artifacts and the temporary local composition assets       |
 | `bun run dev`                                           | Coordinate local development while preserving a usable review app                |
 | `bun run start:agent -- ...`                            | Run the agent with approved-root and endpoint/origin configuration               |
 | `bun run typecheck`, `bun run test`, `bun run qa:check` | Keep one full-repository validation entrypoint for maintainers                   |
@@ -714,16 +737,12 @@ serves built HTML/CSS/JavaScript and supports project paths such as
 [HTTPS enforcement](https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https)
 is available. A root-hosted site or dedicated custom domain is also an option.
 
-The current [build](../scripts/build.ts) outputs JavaScript/CSS but relies on the
-[combined server](../scripts/serve.ts) for source-tree HTML/public files and headers. Produce one
-self-contained publish directory with HTML, assets, icons, manifest, service worker, and offline
-fallback. It must not depend on the source checkout at runtime.
-
-Fix the app base path consistently across [HTML](../apps/web/src/index.html),
-[worker registration](../apps/web/src/main.tsx),
-[manifest](../apps/web/src/public/manifest.webmanifest), and
-[offline fallback](../apps/web/src/sw.ts). They currently use root paths such as `/assets/`,
-`/sw.js`, and a manifest scope/start URL of `/`, which do not describe a GitHub project site.
+Step 3 implemented a self-contained publish directory with base-path-aware assets, navigation and
+PWA files. Build/deployment policy belongs in the [README](../README.md#build-the-static-frontend),
+while the
+[installation owner](independent-tabs-and-pwa-proposal.md#installation-and-offline-behavior) owns
+worker behavior. The temporary [local build](../scripts/build-local.ts) and
+[combined server](../scripts/serve.ts) still compose the same-origin development app.
 
 Preserve query-based navigation so refreshing a deep link does not require server-side path
 rewrites. Place the service worker within the app's own deployment scope. Keep agent responses and
@@ -878,9 +897,10 @@ No particular AI provider/environment has been verified. If it destroys or suspe
 a task finishes, a static frontend and Tailscale cannot make that vanished filesystem available.
 Determine this first; do not promise the desired workflow from enrollment alone.
 
-Current [transcription](../apps/agent/src/transcription.ts) discovers the Mac's FFmpeg and Handy
-tools. Typed review can be the first portable feature set. Cloud dictation requires a verified
-compatible engine/model and should be advertised as unavailable when unconfigured.
+Current [transcription](../apps/agent/src/transcription.ts) preserves local Handy/FFmpeg
+configuration and also discovers FFmpeg through PATH. Typed review is the portable baseline. Cloud
+dictation requires a verified compatible engine/model and should be advertised as unavailable when
+unconfigured.
 
 ## Comparison with the hub proposal
 

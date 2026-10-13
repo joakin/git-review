@@ -36,7 +36,20 @@ test("voice upload rejects absent, unsupported, empty, and oversized recordings"
   await expect(
     transcribe(request(new Uint8Array([1]), "audio/webm", maxAudioBytes + 1)),
   ).rejects.toMatchObject({ status: 413 });
-  await expect(transcribe(request(new Uint8Array([1]), "audio/webm"))).rejects.toMatchObject({
-    status: 422,
-  });
+  // The failure path must not depend on a developer's installed FFmpeg/Handy/model.
+  const failingTool = Bun.which("false");
+  if (failingTool === null) throw new Error("The voice test requires the POSIX false executable");
+  const keys = ["GIT_REVIEW_FFMPEG_PATH", "GIT_REVIEW_HANDY_PATH"];
+  const previous = keys.map((key) => ({ key, value: process.env[key] }));
+  try {
+    for (const key of keys) process.env[key] = failingTool;
+    await expect(transcribe(request(new Uint8Array([1]), "audio/webm"))).rejects.toMatchObject({
+      status: 422,
+    });
+  } finally {
+    for (const { key, value } of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });

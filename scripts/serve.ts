@@ -1,60 +1,11 @@
 import { resolve } from "node:path";
-import { isIP } from "node:net";
 import { createApiHandler } from "../apps/agent/src/api.ts";
 import { approveRoot } from "../apps/agent/src/paths.ts";
+import { parseAgentConfig } from "../apps/agent/src/config.ts";
 
-type ServerOptions = { root: string; port: number };
-
-function bindHost(): string {
-  const host = process.env["GIT_REVIEW_HOST"] ?? "127.0.0.1";
-  if (host === "127.0.0.1") return host;
-  const secondOctet = Number(host.split(".")[1]);
-  if (isIP(host) !== 4 || !host.startsWith("100.") || secondOctet < 64 || secondOctet > 127) {
-    throw new Error("GIT_REVIEW_HOST must be 127.0.0.1 or this Mac's Tailscale IPv4 address");
-  }
-  return host;
-}
-
-function parseOptions(args: readonly string[]): ServerOptions {
-  let root = process.cwd();
-  let port = 3000;
-  for (let index = 0; index < args.length; index += 1) {
-    const flag = args[index];
-    const value = args[index + 1];
-    if ((flag !== "--root" && flag !== "--port") || value === undefined) {
-      throw new Error(`Unknown or incomplete option: ${flag ?? "(missing)"}`);
-    }
-    if (flag === "--root") root = value;
-    if (flag === "--port") {
-      const parsed = Number(value);
-      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) {
-        throw new Error("--port must be an integer from 0 to 65535");
-      }
-      port = parsed;
-    }
-    index += 1;
-  }
-  return { root, port };
-}
-
-const options = parseOptions(process.argv.slice(2));
+const options = parseAgentConfig(process.argv.slice(2));
 const root = await approveRoot(options.root);
-const configuredPublicOrigin = process.env["GIT_REVIEW_PUBLIC_ORIGIN"];
-let publicOrigin: string | null = null;
-if (configuredPublicOrigin !== undefined) {
-  const parsed = new URL(configuredPublicOrigin);
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.origin !== configuredPublicOrigin ||
-    parsed.pathname !== "/" ||
-    parsed.search !== "" ||
-    parsed.hash !== ""
-  ) {
-    throw new Error("GIT_REVIEW_PUBLIC_ORIGIN must be an HTTPS origin without a path");
-  }
-  publicOrigin = parsed.origin;
-}
-const handleApiRequest = createApiHandler(root, publicOrigin);
+const handleApiRequest = createApiHandler(root, options.publicOrigin);
 const htmlPath = resolve("apps/web/src/index.html");
 const scriptPath = resolve("dist/assets/main.js");
 const stylesPath = resolve("dist/assets/styles.css");
@@ -136,7 +87,7 @@ const staticAssets = new Map<string, { path: string; contentType: string; cacheC
 ]);
 
 const server = Bun.serve({
-  hostname: bindHost(),
+  hostname: options.hostname,
   port: options.port,
   fetch(request) {
     const url = new URL(request.url);
