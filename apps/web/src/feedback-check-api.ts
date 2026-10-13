@@ -1,3 +1,4 @@
+import type { AgentConnection } from "./agent-connection.ts";
 import { responseBody } from "./api.ts";
 import { projectApiUrl } from "@git-review/shared/project-path";
 import {
@@ -7,25 +8,28 @@ import {
   type FeedbackAnchor,
 } from "@git-review/shared/feedback-check";
 
-export async function checkFeedbackSources(
-  projectPath: string,
-  anchors: readonly FeedbackAnchor[],
-  signal: AbortSignal,
-): Promise<boolean[]> {
-  const request = parseFeedbackCheckRequest({ anchors });
-  const body = JSON.stringify(request);
-  if (new Blob([body]).size > maxFeedbackCheckBodyBytes)
-    throw new Error(
-      "Feedback contains too much saved source to check together. Remove some drafts and retry.",
-    );
-  const response = await fetch(projectApiUrl("/feedback/check", projectPath), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-    signal,
-    cache: "no-store",
-  });
-  const result = parseFeedbackCheckResponse(await responseBody(response), anchors.length);
-  if (result.kind === "stale") throw new Error("The files changed during checking. Try again.");
-  return result.matches;
+export function createFeedbackSourceChecker(connection: AgentConnection) {
+  return async function checkFeedbackSources(
+    projectPath: string,
+    anchors: readonly FeedbackAnchor[],
+    signal: AbortSignal,
+  ): Promise<boolean[]> {
+    const request = parseFeedbackCheckRequest({ anchors });
+    const body = JSON.stringify(request);
+    if (new Blob([body]).size > maxFeedbackCheckBodyBytes)
+      throw new Error(
+        "Feedback contains too much saved source to check together. Remove some drafts and retry.",
+      );
+    const response = await connection.request(projectApiUrl("/feedback/check", projectPath), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      signal,
+      cache: "no-store",
+    });
+    const result = parseFeedbackCheckResponse(await responseBody(response), anchors.length);
+    if (result.kind === "stale") throw new Error("The files changed during checking. Try again.");
+    return result.matches;
+  };
 }
+export type FeedbackSourceChecker = ReturnType<typeof createFeedbackSourceChecker>;

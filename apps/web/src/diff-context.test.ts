@@ -13,7 +13,8 @@ import {
   emptyContext,
 } from "./diff-context-state.ts";
 import { anchorForContextLine } from "./diff-context-anchor.ts";
-import { checkContextAnchors } from "./diff-context-api.ts";
+import { createAgentApi } from "./agent-api.ts";
+import { createAgentConnection } from "./agent-connection.ts";
 
 const diff: Extract<DiffResult, { kind: "text" }> = {
   kind: "text",
@@ -80,6 +81,7 @@ test("fresh context checks split valid long anchors by encoded byte budget and r
     },
     { preconnect: original.preconnect },
   );
+  const api = createAgentApi(createAgentConnection("https://agent.example"));
   try {
     const text = "\u0001".repeat(20_000);
     const anchors = Array.from({ length: 12 }, (_, index) => ({
@@ -89,7 +91,7 @@ test("fresh context checks split valid long anchors by encoded byte budget and r
       before: text,
       after: text,
     }));
-    const matches = await checkContextAnchors(
+    const matches = await api.checkContextAnchors(
       "/repo",
       {
         revision: "a".repeat(20),

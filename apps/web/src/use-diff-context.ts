@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import type { DiffResult } from "@git-review/shared/api";
 import type { DiffContextGap, DiffContextRequest } from "@git-review/shared/diff-context";
 import type { DiffCacheIdentity } from "./diff-cache.ts";
-import { fetchDiffContext } from "./diff-context-api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import {
   appendContext,
   consumedContext,
@@ -32,6 +32,7 @@ export function useDiffContext(
   diff: DiffResult | null,
   onStale: () => void,
 ): DiffContextControl | null {
+  const api = useAgentApi();
   const metadata =
     diff?.kind === "text" && diff.context?.kind === "available" ? diff.context : null;
   const baseKey = JSON.stringify([
@@ -99,7 +100,7 @@ export function useDiffContext(
       down,
       direction,
     };
-    const response = await fetchDiffContext(
+    const response = await api.fetchDiffContext(
       current.identity.projectPath,
       request,
       gap,

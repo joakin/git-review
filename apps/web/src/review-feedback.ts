@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Project } from "@git-review/shared/api";
-import { checkFeedbackSources } from "./feedback-check-api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import {
   isSelectionSubject,
   commentSourceLineCount,
@@ -82,8 +82,9 @@ const emptySession: FeedbackSession = {
   reattachId: null,
 };
 
-/** Owns the loaded feedback session and an App-lifetime transaction engine. */
+/** Owns the loaded feedback session and a transaction engine bound to its agent API. */
 export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
+  const api = useAgentApi();
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
   const [session, setSession] = useState<FeedbackSession>(emptySession);
@@ -110,31 +111,32 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
     return next;
   }
 
-  const transactionsRef = useRef<FeedbackTransactions | null>(null);
-  if (transactionsRef.current === null)
-    transactionsRef.current = new FeedbackTransactions({
-      readStore: () => sessionRef.current.store,
-      updateStore,
-      onState: setState,
-      onCopied: (result) => {
-        if (result.kind === "feedback") {
-          updateSession((current) => ({ ...current, undoCopyId: result.id, undoError: null }));
-          inputsRef.current.onNotice(
-            "Feedback copied. The copied comments are in history; Undo restores them.",
-            "success",
-          );
-        } else inputsRef.current.onNotice("History feedback copied.", "success");
-      },
-      checkAnchors: checkFeedbackSources,
-      writeText: async (text) => {
-        if (navigator.clipboard?.writeText === undefined)
-          throw new Error(
-            "Clipboard access is unavailable here. Select the feedback or history text to copy it manually.",
-          );
-        await navigator.clipboard.writeText(text);
-      },
-    });
-  const transactions = transactionsRef.current;
+  const transactions = useMemo(
+    () =>
+      new FeedbackTransactions({
+        readStore: () => sessionRef.current.store,
+        updateStore,
+        onState: setState,
+        onCopied: (result) => {
+          if (result.kind === "feedback") {
+            updateSession((current) => ({ ...current, undoCopyId: result.id, undoError: null }));
+            inputsRef.current.onNotice(
+              "Feedback copied. The copied comments are in history; Undo restores them.",
+              "success",
+            );
+          } else inputsRef.current.onNotice("History feedback copied.", "success");
+        },
+        checkAnchors: api.checkFeedbackSources,
+        writeText: async (text) => {
+          if (navigator.clipboard?.writeText === undefined)
+            throw new Error(
+              "Clipboard access is unavailable here. Select the feedback or history text to copy it manually.",
+            );
+          await navigator.clipboard.writeText(text);
+        },
+      }),
+    [api],
+  );
   useEffect(() => () => transactions.cancel(), [transactions]);
 
   function closeEditor(): void {

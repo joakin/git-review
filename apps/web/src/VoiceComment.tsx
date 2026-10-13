@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { transcribeRecording } from "./api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { maxBodyLength } from "./comments.ts";
 import { useNotification } from "./Notifications.tsx";
 
@@ -29,6 +29,7 @@ export function useVoiceComment(
   textareaRef: { current: HTMLTextAreaElement | null },
   onBody: (body: string) => void,
 ) {
+  const api = useAgentApi();
   const [state, setState] = useState<VoiceState>({ kind: "idle", error: null });
   useNotification(
     "voice-error",
@@ -100,7 +101,7 @@ export function useVoiceComment(
     request.current = controller;
     setState({ kind: "sending" });
     try {
-      const text = await transcribeRecording(recording, controller.signal);
+      const text = await api.transcribeRecording(recording, controller.signal);
       if (!mounted.current || controller.signal.aborted) return;
       const textarea = textareaRef.current;
       if (textarea === null) throw new Error("The comment editor is no longer available");

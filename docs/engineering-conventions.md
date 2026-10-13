@@ -36,6 +36,12 @@ rules are the same, while leaving identity, lifetime, and failure policy with ea
 utility collections with unrelated responsibilities and abstractions that erase meaningful
 differences between resources.
 
+Browser API owners receive an explicit connection whose agent origin stays fixed. Bind batching
+queues and fallback reads to that connection; delayed work must not choose a mutable global host at
+dispatch time. Validate response media against its requested source before resolving a native URL.
+The [protocol owner](agent-http-protocol.md#explicit-browser-connection) owns this boundary; route,
+cache and persistence ownership remain with their domain records.
+
 Use precise records and discriminated unions for distinct states. Internal functions should accept
 and return only the states they support. Couple values whose consistency is required in one
 contract. A transformation's type must allow the fields it changes to change; do not promise to

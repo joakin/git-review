@@ -52,9 +52,11 @@ navigation as well as embedded previews. The service worker does not cache media
 
 The [agent HTTP boundary](agent-http-protocol.md#origin-preflight-and-response-ownership) preserves
 these responses while adding allowed-origin CORS and exposing range headers. Direct cross-origin
-native elements use anonymous CORS mode; existing no-CORS restrictions stay in place. The current
-app still uses same-origin media until the transport step in the
-[split host plan](split-host-architecture-proposal.md) lands.
+native elements use anonymous CORS mode; existing no-CORS restrictions stay in place. After wire
+parsing, [client media binding](../apps/web/src/connected-media.ts) verifies the requested project
+and comparison source, then supplies an absolute URL at the connection that loaded it. Native
+previews and **Open raw** share this URL. Images and raw links suppress referrers. Connection and
+request policy belong in the [protocol owner](agent-http-protocol.md#explicit-browser-connection).
 
 ## Evidence and device limits
 
@@ -63,5 +65,10 @@ The [QA catalog](qa-workflow.md) identifies image, playback/range, and Git-media
 [Files images](../qa/screenshots/media-images-files-review/mobile.png), and
 [HTTPS audio/video](../qa/screenshots/media-av-live-ready-review/mobile.png) are inspected
 historical milestones with the other three viewport sizes and manifests in their folders. Browser
-checks include a scripted SVG and audio/video seeking/ranges. Real Android/iOS playback, codec
-support, and raw-tab behavior remain unverified by those emulated checks.
+checks include a scripted SVG and audio/video seeking/ranges. The separate-agent frontend milestone
+is captured and inspected at [phone](../qa/screenshots/agent-transport-media/mobile.png),
+[tablet portrait](../qa/screenshots/agent-transport-media/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/agent-transport-media/tablet-landscape.png), and
+[desktop](../qa/screenshots/agent-transport-media/desktop.png), with no page-wide horizontal
+overflow. Real Android/iOS playback, codec support, and raw-tab behavior remain unverified by those
+emulated checks.

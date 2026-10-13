@@ -40,7 +40,7 @@ export function MediaPreview({
         <span>
           <strong>{label}</strong> · {resource.mimeType} · {sizeLabel(resource.byteLength)}
         </span>
-        <a href={resource.url} target="_blank" rel="noopener">
+        <a href={resource.url} target="_blank" rel="noopener noreferrer">
           Open raw ↗
         </a>
       </div>
@@ -51,6 +51,8 @@ export function MediaPreview({
         </p>
       ) : resource.kind === "image" ? (
         <img
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
           src={resource.url}
           alt={`${label}: ${path}`}
           loading="lazy"
@@ -58,6 +60,7 @@ export function MediaPreview({
         />
       ) : resource.kind === "audio" ? (
         <audio
+          crossOrigin="anonymous"
           src={resource.url}
           controls
           preload="metadata"
@@ -66,6 +69,7 @@ export function MediaPreview({
         />
       ) : (
         <video
+          crossOrigin="anonymous"
           src={resource.url}
           controls
           playsInline

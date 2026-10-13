@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { checkFeedbackSources } from "./feedback-check-api.ts";
+import { createAgentApi } from "./agent-api.ts";
+import { createAgentConnection } from "./agent-connection.ts";
 import type { CommentAnchor } from "@git-review/shared/feedback-check";
 
 const anchor: CommentAnchor = {
@@ -27,19 +28,24 @@ test("feedback check sends only bounded anchors and validates matches, stale and
     },
     { preconnect: originalFetch.preconnect },
   );
+  const api = createAgentApi(createAgentConnection("https://agent.example"));
   try {
     const signal = new AbortController().signal;
-    expect(await checkFeedbackSources("/repo", [anchor], signal)).toEqual([true]);
+    expect(await api.checkFeedbackSources("/repo", [anchor], signal)).toEqual([true]);
     expect(calls).toBe(1);
     reply = Response.json({ kind: "stale" });
-    await expect(checkFeedbackSources("/repo", [anchor], signal)).rejects.toThrow("files changed");
+    await expect(api.checkFeedbackSources("/repo", [anchor], signal)).rejects.toThrow(
+      "files changed",
+    );
     reply = Response.json({ kind: "checked", matches: [] });
-    await expect(checkFeedbackSources("/repo", [anchor], signal)).rejects.toThrow("do not match");
+    await expect(api.checkFeedbackSources("/repo", [anchor], signal)).rejects.toThrow(
+      "do not match",
+    );
     reply = Response.json(
       { error: { code: "forbidden", message: "Could not check file" } },
       { status: 403 },
     );
-    await expect(checkFeedbackSources("/repo", [anchor], signal)).rejects.toMatchObject({
+    await expect(api.checkFeedbackSources("/repo", [anchor], signal)).rejects.toMatchObject({
       code: "forbidden",
       status: 403,
     });

@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { Project } from "@git-review/shared/api";
 import type { CommitDetail, GitHistoryPage, GitRefs } from "@git-review/shared/git";
 import type { GitRoute } from "./navigation.ts";
-import { fetchCommit, fetchGitHistory, fetchGitRefs } from "./git-api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { ResourceCache } from "@git-review/shared/resource-cache";
 import type { LoadState } from "./load-state.ts";
 
@@ -26,6 +26,7 @@ function state<T>(
 }
 
 export function useGitBrowser(project: Project | null, route: GitRoute | null) {
+  const api = useAgentApi();
   const projectPath = route === null ? null : (project?.absolutePath ?? null);
   const ref = route?.ref ?? null;
   const oid = route?.target.kind === "commit" ? route.target.oid : null;
@@ -80,7 +81,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
         ? current
         : { key: projectPath, state: { kind: "loading" } },
     );
-    fetchGitRefs(projectPath, controller.signal).then(
+    api.fetchGitRefs(projectPath, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
         refsCache.remember(projectPath, value);
@@ -121,7 +122,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
         ? current
         : { key: historyKey, state: { kind: "loading" } },
     );
-    fetchGitHistory(projectPath, { kind: "ref", ref }, controller.signal).then(
+    api.fetchGitHistory(projectPath, { kind: "ref", ref }, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
         historyCache.remember(historyKey, value);
@@ -152,7 +153,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       return;
     const controller = new AbortController();
     setCommit({ key: commitKey, state: { kind: "loading" } });
-    fetchCommit(projectPath, oid, controller.signal).then(
+    api.fetchCommit(projectPath, oid, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
         commitCache.remember(commitKey, value);
@@ -179,35 +180,37 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     if (offset === null) return;
     setPaging(true);
     setPageError(null);
-    fetchGitHistory(
-      pageRequest.projectPath,
-      { kind: "page", tip: snapshot.tip, offset },
-      controller.signal,
-    ).then(
-      (value) => {
-        if (controller.signal.aborted) return;
-        const seen = new Set(snapshot.commits.map((commit) => commit.oid));
-        const combined = {
-          tip: snapshot.tip,
-          commits: [
-            ...snapshot.commits,
-            ...value.commits.filter((commit) => !seen.has(commit.oid)),
-          ],
-          nextOffset: value.nextOffset,
-        };
-        historyCache.remember(pageRequest.key, combined);
-        setHistory({ key: pageRequest.key, state: { kind: "ready", value: combined } });
-        setPaging(false);
-        setPageRequest(null);
-      },
-      (error: unknown) => {
-        if (!controller.signal.aborted) {
-          setPageError(message(error));
+    api
+      .fetchGitHistory(
+        pageRequest.projectPath,
+        { kind: "page", tip: snapshot.tip, offset },
+        controller.signal,
+      )
+      .then(
+        (value) => {
+          if (controller.signal.aborted) return;
+          const seen = new Set(snapshot.commits.map((commit) => commit.oid));
+          const combined = {
+            tip: snapshot.tip,
+            commits: [
+              ...snapshot.commits,
+              ...value.commits.filter((commit) => !seen.has(commit.oid)),
+            ],
+            nextOffset: value.nextOffset,
+          };
+          historyCache.remember(pageRequest.key, combined);
+          setHistory({ key: pageRequest.key, state: { kind: "ready", value: combined } });
           setPaging(false);
           setPageRequest(null);
-        }
-      },
-    );
+        },
+        (error: unknown) => {
+          if (!controller.signal.aborted) {
+            setPageError(message(error));
+            setPaging(false);
+            setPageRequest(null);
+          }
+        },
+      );
     return () => controller.abort();
     // Only an explicit Load older action starts another page; list updates don't.
   }, [pageRequest, projectPath, historyKey]);

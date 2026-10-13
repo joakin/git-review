@@ -43,15 +43,18 @@ discovery retains standard local locations and also checks absolute PATH entries
 tools return a request-local unavailable error. The
 [agent information handshake](agent-http-protocol.md#handshake-and-optional-capabilities)
 distinguishes absent tools, an unverified model and successful verification in this process. A
-failed later attempt revokes verification; restart resets it. The current same-origin composer
-retains its existing behavior until the direct-agent transport/UI slices.
+failed later attempt revokes verification; restart resets it. Uploads use the composer's explicitly
+bound agent API, with the same cancellation and retry behavior. Capability presentation and host
+selection remain subsequent [split host slices](split-host-architecture-proposal.md); the current
+local composer retains its user flow.
 
 The adapter bounds subprocess time and output, validates nonempty transcript JSON, removes temporary
 audio in failure and cancellation paths, and releases the job slot. Unsupported or undecodable
 audio, unavailable executables/model, silence, timeout, concurrent jobs, and cancellation return
 useful errors through the shared JSON error boundary. Audio and transcript contents are not logged
 by default. Mobile microphone capture requires the private secure origin described in the
-[installation record](independent-tabs-and-pwa-proposal.md#installation-and-offline-behavior).
+[installation record](independent-tabs-and-pwa-proposal.md#installation-and-offline-behavior). A
+separate hosted frontend requires its own secure page origin for microphone capture.
 
 ## Evidence and device limits
 

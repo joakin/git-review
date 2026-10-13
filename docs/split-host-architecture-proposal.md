@@ -1,12 +1,12 @@
 # Split host implementation plan
 
 Status: architecture agreed on 2026-10-13; step 1 probe preparation and local HTTP/private HTTPS
-simulation are complete, with the cloud/device feasibility gate pending. Steps 2–5 are approved for
-commit; the maintainer requested clarifying the step 6 transport before proceeding. Research began
-on 2026-10-12. The accepted direction is a static frontend, direct private agents, manual URL or
-startup-generated connection links, URL plus canonical project path ownership, and saved-feedback
-recovery. Discovery is optional and deferred. This record owns the implementation sequence and
-release gate; existing behavior records remain authoritative until each change is implemented.
+simulation are complete, with the cloud/device feasibility gate pending. Steps 2–6 are committed;
+endpoint-owned routes and runtime state are next. Research began on 2026-10-12. The accepted
+direction is a static frontend, direct private agents, manual URL or startup-generated connection
+links, URL plus canonical project path ownership, and saved-feedback recovery. Discovery is optional
+and deferred. This record owns the implementation sequence and release gate; existing behavior
+records remain authoritative until each change is implemented.
 
 ## First release and agreed boundaries
 
@@ -93,14 +93,14 @@ The combined same-origin entrypoint belongs to root [development composition](..
 while web, agent, and shared source stay within their package boundaries. Independent production
 artifacts remain steps 3 and 4.
 
-Implemented and approved for commit on 2026-10-13. Root build/dev/start commands retain their
-behavior; the single lockfile retains existing dependency versions. The production boundary gate
-covers 121 source files, including type imports and re-exports, and rejected deliberate temporary
-cross-app/shared-host imports. Strict TypeScript, all 306 tests, QA/format, and build checks passed.
-Disposable-fixture browser checks passed for phone project selection/reload, checked feedback copy,
-history/Undo and clipboard fallback, and responsive URL/Back/Forward navigation. The normal HTTPS
-app was restarted with its existing approved root, port, and origin. The source-only probe bundle
-was re-extracted and all ten browser checks passed again without frontend source/assets.
+Committed on 2026-10-13. Root build/dev/start commands retain their behavior; the single lockfile
+retains existing dependency versions. The production boundary gate covers 121 source files,
+including type imports and re-exports, and rejected deliberate temporary cross-app/shared-host
+imports. Strict TypeScript, all 306 tests, QA/format, and build checks passed. Disposable-fixture
+browser checks passed for phone project selection/reload, checked feedback copy, history/Undo and
+clipboard fallback, and responsive URL/Back/Forward navigation. The normal HTTPS app was restarted
+with its existing approved root, port, and origin. The source-only probe bundle was re-extracted and
+all ten browser checks passed again without frontend source/assets.
 
 Inspected the unchanged app layouts at [phone](../qa/screenshots/workspace-migration/mobile.png),
 [tablet portrait](../qa/screenshots/workspace-migration/tablet-portrait.png),
@@ -111,15 +111,15 @@ gesture checks were not repeated. Cloud lifetime and laptop-closed use remain op
 
 ### 3. Produce the complete static frontend
 
-Implemented and approved for commit on 2026-10-13. The slice adds `build:web` with a validated
-deployment base path and a self-contained `dist/web` directory. Existing local build/run commands
-keep the current review app usable. Query routes, known history, manifest launch/scope, worker
-registration and offline retry share that deployment path. Versioned scripts/styles allow immutable
-asset delivery; HTML, worker, manifest and fallback revalidate. Each deployment owns its fallback
-cache, and upgrades do not reload tabs or touch saved review storage. Static-only hosting uses early
-meta-CSP; an optional generated header file adds framing protection and cache headers on hosts that
-support it. The fallback describes app-site unavailability. Direct agent traffic and connection
-configuration remain later steps.
+Committed on 2026-10-13. The slice adds `build:web` with a validated deployment base path and a
+self-contained `dist/web` directory. Existing local build/run commands keep the current review app
+usable. Query routes, known history, manifest launch/scope, worker registration and offline retry
+share that deployment path. Versioned scripts/styles allow immutable asset delivery; HTML, worker,
+manifest and fallback revalidate. Each deployment owns its fallback cache, and upgrades do not
+reload tabs or touch saved review storage. Static-only hosting uses early meta-CSP; an optional
+generated header file adds framing protection and cache headers on hosts that support it. The
+fallback describes app-site unavailability. Direct agent traffic and connection configuration remain
+later steps.
 
 Add `build:web` and a self-contained publish directory containing HTML, content-versioned scripts
 and styles, icons, manifest, worker, and offline fallback. Make navigation, resource paths, install
@@ -149,13 +149,13 @@ remain unverified. No public deployment or cloud environment was changed.
 
 ### 4. Produce the independent agent runtime
 
-Implemented and approved for commit on 2026-10-13. The slice packages a Bun-targeted
-`dist/agent/agent.js`, with Shiki's language loaders and inlined Oniguruma engine bundled rather
-than resolved from a checkout at runtime. Copying that directory to a workspace requires Bun, Git
-and ripgrep, but no frontend, package installation or application source. A workspace `build` target
-and root `build:agent` produce the same artifact; `start:agent` runs it with an explicit approved
-root. The current same-origin app continues to use its local composition. This step does not publish
-a package or executable for each OS/architecture.
+Committed on 2026-10-13. The slice packages a Bun-targeted `dist/agent/agent.js`, with Shiki's
+language loaders and inlined Oniguruma engine bundled rather than resolved from a checkout at
+runtime. Copying that directory to a workspace requires Bun, Git and ripgrep, but no frontend,
+package installation or application source. A workspace `build` target and root `build:agent`
+produce the same artifact; `start:agent` runs it with an explicit approved root. The current
+same-origin app continues to use its local composition. This step does not publish a package or
+executable for each OS/architecture.
 
 The existing root/port/bind/proxy-origin configuration is shared so both entrypoints validate it in
 one place. The standalone entrypoint serves the existing API only; static paths return 404. Invalid
@@ -187,11 +187,11 @@ gates.
 
 ### 5. Add protocol information and the CORS boundary
 
-Implemented and approved for commit on 2026-10-13. The agent now has a shared, validated information
-handshake and an explicit frontend-origin list separate from its private HTTPS address. A single
-HTTP boundary validates route methods/preflights before repository work and decorates allowed-origin
-successes, errors and streams. The [protocol owner](agent-http-protocol.md) owns compatibility,
-capabilities, origin policy and response behavior; exact wire types live in shared source.
+Committed on 2026-10-13. The agent now has a shared, validated information handshake and an explicit
+frontend-origin list separate from its private HTTPS address. A single HTTP boundary validates route
+methods/preflights before repository work and decorates allowed-origin successes, errors and
+streams. The [protocol owner](agent-http-protocol.md) owns compatibility, capabilities, origin
+policy and response behavior; exact wire types live in shared source.
 [The README](../README.md#agent-information-and-frontend-origins) owns configuration.
 
 The [cross-origin browser check](qa-workflow.md#agent-information-and-cross-origin-http) passed
@@ -209,22 +209,24 @@ public/private HTTPS permission behavior and physical devices remain later gates
 
 ### 6. Route all browser traffic through an explicit endpoint
 
-Introduce a connection transport whose agent URL stays fixed for its lifetime, passed to API/domain
-owners. Convert root/picker, Files/Search, changes/status polling, diff batches/context, Git,
-feedback checks, languages, and optional transcription. There must be no delayed operation that
-selects a mutable global host at dispatch time. Preserve deadlines, cancellation, source-version
-checks, and streaming semantics.
+Committed on 2026-10-13. The [protocol owner](agent-http-protocol.md#explicit-browser-connection)
+owns normalized endpoint and request policy, the bound API/provider, instance-owned diff queues and
+source-validated absolute media URLs. Every request family, including polling, source checks,
+context, transcription and native media, now uses an explicitly supplied connection. The normal app
+retains its page-origin bootstrap while endpoint-owned state and persisted data are pending. No host
+selector is active.
 
-Accept HTTPS origin endpoints at `/` for this first release; proxy subpaths are deferred. Normalize
-hostname case/default ports/trailing slash and reject credentials, query/fragment, or arbitrary
-paths. Development-only loopback HTTP support must stay explicit. Validate agent-relative media
-routes before turning them into absolute URLs; reject alternate origins/projects and unexpected
-redirects rather than changing connection ownership implicitly. Set native agent media to anonymous
-CORS mode so requests honor the origin policy without credentials.
+Review checkpoint: the [client transport QA](qa-workflow.md#explicit-client-transport), request
+inventory and unit checks prove routing, isolated queues, deferred reads, cancellation and rejected
+fetch redirects. Step 7 must still prevent route/session/cache and late-result ownership from
+crossing agents before multi-host selection is exposed.
 
-Review checkpoint: a request-family inventory and tests/probes show that JSON, batched streams,
-source checks, polling, transcription, and native media all go to the selected agent. Retain the
-single-host app while the new multi-host persistence is not yet active.
+Strict TypeScript, all 331 unit tests, local/static/agent builds and the current stateless restart
+browser scenario passed. Real Chrome APIs reached each selected agent from a static-only origin;
+native media, raw links and anonymous audio/video seeking passed. Four responsive media captures
+were inspected without overflow. QA/format and documentation-link checks accompany this review. The
+normal app's rebuilt frontend remains available. Cloud/device and secure public/private browser
+permission proof remain open release gates.
 
 ### 7. Scope navigation, sessions, and runtime caches
 

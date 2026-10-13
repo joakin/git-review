@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Project, RootInfo } from "@git-review/shared/api";
-import { fetchRoot, lookupProject } from "./api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { parseNavigationSearch } from "./navigation.ts";
 import type { LoadState } from "./load-state.ts";
 import {
@@ -49,6 +49,7 @@ function messageFor(error: unknown): string {
 
 /** Owns root connection, resolved project metadata, and root-scoped persistence. */
 export function useProjectSession(inputs: SessionInputs): ProjectSession {
+  const api = useAgentApi();
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
   const [session, setSession] = useState<SessionState>(() => ({
@@ -93,7 +94,7 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
     const controller = new AbortController();
     async function connect(): Promise<void> {
       try {
-        const root = await fetchRoot(controller.signal);
+        const root = await api.fetchRoot(controller.signal);
         if (controller.signal.aborted) return;
         const workspace = readSavedWorkspace(root.path);
         updateSession((current) => ({
@@ -142,32 +143,34 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
       openRequest.current === controller &&
       sessionRef.current.root === root &&
       inputsRef.current.readCurrentProjectPath() === path;
-    lookupProject(
-      path === "" ? root.value.path : `${root.value.path === "/" ? "" : root.value.path}/${path}`,
-      controller.signal,
-    ).then(
-      (selected) => {
-        if (!isCurrentOpen()) return;
-        updateSession((current) => ({ ...current, resolved: selected }));
-        inputsRef.current.onOpened(selected);
-        saveActiveProject(root.value.path, selected.relativePath);
-        const current = sessionRef.current;
-        const scoped =
-          current.workspace.rootPath === root.value.path
-            ? current.workspace
-            : emptyWorkspace(root.value.path);
-        const workspace = withSelectedPath(scoped, selected.relativePath);
-        saveWorkspace(workspace);
-        updateSession((value) => ({ ...value, workspace, opening: { kind: "idle" } }));
-      },
-      (error: unknown) => {
-        if (!isCurrentOpen()) return;
-        updateSession((current) => ({
-          ...current,
-          opening: { kind: "error", path, message: messageFor(error) },
-        }));
-      },
-    );
+    api
+      .lookupProject(
+        path === "" ? root.value.path : `${root.value.path === "/" ? "" : root.value.path}/${path}`,
+        controller.signal,
+      )
+      .then(
+        (selected) => {
+          if (!isCurrentOpen()) return;
+          updateSession((current) => ({ ...current, resolved: selected }));
+          inputsRef.current.onOpened(selected);
+          saveActiveProject(root.value.path, selected.relativePath);
+          const current = sessionRef.current;
+          const scoped =
+            current.workspace.rootPath === root.value.path
+              ? current.workspace
+              : emptyWorkspace(root.value.path);
+          const workspace = withSelectedPath(scoped, selected.relativePath);
+          saveWorkspace(workspace);
+          updateSession((value) => ({ ...value, workspace, opening: { kind: "idle" } }));
+        },
+        (error: unknown) => {
+          if (!isCurrentOpen()) return;
+          updateSession((current) => ({
+            ...current,
+            opening: { kind: "error", path, message: messageFor(error) },
+          }));
+        },
+      );
     return () => {
       controller.abort();
       if (openRequest.current === controller) openRequest.current = null;

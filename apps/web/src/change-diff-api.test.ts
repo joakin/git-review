@@ -5,7 +5,8 @@ import {
   changeDiffRequestKey,
   type ChangeDiffRequest,
 } from "@git-review/shared/change-diff-batch";
-import { fetchChangeDiff } from "./change-diff-api.ts";
+import { createAgentApi } from "./agent-api.ts";
+import { createAgentConnection } from "./agent-connection.ts";
 
 test("one stale batch delivers stale to every requested layer", async () => {
   const snapshot = { revision: "a".repeat(20), changeToken: "b".repeat(20), refreshKey: 0 };
@@ -32,11 +33,12 @@ test("one stale batch delivers stale to every requested layer", async () => {
       { preconnect: globalThis.fetch.preconnect },
     ),
   );
+  const api = createAgentApi(createAgentConnection("https://agent.example"));
   try {
     expect(
       await Promise.all(
         files.map((file) =>
-          fetchChangeDiff("/repo/project", file, snapshot, new AbortController().signal),
+          api.fetchChangeDiff("/repo/project", file, snapshot, new AbortController().signal),
         ),
       ),
     ).toEqual([{ kind: "stale" }, { kind: "stale" }]);
@@ -83,9 +85,10 @@ test("deferred Changes reads keep both snapshot tokens on the individual fallbac
       { preconnect: globalThis.fetch.preconnect },
     ),
   );
+  const api = createAgentApi(createAgentConnection("https://agent.example"));
   try {
     expect(
-      await fetchChangeDiff("/repo/project", file, snapshot, new AbortController().signal),
+      await api.fetchChangeDiff("/repo/project", file, snapshot, new AbortController().signal),
     ).toEqual({
       kind: "stale",
     });

@@ -32,8 +32,8 @@ It defines small review steps for feasibility, workspaces/artifacts, transport, 
 conversion, recovery, connection UI, and cloud release verification. Discovery is deferred and step
 1 probe tooling and local HTTP/private HTTPS simulation are prepared and verified; cloud/device
 feasibility remains unverified. The maintainer requested continuing local implementation; step 2
-workspace separation and steps 3–5 independent packaging/protocol are approved for commit. The
-maintainer requested clarifying step 6 transport before proceeding, with deployment gated on
+workspace separation and steps 3–6 independent packaging/protocol and explicit client transport are
+committed; endpoint-owned routes and runtime state are next. Deployment remains gated on
 cloud/device proof. Current behavior remains with its owners below until each step lands. The
 retained proposal path also holds the supporting architecture research.
 
@@ -52,23 +52,23 @@ and working-copy diffs, including mixed Old/New selections.
 
 ## Behavior records
 
-| Area                                  | Authoritative record                                                                                                                                                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Application notifications             | [Shared notices, lifetimes and modal layering](application-notifications.md)                                                                                                                                             |
-| Folder selection                      | [Picker and approved host root](foundation-slice.md)                                                                                                                                                                     |
-| Agent protocol and origins            | [Information, compatibility, capabilities and CORS](agent-http-protocol.md)                                                                                                                                              |
-| Project identity and restart behavior | [Stateless project contract](stateless-project-access-plan.md)                                                                                                                                                           |
-| Changes                               | [Inventory](git-status-slice.md), [diff cards](diff-slice.md), [line counts](changes-line-counts-proposal.md), [live updates](live-change-detection-slice-proposal.md)                                                   |
-| Diff rendering and loading            | [Syntax](syntax-highlighting-slice.md), [word detail](diff-fidelity-slice-proposal.md), [batching and bulk controls](diff-batching-and-bulk-controls-proposal.md), [loading and focus](loading-and-transition-polish.md) |
-| Git inspection                        | [Branches, history, comparisons, and immutable lifetime](git-history-slice-proposal.md)                                                                                                                                  |
-| Feedback                              | [Line/file/selection comments, reattachment, copy, history, and Undo](feedback-slice-proposal.md)                                                                                                                        |
-| Files and Search                      | [Current working files](file-browser-slice-proposal.md), [literal and selected-code Search](search-slice-proposal.md)                                                                                                    |
-| Media and voice                       | [Source-correct previews](media-preview-slice-proposal.md), [local dictation](local-voice-comment-slice-proposal.md)                                                                                                     |
-| Appearance                            | [Typography and font loading](code-typography-slice-proposal.md), [app and code themes](theme-settings-slice-proposal.md)                                                                                                |
-| Navigation                            | [URLs, responsive screens, and known Back/Forward history](navigation-and-url-history-slice-proposal.md)                                                                                                                 |
-| Local data and installation           | [Independent tabs, browser storage, backups, and offline behavior](independent-tabs-and-pwa-proposal.md)                                                                                                                 |
-| Read boundaries                       | [Git transport and source scope](git-read-boundaries.md), [checked working files and descriptors](working-file-boundaries.md)                                                                                            |
-| Formatting                            | [Repository and staged-file workflow](formatting-workflow.md)                                                                                                                                                            |
+| Area                                   | Authoritative record                                                                                                                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Application notifications              | [Shared notices, lifetimes and modal layering](application-notifications.md)                                                                                                                                             |
+| Folder selection                       | [Picker and approved host root](foundation-slice.md)                                                                                                                                                                     |
+| Agent protocol and browser connections | [Information, compatibility, capabilities, CORS and explicit client transport](agent-http-protocol.md)                                                                                                                   |
+| Project identity and restart behavior  | [Stateless project contract](stateless-project-access-plan.md)                                                                                                                                                           |
+| Changes                                | [Inventory](git-status-slice.md), [diff cards](diff-slice.md), [line counts](changes-line-counts-proposal.md), [live updates](live-change-detection-slice-proposal.md)                                                   |
+| Diff rendering and loading             | [Syntax](syntax-highlighting-slice.md), [word detail](diff-fidelity-slice-proposal.md), [batching and bulk controls](diff-batching-and-bulk-controls-proposal.md), [loading and focus](loading-and-transition-polish.md) |
+| Git inspection                         | [Branches, history, comparisons, and immutable lifetime](git-history-slice-proposal.md)                                                                                                                                  |
+| Feedback                               | [Line/file/selection comments, reattachment, copy, history, and Undo](feedback-slice-proposal.md)                                                                                                                        |
+| Files and Search                       | [Current working files](file-browser-slice-proposal.md), [literal and selected-code Search](search-slice-proposal.md)                                                                                                    |
+| Media and voice                        | [Source-correct previews](media-preview-slice-proposal.md), [local dictation](local-voice-comment-slice-proposal.md)                                                                                                     |
+| Appearance                             | [Typography and font loading](code-typography-slice-proposal.md), [app and code themes](theme-settings-slice-proposal.md)                                                                                                |
+| Navigation                             | [URLs, responsive screens, and known Back/Forward history](navigation-and-url-history-slice-proposal.md)                                                                                                                 |
+| Local data and installation            | [Independent tabs, browser storage, backups, and offline behavior](independent-tabs-and-pwa-proposal.md)                                                                                                                 |
+| Read boundaries                        | [Git transport and source scope](git-read-boundaries.md), [checked working files and descriptors](working-file-boundaries.md)                                                                                            |
+| Formatting                             | [Repository and staged-file workflow](formatting-workflow.md)                                                                                                                                                            |
 
 ## Where state belongs
 

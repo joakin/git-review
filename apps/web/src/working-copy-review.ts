@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ChangeEntry, Project, ProjectStatus } from "@git-review/shared/api";
-import { fetchProjectChangeCheck, fetchProjectStatus } from "./api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { diffCardKey } from "./DiffCard.tsx";
 import { routeProjectPath, type Route } from "./navigation.ts";
 import { readOpenCards, saveOpenCards } from "./storage.ts";
@@ -60,6 +60,7 @@ const pollIntervalMs = 10_000;
 
 /** Owns the accepted review snapshot; background checks only announce changes. */
 export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
+  const api = useAgentApi();
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
   const [state, setState] = useState<ReviewState>(() => ({
@@ -207,7 +208,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       statusRequest.current === controller &&
       stateRef.current.refreshKey === generation &&
       hasCurrentProject(project);
-    fetchProjectStatus(project.absolutePath, controller.signal).then(
+    api.fetchProjectStatus(project.absolutePath, controller.signal).then(
       (value) => {
         if (!isCurrent()) return;
         update((current) => ({
@@ -272,7 +273,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       const controller = new AbortController();
       request = controller;
       try {
-        const latest = await fetchProjectChangeCheck(project.absolutePath, controller.signal);
+        const latest = await api.fetchProjectChangeCheck(project.absolutePath, controller.signal);
         if (!isCurrent() || controller.signal.aborted) return;
         update((current) => ({
           ...current,

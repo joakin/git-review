@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useNotification, useNotifications } from "./Notifications.tsx";
 import type { NotificationSeverity } from "./notification-store.ts";
-import { fetchDirectory, fetchLanguages, fetchProjectSearch, fetchProjectTree } from "./api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { diffCardId } from "./DiffCard.tsx";
 import { ChangesSidebar, ChangesView } from "./ChangesView.tsx";
 import { FilesSidebar } from "./FilesSidebar.tsx";
@@ -62,6 +62,7 @@ function projectEntryRoute(projectPath: string): Route {
 }
 
 export function App() {
+  const api = useAgentApi();
   const notifications = useNotifications();
   const [listingLoad, setListingLoad] = useState<{
     key: string;
@@ -409,7 +410,7 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchLanguages(controller.signal).then(
+    api.fetchLanguages(controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setLanguages(value);
       },
@@ -427,7 +428,7 @@ export function App() {
         ? current
         : { key: path, state: { kind: "loading" } },
     );
-    fetchDirectory(path, controller.signal).then(
+    api.fetchDirectory(path, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted)
           setListingLoad({ key: path, state: { kind: "ready", value } });
@@ -506,7 +507,7 @@ export function App() {
         ? current
         : { key, state: { kind: "loading" } },
     );
-    fetchProjectTree(project.absolutePath, treePath, controller.signal).then(
+    api.fetchProjectTree(project.absolutePath, treePath, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setTreeLoad({ key, state: { kind: "ready", value } });
       },
@@ -527,7 +528,7 @@ export function App() {
         ? current
         : { key, state: { kind: "loading" } },
     );
-    fetchProjectSearch(project.absolutePath, submittedQuery, controller.signal).then(
+    api.fetchProjectSearch(project.absolutePath, submittedQuery, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setSearchLoad({ key, state: { kind: "ready", value } });
       },

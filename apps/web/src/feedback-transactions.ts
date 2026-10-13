@@ -1,5 +1,5 @@
 import type { Project } from "@git-review/shared/api";
-import { checkFeedbackSources } from "./feedback-check-api.ts";
+import type { FeedbackSourceChecker } from "./feedback-check-api.ts";
 import { feedbackAnchorKey, type FeedbackAnchor } from "@git-review/shared/feedback-check";
 import {
   commentCheckAnchor,
@@ -26,7 +26,7 @@ type FeedbackPorts = {
   updateStore: (change: (current: CommentStore) => CommentStore) => CommentStore | null;
   onState: (state: FeedbackState) => void;
   onCopied: (result: CopyResult) => void;
-  checkAnchors: typeof checkFeedbackSources;
+  checkAnchors: FeedbackSourceChecker;
   writeText: (text: string) => Promise<void>;
 };
 

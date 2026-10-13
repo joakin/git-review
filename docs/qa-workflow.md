@@ -150,9 +150,39 @@ capability data.
 These checks passed on Chrome/macOS with HTTP loopback origins. They establish the production
 application boundary and packaged startup, not public-to-private HTTPS permission behavior,
 cloud/Linux lifetime, physical iOS/Android or real microphone/model inference. The normal
-same-origin app remains the usable review workflow until transport/UI work lands. Runtime setup
-belongs in the [README](../README.md#agent-information-and-frontend-origins) and behavior in the
-[protocol owner](agent-http-protocol.md).
+same-origin app remains the usable review workflow until connection UI and endpoint-owned state
+land. Runtime setup belongs in the [README](../README.md#agent-information-and-frontend-origins) and
+behavior in the [protocol owner](agent-http-protocol.md).
+
+### Explicit client transport
+
+Run `bun run build` first, then `bun qa/check-agent-transport.ts`. The driver creates a disposable
+Git/media fixture, two source-runtime agents with the same canonical project path, and a separate
+static-only frontend origin. A QA-only build plugin supplies one explicit agent connection to the
+real frontend and bundles a request-family probe using the actual client API factories. Production
+bootstrap and connection configuration are not changed by the probe. Servers and fixture are cleaned
+up in `finally`.
+
+The script owns assertions for successful requests through every API family, including context
+expansion/checks, feedback, history pages, media HEAD/native image decoding for Files/Changes/Git,
+and a controlled transcription response. It checks a seeded cookie is omitted, a redirect from one
+agent cannot contact the other, and real frontend media/raw URLs retain their selected agent. Native
+audio/video metadata, seeking and range requests are checked. The ignored
+`qa/.artifacts/agent-transport-requests.json` records the observed request inventory without
+content. Transcription verifies upload routing, not decoding or model inference.
+
+Unit tests cover endpoint normalization, route/response rejection, body-stream preservation, wrong
+media sources, equal-key queue isolation, deferred reads and cancellation. The
+[stateless restart check](../qa/check-stateless-projects.ts) remains a representative regression
+check for the current app's polling, Files/Search/Git/media and feedback transactions.
+
+For a new four-size milestone, run `bun qa/check-agent-transport.ts --capture <new-milestone>`. This
+invokes `bun run qa:capture` while the isolated frontend and agents are live. The transport check
+passed on Chrome/macOS with HTTP loopback origins. It uses a source frontend fixture without
+production meta-CSP; the [static artifact check](#static-web-artifact) separately verifies that
+policy and packaging. Public-to-private HTTPS permissions, cloud/Linux lifetime and physical-device
+behavior remain release gates. Runtime connection policy belongs in the
+[protocol owner](agent-http-protocol.md#explicit-browser-connection).
 
 ### Split-host feasibility probe
 

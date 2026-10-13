@@ -1,4 +1,4 @@
-# Agent information and HTTP boundary
+# Agent protocol and browser connections
 
 The independently packaged agent exposes the existing read-only repository API and an information
 handshake. Operation and origin configuration belong in the
@@ -55,10 +55,54 @@ use anonymous CORS mode, preserving the existing restriction on
 [no-CORS cross-origin embeds](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cross-Origin-Resource-Policy).
 The [media owner](media-preview-slice-proposal.md) retains those resource contracts.
 
-## Verification and remaining client work
+## Explicit browser connection
+
+The [connection boundary](../apps/web/src/agent-connection.ts) captures one normalized agent origin
+when it is created. HTTPS origins without credentials, a subpath, query or fragment are supported;
+HTTP loopback needs an explicit development option. A separate page-origin adapter preserves the
+current local composition, including its legacy HTTP entrypoint. It captures the actual page origin
+and accepts no alternate address.
+
+The connection accepts only validated agent-relative API routes. Scripted requests always omit
+credentials and reject fetch redirects, while retaining the caller's signal, body and cache policy.
+The response stream passes through without buffering. A redirected response or a response from a
+different URL is rejected even if an injected fetch implementation returns one. This follows the
+browser's
+[request redirect policy](https://developer.mozilla.org/en-US/docs/Web/API/Request/redirect). There
+is no mutable global agent address for delayed work to consult.
+
+The [bound API](../apps/web/src/agent-api.ts) composes domain factories with this connection.
+Changes and commit diff queues belong to that API instance, so equal paths and version keys on two
+agents cannot group requests or redirect deferred single-file reads. Shared parsers, body budgets,
+source echoes, version checks and cancellation remain at their existing boundaries. The
+[root provider](../apps/web/src/AgentApiProvider.tsx) supplies that API to request owners:
+
+| Request family                                                                               | Owner                                                                                                                                 |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Information, root/picker, project, Files/Search, status/polling, languages and transcription | [Repository API](../apps/web/src/api.ts)                                                                                              |
+| Working-copy and historical diff batches, deferred reads                                     | [Changes API](../apps/web/src/change-diff-api.ts), [Git API](../apps/web/src/git-api.ts)                                              |
+| Git refs, history/pages and commit detail                                                    | [Git API](../apps/web/src/git-api.ts)                                                                                                 |
+| Feedback source checks and diff context/anchor checks                                        | [Feedback API](../apps/web/src/feedback-check-api.ts), [context API](../apps/web/src/diff-context-api.ts)                             |
+| Native previews and raw links                                                                | [Media binding](../apps/web/src/connected-media.ts), [media behavior](media-preview-slice-proposal.md#source-and-response-boundaries) |
+
+After wire parsing, media binding verifies the requested project, file or comparison source, side
+and content-version format. Only the expected relative raw route and its exact query fields are
+accepted; alternate origins, repeated fields and wrong sources fail. The resulting absolute URL
+retains the connection that loaded it, including delayed presentation. Native image/audio/video
+elements use anonymous CORS, omitting cross-origin cookies; raw links use that same bound URL.
+Native playback keeps browser streaming and redirect behavior. The agent's raw routes do not
+redirect; the scripted-request redirect rejection is not a browser-element redirect control.
+
+The production bootstrap still explicitly chooses the page-origin connection. Endpoint selection,
+handshake presentation, endpoint-owned routes/caches and persisted reviews remain the subsequent
+[split host slices](split-host-architecture-proposal.md). This transport foundation does not yet
+enable switching hosts in the UI.
+
+## Verification and remaining release work
 
 The [QA workflow](qa-workflow.md#agent-information-and-cross-origin-http) owns handler/parser tests,
 packaged capability checks, and real Chrome cross-origin scenarios. Local HTTP checks prove the
 application boundary; cloud/private HTTPS lifecycle and physical-device proof remain release gates.
-The current app still uses its same-origin transport. Endpoint selection, handshake presentation,
-native anonymous media and immutable direct-agent requests land in the next transport/UI slices.
+The [client transport check](qa-workflow.md#explicit-client-transport) exercises the actual bound
+browser APIs and frontend against separate agents, alongside queue, cancellation and source-binding
+unit tests. Endpoint-owned UI state and connection management remain separate review steps.

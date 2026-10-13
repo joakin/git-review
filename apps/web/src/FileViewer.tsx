@@ -4,7 +4,7 @@ import { useCodeRendering } from "./code-rendering.ts";
 import { useStableCallback } from "./use-stable-callback.ts";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { FileReadResult, LanguageOption } from "@git-review/shared/api";
-import { fetchProjectFile } from "./api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { useLanguageOverride } from "./language-override.ts";
 import { LanguagePicker } from "./LanguagePicker.tsx";
 import {
@@ -41,6 +41,7 @@ export function FileViewer({
   refreshKey: number;
   searchTarget: { path: string; line: number; query: string | null } | null;
 }) {
+  const api = useAgentApi();
   const panelRef = useRef<HTMLElement>(null);
   const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
     projectPath,
@@ -53,7 +54,7 @@ export function FileViewer({
   useEffect(() => {
     const controller = new AbortController();
     setState((current) => (current.kind === "ready" ? current : { kind: "loading" }));
-    fetchProjectFile(projectPath, path, effectiveOverride, controller.signal).then(
+    api.fetchProjectFile(projectPath, path, effectiveOverride, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setState({ kind: "ready", value });
       },

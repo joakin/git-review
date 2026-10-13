@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import type { LanguageOption, Project } from "@git-review/shared/api";
 import type { CommitDetail, CommitFileChange } from "@git-review/shared/git";
-import { fetchCommitDiff } from "./git-api.ts";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 import { DiffCardFrame } from "./DiffCardFrame.tsx";
 import { useDiffLoading } from "./diff-loading.ts";
 import { useLanguageOverride } from "./language-override.ts";
@@ -28,6 +28,7 @@ function CommitCard({
   wrap: boolean;
   languages: readonly LanguageOption[];
 }) {
+  const api = useAgentApi();
   const { override, effectiveOverride, changeLanguage } = useLanguageOverride(
     projectPath,
     file.path,
@@ -44,7 +45,7 @@ function CommitCard({
   const { current, retry } = useDiffLoading(expanded, {
     key,
     read: (signal) =>
-      fetchCommitDiff(projectPath, detail.oid, file.path, effectiveOverride, signal),
+      api.fetchCommitDiff(projectPath, detail.oid, file.path, effectiveOverride, signal),
     errorMessage: "Commit diff could not be loaded",
   });
   return (

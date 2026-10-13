@@ -2,12 +2,16 @@ import { render } from "preact";
 import { App } from "./App.tsx";
 import { NotificationProvider } from "./Notifications.tsx";
 import { appBasePath } from "./deployment.ts";
+import { AgentApiProvider } from "./AgentApiProvider.tsx";
+import { createPageAgentConnection } from "./agent-connection.ts";
 
 const root = document.getElementById("app");
 if (root === null) throw new Error("The application root is missing");
 render(
   <NotificationProvider>
-    <App />
+    <AgentApiProvider connection={createPageAgentConnection()}>
+      <App />
+    </AgentApiProvider>
   </NotificationProvider>,
   root,
 );

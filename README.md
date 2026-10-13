@@ -21,8 +21,10 @@ Source lives in three Bun workspaces: `apps/web` owns the frontend and Preact, `
 host access and Shiki, and `packages/shared` owns runtime-neutral contracts and parsers. The root
 owns the toolchain, lockfile, QA, and current same-origin server composition. Run the commands below
 from the repository root. `bun run build` builds the local app assets and both independent
-artifacts; `bun run dev` builds only the local app before starting it. Direct frontend-to-agent
-transport remains a later step in the [split host plan](docs/split-host-architecture-proposal.md).
+artifacts; `bun run dev` builds only the local app before starting it. Browser APIs now use an
+explicit bound agent connection; the normal bootstrap chooses the page's server. User-facing
+connection configuration and endpoint-owned state remain later steps in the
+[split host plan](docs/split-host-architecture-proposal.md).
 
 ## Run the app
 
@@ -105,8 +107,8 @@ and installation use the configured path. The
 owns worker caching and browser-data behavior.
 
 The generated HTML carries an early meta-CSP. It restricts scripts and assets, permits the existing
-Google font services, and permits HTTPS agent requests/images/media for the upcoming transport
-slice. The offline page permits only its hashed inline style. Meta-CSP cannot enforce
+Google font services, and permits HTTPS agent requests/images/media. The offline page permits only
+its hashed inline style. Meta-CSP cannot enforce
 [framing restrictions](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors).
 The generated `_headers` file adds framing protection, MIME/referrer policy, revalidation for
 HTML/manifest/worker/fallback/icons, and immutable caching for versioned assets on
@@ -117,9 +119,9 @@ app: query deep links need only the index page. The included 404 disables Cloudf
 [automatic SPA fallback](https://developers.cloudflare.com/pages/configuration/serving-pages/).
 
 This is the packaging step of the [split host plan](docs/split-host-architecture-proposal.md). The
-frontend still uses the current same-origin API until the explicit agent-transport step lands.
-Continue using the normal `dev`, `build`, and `start` commands for live review in the meantime. No
-public deployment has been performed.
+frontend's normal bootstrap still chooses its page-origin agent until connection configuration and
+endpoint-owned state land. Continue using the normal `dev`, `build`, and `start` commands for live
+review in the meantime. No public deployment has been performed.
 
 ## Build and run the independent agent
 
@@ -157,11 +159,10 @@ tailscale serve --bg 3000
 
 Use the agent's exact HTTPS origin without a trailing slash. This setting allows the private
 proxy-origin request check. Frontend origins are configured separately below; the static app's
-endpoint-selection and transport changes remain later steps. Tailscale enrollment, unique ephemeral
-hostnames, Serve, and process supervision stay outside the agent; provider setup and lifetime
-verification are described in the
-[feasibility workflow](docs/qa-workflow.md#private-https-in-a-cloud-workspace). The runtime does not
-keep a host registry or enroll Tailscale nodes.
+endpoint-selection UI remains a later step. Tailscale enrollment, unique ephemeral hostnames, Serve,
+and process supervision stay outside the agent; provider setup and lifetime verification are
+described in the [feasibility workflow](docs/qa-workflow.md#private-https-in-a-cloud-workspace). The
+runtime does not keep a host registry or enroll Tailscale nodes.
 
 Voice tools are optional and checked only on transcription requests. An explicit
 `GIT_REVIEW_FFMPEG_PATH` or `GIT_REVIEW_HANDY_PATH` must point to an absolute executable; invalid
@@ -198,14 +199,18 @@ The agent permits the existing API's GET/POST and media HEAD/range requests from
 rejects invalid preflights without repository work and retains readable allowed-origin errors. It
 sends no credential grant; direct browser clients use omitted credentials and anonymous native
 media. Tailscale enrollment and access policy remain necessary for private network reachability. The
-current frontend still uses the same-origin API until the transport step lands.
+current frontend's bootstrap still chooses the page-origin agent. The
+[connection contract](docs/agent-http-protocol.md#explicit-browser-connection) describes request
+binding and source validation.
 
 ## Checks
 
 The [agent artifact check](docs/qa-workflow.md#independent-agent-artifact) verifies packaging and
 read-only API behavior from a disposable directory with no frontend or source dependencies. The
 [agent HTTP check](docs/qa-workflow.md#agent-information-and-cross-origin-http) exercises the
-production CORS boundary from a separate static-page origin in Chrome.
+production CORS boundary from a separate static-page origin in Chrome. The
+[client transport check](docs/qa-workflow.md#explicit-client-transport) verifies every bound API
+family and native media from the actual frontend against separate agents.
 
 The experimental [split-host feasibility probe](docs/qa-workflow.md#split-host-feasibility-probe)
 tests a static page against a separate read-only agent using a disposable Git/media fixture. It is
