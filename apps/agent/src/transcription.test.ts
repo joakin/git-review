@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import {
-  createTranscriptionHandler,
+  createTranscriptionService,
   maxAudioBytes,
   parseHandyTranscript,
 } from "./transcription.ts";
@@ -16,7 +16,7 @@ test("Handy output must contain bounded, nonempty transcription text", () => {
 });
 
 test("voice upload rejects absent, unsupported, empty, and oversized recordings", async () => {
-  const transcribe = createTranscriptionHandler();
+  const transcribe = createTranscriptionService().transcribe;
   const request = (body: BodyInit | null, type: string, length?: number) =>
     new Request("http://localhost/api/transcriptions", {
       method: "POST",

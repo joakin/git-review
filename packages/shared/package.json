@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./agent-info": "./src/agent-info.ts",
     "./api": "./src/api.ts",
     "./change-diff-batch": "./src/change-diff-batch.ts",
     "./change-line-stats": "./src/change-line-stats.ts",

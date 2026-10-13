@@ -27,7 +27,9 @@ import {
 import { audioVideoResponse } from "./media-stream.ts";
 import { imageMimeType } from "@git-review/shared/media-types";
 import { searchProject } from "./search.ts";
-import { createTranscriptionHandler } from "./transcription.ts";
+import { createTranscriptionService, type TranscriptionService } from "./transcription.ts";
+import { agentInfo } from "./agent-info.ts";
+import { createApiHttpBoundary } from "./http.ts";
 import { isChangeLayer, type ChangeLayer } from "@git-review/shared/api";
 import {
   commitFile,
@@ -122,23 +124,28 @@ function requestedLanguage(url: URL): string | null {
 export function createApiHandler(
   root: ApprovedRoot,
   publicOrigin: string | null = null,
+  allowedOrigins: readonly string[] = [],
 ): (request: Request) => Promise<Response> {
-  const transcribe = createTranscriptionHandler();
-  return (request) => handleApiRequest(request, root, publicOrigin, transcribe);
+  const transcription = createTranscriptionService();
+  return createApiHttpBoundary(publicOrigin, allowedOrigins, (request) =>
+    handleApiRequest(request, root, transcription),
+  );
 }
 
 async function handleApiRequest(
   request: Request,
   root: ApprovedRoot,
-  publicOrigin: string | null,
-  transcribe: (request: Request) => Promise<Response>,
+  transcription: TranscriptionService,
 ): Promise<Response> {
   try {
     // Await delegated response builders so their rejections reach this error boundary.
     const url = new URL(request.url);
-    const origin = request.headers.get("origin");
-    if (origin !== null && origin !== url.origin && origin !== publicOrigin) {
-      throw new AppError("forbidden", 403, "Cross-origin requests are not allowed");
+    if (url.pathname === "/api/info" && request.method === "GET") {
+      if (url.searchParams.size !== 0)
+        throw new AppError("invalid_request", 400, "Agent information takes no query fields");
+      return Response.json(agentInfo(transcription.capability()), {
+        headers: { "cache-control": "no-store" },
+      });
     }
 
     if (url.pathname === "/api/roots" && request.method === "GET") {
@@ -147,7 +154,7 @@ async function handleApiRequest(
     if (url.pathname === "/api/languages" && request.method === "GET")
       return Response.json({ languages });
     if (url.pathname === "/api/transcriptions" && request.method === "POST")
-      return await transcribe(request);
+      return await transcription.transcribe(request);
     if (url.pathname === "/api/directories" && request.method === "GET") {
       const paths = url.searchParams.getAll("path");
       if (paths.length !== 1) throw new AppError("invalid_request", 400, "Specify one folder path");

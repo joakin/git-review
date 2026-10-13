@@ -50,6 +50,12 @@ embeds through an image element; opening it as a raw document also receives a sa
 Security Policy without script or same-origin privileges. This distinction protects raw-tab
 navigation as well as embedded previews. The service worker does not cache media or API responses.
 
+The [agent HTTP boundary](agent-http-protocol.md#origin-preflight-and-response-ownership) preserves
+these responses while adding allowed-origin CORS and exposing range headers. Direct cross-origin
+native elements use anonymous CORS mode; existing no-CORS restrictions stay in place. The current
+app still uses same-origin media until the transport step in the
+[split host plan](split-host-architecture-proposal.md) lands.
+
 ## Evidence and device limits
 
 The [QA catalog](qa-workflow.md) identifies image, playback/range, and Git-media checks.

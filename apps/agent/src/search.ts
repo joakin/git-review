@@ -26,7 +26,7 @@ function executableAt(path: string): boolean {
   }
 }
 
-function ripgrepExecutable(): string {
+export function ripgrepExecutable(): string {
   const configured = process.env["GIT_REVIEW_RG_PATH"];
   if (configured !== undefined) {
     if (!isAbsolute(configured) || !executableAt(configured))

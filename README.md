@@ -155,11 +155,11 @@ GIT_REVIEW_PUBLIC_ORIGIN=https://your-workspace.your-tailnet.ts.net bun /path/to
 tailscale serve --bg 3000
 ```
 
-Use the agent's exact HTTPS origin without a trailing slash. This setting allows the existing
-proxy-origin request check; complete cross-origin CORS and frontend endpoint configuration remain
-later steps. The static frontend cannot yet connect to this agent directly. Tailscale enrollment,
-unique ephemeral hostnames, Serve, and process supervision stay outside the agent; provider setup
-and lifetime verification are described in the
+Use the agent's exact HTTPS origin without a trailing slash. This setting allows the private
+proxy-origin request check. Frontend origins are configured separately below; the static app's
+endpoint-selection and transport changes remain later steps. Tailscale enrollment, unique ephemeral
+hostnames, Serve, and process supervision stay outside the agent; provider setup and lifetime
+verification are described in the
 [feasibility workflow](docs/qa-workflow.md#private-https-in-a-cloud-workspace). The runtime does not
 keep a host registry or enroll Tailscale nodes.
 
@@ -171,10 +171,41 @@ macOS app location; cloud transcription requires an explicitly configured compat
 model. Missing tools do not prevent startup or typed review. Startup output does not certify
 tool/model availability; `bun /path/to/agent/agent.js --help` lists configuration.
 
+## Agent information and frontend origins
+
+Configure an explicit JSON list of frontend origins on the agent:
+
+```sh
+GIT_REVIEW_ALLOWED_ORIGINS='["https://your-name.github.io"]' GIT_REVIEW_PUBLIC_ORIGIN=https://your-workspace.your-tailnet.ts.net bun run start:agent --root /path/to/projects --port 3000
+```
+
+Use each site's scheme/hostname/port without a trailing slash or deployment path: a GitHub project
+site under `/git-review/` still uses `https://your-name.github.io`. Origin access covers all paths
+on that origin. The default list is empty. Configuration rejects malformed/duplicate/oversized
+lists, wildcards, credentials, query/fragment fields and paths. Explicit `http://localhost:<port>`,
+`http://127.0.0.1:<port>` or IPv6 loopback origins are permitted for local development; remote
+frontend origins require HTTPS. The current same-origin app and configured private proxy continue to
+work without an extra list entry.
+
+`GET /api/info` reports the protocol/build identity and current optional capabilities. It takes no
+project path. Packaged development builds include their Git base revision and dirty state; source
+execution reports `development`. Transcription is unavailable without tools, unverified until a
+successful validated transcript in this agent process, and verified after that success. A later
+failure revokes verification. The [protocol record](docs/agent-http-protocol.md) owns handshake,
+CORS, streaming and capability behavior, with exact types in shared source.
+
+The agent permits the existing API's GET/POST and media HEAD/range requests from those origins. It
+rejects invalid preflights without repository work and retains readable allowed-origin errors. It
+sends no credential grant; direct browser clients use omitted credentials and anonymous native
+media. Tailscale enrollment and access policy remain necessary for private network reachability. The
+current frontend still uses the same-origin API until the transport step lands.
+
 ## Checks
 
 The [agent artifact check](docs/qa-workflow.md#independent-agent-artifact) verifies packaging and
-read-only API behavior from a disposable directory with no frontend or source dependencies.
+read-only API behavior from a disposable directory with no frontend or source dependencies. The
+[agent HTTP check](docs/qa-workflow.md#agent-information-and-cross-origin-http) exercises the
+production CORS boundary from a separate static-page origin in Chrome.
 
 The experimental [split-host feasibility probe](docs/qa-workflow.md#split-host-feasibility-probe)
 tests a static page against a separate read-only agent using a disposable Git/media fixture. It is

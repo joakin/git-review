@@ -27,6 +27,7 @@ import {
 } from "@git-review/shared/api";
 import { parseCommitDetail, parseGitHistory, parseGitRefs } from "@git-review/shared/git";
 import { projectApiUrl } from "@git-review/shared/project-path";
+import { parseAgentInfoResponse } from "@git-review/shared/agent-info";
 import { expectRecord, expectString } from "@git-review/shared/validation";
 import { testGitText as git, withTempDirectory } from "./test-support.ts";
 
@@ -147,7 +148,21 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
     assert(parseApiError(await response.json()) !== null, "Missing structured API error");
   }
 
+  async function information(origin: string) {
+    const handshake = parseAgentInfoResponse(await json(origin, "/api/info"));
+    assert(
+      handshake.kind === "compatible",
+      "Packaged agent is incompatible with its shared protocol",
+    );
+    assert(
+      handshake.info.agentVersion.startsWith("unreleased-"),
+      "Packaged build identity is missing",
+    );
+    return handshake.info;
+  }
+
   await withAgent({}, async (origin) => {
+    await information(origin);
     assert(parseRootResponse(await json(origin, "/api/roots")).path === root, "Root mismatch");
     const listing = parseDirectoryResponse(await json(origin, "/api/directories?path="));
     assert(
@@ -270,6 +285,10 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
       GIT_REVIEW_HANDY_PATH: join(directory, "missing-handy"),
     },
     async (origin) => {
+      assert(
+        (await information(origin)).capabilities.transcription.kind === "unavailable",
+        "Missing tools were advertised as usable",
+      );
       parseRootResponse(await json(origin, "/api/roots"));
       await unavailable(
         await fetch(origin + "/api/transcriptions", {
@@ -309,6 +328,10 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
   await withAgent(
     { GIT_REVIEW_FFMPEG_PATH: ffmpeg, GIT_REVIEW_HANDY_PATH: handy },
     async (origin) => {
+      assert(
+        (await information(origin)).capabilities.transcription.kind === "unverified",
+        "Executable presence incorrectly verified the model",
+      );
       const response = await fetch(origin + "/api/transcriptions", {
         method: "POST",
         headers: { "content-type": "audio/wav" },
@@ -342,11 +365,49 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
         !(await Bun.file(input).exists()) && !(await Bun.file(output).exists()),
         "Temporary audio was retained",
       );
+      assert(
+        (await information(origin)).capabilities.transcription.kind === "available",
+        "A successful transcription did not verify capability",
+      );
+      await writeFile(handy, `#!${process.execPath}\nprocess.exit(1);\n`);
+      await unavailable(
+        await fetch(origin + "/api/transcriptions", {
+          method: "POST",
+          headers: { "content-type": "audio/wav" },
+          body: new Uint8Array([1]),
+        }),
+        503,
+      );
+      assert(
+        (await information(origin)).capabilities.transcription.kind === "unverified",
+        "Failed transcription retained stale verification",
+      );
     },
   );
   assert((await fingerprint(root)) === before, "Agent modified the approved root or Git metadata");
   console.log(
-    "Configured voice adapter: absolute tools, fixed arguments, parsed transcript and temporary cleanup passed (stub executables, no model inference)",
+    "Configured voice adapter: absolute tools, fixed arguments, transcript/cleanup and unverified/verified/revoked capability states passed (stub executables, no model inference)",
+  );
+
+  await withAgent(
+    {
+      PATH: tools,
+      GIT_REVIEW_RG_PATH: join(directory, "missing-rg"),
+      GIT_REVIEW_FFMPEG_PATH: ffmpeg,
+      GIT_REVIEW_HANDY_PATH: join(directory, "missing-handy"),
+    },
+    async (origin) => {
+      const capabilities = (await information(origin)).capabilities;
+      assert(
+        capabilities.git.kind === "unavailable" && capabilities.search.kind === "unavailable",
+        "Missing Git/rg capability was incorrectly advertised",
+      );
+      assert(
+        capabilities.transcription.kind === "unavailable" &&
+          capabilities.transcription.reason === "missing_handy",
+        "Missing Handy capability was incorrectly advertised",
+      );
+    },
   );
 
   for (const args of [

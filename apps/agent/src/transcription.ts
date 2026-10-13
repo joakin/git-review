@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 import { isRecord } from "@git-review/shared/validation";
+import type { TranscriptionCapability } from "@git-review/shared/agent-info";
 import { AppError } from "./paths.ts";
 
 const runFile = promisify(execFile);
@@ -18,7 +19,7 @@ const acceptedAudioTypes = new Set([
   "audio/x-wav",
 ]);
 
-function executable(configKey: string, defaults: readonly string[], name: string): string {
+function executable(configKey: string, defaults: readonly string[]): string | null {
   const configured = process.env[configKey];
   const candidates = configured === undefined ? defaults : [configured];
   for (const candidate of candidates) {
@@ -30,7 +31,27 @@ function executable(configKey: string, defaults: readonly string[], name: string
       /* Try the next known location. */
     }
   }
-  throw new AppError("internal_error", 503, `${name} is unavailable on this host`);
+  return null;
+}
+
+type TranscriptionTools = { ffmpeg: string; handy: string };
+function transcriptionTools():
+  | { kind: "ready"; tools: TranscriptionTools }
+  | { kind: "unavailable"; reason: "missing_ffmpeg" | "missing_handy" } {
+  const ffmpeg = executable("GIT_REVIEW_FFMPEG_PATH", [
+    "/opt/homebrew/bin/ffmpeg",
+    "/usr/local/bin/ffmpeg",
+    ...(process.env["PATH"] ?? "")
+      .split(delimiter)
+      .filter(isAbsolute)
+      .map((directory) => join(directory, "ffmpeg")),
+  ]);
+  if (ffmpeg === null) return { kind: "unavailable", reason: "missing_ffmpeg" };
+  const handy = executable("GIT_REVIEW_HANDY_PATH", [
+    "/Applications/Handy.app/Contents/MacOS/handy",
+  ]);
+  if (handy === null) return { kind: "unavailable", reason: "missing_handy" };
+  return { kind: "ready", tools: { ffmpeg, handy } };
 }
 
 function processTimedOut(error: unknown): boolean {
@@ -98,9 +119,15 @@ async function saveBoundedAudio(request: Request, path: string): Promise<void> {
   if (bytes === 0) throw new AppError("invalid_request", 400, "Recording is empty");
 }
 
-export function createTranscriptionHandler(): (request: Request) => Promise<Response> {
+export type TranscriptionService = {
+  transcribe: (request: Request) => Promise<Response>;
+  capability: () => TranscriptionCapability;
+};
+
+export function createTranscriptionService(): TranscriptionService {
   let active = false;
-  return async (request) => {
+  let verifiedTools: TranscriptionTools | null = null;
+  const transcribe = async (request: Request): Promise<Response> => {
     const type = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
     if (type === undefined || !acceptedAudioTypes.has(type))
       throw new AppError("invalid_request", 415, "Unsupported recording format");
@@ -117,23 +144,14 @@ export function createTranscriptionHandler(): (request: Request) => Promise<Resp
       const input = join(directory, "recording");
       const wav = join(directory, "normalized.wav");
       await saveBoundedAudio(request, input);
-      const ffmpeg = executable(
-        "GIT_REVIEW_FFMPEG_PATH",
-        [
-          "/opt/homebrew/bin/ffmpeg",
-          "/usr/local/bin/ffmpeg",
-          ...(process.env["PATH"] ?? "")
-            .split(delimiter)
-            .filter(isAbsolute)
-            .map((directory) => join(directory, "ffmpeg")),
-        ],
-        "FFmpeg",
-      );
-      const handy = executable(
-        "GIT_REVIEW_HANDY_PATH",
-        ["/Applications/Handy.app/Contents/MacOS/handy"],
-        "Handy",
-      );
+      const available = transcriptionTools();
+      if (available.kind === "unavailable")
+        throw new AppError(
+          "internal_error",
+          503,
+          `${available.reason === "missing_ffmpeg" ? "FFmpeg" : "Handy"} is unavailable on this host`,
+        );
+      const { ffmpeg, handy } = available.tools;
       try {
         await runFile(
           ffmpeg,
@@ -194,10 +212,28 @@ export function createTranscriptionHandler(): (request: Request) => Promise<Resp
           "Handy could not transcribe this recording. Check its installed model and retry.",
         );
       }
-      return Response.json({ text: parseHandyTranscript(stdout) });
+      const text = parseHandyTranscript(stdout);
+      verifiedTools = available.tools;
+      return Response.json({ text });
+    } catch (error: unknown) {
+      verifiedTools = null;
+      throw error;
     } finally {
       if (directory !== null) await rm(directory, { recursive: true, force: true });
       active = false;
     }
+  };
+  return {
+    transcribe,
+    capability() {
+      const available = transcriptionTools();
+      if (available.kind === "unavailable") return available;
+      if (
+        verifiedTools?.ffmpeg === available.tools.ffmpeg &&
+        verifiedTools.handy === available.tools.handy
+      )
+        return { kind: "available", engine: "handy" };
+      return { kind: "unverified", reason: "model_not_verified" };
+    },
   };
 }

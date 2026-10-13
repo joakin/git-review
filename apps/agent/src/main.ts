@@ -11,13 +11,14 @@ Defaults: current folder, port 3000, loopback 127.0.0.1.
 Requires Bun and Git; Search requires ripgrep on PATH or GIT_REVIEW_RG_PATH.
 GIT_REVIEW_HOST: loopback or this host's Tailscale IPv4 address.
 GIT_REVIEW_PUBLIC_ORIGIN: exact HTTPS agent origin used by a private proxy.
+GIT_REVIEW_ALLOWED_ORIGINS: JSON array of exact frontend origins (default []).
 Optional voice: GIT_REVIEW_FFMPEG_PATH and GIT_REVIEW_HANDY_PATH.
 Voice tools/model are checked only when transcription is requested.`);
 } else {
   try {
     const config = parseAgentConfig(args);
     const root = await approveRoot(config.root);
-    const handleApiRequest = createApiHandler(root, config.publicOrigin);
+    const handleApiRequest = createApiHandler(root, config.publicOrigin, config.allowedOrigins);
     const server = Bun.serve({
       hostname: config.hostname,
       port: config.port,

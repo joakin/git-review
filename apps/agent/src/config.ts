@@ -5,7 +5,45 @@ export type AgentConfig = {
   readonly port: number;
   readonly hostname: string;
   readonly publicOrigin: string | null;
+  readonly allowedOrigins: readonly string[];
 };
+
+export function frontendOrigin(value: unknown): string {
+  const message =
+    "GIT_REVIEW_ALLOWED_ORIGINS must contain exact HTTPS origins (HTTP loopback is allowed for development)";
+  if (typeof value !== "string" || value.length > 2048) throw new Error(message);
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(message);
+  }
+  const loopback =
+    url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "[::1]";
+  if (
+    value !== url.origin ||
+    (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
+  )
+    throw new Error(message);
+  return url.origin;
+}
+
+function allowedOrigins(raw: string | undefined): readonly string[] {
+  if (raw === undefined) return [];
+  if (raw.length > 16_384) throw new Error("GIT_REVIEW_ALLOWED_ORIGINS is too large");
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch {
+    throw new Error("GIT_REVIEW_ALLOWED_ORIGINS must be a JSON array of origins");
+  }
+  if (!Array.isArray(value) || value.length > 8)
+    throw new Error("GIT_REVIEW_ALLOWED_ORIGINS must be an array of at most 8 origins");
+  const origins = value.map((item: unknown) => frontendOrigin(item));
+  if (new Set(origins).size !== origins.length)
+    throw new Error("GIT_REVIEW_ALLOWED_ORIGINS contains duplicate origins");
+  return origins;
+}
 
 /** Operator configuration is shared by the API-only and temporary same-origin entrypoints. */
 export function parseAgentConfig(
@@ -57,5 +95,11 @@ export function parseAgentConfig(
       throw new Error("GIT_REVIEW_PUBLIC_ORIGIN must be an HTTPS origin without a path");
     publicOrigin = parsed.origin;
   }
-  return { root, port, hostname, publicOrigin };
+  return {
+    root,
+    port,
+    hostname,
+    publicOrigin,
+    allowedOrigins: allowedOrigins(environment["GIT_REVIEW_ALLOWED_ORIGINS"]),
+  };
 }

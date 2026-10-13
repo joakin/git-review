@@ -7,6 +7,7 @@ test("agent configuration preserves loopback defaults and explicit root/ephemera
     port: 3000,
     hostname: "127.0.0.1",
     publicOrigin: null,
+    allowedOrigins: [],
   });
   expect(
     parseAgentConfig(["--root", "/projects with spaces", "--port", "0"], {
@@ -18,6 +19,7 @@ test("agent configuration preserves loopback defaults and explicit root/ephemera
     port: 0,
     hostname: "100.64.1.2",
     publicOrigin: "https://workspace.tailnet.ts.net:8443",
+    allowedOrigins: [],
   });
 });
 
@@ -56,4 +58,47 @@ test("agent proxy origin is an exact HTTPS origin with no credentials or extra U
     expect(() => parseAgentConfig([], { GIT_REVIEW_PUBLIC_ORIGIN: origin })).toThrow(
       "GIT_REVIEW_PUBLIC_ORIGIN",
     );
+});
+
+test("frontend origins require a bounded exact-origin list separate from the proxy address", () => {
+  const origins = [
+    "https://review.example",
+    "http://127.0.0.1:39962",
+    "http://localhost:39963",
+    "http://[::1]:39964",
+  ];
+  expect(
+    parseAgentConfig([], { GIT_REVIEW_ALLOWED_ORIGINS: JSON.stringify(origins) }).allowedOrigins,
+  ).toEqual(origins);
+  expect(parseAgentConfig([], { GIT_REVIEW_ALLOWED_ORIGINS: "[]" }).allowedOrigins).toEqual([]);
+  for (const raw of [
+    "",
+    "not JSON",
+    '"https://review.example"',
+    "null",
+    "{}",
+    '["https://review.example","https://review.example"]',
+    JSON.stringify(Array.from({ length: 9 }, (_, i) => `https://host${i}.example`)),
+    " ".repeat(16_385),
+  ])
+    expect(() => parseAgentConfig([], { GIT_REVIEW_ALLOWED_ORIGINS: raw })).toThrow(
+      "GIT_REVIEW_ALLOWED_ORIGINS",
+    );
+  for (const origin of [
+    "*",
+    "null",
+    5,
+    null,
+    "http://review.example",
+    "https://review.example/",
+    "https://review.example/path",
+    "https://user:secret@review.example",
+    "https://review.example?token=secret",
+    "https://REVIEW.example",
+    "https://review.example:443",
+    "http://127.0.0.2:3000",
+  ])
+    expect(() =>
+      parseAgentConfig([], { GIT_REVIEW_ALLOWED_ORIGINS: JSON.stringify([origin]) }),
+    ).toThrow("GIT_REVIEW_ALLOWED_ORIGINS");
 });

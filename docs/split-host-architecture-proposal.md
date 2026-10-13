@@ -1,10 +1,10 @@
 # Split host implementation plan
 
 Status: architecture agreed on 2026-10-13; step 1 probe preparation and local HTTP/private HTTPS
-simulation are complete, with the cloud/device feasibility gate pending. Steps 2 and 3 are
-committed; step 4 is approved for commit and the maintainer requested step 5 on 2026-10-13. Research
-began on 2026-10-12. The accepted direction is a static frontend, direct private agents, manual URL
-or startup-generated connection links, URL plus canonical project path ownership, and saved-feedback
+simulation are complete, with the cloud/device feasibility gate pending. Steps 2–5 are approved for
+commit; the maintainer requested clarifying the step 6 transport before proceeding. Research began
+on 2026-10-12. The accepted direction is a static frontend, direct private agents, manual URL or
+startup-generated connection links, URL plus canonical project path ownership, and saved-feedback
 recovery. Discovery is optional and deferred. This record owns the implementation sequence and
 release gate; existing behavior records remain authoritative until each change is implemented.
 
@@ -187,33 +187,40 @@ gates.
 
 ### 5. Add protocol information and the CORS boundary
 
-Add an application-information endpoint that reports protocol compatibility and usable capabilities;
-keep approved-root discovery and canonical project lookup at their existing read boundaries. The
-information response has no separate workspace UUID and contains no enrollment secrets. Exact wire
-types, validators, and compatibility constants belong in shared source.
+Implemented and approved for commit on 2026-10-13. The agent now has a shared, validated information
+handshake and an explicit frontend-origin list separate from its private HTTPS address. A single
+HTTP boundary validates route methods/preflights before repository work and decorates allowed-origin
+successes, errors and streams. The [protocol owner](agent-http-protocol.md) owns compatibility,
+capabilities, origin policy and response behavior; exact wire types live in shared source.
+[The README](../README.md#agent-information-and-frontend-origins) owns configuration.
 
-Configure exact allowed frontend origins. Implement validated OPTIONS handling and the appropriate
-GET/POST/HEAD/media-range behavior, with CORS headers on allowed-origin success and error responses,
-including streams. Expose response headers actually read by the client and vary origin-dependent
-responses correctly. Disallowed origins, methods, and headers must not receive permissive CORS. Keep
-the API cookie-free; CORS does not replace Tailscale network access policy.
-
-Review checkpoint: handler tests plus a genuine cross-origin browser check for root/project reads,
-batch POST, unavailable/stale errors, media ranges, and rejected preflights. Confirm incompatible or
-unconfigured capabilities produce useful UI-ready states, not fallback guesses.
+The [cross-origin browser check](qa-workflow.md#agent-information-and-cross-origin-http) passed
+against a copied production bundle with a disposable static origin and Git/media fixture. Real
+preflight, JSON batch/feedback POSTs, readable errors/stale results, native image/audio/video,
+seeking, HEAD and streamed ranges passed; invalid methods/headers and an unconfigured origin were
+blocked. The packaged-runtime check also covers missing optional tools and transcription
+unverified/verified/revoked states through stubs. Handler/parser tests cover route families,
+non-dispatching rejected preflights, compatibility, Vary, errors and stream cancellation. All 322
+tests, strict TypeScript, QA/format and local/static/agent builds passed. The same-origin browser
+restart check passed with review state preserved. The normal app was restarted with its existing
+approved root/port/proxy origin, and its private HTTPS information endpoint passed. This backend
+slice does not change frontend selection/storage; source transport, actual cloud/Linux lifetime,
+public/private HTTPS permission behavior and physical devices remain later gates.
 
 ### 6. Route all browser traffic through an explicit endpoint
 
-Introduce one immutable connection transport, passed to API/domain owners. Convert root/picker,
-Files/Search, changes/status polling, diff batches/context, Git, feedback checks, languages, and
-optional transcription. There must be no delayed operation that selects a mutable global host at
-dispatch time. Preserve deadlines, cancellation, source-version checks, and streaming semantics.
+Introduce a connection transport whose agent URL stays fixed for its lifetime, passed to API/domain
+owners. Convert root/picker, Files/Search, changes/status polling, diff batches/context, Git,
+feedback checks, languages, and optional transcription. There must be no delayed operation that
+selects a mutable global host at dispatch time. Preserve deadlines, cancellation, source-version
+checks, and streaming semantics.
 
 Accept HTTPS origin endpoints at `/` for this first release; proxy subpaths are deferred. Normalize
 hostname case/default ports/trailing slash and reject credentials, query/fragment, or arbitrary
 paths. Development-only loopback HTTP support must stay explicit. Validate agent-relative media
 routes before turning them into absolute URLs; reject alternate origins/projects and unexpected
-redirects rather than changing connection ownership implicitly.
+redirects rather than changing connection ownership implicitly. Set native agent media to anonymous
+CORS mode so requests honor the origin policy without credentials.
 
 Review checkpoint: a request-family inventory and tests/probes show that JSON, batched streams,
 source checks, polling, transcription, and native media all go to the selected agent. Retain the

@@ -5,7 +5,7 @@ import { parseAgentConfig } from "../apps/agent/src/config.ts";
 
 const options = parseAgentConfig(process.argv.slice(2));
 const root = await approveRoot(options.root);
-const handleApiRequest = createApiHandler(root, options.publicOrigin);
+const handleApiRequest = createApiHandler(root, options.publicOrigin, options.allowedOrigins);
 const htmlPath = resolve("apps/web/src/index.html");
 const scriptPath = resolve("dist/assets/main.js");
 const stylesPath = resolve("dist/assets/styles.css");

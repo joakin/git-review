@@ -23,6 +23,9 @@ routes and recents retain their root-relative representation; they do not author
 has no app-level account system. Binding, private HTTPS, and runtime setup belong in the
 [root README](../README.md).
 
+The [agent HTTP boundary](agent-http-protocol.md) owns exact-origin checks, CORS and preflight;
+allowing a frontend never bypasses approved-root or per-request containment.
+
 ## Source and verification
 
 [Root/directory resolution](../apps/agent/src/paths.ts) owns host containment;

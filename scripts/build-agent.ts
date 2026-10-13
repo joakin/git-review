@@ -3,12 +3,29 @@ import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:f
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expectRecord, expectString } from "@git-review/shared/validation";
+import { runGit } from "../apps/agent/src/git-execution.ts";
 
 if (process.argv.length !== 2) throw new Error("Usage: bun run build:agent");
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const output = resolve(repository, "dist/agent");
 await mkdir(resolve(repository, "dist"), { recursive: true });
 const staging = await mkdtemp(resolve(repository, "dist/agent-build-"));
+
+async function buildVersion(): Promise<string> {
+  try {
+    const revision = (await runGit(repository, ["rev-parse", "--short=12", "HEAD"], 256 * 1024))
+      .toString("utf8")
+      .trim();
+    if (!/^[0-9a-f]{12}$/.test(revision)) return "development";
+    const dirty =
+      (await runGit(repository, ["status", "--porcelain", "--untracked-files=normal"], 256 * 1024))
+        .toString("utf8")
+        .trim() !== "";
+    return `unreleased-${revision}${dirty ? "-dirty" : ""}`;
+  } catch {
+    return "development";
+  }
+}
 
 async function dependencyManifest(name: string, from: string): Promise<string> {
   const require = createRequire(from);
@@ -71,6 +88,7 @@ try {
     splitting: false,
     naming: "agent.js",
     minify: true,
+    define: { __GIT_REVIEW_AGENT_VERSION__: JSON.stringify(await buildVersion()) },
   });
   if (!result.success) throw new AggregateError(result.logs, "Agent build failed");
   if (result.outputs.length !== 1 || result.outputs[0]?.path !== resolve(staging, "agent.js"))
@@ -93,6 +111,9 @@ The agent serves only /api/ routes and binds to 127.0.0.1 by default.
 Use a private Tailscale Serve proxy for HTTPS; enrollment and process lifetime are managed externally.
 GIT_REVIEW_PUBLIC_ORIGIN is the exact HTTPS agent origin used by that proxy, without a trailing slash.
 Cross-origin frontend transport is a later implementation step.
+GIT_REVIEW_ALLOWED_ORIGINS configures a JSON array of exact frontend HTTPS origins for CORS (default []).
+HTTP loopback origins are supported only for explicit local development configuration.
+GET /api/info reports protocol/build information and current optional capabilities without invoking a model.
 
 Voice is optional. Working FFmpeg, Handy and an installed model are required only for transcription.
 Explicit GIT_REVIEW_FFMPEG_PATH and GIT_REVIEW_HANDY_PATH overrides must be absolute executables.

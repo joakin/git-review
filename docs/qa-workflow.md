@@ -128,6 +128,32 @@ backend slice has no intended visible UI change. Operation belongs in the
 [voice owner](local-voice-comment-slice-proposal.md#host-and-request-boundaries) retains request and
 model behavior. Recheck the existing local composition after changing shared startup configuration.
 
+### Agent information and cross-origin HTTP
+
+Run `bun qa/check-agent-http.ts` from the repository root. It builds/copies the production bundle
+outside the checkout and starts a disposable Git/media fixture, one owned agent and a minimal static
+page on a separate loopback origin. The agent receives its frontend origin through normal startup
+configuration. Chrome uses omitted credentials and anonymous native media. Its network events
+confirm actual preflights; no experimental CORS wrapper is used. Processes, browser, copies and
+fixture are cleaned up by the driver.
+
+The script owns scenarios for information/compatibility and canonical reads, JSON diff-batch and
+feedback POSTs, readable malformed/missing-tool/outside-path/stale errors, native image display,
+audio/video metadata and seeking, HEAD, prefix/suffix streamed ranges, exposed headers and range
+errors. It verifies the browser blocks unsupported methods/headers and an unconfigured origin. The
+[artifact check](../qa/check-agent-package.ts) also covers missing Git/rg/voice tools and unverified
+→ verified → revoked transcription capability using stubs, without model inference. Handler tests
+cover every route family, denied preflights without dispatch, response statuses, Vary preservation
+and stream cancellation/HEAD; shared parser tests cover incompatible protocols and malformed
+capability data.
+
+These checks passed on Chrome/macOS with HTTP loopback origins. They establish the production
+application boundary and packaged startup, not public-to-private HTTPS permission behavior,
+cloud/Linux lifetime, physical iOS/Android or real microphone/model inference. The normal
+same-origin app remains the usable review workflow until transport/UI work lands. Runtime setup
+belongs in the [README](../README.md#agent-information-and-frontend-origins) and behavior in the
+[protocol owner](agent-http-protocol.md).
+
 ### Split-host feasibility probe
 
 Step 1 of the

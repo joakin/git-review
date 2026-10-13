@@ -32,10 +32,10 @@ It defines small review steps for feasibility, workspaces/artifacts, transport, 
 conversion, recovery, connection UI, and cloud release verification. Discovery is deferred and step
 1 probe tooling and local HTTP/private HTTPS simulation are prepared and verified; cloud/device
 feasibility remains unverified. The maintainer requested continuing local implementation; step 2
-workspace separation and steps 3–4 independent packaging are approved for commit. Step 5 protocol
-information and CORS is next, with deployment gated on cloud/device proof. Current behavior remains
-with its owners below until each step lands. The retained proposal path also holds the supporting
-architecture research.
+workspace separation and steps 3–5 independent packaging/protocol are approved for commit. The
+maintainer requested clarifying step 6 transport before proceeding, with deployment gated on
+cloud/device proof. Current behavior remains with its owners below until each step lands. The
+retained proposal path also holds the supporting architecture research.
 
 The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
 behavior and its feedback, syntax and loading owners.
@@ -56,6 +56,7 @@ and working-copy diffs, including mixed Old/New selections.
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Application notifications             | [Shared notices, lifetimes and modal layering](application-notifications.md)                                                                                                                                             |
 | Folder selection                      | [Picker and approved host root](foundation-slice.md)                                                                                                                                                                     |
+| Agent protocol and origins            | [Information, compatibility, capabilities and CORS](agent-http-protocol.md)                                                                                                                                              |
 | Project identity and restart behavior | [Stateless project contract](stateless-project-access-plan.md)                                                                                                                                                           |
 | Changes                               | [Inventory](git-status-slice.md), [diff cards](diff-slice.md), [line counts](changes-line-counts-proposal.md), [live updates](live-change-detection-slice-proposal.md)                                                   |
 | Diff rendering and loading            | [Syntax](syntax-highlighting-slice.md), [word detail](diff-fidelity-slice-proposal.md), [batching and bulk controls](diff-batching-and-bulk-controls-proposal.md), [loading and focus](loading-and-transition-polish.md) |
