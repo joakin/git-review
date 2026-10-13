@@ -42,9 +42,8 @@ The [project-state port](../apps/web/src/project-state.ts) keeps other configure
 separate tab-memory review, card/language, root and active-project stores; they cannot read or write
 legacy project keys, and legacy backup controls are disabled for those owners. The current app
 configures only its page-origin agent. The QA harness configures an additional agent to verify
-isolation; its memory records do not survive reload. Endpoint-owned persistence and backups, legacy
-conversion, and the user-facing host selector remain subsequent review steps. Global appearance,
-typography and wrapping stay shared preferences.
+isolation; its memory records do not survive reload. Global appearance, typography and wrapping stay
+shared preferences.
 
 The accepted [multi-line feedback extension](multi-line-feedback-proposal.md) adds a scoped
 conversion of the immediately preceding comment store and backup formats. Validate before
@@ -71,6 +70,35 @@ Changing scheme, hostname, or port creates a different browser origin; review da
 move automatically. Installed iOS storage can also be separate from Safari. Use explicit backup
 transfer between origins instead of assuming installation preserves drafts. Navigation history and
 tab-memory payload caches are outside the backup.
+
+### Endpoint-owned foundation (not yet activated)
+
+The new repository is prepared but the app still uses the storage port and backup dialog described
+above. Activation and legacy conversion belong to
+[step 9](split-host-architecture-proposal.md#9-activate-persistence-with-explicit-legacy-conversion).
+[Formats/parsers](../apps/web/src/agent-data-format.ts),
+[the repository](../apps/web/src/agent-data.ts), and [tests](../apps/web/src/agent-data.test.ts) own
+the schema, namespaces and exact assertions.
+
+Persistent records use the
+[project identity](stateless-project-access-plan.md#project-contract-and-validation). The
+saved-project index is independent of root recents. Reads reconcile missing or stale index entries
+from valid review metadata without contacting an agent or remembering its connection. Recovery
+metadata grants no filesystem access. Project preferences and root recents have their own endpoint
+ownership. Invalid records or conflicting storage-key ownership stop reads/export and retain the
+original data.
+
+Ordinary saves write the review before its index entry. If indexing fails, report the failure while
+keeping the review discoverable through reconciliation. Global export includes all active saved
+records, including unavailable/removed hosts and old roots, without live lookup. Import replaces
+matching records and merges unrelated records. Imported metadata must agree with its reviews;
+metadata-only imports can update a project without discarding its current feedback/preferences.
+
+Bulk import stages and verifies a complete new generation before publishing one catalog. Failures
+before publication leave prior data active. Cleanup follows publication; cleanup failure does not
+undo a successful import. If publication verification and restoration both fail, report uncertainty
+and retain both generations. Staging needs temporary capacity for both copies. The simultaneous-tab
+editing limitation remains. The foundation never reads, migrates or deletes legacy project keys.
 
 ## Installation and offline behavior
 
@@ -103,8 +131,11 @@ clipboard use require a secure context.
 
 ## Evidence and device limits
 
-The [QA catalog](qa-workflow.md) identifies independent-tab, PWA/backup, and restart checks. The
-static-web packaging pass verified root/subpath artifacts outside the checkout, actual worker
+The [QA catalog](qa-workflow.md) owns runnable checks. The
+[endpoint-owned foundation check](qa-workflow.md#endpoint-owned-data-foundation) passed on
+Chrome/macOS; physical-device storage behavior remains unverified.
+
+The static-web packaging pass verified root/subpath artifacts outside the checkout, actual worker
 upgrades, preserved drafts and exact copy history, cache isolation and offline retry on Chrome.
 Inspected its fallback at [phone](../qa/screenshots/static-web-offline/mobile.png),
 [tablet portrait](../qa/screenshots/static-web-offline/tablet-portrait.png),

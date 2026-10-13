@@ -26,16 +26,9 @@ The [long diff performance investigation](long-diff-performance-investigation.md
 measurements and the reviewed render-isolation and CSS-containment implementations. Physical
 iPad/Safari verification remains pending.
 
-The [split host implementation plan](split-host-architecture-proposal.md) owns the agreed static
-frontend/direct-agent architecture, URL plus canonical path ownership, and saved-feedback recovery.
-It defines small review steps for feasibility, workspaces/artifacts, transport, state and backup
-conversion, recovery, connection UI, and cloud release verification. Discovery is deferred and step
-1 probe tooling and local HTTP/private HTTPS simulation are prepared and verified; cloud/device
-feasibility remains unverified. The maintainer requested continuing local implementation; step 2
-workspace separation and steps 3–7 independent packaging/protocol, explicit client transport, and
-endpoint-owned routes and runtime state are committed. Step 8 persistence and backup foundations are
-next. Deployment remains gated on cloud/device proof. Current behavior remains with its owners below
-until each step lands. The retained proposal path also holds the supporting architecture research.
+The [split host implementation plan](split-host-architecture-proposal.md) tracks the static
+frontend/direct-agent work, remaining steps and release gate. Implemented contracts belong to the
+behavior owners below; deferred discovery and external feasibility research stay in the plan.
 
 The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
 behavior and its feedback, syntax and loading owners.
