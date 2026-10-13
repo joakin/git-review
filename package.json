@@ -13,6 +13,7 @@
     "format:staged": "lint-staged",
     "dev": "bun scripts/dev.ts",
     "build": "bun scripts/build.ts",
+    "build:web": "bun scripts/build-web.ts",
     "assets:icons": "bun scripts/render-icons.ts",
     "start": "bun scripts/serve.ts",
     "typecheck": "tsc -p apps/agent/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.sw.json && tsc -p packages/shared/tsconfig.json && tsc -p tsconfig.scripts.json && tsc -p tsconfig.test.json && tsc -p tsconfig.qa.json",

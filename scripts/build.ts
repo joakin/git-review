@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 const result = await Bun.build({
   entrypoints: ["./apps/web/src/main.tsx", "./apps/web/src/styles.css"],
   outdir: "./dist/assets",
@@ -25,6 +27,14 @@ if (!result.success) {
     outdir: "./dist/assets",
     target: "browser",
     format: "esm",
+    define: {
+      __GIT_REVIEW_OFFLINE_VERSION__: JSON.stringify(
+        createHash("sha256")
+          .update(await Bun.file("apps/web/src/public/offline.html").text())
+          .digest("hex")
+          .slice(0, 16),
+      ),
+    },
   });
   if (!worker.success) {
     for (const log of worker.logs) console.error(log);

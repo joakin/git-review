@@ -41,7 +41,7 @@ function harness(
   };
   return {
     ports,
-    create: (reload = false) => new NavigationHistory(ports, reload),
+    create: (reload = false, basePath = "/") => new NavigationHistory(ports, reload, basePath),
     current: ports.readEntry,
     native: (direction: -1 | 1) => {
       index += direction;
@@ -70,6 +70,25 @@ function traverse(
 }
 
 describe("known app history", () => {
+  test("subpath history restores on reload and keeps traversal inside its deployment", () => {
+    const basePath = "/tools/review/";
+    const first = `${basePath}?section=projects`;
+    const next = `${basePath}?section=settings`;
+    const h = harness([{ state: null, url: first }]);
+    let owner = h.create(false, basePath);
+    owner.write(next, "push");
+    owner = h.create(true, basePath);
+    expect(owner.availability()).toMatchObject({ canGoBack: true });
+    traverse(h, owner, -1);
+    expect(h.current().url).toBe(first);
+    traverse(h, owner, 1);
+    expect(h.current().url).toBe(next);
+    owner.write("/?section=projects", "push");
+    expect(h.create(true, basePath).availability()).toMatchObject({
+      canGoBack: false,
+      canGoForward: false,
+    });
+  });
   test("starts without guessing from browser history or unrelated entry state", () => {
     const h = harness([
       { state: null, url: "https://elsewhere.test/" },

@@ -3,6 +3,7 @@ import { isGitOid, validGitRef } from "@git-review/shared/git";
 import { normalizeSearchQuery } from "@git-review/shared/search-query";
 import { isValidUrlEncoding } from "@git-review/shared/validation";
 import { isNavigationPath } from "./navigation-path.ts";
+import { appBasePath } from "./deployment.ts";
 
 export type ChangesTarget =
   { kind: "all" } | { kind: "list" } | { kind: "file"; layer: ChangeLayer; path: string };
@@ -212,7 +213,7 @@ function parseLine(value: string | null): number | null | false {
   return Number.isSafeInteger(parsed) && parsed <= 10_000_000 ? parsed : false;
 }
 
-export function routeUrl(route: Route): string {
+export function routeUrl(route: Route, basePath = appBasePath): string {
   const params = new URLSearchParams();
   params.set("section", route.section);
   if (route.section === "projects") {
@@ -244,7 +245,7 @@ export function routeUrl(route: Route): string {
       }
     }
   }
-  return `/?${params.toString()}`;
+  return `${basePath}?${params.toString()}`;
 }
 
 export function routeProjectPath(route: Route): string | null {

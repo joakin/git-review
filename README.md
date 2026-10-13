@@ -82,6 +82,44 @@ local review data**, then import the downloaded JSON file in the new address or 
 file stays on the device. Import previews the record counts and requires an explicit replace action;
 matching project records are replaced while other projects are kept.
 
+## Build the static frontend
+
+From the repository root:
+
+```sh
+bun run build:web
+bun run build:web --base-path /git-review/
+```
+
+The default deployment path is `/`. Use the second form for a project site such as
+`https://example.github.io/git-review/`. Paths contain plain URL segments and normalize to a
+trailing slash. The workspace command `bun run build` from `apps/web` builds the same artifact.
+
+Publish the **contents of `dist/web/`** at that path. The directory includes HTML, content-versioned
+scripts/styles, icons, manifest, worker, offline fallback and a 404 page; it needs no checkout, Bun,
+or application server to serve those files. Validation, bundling and asset-preparation failures
+leave the previous output available; completed builds replace the generated directory. Navigation
+and installation use the configured path. The
+[installation record](docs/independent-tabs-and-pwa-proposal.md#installation-and-offline-behavior)
+owns worker caching and browser-data behavior.
+
+The generated HTML carries an early meta-CSP. It restricts scripts and assets, permits the existing
+Google font services, and permits HTTPS agent requests/images/media for the upcoming transport
+slice. The offline page permits only its hashed inline style. Meta-CSP cannot enforce
+[framing restrictions](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors).
+The generated `_headers` file adds framing protection, MIME/referrer policy, revalidation for
+HTML/manifest/worker/fallback/icons, and immutable caching for versioned assets on
+[Cloudflare Pages](https://developers.cloudflare.com/pages/configuration/headers/) or a compatible
+header-file host. GitHub Pages can use the packaged meta policy and `.nojekyll`; its HTTP delivery
+policy remains platform-controlled. Serve unknown paths as 404 rather than rewriting them to the
+app: query deep links need only the index page. The included 404 disables Cloudflare Pages'
+[automatic SPA fallback](https://developers.cloudflare.com/pages/configuration/serving-pages/).
+
+This is the packaging step of the [split host plan](docs/split-host-architecture-proposal.md). The
+frontend still uses the current same-origin API until the explicit agent-transport step lands.
+Continue using the normal `dev`, `build`, and `start` commands for live review in the meantime. No
+public deployment has been performed.
+
 ## Checks
 
 The experimental [split-host feasibility probe](docs/qa-workflow.md#split-host-feasibility-probe)

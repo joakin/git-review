@@ -29,7 +29,7 @@ const bundle = await Bun.build({
     {
       name: "code-rendering-observer",
       setup(build) {
-        build.onLoad({ filter: /src\/client\/main\.tsx$/ }, async ({ path }) => ({
+        build.onLoad({ filter: /apps\/web\/src\/main\.tsx$/ }, async ({ path }) => ({
           loader: "tsx",
           contents: (await readFile(path, "utf8"))
             .replace('import { render } from "preact"', 'import { render, options } from "preact"')

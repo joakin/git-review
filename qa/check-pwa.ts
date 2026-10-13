@@ -165,7 +165,7 @@ await withQaBrowser(async (browser) => {
         throw new Error("Service worker cached project data");
       await context.setOffline(true);
       await page.reload({ waitUntil: "load" });
-      await page.getByRole("heading", { name: "Host unavailable" }).waitFor({ state: "visible" });
+      await page.getByRole("heading", { name: "App unavailable" }).waitFor({ state: "visible" });
     });
   });
   console.log(

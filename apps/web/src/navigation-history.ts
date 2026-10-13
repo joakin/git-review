@@ -1,5 +1,6 @@
 import { isRecord } from "@git-review/shared/validation";
 import { parseNavigationSearch } from "./navigation.ts";
+import { appBasePath } from "./deployment.ts";
 
 export const navigationHistoryKey = "git-review:navigation-history:v1";
 const markerKey = "gitReviewNavigation";
@@ -34,10 +35,12 @@ function isPosition(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
-function validUrl(value: unknown): value is string {
+function validUrl(value: unknown, basePath: string): value is string {
   if (typeof value !== "string" || value.length > maxUrlLength) return false;
-  if (value !== "/" && !value.startsWith("/?")) return false;
-  return !value.includes("#") && parseNavigationSearch(value.slice(1)).kind !== "invalid";
+  if (value !== basePath && !value.startsWith(`${basePath}?`)) return false;
+  return (
+    !value.includes("#") && parseNavigationSearch(value.slice(basePath.length)).kind !== "invalid"
+  );
 }
 
 function parseMarker(state: unknown): Marker | null {
@@ -54,7 +57,7 @@ function parseMarker(state: unknown): Marker | null {
   return { version: 1, trail: value["trail"], position: value["position"], entry: value["entry"] };
 }
 
-function parseJournal(value: unknown): Journal | null {
+function parseJournal(value: unknown, basePath: string): Journal | null {
   if (
     !isRecord(value) ||
     value["version"] !== 1 ||
@@ -79,7 +82,7 @@ function parseJournal(value: unknown): Journal | null {
     if (
       !isRecord(item) ||
       !isId(item["id"]) ||
-      (item["url"] !== null && !validUrl(item["url"])) ||
+      (item["url"] !== null && !validUrl(item["url"], basePath)) ||
       ids.has(item["id"])
     )
       return null;
@@ -115,9 +118,10 @@ export class NavigationHistory {
   constructor(
     private readonly ports: HistoryPorts,
     restoreReload: boolean,
+    private readonly basePath = appBasePath,
   ) {
     const current = ports.readEntry();
-    const journal = restoreReload ? parseJournal(ports.readJournal()) : null;
+    const journal = restoreReload ? parseJournal(ports.readJournal(), basePath) : null;
     const marker = parseMarker(current.state);
     if (journal !== null && recognizes(journal, marker, current)) {
       this.journal = journal;
@@ -143,7 +147,7 @@ export class NavigationHistory {
         trail,
         start: 0,
         historyLength: current.length,
-        entries: [{ id: entry, url: validUrl(current.url) ? current.url : null }],
+        entries: [{ id: entry, url: validUrl(current.url, this.basePath) ? current.url : null }],
       },
       marker: { version: 1, trail, position: 0, entry },
     };
@@ -202,7 +206,7 @@ export class NavigationHistory {
       this.marker = marker;
       this.journal.entries = [
         ...this.journal.entries.slice(0, offset + 1),
-        { id: entry, url: validUrl(url) ? url : null },
+        { id: entry, url: validUrl(url, this.basePath) ? url : null },
       ];
       // Some browsers evict the oldest entries when their own limit is reached.
       const limit = Math.min(maxEntries, this.ports.readEntry().length);
@@ -213,7 +217,10 @@ export class NavigationHistory {
       }
     } else {
       this.replaceMarker(current.state, url);
-      this.journal.entries[offset] = { id: this.marker.entry, url: validUrl(url) ? url : null };
+      this.journal.entries[offset] = {
+        id: this.marker.entry,
+        url: validUrl(url, this.basePath) ? url : null,
+      };
     }
     this.journal.historyLength = this.ports.readEntry().length;
     this.persist();

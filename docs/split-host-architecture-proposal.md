@@ -1,9 +1,9 @@
 # Split host implementation plan
 
 Status: architecture agreed on 2026-10-13; step 1 probe preparation and local HTTP/private HTTPS
-simulation are complete, with the cloud/device feasibility gate pending. Step 2 is complete and
-approved for commit; the maintainer requested step 3 on 2026-10-13. Research began on 2026-10-12.
-The accepted direction is a static frontend, direct private agents, manual URL or startup-generated
+simulation are complete, with the cloud/device feasibility gate pending. Steps 2 and 3 are approved
+for commit; the maintainer requested step 4 on 2026-10-13. Research began on 2026-10-12. The
+accepted direction is a static frontend, direct private agents, manual URL or startup-generated
 connection links, URL plus canonical project path ownership, and saved-feedback recovery. Discovery
 is optional and deferred. This record owns the implementation sequence and release gate; existing
 behavior records remain authoritative until each change is implemented.
@@ -111,6 +111,16 @@ gesture checks were not repeated. Cloud lifetime and laptop-closed use remain op
 
 ### 3. Produce the complete static frontend
 
+Implemented and approved for commit on 2026-10-13. The slice adds `build:web` with a validated
+deployment base path and a self-contained `dist/web` directory. Existing local build/run commands
+keep the current review app usable. Query routes, known history, manifest launch/scope, worker
+registration and offline retry share that deployment path. Versioned scripts/styles allow immutable
+asset delivery; HTML, worker, manifest and fallback revalidate. Each deployment owns its fallback
+cache, and upgrades do not reload tabs or touch saved review storage. Static-only hosting uses early
+meta-CSP; an optional generated header file adds framing protection and cache headers on hosts that
+support it. The fallback describes app-site unavailability. Direct agent traffic and connection
+configuration remain later steps.
+
 Add `build:web` and a self-contained publish directory containing HTML, content-versioned scripts
 and styles, icons, manifest, worker, and offline fallback. Make navigation, resource paths, install
 scope, and worker registration honor the deployment base path. Preserve query-based deep links.
@@ -126,6 +136,16 @@ Review checkpoint: serve the artifact from a temporary directory without source-
 scope, and asset requests within the intended deployment paths. Live agent traffic moves in step 6;
 this review proves static packaging/install assets, not a working direct-agent deployment. The
 existing development composition still provides the usable review app.
+
+The [static-artifact QA](qa-workflow.md#static-web-artifact) passed with copied root/subpath builds
+served outside the checkout and no API/CSP response header. It verifies native worker replacement,
+scoped cleanup, unchanged saved feedback/history and tab lifetime, offline styling/retry, resource
+and install paths, and invalid-build preservation. The existing PWA/backup browser scenario also
+passed, along with strict TypeScript, all 310 tests, QA/format and local/static builds. Hosting
+instructions and meta/header limits belong in the [README](../README.md#build-the-static-frontend);
+the [installation owner](independent-tabs-and-pwa-proposal.md#installation-and-offline-behavior)
+owns current caching/navigation behavior. Public-provider delivery and physical-device installation
+remain unverified. No public deployment or cloud environment was changed.
 
 ### 4. Produce the independent agent runtime
 

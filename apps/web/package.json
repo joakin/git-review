@@ -2,6 +2,9 @@
   "name": "@git-review/web",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "bun ../../scripts/build-web.ts"
+  },
   "dependencies": {
     "@git-review/shared": "workspace:*",
     "preact": "^10.29.8"

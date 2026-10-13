@@ -8,11 +8,11 @@ behavior.
 
 ## Independent tabs
 
-An explicit URL takes precedence over tab storage. Bare `/` restores a valid active folder for that
-tab or opens the picker. Selecting a folder updates only that tab's fallback selection, while
-recents remain shared. A failed selection does not replace the last accepted fallback or saved
-review work. Missing/malformed tab data or a different approved root cannot silently select another
-folder.
+An explicit URL takes precedence over tab storage. The bare deployment URL (`/` in local
+development) restores a valid active folder for that tab or opens the picker. Selecting a folder
+updates only that tab's fallback selection, while recents remain shared. A failed selection does not
+replace the last accepted fallback or saved review work. Missing/malformed tab data or a different
+approved root cannot silently select another folder.
 
 Saved folder paths share the [navigation-path rules](../apps/web/src/navigation-path.ts), including
 the empty path for the approved root. Invalid tab paths return to the picker; a malformed recents
@@ -64,22 +64,44 @@ tab-memory payload caches are outside the backup.
 
 ## Installation and offline behavior
 
-Open the private HTTPS origin, then use the browser install action or **Settings → Install & local
-data**. The dialog offers a captured install prompt when available, browser-menu guidance otherwise,
-and recognizes an already installed window. iPhone guidance uses **Share → Add to Home Screen** and
+Open the HTTPS frontend, then use the browser install action or **Settings → Install & local data**.
+The dialog offers a captured install prompt when available, browser-menu guidance otherwise, and
+recognizes an already installed window. iPhone guidance uses **Share → Add to Home Screen** and
 **Open as Web App**. Exact host services, origin, ports, and operating commands belong in the
 [root README](../README.md#install-on-a-phone).
 
-The manifest launches at `/` in standalone mode. [The service worker](../apps/web/src/sw.ts) caches
-only the host-unavailable fallback, uses the network for navigation, and removes obsolete app
-caches. It does not cache API responses, raw media, diffs, or comments. An unreachable host
-therefore shows an offline message instead of stale review contents; there is no offline project
-copy or background sync. Private Tailscale Serve and same-origin checks supply secure access;
-microphone and programmatic clipboard use need that secure context.
+The manifest's identity, launch URL and scope use the configured deployment path. Local development
+keeps `/`; static builds also support project subpaths. Query routes and known navigation history
+stay under that path. [The worker](../apps/web/src/sw.ts) registers there without requesting broader
+scope, caches only that deployment's content-versioned offline fallback, and removes only obsolete
+fallback caches it owns. The root deployment also retires its preceding root-only cache. Workers for
+other paths and unrelated caches are retained.
+
+App-entry navigation uses the network without HTTP-cache fallback. API responses, raw media, diffs,
+comments, and the live app shell remain outside worker caches. An unreachable app site shows **App
+unavailable** with a retry link to its deployment path, without presenting stale review contents.
+Worker updates claim open tabs without forcing a reload or touching saved review data. There is no
+offline project copy or background sync. Same-origin subpath deployments still share browser-local
+review data and preferences; separate installation/cache scope does not create a separate storage
+origin.
+
+Build commands, static policy, hosting configuration and delivery limits belong in the
+[root README](../README.md#build-the-static-frontend). The current same-origin app still supplies
+live reads during the split-host transition; direct agent configuration follows in later steps.
+Private Tailscale Serve supplies the current app's secure access, and microphone/programmatic
+clipboard use require a secure context.
 
 ## Evidence and device limits
 
-The [QA catalog](qa-workflow.md) identifies independent-tab, PWA/backup, and restart checks.
+The [QA catalog](qa-workflow.md) identifies independent-tab, PWA/backup, and restart checks. The
+static-web packaging pass verified root/subpath artifacts outside the checkout, actual worker
+upgrades, preserved drafts and exact copy history, cache isolation and offline retry on Chrome.
+Inspected its fallback at [phone](../qa/screenshots/static-web-offline/mobile.png),
+[tablet portrait](../qa/screenshots/static-web-offline/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/static-web-offline/tablet-landscape.png), and
+[desktop](../qa/screenshots/static-web-offline/desktop.png). Public-host header handling and
+physical device installation remain unverified.
+
 [Installed-app guidance](../qa/screenshots/tab-pwa-install-data/mobile.png),
 [private HTTPS](../qa/screenshots/https-port-8443-review/mobile.png), and
 [current local-data dialog evidence](stateless-project-access-plan.md#evidence-and-limits) are

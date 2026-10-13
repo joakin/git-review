@@ -83,6 +83,29 @@ review service available.
 
 ## Focused checks
 
+### Static web artifact
+
+Run `bun qa/check-static-web.ts` from the repository root. It builds `/` and `/git-review/`, copies
+each publish directory to a temporary directory outside the checkout, and serves only copied files
+on an owned loopback port. The server has no API and does not add a CSP response header, so browser
+checks exercise the packaged meta policy. The script owns exact scenarios: versioned resource URLs,
+manifest/icon paths and dimensions, query refresh, navigation/history, actual worker replacement,
+saved draft/copied-history preservation, cache ownership/cleanup, offline styling/retry, and failed
+build preservation. Its server and copies are cleaned up in `finally`.
+
+The existing [PWA check](../qa/check-pwa.ts) still verifies live-review backups and offline behavior
+against an isolated fixture app. Static-artifact checks establish packaging and browser behavior on
+Chrome/localhost; they do not prove public-host header handling, physical-device installation,
+provider lifetime, or direct-agent transport. Build and policy commands belong in the
+[root README](../README.md#build-the-static-frontend).
+
+The inspected standalone subpath UI is captured at
+[phone](../qa/screenshots/static-web-subpath/mobile.png),
+[tablet portrait](../qa/screenshots/static-web-subpath/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/static-web-subpath/tablet-landscape.png), and
+[desktop](../qa/screenshots/static-web-subpath/desktop.png). Its API-unavailable notice is expected:
+the preview serves only the publish files, and direct-agent configuration is a later slice.
+
 ### Split-host feasibility probe
 
 Step 1 of the

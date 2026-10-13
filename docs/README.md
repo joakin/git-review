@@ -32,9 +32,10 @@ It defines small review steps for feasibility, workspaces/artifacts, transport, 
 conversion, recovery, connection UI, and cloud release verification. Discovery is deferred and step
 1 probe tooling and local HTTP/private HTTPS simulation are prepared and verified; cloud/device
 feasibility remains unverified. The maintainer requested continuing local implementation; step 2
-workspace separation is complete and approved for commit. Step 3 static packaging is next, with
-deployment gated on cloud/device proof. Current behavior remains with its owners below until each
-step lands. The retained proposal path also holds the supporting architecture research.
+workspace separation and step 3 static packaging are approved for commit. Step 4 independent agent
+packaging is next, with deployment gated on cloud/device proof. Current behavior remains with its
+owners below until each step lands. The retained proposal path also holds the supporting
+architecture research.
 
 The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
 behavior and its feedback, syntax and loading owners.

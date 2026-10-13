@@ -138,7 +138,7 @@ export function InstallDataDialog({
           {standalone ? (
             <p>git-review is already open as an installed app.</p>
           ) : !window.isSecureContext ? (
-            <p>Open git-review at its HTTPS Tailscale address to install it as an app.</p>
+            <p>Open git-review at an HTTPS address to install it as an app.</p>
           ) : (
             <>
               <p>
