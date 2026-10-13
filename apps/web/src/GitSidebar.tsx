@@ -6,6 +6,7 @@ import type { LoadState } from "./load-state.ts";
 import { CommitMeta } from "./CommitMeta.tsx";
 import { SelectControl } from "./SelectControl.tsx";
 import { useNotification } from "./Notifications.tsx";
+import { useAgentApi } from "./AgentApiProvider.tsx";
 
 type GitListModel = {
   refs: LoadState<GitRefs>;
@@ -31,7 +32,8 @@ export function GitSidebar({
   onBranch: (ref: string) => void;
   onCommit: (oid: string) => void;
 }) {
-  const resource = `${route.projectPath}:${route.ref}`;
+  const api = useAgentApi();
+  const resource = JSON.stringify([api.connection.endpoint, route.projectPath, route.ref]);
   useNotification(
     `git-refs:${resource}`,
     model.refs.kind === "error"
@@ -69,7 +71,7 @@ export function GitSidebar({
   const container = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const sidebar = container.current?.closest(".sidebar");
-    const key = `${route.projectPath}\0${route.ref ?? ""}`;
+    const key = resource;
     if (sidebar instanceof HTMLElement) sidebar.scrollTop = listScrolls.get(key) ?? 0;
     return () => {
       if (sidebar instanceof HTMLElement) {
@@ -82,7 +84,7 @@ export function GitSidebar({
         }
       }
     };
-  }, [route.projectPath, route.ref, model.refs.kind, model.history.kind]);
+  }, [resource, model.refs.kind, model.history.kind]);
   const refs = model.refs;
   if (refs.kind === "loading")
     return <DelayedLoading className="sidebar-message" message="Reading Git history…" />;

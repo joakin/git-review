@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useNotification, useNotifications } from "./Notifications.tsx";
 import type { NotificationSeverity } from "./notification-store.ts";
-import { useAgentApi } from "./AgentApiProvider.tsx";
+import { useAgentApi, useAgentLifetime } from "./AgentApiProvider.tsx";
+import type { AppNavigation } from "./AgentApplication.tsx";
 import { diffCardId } from "./DiffCard.tsx";
 import { ChangesSidebar, ChangesView } from "./ChangesView.tsx";
 import { FilesSidebar } from "./FilesSidebar.tsx";
@@ -29,16 +30,7 @@ import {
 } from "./InstallDataDialog.tsx";
 import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
-import {
-  parentDirectory,
-  parseNavigationSearch,
-  routeProjectPath,
-  routeSection,
-  routeUrl,
-  type Route,
-  type RouteState,
-} from "./navigation.ts";
-import { useNavigationHistory } from "./use-navigation-history.ts";
+import { parentDirectory, routeProjectPath, routeSection, type Route } from "./navigation.ts";
 import { readWrapPreference, saveWrapPreference } from "./storage.ts";
 import { maxSearchQueryLength, normalizeSearchQuery } from "@git-review/shared/search-query";
 import type {
@@ -61,8 +53,9 @@ function projectEntryRoute(projectPath: string): Route {
   };
 }
 
-export function App() {
+export function App({ navigation }: { navigation: AppNavigation }) {
   const api = useAgentApi();
+  const lifetime = useAgentLifetime();
   const notifications = useNotifications();
   const [listingLoad, setListingLoad] = useState<{
     key: string;
@@ -76,11 +69,10 @@ export function App() {
   const [lastSubmittedQuery, setLastSubmittedQuery] = useState<string | null>(null);
   const [searchRefresh, setSearchRefresh] = useState(0);
   const [searchLoad, setSearchLoad] = useState<{ key: string; state: SearchState } | null>(null);
-  const [routeState, setRouteState] = useState<RouteState>(() =>
-    parseNavigationSearch(window.location.search),
-  );
+  const routeState = navigation.state;
+  const routeUrl = navigation.url;
   const route = routeState.kind === "ready" ? routeState.route : null;
-  const routeRef = useRef<Route | null>(route);
+  const routeRef = navigation.routeRef;
   const focusedChangesRoute = useRef<Route | null>(null);
   const routeProject = route === null ? null : routeProjectPath(route);
   const viewMode = route === null ? null : routeSection(route);
@@ -109,7 +101,7 @@ export function App() {
   const preferences = useAppearancePreferences();
   const settingsOpen = route?.section === "settings";
   const settingsBackRoute = useRef<Route | null>(null);
-  const scrollPositions = useRef(new Map<string, number>());
+  const scrollPositions = useRef(navigation.positions);
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -117,6 +109,7 @@ export function App() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const session = useProjectSession({
     projectPath: routeProject,
+    legacy: navigation.legacy,
     readCurrentProjectPath: () =>
       routeRef.current === null ? null : routeProjectPath(routeRef.current),
     onRestoreProject: (path) =>
@@ -138,9 +131,9 @@ export function App() {
       if (
         current !== null &&
         current.section !== "projects" &&
-        current.projectPath !== project.relativePath
+        (navigation.legacy || current.projectPath !== project.absolutePath)
       )
-        navigate({ ...current, projectPath: project.relativePath }, "replace");
+        navigation.canonicalize({ ...current, projectPath: project.absolutePath });
       feedback.actions.loadProject(project);
       review.actions.loadProject(project);
     },
@@ -149,7 +142,7 @@ export function App() {
   const projectOpenFailure =
     projectOpenError?.path === routeProject
       ? projectOpenError.message
-      : root.kind === "error"
+      : project === null && root.kind === "error"
         ? root.message
         : null;
   const treeKey = project === null ? null : `${project.absolutePath}\0${treePath}`;
@@ -165,7 +158,7 @@ export function App() {
           ? ({ kind: "idle" } as const)
           : ({ kind: "loading" } as const);
   const git = useGitBrowser(project, gitRoute);
-  const lastGitRefs = useRef(new Map<string, string>());
+  const lastGitRefs = useRef(navigation.gitRefs);
   const feedback = useReviewFeedback({
     project,
     onNotice: (message, severity: NotificationSeverity = "warning") =>
@@ -180,14 +173,14 @@ export function App() {
         setFileRefresh((value) => value + 1);
         navigate({
           section: "files",
-          projectPath: project.relativePath,
+          projectPath: project.absolutePath,
           directory: parentDirectory(anchor.path),
           target: { kind: "file", path: anchor.path, line: anchor.line },
         });
       } else
         navigate({
           section: "changes",
-          projectPath: project.relativePath,
+          projectPath: project.absolutePath,
           target: { kind: "file", layer: anchor.layer, path: anchor.path },
         });
     },
@@ -202,7 +195,7 @@ export function App() {
     },
     [notifications, project?.absolutePath],
   );
-  const navigationHistory = useNavigationHistory(feedback.actions.prepareNavigation);
+  const navigationHistory = navigation.history;
   const review = useWorkingCopyReview({
     project,
     route,
@@ -211,11 +204,11 @@ export function App() {
       viewMode === "changes" && editor === null && preview === null && !installDataOpen,
     onNonGit: (project) => {
       const current = routeRef.current;
-      if (current?.section === "changes" && current.projectPath === project.relativePath)
+      if (current?.section === "changes" && current.projectPath === project.absolutePath)
         navigate(
           {
             section: "files",
-            projectPath: project.relativePath,
+            projectPath: project.absolutePath,
             directory: "",
             target: { kind: "list" },
           },
@@ -229,7 +222,7 @@ export function App() {
     `changes-target:${route?.section === "changes" && route.target.kind === "file" ? `${route.projectPath}:${route.target.layer}:${route.target.path}` : ""}`,
     route?.section === "changes" &&
       route.target.kind === "file" &&
-      project?.relativePath === route.projectPath &&
+      project?.absolutePath === route.projectPath &&
       status.kind === "ready" &&
       status.value.kind === "git" &&
       !status.value.entries.some(
@@ -340,51 +333,32 @@ export function App() {
     const next = { ...gitRoute, ref: head.kind === "detached" ? "HEAD" : head.ref };
     const url = routeUrl(next);
     scrollPositions.current.set(url, window.scrollY);
-    routeRef.current = next;
-    navigationHistory.write(url, "replace");
-    setRouteState({ kind: "ready", route: next });
+    navigation.canonicalize(next);
   }, [project, gitRoute, git.refs]);
 
-  function navigate(next: Route, mode: "push" | "replace" = "push"): void {
+  function prepareNavigation(): void {
+    if (!navigation.ownsSession()) return;
     feedback.actions.prepareNavigation();
     const previous = routeRef.current;
     if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
-    routeRef.current = next;
     setDrawerOpen(false);
     setMenuOpen(false);
-    const url = routeUrl(next);
-    navigationHistory.write(url, mode);
-    setRouteState({ kind: "ready", route: next });
+  }
+
+  function navigate(next: Route, mode: "push" | "replace" = "push"): void {
+    navigation.navigate(next, mode);
     if (next.section !== "settings") window.scrollTo({ top: 0, behavior: "instant" });
   }
 
-  useEffect(() => {
-    window.history.scrollRestoration = "manual";
-    const onPopState = (): void => {
-      navigationHistory.acceptCurrent();
-      feedback.actions.prepareNavigation();
-      const previous = routeRef.current;
-      if (previous !== null) scrollPositions.current.set(routeUrl(previous), window.scrollY);
-      const parsed = parseNavigationSearch(window.location.search);
-      if (parsed.kind === "empty" && root.kind === "ready") {
-        session.actions.restoreDefaultRoute();
-      } else {
-        routeRef.current = parsed.kind === "ready" ? parsed.route : null;
-        setDrawerOpen(false);
-        setMenuOpen(false);
-        setRouteState(parsed);
-      }
+  useLayoutEffect(() => {
+    navigation.prepare.current = prepareNavigation;
+    return () => {
+      if (navigation.prepare.current === prepareNavigation) navigation.prepare.current = null;
     };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [root]);
-
+  });
   useEffect(() => {
-    if (routeState.kind !== "ready") return;
-    const canonical = routeUrl(routeState.route);
-    if (window.location.pathname + window.location.search !== canonical)
-      navigationHistory.write(canonical, "replace");
-  }, [routeState]);
+    if (routeState.kind === "empty" && root.kind === "ready") session.actions.restoreDefaultRoute();
+  }, [routeState.kind, root]);
 
   useLayoutEffect(() => {
     if (route?.section === "search") {
@@ -409,7 +383,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     api.fetchLanguages(controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) setLanguages(value);
@@ -422,7 +396,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     setListingLoad((current) =>
       current.key === path && current.state.kind === "ready"
         ? current
@@ -446,7 +420,7 @@ export function App() {
       route?.section !== "changes" ||
       route.target.kind !== "file" ||
       focusedChangesRoute.current === route ||
-      project?.relativePath !== route.projectPath ||
+      project?.absolutePath !== route.projectPath ||
       status.kind !== "ready" ||
       status.value.kind !== "git"
     )
@@ -500,7 +474,7 @@ export function App() {
 
   useEffect(() => {
     if (project === null || viewMode !== "files") return;
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     const key = `${project.absolutePath}\0${treePath}`;
     setTreeLoad((current) =>
       current?.key === key && current.state.kind === "ready"
@@ -521,7 +495,7 @@ export function App() {
 
   useEffect(() => {
     if (project === null || submittedQuery === null) return;
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     const key = `${project.absolutePath}\0${submittedQuery}`;
     setSearchLoad((current) =>
       current?.key === key && current.state.kind === "ready"
@@ -561,7 +535,7 @@ export function App() {
     if (project === null) return;
     navigate({
       section: "changes",
-      projectPath: project.relativePath,
+      projectPath: project.absolutePath,
       target: { kind: "file", layer: entry.layer, path: entry.path },
     });
   }
@@ -579,27 +553,27 @@ export function App() {
     if (mode === "changes")
       navigate({
         section: "changes",
-        projectPath: project.relativePath,
+        projectPath: project.absolutePath,
         target: { kind: window.matchMedia("(max-width: 600px)").matches ? "list" : "all" },
       });
     else if (mode === "files")
       navigate({
         section: "files",
-        projectPath: project.relativePath,
+        projectPath: project.absolutePath,
         directory: "",
         target: { kind: "list" },
       });
     else if (mode === "git")
       navigate({
         section: "git",
-        projectPath: project.relativePath,
+        projectPath: project.absolutePath,
         ref: lastGitRefs.current.get(project.absolutePath) ?? null,
         target: { kind: "list" },
       });
     else
       navigate({
         section: "search",
-        projectPath: project.relativePath,
+        projectPath: project.absolutePath,
         query: lastSubmittedQuery,
         target: { kind: "results" },
       });
@@ -607,7 +581,7 @@ export function App() {
 
   function openSettings(): void {
     if (!settingsOpen) settingsBackRoute.current = route;
-    navigate({ section: "settings", projectPath: project?.relativePath ?? null });
+    navigate({ section: "settings", projectPath: project?.absolutePath ?? null });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -618,7 +592,7 @@ export function App() {
     navigate(
       project === null
         ? { section: "projects", directory: "" }
-        : { section: "changes", projectPath: project.relativePath, target: { kind: "all" } },
+        : { section: "changes", projectPath: project.absolutePath, target: { kind: "all" } },
       "replace",
     );
   }
@@ -644,7 +618,7 @@ export function App() {
     else
       navigate({
         section: "search",
-        projectPath: project.relativePath,
+        projectPath: project.absolutePath,
         query,
         target: { kind: "results" },
       });
@@ -654,7 +628,7 @@ export function App() {
     if (project === null) return;
     navigate({
       section: "search",
-      projectPath: project.relativePath,
+      projectPath: project.absolutePath,
       query,
       target: { kind: "file", path: match.path, line: match.line },
     });
@@ -913,7 +887,7 @@ export function App() {
               onParent={() =>
                 navigate({
                   section: "files",
-                  projectPath: project.relativePath,
+                  projectPath: project.absolutePath,
                   directory: parentDirectory(treePath),
                   target: { kind: "list" },
                 })
@@ -922,14 +896,14 @@ export function App() {
                 if (entry.kind === "directory")
                   navigate({
                     section: "files",
-                    projectPath: project.relativePath,
+                    projectPath: project.absolutePath,
                     directory: entry.path,
                     target: { kind: "list" },
                   });
                 else
                   navigate({
                     section: "files",
-                    projectPath: project.relativePath,
+                    projectPath: project.absolutePath,
                     directory: treePath,
                     target: { kind: "file", path: entry.path, line: null },
                   });
@@ -943,7 +917,7 @@ export function App() {
               onReviewAll={() =>
                 navigate({
                   section: "changes",
-                  projectPath: project.relativePath,
+                  projectPath: project.absolutePath,
                   target: { kind: "all" },
                 })
               }
@@ -1124,7 +1098,7 @@ export function App() {
                       openFile: (path) =>
                         navigate({
                           section: "files",
-                          projectPath: project.relativePath,
+                          projectPath: project.absolutePath,
                           directory: parentDirectory(path),
                           target: { kind: "file", path, line: null },
                         }),

@@ -9,6 +9,7 @@ import {
 import { readCommentStore } from "./comments.ts";
 import { useModal } from "./modal.ts";
 import { useNotification, useNotifications } from "./Notifications.tsx";
+import { useProjectState } from "./AgentApiProvider.tsx";
 
 export type InstallPromptEvent = Event & { prompt: () => Promise<void> };
 
@@ -17,7 +18,7 @@ export function isInstallPromptEvent(event: Event): event is InstallPromptEvent 
 }
 
 export function InstallDataDialog({
-  rootPath,
+  rootPath: configuredRoot,
   installPrompt,
   onInstallHandled,
   onClose,
@@ -27,6 +28,8 @@ export function InstallDataDialog({
   onInstallHandled: () => void;
   onClose: () => void;
 }) {
+  const storage = useProjectState();
+  const rootPath = storage.kind === "legacy" ? configuredRoot : null;
   const modal = useModal(onClose);
   const [preview, setPreview] = useState<ReviewBackup | null>(null);
   const [error, setError] = useState<string | null>(null);

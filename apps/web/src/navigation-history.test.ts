@@ -1,11 +1,47 @@
 import { describe, expect, test } from "bun:test";
 import { NavigationHistory } from "./navigation-history.ts";
+import { agentDestinationUrl } from "./agent-navigation.ts";
 
 const picker = "/?section=projects";
 const file = "/?section=files&project=demo&dir=src&file=src%2Fa.ts";
 const search = "/?section=search&project=demo&q=hello";
 const result = `${search}&file=src%2Fa.ts&line=3`;
 const settings = "/?section=settings&project=demo";
+
+test("known history retains canonical endpoint ownership across Back/Forward and reload", () => {
+  const a = agentDestinationUrl({
+    kind: "agent",
+    endpoint: "https://a.example",
+    route: {
+      section: "files",
+      projectPath: "/work/repo",
+      directory: "",
+      target: { kind: "file", path: "a.ts", line: 1 },
+    },
+  });
+  const b = agentDestinationUrl({
+    kind: "agent",
+    endpoint: "https://b.example",
+    route: {
+      section: "files",
+      projectPath: "/work/repo",
+      directory: "",
+      target: { kind: "file", path: "a.ts", line: 1 },
+    },
+  });
+  const h = harness([{ state: null, url: a }]);
+  const owner = h.create();
+  owner.write(b, "push");
+  expect(owner.availability().canGoBack).toBe(true);
+  expect(owner.traverse(-1, () => undefined)).toBe(true);
+  h.settle(owner);
+  expect(h.current().url).toBe(a);
+  const restored = h.create(true);
+  expect(restored.availability().canGoForward).toBe(true);
+  expect(restored.traverse(1, () => undefined)).toBe(true);
+  h.settle(restored);
+  expect(h.current().url).toBe(b);
+});
 
 function harness(
   initial: { state: unknown; url: string }[] = [{ state: null, url: picker }],

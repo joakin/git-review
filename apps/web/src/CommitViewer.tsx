@@ -36,6 +36,7 @@ function CommitCard({
   );
   const key = JSON.stringify([
     "commit",
+    api.connection.endpoint,
     projectPath,
     detail.oid,
     detail.comparison.kind === "empty" ? "empty" : detail.comparison.oid,
@@ -80,7 +81,8 @@ export function CommitViewer({
   refreshing: boolean;
   commands: GitHeadingCommands;
 }) {
-  const key = JSON.stringify([project.absolutePath, detail.oid]);
+  const api = useAgentApi();
+  const key = JSON.stringify([api.connection.endpoint, project.absolutePath, detail.oid]);
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => collapsedCommits.get(key) ?? new Set(),
   );

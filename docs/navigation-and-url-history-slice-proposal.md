@@ -15,8 +15,9 @@ request freshness, reading-position restoration, and one-time selected-card focu
 
 ## Current user flow
 
-1. An explicit project URL takes precedence over tab storage. Bare `/` restores this tab's active
-   project when available, otherwise it opens the project picker.
+1. An explicit agent/project URL takes precedence over tab storage. Bare `/` restores this tab's
+   active project on the explicitly configured legacy agent when available, otherwise it opens that
+   agent's project picker.
 2. Choosing a project from the picker or recents opens the Changes list on phones. **Review all
    changes** opens continuous review; choosing a changed file opens and focuses its card. Clean Git
    folders retain tabs and access to Files. Non-Git folders open the Files list with Changes/Git
@@ -44,21 +45,36 @@ and input limits. Examples below show decoded values for readability; construct 
 `URLSearchParams`.
 
 ```text
-/?section=projects&dir=client-work
-/?project=git-review&section=changes
-/?project=git-review&section=changes&target=list
-/?project=git-review&section=changes&layer=unstaged&file=apps/web/src/App.tsx
-/?project=git-review&section=files&dir=apps/web/src&file=apps/web/src/App.tsx&line=170
-/?project=git-review&section=search&q=selectedWord&file=apps/web/src/App.tsx&line=170
-/?project=git-review&section=git&ref=refs/heads/main&commit=<full-object-id>
+/?agent=https://workspace.tailnet.ts.net&section=projects&dir=client-work
+/?agent=https://workspace.tailnet.ts.net&project=/work/git-review&section=changes
+/?agent=https://workspace.tailnet.ts.net&project=/work/git-review&section=changes&target=list
+/?agent=https://workspace.tailnet.ts.net&project=/work/git-review&section=changes&layer=unstaged&file=apps/web/src/App.tsx
+/?agent=https://workspace.tailnet.ts.net&project=/work/git-review&section=files&dir=apps/web/src&file=apps/web/src/App.tsx&line=170
+/?agent=https://workspace.tailnet.ts.net&project=/work/git-review&section=search&q=selectedWord&file=apps/web/src/App.tsx&line=170
+/?agent=https://workspace.tailnet.ts.net&project=/work/git-review&section=git&ref=refs/heads/main&commit=<full-object-id>
 ```
 
-Project names in URLs are root-relative navigation paths; file paths are project-relative. Direct
-links resolve project metadata against the approved host root. Resource requests then use the
-canonical absolute path and validate access independently under the
-[stateless project contract](stateless-project-access-plan.md). A restart needs no project
-registration. URLs expose project/file names and submitted Search text; feedback bodies and other
-source payloads stay outside them.
+New destinations carry the normalized agent origin and canonical absolute project path; file paths
+stay project-relative. Picker directories and recents retain root-relative browsing metadata. The
+[destination envelope](../apps/web/src/agent-navigation.ts) validates ownership separately from the
+[route details](../apps/web/src/navigation.ts). The configured connection must match the destination
+before requests begin. An unknown host shows **Host connection needed** and makes no agent requests;
+the explicit recovery action opens the configured host's picker. Add-host configuration remains in
+the
+[connection UI slice](split-host-architecture-proposal.md#11-add-connection-management-and-saved-project-navigation).
+
+Links without an agent field are explicitly legacy root-relative destinations. They resolve only
+against the configured legacy endpoint, then replace that entry with the returned canonical path and
+endpoint while preserving section/file/line/ref and history identity. Failed legacy lookup keeps the
+original destination and its error; it never guesses another host. The current bootstrap configures
+only the page-origin legacy agent, with multi-host selection still gated on persisted ownership. No
+automatic assignment of existing reviews to a cloud host occurs.
+
+Canonical project lookup does not require a successful root-information request. Resource access
+still validates the canonical path against the agent's current approved root under the
+[stateless project contract](stateless-project-access-plan.md). A restart needs no registration.
+URLs expose host, project/file names and submitted Search text; feedback bodies and source payloads
+stay outside them.
 
 ## History and responsive rules
 
@@ -68,6 +84,14 @@ Same-URL actions do not invent entries. Native Back/Forward parses the resulting
 another destination. Navigation saves nonempty editor text and cancels its pending feedback
 ownership before changing the route; [Feedback](feedback-slice-proposal.md) defines those
 transaction rules.
+
+Agent transitions save pending editor text into the old owner's store and revoke its request
+lifetime synchronously, before replacing root/project/UI owners. Notifications and pending voice or
+feedback work belong to that UI session. Canonicalization from a retired session cannot rewrite the
+new destination. Rapid transitions that return to the same endpoint still create a fresh active
+lifetime. Runtime reading positions and cached data include their endpoint under the
+[loading owner](loading-and-transition-polish.md); temporary persistence isolation is described in
+the [local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups).
 
 | Width             | Visible panes and list action                                                                          |
 | ----------------- | ------------------------------------------------------------------------------------------------------ |
@@ -123,6 +147,13 @@ phone list entry on 2026-10-04. Browser checks cover parser round trips and reje
 Back/Forward, direct links/reload, independent tabs, draft retention, responsive boundaries,
 conservative history restoration, branching, rapid/ignored traversal, and project-entry failures.
 The [QA workflow](qa-workflow.md) owns runnable checks and capture procedures.
+
+The [two-agent browser check](qa-workflow.md#explicit-client-transport) also holds old file, diff,
+feedback and media responses while traversing equal-path agents. Unknown-host gating is captured and
+inspected at [phone](../qa/screenshots/agent-session-connection-required/mobile.png),
+[tablet portrait](../qa/screenshots/agent-session-connection-required/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/agent-session-connection-required/tablet-landscape.png), and
+[desktop](../qa/screenshots/agent-session-connection-required/desktop.png).
 
 These inspected Chrome-emulation milestones report no page-wide overflow:
 

@@ -8,6 +8,7 @@ import {
 } from "./diff-cache.ts";
 
 const identity: DiffCacheIdentity = {
+  endpoint: "https://agent-a.example",
   projectPath: "cache-test",
   layer: "staged",
   path: "src/a | ?#\nü.ts",
@@ -21,6 +22,7 @@ const ready: DiffResult = { kind: "binary", reason: "binary" };
 describe("diff cache adapter", () => {
   test("each resource, version, refresh and language field separates identities", () => {
     const changes: Partial<DiffCacheIdentity>[] = [
+      { endpoint: "https://agent-b.example" },
       { projectPath: "other-project" },
       { layer: "unstaged" },
       { path: "other.ts" },

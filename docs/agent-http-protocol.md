@@ -93,10 +93,13 @@ elements use anonymous CORS, omitting cross-origin cookies; raw links use that s
 Native playback keeps browser streaming and redirect behavior. The agent's raw routes do not
 redirect; the scripted-request redirect rejection is not a browser-element redirect control.
 
-The production bootstrap still explicitly chooses the page-origin connection. Endpoint selection,
-handshake presentation, endpoint-owned routes/caches and persisted reviews remain the subsequent
-[split host slices](split-host-architecture-proposal.md). This transport foundation does not yet
-enable switching hosts in the UI.
+The production bootstrap still configures only the page-origin connection. The
+[navigation owner](navigation-and-url-history-slice-proposal.md) now carries endpoint/path
+destinations, configured-host gating and UI-session transitions; the
+[loading owner](loading-and-transition-polish.md) owns endpoint-scoped runtime caches and request
+lifetimes. Endpoint selection, handshake presentation and persisted reviews remain subsequent
+[split host slices](split-host-architecture-proposal.md). Multi-host selection is not yet exposed in
+the UI.
 
 ## Verification and remaining release work
 
@@ -105,4 +108,4 @@ packaged capability checks, and real Chrome cross-origin scenarios. Local HTTP c
 application boundary; cloud/private HTTPS lifecycle and physical-device proof remain release gates.
 The [client transport check](qa-workflow.md#explicit-client-transport) exercises the actual bound
 browser APIs and frontend against separate agents, alongside queue, cancellation and source-binding
-unit tests. Endpoint-owned UI state and connection management remain separate review steps.
+unit tests. Connection management and persisted ownership remain separate review steps.

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import type { DiffResult } from "@git-review/shared/api";
 import type { DiffContextGap, DiffContextRequest } from "@git-review/shared/diff-context";
 import type { DiffCacheIdentity } from "./diff-cache.ts";
-import { useAgentApi } from "./AgentApiProvider.tsx";
+import { useAgentApi, useAgentLifetime } from "./AgentApiProvider.tsx";
 import {
   appendContext,
   consumedContext,
@@ -33,9 +33,11 @@ export function useDiffContext(
   onStale: () => void,
 ): DiffContextControl | null {
   const api = useAgentApi();
+  const lifetime = useAgentLifetime();
   const metadata =
     diff?.kind === "text" && diff.context?.kind === "available" ? diff.context : null;
   const baseKey = JSON.stringify([
+    identity.endpoint,
     identity.projectPath,
     identity.layer,
     identity.path,
@@ -137,7 +139,7 @@ export function useDiffContext(
             : state,
         );
       };
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     pending.current = controller;
     pendingKey.current = key;
     const replayData = plainContext(cached.data);
@@ -191,7 +193,7 @@ export function useDiffContext(
         (current.view.activity.kind === "error" && current.view.activity.gap === null)
       )
         return;
-      const controller = new AbortController();
+      const controller = lifetime.createController();
       lastSeparator.current = separator;
       pending.current = controller;
       pendingKey.current = current.key;

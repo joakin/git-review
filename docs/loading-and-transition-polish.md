@@ -12,6 +12,14 @@ the previous resource's data. Associate responses with resource identity and rej
 including the interval before effect cleanup aborts it. Navigation intent takes effect synchronously
 so request completion can check the latest destination.
 
+An agent transition synchronously revokes the old UI session and all its request signals, then
+mounts fresh root, project, feedback, voice and notification owners. Late responses are rejected
+even if a fetch implementation ignores cancellation. Rapid return to the same endpoint uses a new
+activation, so it cannot retain a revoked UI owner. Source reads and notices from an old activation
+cannot affect its replacement. The [agent lifetime](../apps/web/src/agent-lifetime.ts) and
+[application boundary](../apps/web/src/AgentApplication.tsx) own this transition; URL policy belongs
+in [navigation](navigation-and-url-history-slice-proposal.md).
+
 Canceling project opening with Back returns to the same picker directory with Open enabled.
 Abandoned success/error cannot change the saved project, recents, feedback store, or a replacement
 open. An explicit project link never shows the picker as an interim screen; failures and recovery
@@ -33,9 +41,9 @@ explicit acceptance of updated review data.
 
 Matching expanded diffs are available on the first Changes render when returning from another
 section or Back/Forward, restoring content height before reading position. The bounded tab-memory
-cache belongs to the current resource/version: project, layer, path, Git revision, change token,
-manual refresh generation, and language. Stale responses and errors are excluded; Refresh and an
-accepted new version request fresh payloads.
+cache belongs to the current resource/version: agent endpoint, canonical project path, layer, file
+path, Git revision, change token, manual refresh generation, and language. Stale responses and
+errors are excluded; Refresh and an accepted new version request fresh payloads.
 
 Diff payloads are reproducible and may be large, so they are absent from browser storage and backups
 and disappear on reload. Working-tree files refetch when their viewer remounts; they require a
@@ -64,7 +72,9 @@ intent.
 Saved position belongs to its route. Restore it only after the corresponding content is available;
 working-copy Refresh waits for renewed expanded diff bodies so temporary loading heights cannot
 clamp the scroll. A quick Back records against the latest route. Menu/drawer visibility and viewport
-changes retain their [navigation rules](navigation-and-url-history-slice-proposal.md).
+changes retain their [navigation rules](navigation-and-url-history-slice-proposal.md). Route
+positions, Git list scroll, remembered refs and commit-card state include or belong to their agent
+endpoint, even when canonical paths and object IDs are equal on another agent.
 
 ## QA
 

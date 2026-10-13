@@ -2,9 +2,10 @@ import { useEffect, useState } from "preact/hooks";
 import type { Project } from "@git-review/shared/api";
 import type { CommitDetail, GitHistoryPage, GitRefs } from "@git-review/shared/git";
 import type { GitRoute } from "./navigation.ts";
-import { useAgentApi } from "./AgentApiProvider.tsx";
+import { useAgentApi, useAgentLifetime } from "./AgentApiProvider.tsx";
 import { ResourceCache } from "@git-review/shared/resource-cache";
 import type { LoadState } from "./load-state.ts";
+import { projectResourceKey } from "./agent-project.ts";
 
 const refsCache = new ResourceCache<GitRefs>(16, 1024 * 1024);
 const historyCache = new ResourceCache<GitHistoryPage>(16, 4 * 1024 * 1024);
@@ -27,13 +28,18 @@ function state<T>(
 
 export function useGitBrowser(project: Project | null, route: GitRoute | null) {
   const api = useAgentApi();
+  const lifetime = useAgentLifetime();
   const projectPath = route === null ? null : (project?.absolutePath ?? null);
   const ref = route?.ref ?? null;
   const oid = route?.target.kind === "commit" ? route.target.oid : null;
-  const historyKey =
-    projectPath === null || ref === null ? null : JSON.stringify([projectPath, ref]);
-  const commitKey =
-    projectPath === null || oid === null ? null : JSON.stringify([projectPath, oid]);
+  const resourceKey = (...resource: readonly unknown[]) =>
+    projectResourceKey(
+      { endpoint: api.connection.endpoint, projectPath: projectPath ?? "" },
+      ...resource,
+    );
+  const refsKey = projectPath === null ? null : resourceKey("refs");
+  const historyKey = projectPath === null || ref === null ? null : resourceKey("history", ref);
+  const commitKey = projectPath === null || oid === null ? null : resourceKey("commit", oid);
   const [refsLoad, setRefs] = useState<{ key: string; state: LoadState<GitRefs> } | null>(null);
   const [historyLoad, setHistory] = useState<{
     key: string;
@@ -51,11 +57,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     key: string;
     snapshot: GitHistoryPage;
   } | null>(null);
-  const refs = state(
-    projectPath,
-    refsLoad,
-    projectPath === null ? null : refsCache.read(projectPath),
-  );
+  const refs = state(refsKey, refsLoad, refsKey === null ? null : refsCache.read(refsKey));
   const history = state(
     historyKey,
     historyLoad,
@@ -74,32 +76,32 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
     !refs.value.branches.some((branch) => branch.ref === ref);
 
   useEffect(() => {
-    if (projectPath === null || refsCache.read(projectPath) !== null) return;
-    const controller = new AbortController();
+    if (projectPath === null || refsKey === null || refsCache.read(refsKey) !== null) return;
+    const controller = lifetime.createController();
     setRefs((current) =>
-      current?.key === projectPath && current.state.kind === "ready"
+      current?.key === refsKey && current.state.kind === "ready"
         ? current
-        : { key: projectPath, state: { kind: "loading" } },
+        : { key: refsKey, state: { kind: "loading" } },
     );
     api.fetchGitRefs(projectPath, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
-        refsCache.remember(projectPath, value);
-        setRefs({ key: projectPath, state: { kind: "ready", value } });
+        refsCache.remember(refsKey, value);
+        setRefs({ key: refsKey, state: { kind: "ready", value } });
       },
       (error: unknown) => {
         if (!controller.signal.aborted) {
           setRefs((current) =>
-            current?.key === projectPath && current.state.kind === "ready"
+            current?.key === refsKey && current.state.kind === "ready"
               ? current
-              : { key: projectPath, state: { kind: "error", message: message(error) } },
+              : { key: refsKey, state: { kind: "error", message: message(error) } },
           );
           setPageError(message(error));
         }
       },
     );
     return () => controller.abort();
-  }, [projectPath, refresh]);
+  }, [projectPath, refsKey, refresh]);
 
   useEffect(() => {
     setPageError(null);
@@ -115,7 +117,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       setRefreshing(false);
       return;
     }
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     setRefreshing(true);
     setHistory((current) =>
       current?.key === historyKey && current.state.kind === "ready"
@@ -151,7 +153,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       commitCache.read(commitKey) !== null
     )
       return;
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     setCommit({ key: commitKey, state: { kind: "loading" } });
     api.fetchCommit(projectPath, oid, controller.signal).then(
       (value) => {
@@ -174,7 +176,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
       pageRequest.key !== historyKey
     )
       return;
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     const snapshot = pageRequest.snapshot;
     const offset = snapshot.nextOffset;
     if (offset === null) return;
@@ -217,7 +219,7 @@ export function useGitBrowser(project: Project | null, route: GitRoute | null) {
 
   function refreshHistory(): void {
     if (projectPath === null) return;
-    refsCache.remove(projectPath);
+    if (refsKey !== null) refsCache.remove(refsKey);
     if (historyKey !== null) historyCache.remove(historyKey);
     setPageRequest(null);
     setRefresh((value) => value + 1);

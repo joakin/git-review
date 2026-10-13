@@ -3,6 +3,7 @@ import { ResourceCache } from "@git-review/shared/resource-cache";
 import type { ChangeSnapshot } from "@git-review/shared/change-snapshot";
 
 export type DiffCacheIdentity = ChangeSnapshot & {
+  endpoint: string;
   projectPath: string;
   layer: ChangeLayer;
   path: string;
@@ -16,6 +17,7 @@ const results = new ResourceCache<DiffResult>(maxCacheEntries, maxCacheBytes);
 
 export function diffCacheKey(identity: DiffCacheIdentity): string {
   return JSON.stringify([
+    identity.endpoint,
     identity.projectPath,
     identity.layer,
     identity.path,

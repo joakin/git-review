@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useAgentApi } from "./AgentApiProvider.tsx";
+import { useAgentApi, useAgentLifetime } from "./AgentApiProvider.tsx";
 import { maxBodyLength } from "./comments.ts";
 import { useNotification } from "./Notifications.tsx";
 
@@ -30,6 +30,7 @@ export function useVoiceComment(
   onBody: (body: string) => void,
 ) {
   const api = useAgentApi();
+  const lifetime = useAgentLifetime();
   const [state, setState] = useState<VoiceState>({ kind: "idle", error: null });
   useNotification(
     "voice-error",
@@ -97,7 +98,7 @@ export function useVoiceComment(
       setState({ kind: "idle", error: "Recording is too large. Make a shorter clip." });
       return;
     }
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     request.current = controller;
     setState({ kind: "sending" });
     try {
@@ -244,8 +245,8 @@ export function useVoiceComment(
     else setState({ kind: "idle", error: null });
   }
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    const dispose = () => {
       mounted.current = false;
       request.current?.abort();
       stopMeters();
@@ -253,9 +254,14 @@ export function useVoiceComment(
       stopTracks();
       void audio.current?.close();
       clip.current = null;
-    },
-    [],
-  );
+    };
+    if (lifetime.signal.aborted) dispose();
+    else lifetime.signal.addEventListener("abort", dispose, { once: true });
+    return () => {
+      lifetime.signal.removeEventListener("abort", dispose);
+      dispose();
+    };
+  }, [lifetime]);
 
   return {
     state,

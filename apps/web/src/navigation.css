@@ -1,5 +1,10 @@
 /* Workspace shell: menu, contextual list, and reading pane.
    Routes choose the logical screen; these breakpoints choose visible panes. */
+.connection-required {
+  min-width: 0;
+  padding: var(--space-5);
+}
+
 .app {
   min-height: 100dvh;
   display: flex;

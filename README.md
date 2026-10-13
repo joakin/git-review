@@ -23,7 +23,7 @@ owns the toolchain, lockfile, QA, and current same-origin server composition. Ru
 from the repository root. `bun run build` builds the local app assets and both independent
 artifacts; `bun run dev` builds only the local app before starting it. Browser APIs now use an
 explicit bound agent connection; the normal bootstrap chooses the page's server. User-facing
-connection configuration and endpoint-owned state remain later steps in the
+connection configuration and endpoint-owned persistence remain later steps in the
 [split host plan](docs/split-host-architecture-proposal.md).
 
 ## Run the app
@@ -120,8 +120,8 @@ app: query deep links need only the index page. The included 404 disables Cloudf
 
 This is the packaging step of the [split host plan](docs/split-host-architecture-proposal.md). The
 frontend's normal bootstrap still chooses its page-origin agent until connection configuration and
-endpoint-owned state land. Continue using the normal `dev`, `build`, and `start` commands for live
-review in the meantime. No public deployment has been performed.
+endpoint-owned persistence land. Continue using the normal `dev`, `build`, and `start` commands for
+live review in the meantime. No public deployment has been performed.
 
 ## Build and run the independent agent
 

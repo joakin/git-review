@@ -19,7 +19,7 @@ function newHistoryId(): string {
   ).join("");
 }
 
-function browserHistory(): NavigationHistory {
+function browserHistory(legacyEndpoint: string | null): NavigationHistory {
   const navigation = performance.getEntriesByType("navigation")[0];
   return new NavigationHistory(
     {
@@ -51,11 +51,16 @@ function browserHistory(): NavigationHistory {
       newId: newHistoryId,
     },
     navigation instanceof PerformanceNavigationTiming && navigation.type === "reload",
+    undefined,
+    legacyEndpoint,
   );
 }
 
-export function useNavigationHistory(prepareTraversal: () => void): NavigationHistoryControls {
-  const [owner] = useState(browserHistory);
+export function useNavigationHistory(
+  prepareTraversal: () => void,
+  legacyEndpoint: string | null = null,
+): NavigationHistoryControls {
+  const [owner] = useState(() => browserHistory(legacyEndpoint));
   const [availability, setAvailability] = useState(() => owner.availability());
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 

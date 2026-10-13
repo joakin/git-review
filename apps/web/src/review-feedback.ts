@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Project } from "@git-review/shared/api";
-import { useAgentApi } from "./AgentApiProvider.tsx";
+import {
+  useAgentApi,
+  useProjectState,
+  useClipboardWriter,
+  useAgentLifetime,
+} from "./AgentApiProvider.tsx";
 import {
   isSelectionSubject,
   commentSourceLineCount,
@@ -8,8 +13,6 @@ import {
   canReattachAnchor,
   maxDrafts,
   newLocalId,
-  readCommentStore,
-  saveCommentStore,
   undoSuccessfulCopy,
   type CommentAnchor,
   type CommentTarget,
@@ -85,6 +88,9 @@ const emptySession: FeedbackSession = {
 /** Owns the loaded feedback session and a transaction engine bound to its agent API. */
 export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   const api = useAgentApi();
+  const lifetime = useAgentLifetime();
+  const clipboard = useClipboardWriter();
+  const storage = useProjectState();
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
   const [session, setSession] = useState<FeedbackSession>(emptySession);
@@ -106,7 +112,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
     const next = change(current);
     if (next !== current) {
       updateSession((value) => ({ ...value, store: next }));
-      saveCommentStore(next);
+      storage.saveComments(next);
     }
     return next;
   }
@@ -127,13 +133,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
           } else inputsRef.current.onNotice("History feedback copied.", "success");
         },
         checkAnchors: api.checkFeedbackSources,
-        writeText: async (text) => {
-          if (navigator.clipboard?.writeText === undefined)
-            throw new Error(
-              "Clipboard access is unavailable here. Select the feedback or history text to copy it manually.",
-            );
-          await navigator.clipboard.writeText(text);
-        },
+        writeText: (text, owns) => clipboard.write(text, () => !lifetime.signal.aborted && owns()),
       }),
     [api],
   );
@@ -200,7 +200,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   function loadProject(project: Project): void {
     updateSession(() => ({
       ...emptySession,
-      store: readCommentStore(project.absolutePath, inputsRef.current.onNotice),
+      store: storage.readComments(project.absolutePath, inputsRef.current.onNotice),
     }));
   }
 

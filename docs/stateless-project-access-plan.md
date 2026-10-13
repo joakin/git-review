@@ -8,10 +8,15 @@ restart cleared the server registry.
 
 ## Project contract and validation
 
-The canonical absolute folder path is the identity used by resource requests, feedback, project
-preferences, and caches. URLs, picker paths, recents, and tab restoration use a path relative to the
-current approved root. That relative representation is navigation metadata, not another project
-identity. The server remains the authority for canonicalization and containment.
+Within one agent, the canonical absolute folder path identifies the project used by resource
+requests. The browser's runtime project identity combines that path with its explicitly chosen agent
+endpoint; equal paths on two agents are separate projects. New URLs carry both values, while picker
+paths and recents retain root-relative browsing metadata. That relative representation is not
+another identity. The server remains the authority for canonicalization and containment. Legacy URL
+resolution belongs in the
+[navigation owner](navigation-and-url-history-slice-proposal.md#url-and-state-shape), and current
+persisted formats remain with the
+[local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups).
 
 Every project resource supplies exactly one bounded `projectPath` query field. Selection lookup may
 canonicalize an allowed alias; subsequent reads require that returned canonical location. The

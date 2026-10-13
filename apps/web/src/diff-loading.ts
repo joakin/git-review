@@ -1,3 +1,4 @@
+import { useAgentLifetime } from "./AgentApiProvider.tsx";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { DiffResult } from "@git-review/shared/api";
 import { readCachedDiff, rememberDiff } from "./diff-cache.ts";
@@ -14,6 +15,7 @@ type DiffRequest = {
 
 /** The adapter's key must include every input that changes the requested payload. */
 export function useDiffLoading(expanded: boolean, request: DiffRequest) {
+  const lifetime = useAgentLifetime();
   const [loaded, setLoaded] = useState<{ key: string; state: DiffState } | null>(null);
   const [retry, setRetry] = useState(0);
   const latest = useRef({ expanded, request });
@@ -28,7 +30,7 @@ export function useDiffLoading(expanded: boolean, request: DiffRequest) {
 
   useEffect(() => {
     if (!expanded || current.kind === "ready") return;
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     const ownsResult = () =>
       !controller.signal.aborted &&
       latest.current.expanded &&

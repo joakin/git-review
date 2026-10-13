@@ -88,9 +88,9 @@ function harness(
     },
     onCopied: () => {},
     checkAnchors: overrides.checkAnchors ?? (async (_path, anchors) => anchors.map(() => true)),
-    writeText: async (text) => {
+    writeText: async (text, owns) => {
       written.push(text);
-      await overrides.writeText?.(text);
+      await overrides.writeText?.(text, owns);
     },
   });
   return {

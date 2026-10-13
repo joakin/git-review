@@ -1,8 +1,8 @@
 # Split host implementation plan
 
 Status: architecture agreed on 2026-10-13; step 1 probe preparation and local HTTP/private HTTPS
-simulation are complete, with the cloud/device feasibility gate pending. Steps 2–6 are committed;
-endpoint-owned routes and runtime state are next. Research began on 2026-10-12. The accepted
+simulation are complete, with the cloud/device feasibility gate pending. Steps 2–7 are committed;
+step 8 persistence and backup foundations are next. Research began on 2026-10-12. The accepted
 direction is a static frontend, direct private agents, manual URL or startup-generated connection
 links, URL plus canonical project path ownership, and saved-feedback recovery. Discovery is optional
 and deferred. This record owns the implementation sequence and release gate; existing behavior
@@ -213,7 +213,7 @@ Committed on 2026-10-13. The [protocol owner](agent-http-protocol.md#explicit-br
 owns normalized endpoint and request policy, the bound API/provider, instance-owned diff queues and
 source-validated absolute media URLs. Every request family, including polling, source checks,
 context, transcription and native media, now uses an explicitly supplied connection. The normal app
-retains its page-origin bootstrap while endpoint-owned state and persisted data are pending. No host
+retains its page-origin bootstrap while connection UI and persisted data are pending. No host
 selector is active.
 
 Review checkpoint: the [client transport QA](qa-workflow.md#explicit-client-transport), request
@@ -230,24 +230,34 @@ permission proof remain open release gates.
 
 ### 7. Scope navigation, sessions, and runtime caches
 
-Carry endpoint plus canonical project path through project/session models and runtime ownership.
-Routes must identify the host and project explicitly; existing file/section/Search/Git destinations
-remain URL-owned. Use canonical project references after selection, while the picker keeps its
-root-relative browsing metadata. Preserve the deployment base path and Back/Forward behavior.
+Implemented and approved for commit on 2026-10-13. The
+[navigation owner](navigation-and-url-history-slice-proposal.md) owns explicit endpoint/canonical
+project destinations, legacy-link resolution against its configured endpoint, unknown-host gating,
+canonical replacements and history. The [project owner](stateless-project-access-plan.md) owns
+endpoint/path runtime identity and independent resource authorization; canonical opening does not
+need a successful root-information request.
 
-A destination referencing an unknown connection offers Add host before making agent requests; it
-must not silently choose the last host. A saved local reference can be opened without a handshake.
-Resolve old single-host links only against the explicitly configured legacy endpoint, and replace
-them with the new canonical route after successful resolution; do not reinterpret them on a cloud
-host. An unresolved old link remains recoverable rather than guessing a project. Save pending editor
-text before navigation, cancel old work synchronously, and prevent late results, notices, focus, and
-caches from affecting another endpoint's project. Scope tab restoration, reading positions,
-diff/Git/batch-source keys, and root/picker state appropriately.
+The [loading owner](loading-and-transition-polish.md) owns session revocation, endpoint-scoped
+cache/reading positions and late-result rejection. Editor text is saved before transition; request
+signals, voice and feedback ownership are revoked synchronously. Every activation mounts fresh UI
+and notification owners, including rapid A→B→A before an intermediate render. The
+[local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups) retains existing
+formats behind the configured legacy agent's storage port; QA-only extra connections have separate
+memory records and no legacy backup access. No persistence migration or host selector is activated.
+Unknown-host connection setup remains step 11, after persisted ownership is ready.
 
-Review checkpoint: two agents with identical canonical paths and deliberately equal version tokens
-return visibly different content. Switch during slow checks/diff/media loads, then navigate Back,
-Forward, and between tabs; no content or transaction result may cross owners. Keep multi-host user
-selection unavailable until step 9 activates endpoint-owned persisted data.
+Review checkpoint passed in the [two-agent browser check](qa-workflow.md#explicit-client-transport):
+equal canonical paths and deliberately equal version/object IDs with different content remain
+separate through held source checks, file/diff/media loads, Git caches, Back/Forward, rapid changes
+and independent tabs. Canceled source checks leave the clipboard untouched; issued native writes
+retain an application-level lease and canceled queued copies never dispatch; unknown destinations
+make no agent requests and require an explicit configured-host recovery action. The current
+stateless restart/root-change regression also passed. All 340 unit tests, strict TypeScript and
+local/static/ agent builds passed; QA/format and documentation links accompany the review. Four
+unknown-host captures were inspected at phone, both tablet orientations and desktop without
+page-wide overflow. The normal app remains available with rebuilt assets. Cloud/device and
+public/private HTTPS permission verification remain release gates. Step 8 builds persistence and
+backups without yet activating the conversion owned by step 9.
 
 ### 8. Build persistence and backup foundations
 

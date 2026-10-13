@@ -1,14 +1,15 @@
 import { useState } from "preact/hooks";
 import type { LanguageOption } from "@git-review/shared/api";
-import { readLanguageOverride, saveLanguageOverride } from "./storage.ts";
+import { useProjectState } from "./AgentApiProvider.tsx";
 
 export function useLanguageOverride(
   projectPath: string,
   path: string,
   languages: readonly LanguageOption[],
 ) {
+  const storage = useProjectState();
   const [override, setOverride] = useState<string | null>(() =>
-    readLanguageOverride(projectPath, path),
+    storage.readLanguageOverride(projectPath, path),
   );
   const effectiveOverride =
     override === null ||
@@ -22,7 +23,7 @@ export function useLanguageOverride(
     effectiveOverride,
     changeLanguage: (value: string | null) => {
       setOverride(value);
-      saveLanguageOverride(projectPath, path, value);
+      storage.saveLanguageOverride(projectPath, path, value);
     },
   };
 }

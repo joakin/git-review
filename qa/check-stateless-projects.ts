@@ -79,7 +79,11 @@ await withTempDirectory("git-review-restart-qa-", async (directory) => {
         await page.goto(aliasDestination.href);
         await page.locator('.file-code-row[data-line="2"]').waitFor();
         const canonical = new URL(page.url());
-        assert(canonical.searchParams.get("project") === folder, "Alias URL was not canonicalized");
+        assert(
+          canonical.searchParams.get("project") === projectPath &&
+            canonical.searchParams.get("agent") === origin,
+          "Alias URL was not canonicalized with its endpoint",
+        );
         assert(
           canonical.searchParams.get("section") === "files" &&
             canonical.searchParams.get("file") === "value.ts" &&

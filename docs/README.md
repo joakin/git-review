@@ -32,10 +32,10 @@ It defines small review steps for feasibility, workspaces/artifacts, transport, 
 conversion, recovery, connection UI, and cloud release verification. Discovery is deferred and step
 1 probe tooling and local HTTP/private HTTPS simulation are prepared and verified; cloud/device
 feasibility remains unverified. The maintainer requested continuing local implementation; step 2
-workspace separation and steps 3–6 independent packaging/protocol and explicit client transport are
-committed; endpoint-owned routes and runtime state are next. Deployment remains gated on
-cloud/device proof. Current behavior remains with its owners below until each step lands. The
-retained proposal path also holds the supporting architecture research.
+workspace separation and steps 3–7 independent packaging/protocol, explicit client transport, and
+endpoint-owned routes and runtime state are committed. Step 8 persistence and backup foundations are
+next. Deployment remains gated on cloud/device proof. Current behavior remains with its owners below
+until each step lands. The retained proposal path also holds the supporting architecture research.
 
 The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
 behavior and its feedback, syntax and loading owners.
@@ -74,14 +74,14 @@ and working-copy diffs, including mixed Old/New selections.
 
 This table describes lifetimes; the linked behavior records own the detailed policy.
 
-| Lifetime                | State                                                                                                                                | Contract                                                                                                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| URL                     | Project relative to the current host root, section, directory, selected file/diff, submitted Search query, file line, Git ref/commit | [Navigation](navigation-and-url-history-slice-proposal.md)                                                                                                                            |
-| Per-tab session storage | Bare-URL project restoration and the known navigation trail                                                                          | [Local data](independent-tabs-and-pwa-proposal.md), [history](navigation-and-url-history-slice-proposal.md)                                                                           |
-| Browser-local storage   | Recents, drafts, exact copied history, and preferences                                                                               | [Local data](independent-tabs-and-pwa-proposal.md), [feedback](feedback-slice-proposal.md)                                                                                            |
-| Tab memory              | Resolved project metadata, loaded snapshots, bounded caches, reading positions, transient UI, and pending audio                      | [Project access](stateless-project-access-plan.md), [loading](loading-and-transition-polish.md), [Git](git-history-slice-proposal.md), [voice](local-voice-comment-slice-proposal.md) |
-| Server memory           | Configuration, optional bounded caches, and current subprocess/transcription work                                                    | [Project access](stateless-project-access-plan.md), [Git reads](git-read-boundaries.md)                                                                                               |
-| Service worker          | Offline fallback page; live API responses and raw media remain uncached                                                              | [Installation](independent-tabs-and-pwa-proposal.md)                                                                                                                                  |
+| Lifetime                | State                                                                                                                             | Contract                                                                                                                                                                              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| URL                     | Agent endpoint, canonical project path, section, directory, selected file/diff, submitted Search query, file line, Git ref/commit | [Navigation](navigation-and-url-history-slice-proposal.md)                                                                                                                            |
+| Per-tab session storage | Bare-URL project restoration and the known navigation trail                                                                       | [Local data](independent-tabs-and-pwa-proposal.md), [history](navigation-and-url-history-slice-proposal.md)                                                                           |
+| Browser-local storage   | Recents, drafts, exact copied history, and preferences                                                                            | [Local data](independent-tabs-and-pwa-proposal.md), [feedback](feedback-slice-proposal.md)                                                                                            |
+| Tab memory              | Resolved project metadata, loaded snapshots, bounded caches, reading positions, transient UI, and pending audio                   | [Project access](stateless-project-access-plan.md), [loading](loading-and-transition-polish.md), [Git](git-history-slice-proposal.md), [voice](local-voice-comment-slice-proposal.md) |
+| Server memory           | Configuration, optional bounded caches, and current subprocess/transcription work                                                 | [Project access](stateless-project-access-plan.md), [Git reads](git-read-boundaries.md)                                                                                               |
+| Service worker          | Offline fallback page; live API responses and raw media remain uncached                                                           | [Installation](independent-tabs-and-pwa-proposal.md)                                                                                                                                  |
 
 ## Current scope and limits
 

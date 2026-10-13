@@ -36,6 +36,16 @@ scoped cleanup also reclaims capacity that current saves may need; retain it whi
 still contain obsolete records. Formats retired during stateless project access have no readers or
 imports.
 
+During the [split host transition](split-host-architecture-proposal.md), only the explicitly
+configured legacy endpoint can access these path-only project formats, recents and tab restoration.
+The [project-state port](../apps/web/src/project-state.ts) keeps other configured connections in
+separate tab-memory review, card/language, root and active-project stores; they cannot read or write
+legacy project keys, and legacy backup controls are disabled for those owners. The current app
+configures only its page-origin agent. The QA harness configures an additional agent to verify
+isolation; its memory records do not survive reload. Endpoint-owned persistence and backups, legacy
+conversion, and the user-facing host selector remain subsequent review steps. Global appearance,
+typography and wrapping stay shared preferences.
+
 The accepted [multi-line feedback extension](multi-line-feedback-proposal.md) adds a scoped
 conversion of the immediately preceding comment store and backup formats. Validate before
 converting, retain draft identity/body/timestamps and exact copied history text, and write converted

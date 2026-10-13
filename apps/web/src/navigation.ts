@@ -4,6 +4,7 @@ import { normalizeSearchQuery } from "@git-review/shared/search-query";
 import { isValidUrlEncoding } from "@git-review/shared/validation";
 import { isNavigationPath } from "./navigation-path.ts";
 import { appBasePath } from "./deployment.ts";
+import { isProjectPath } from "@git-review/shared/project-path";
 
 export type ChangesTarget =
   { kind: "all" } | { kind: "list" } | { kind: "file"; layer: ChangeLayer; path: string };
@@ -43,7 +44,7 @@ export function parentDirectory(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }
 
-export function parseNavigationSearch(search: string): RouteState {
+export function parseNavigationSearch(search: string, absoluteProjects = false): RouteState {
   if (search === "") return { kind: "empty" };
   if (!isValidUrlEncoding(search)) return { kind: "invalid", message: routeError };
   const params = new URLSearchParams(search);
@@ -62,6 +63,8 @@ export function parseNavigationSearch(search: string): RouteState {
   const query = params.get("q");
   const ref = params.get("ref");
   const commit = params.get("commit");
+  const validProject = (value: string) =>
+    absoluteProjects ? isProjectPath(value) : isNavigationPath(value, true);
   if (section !== "git" && (ref !== null || commit !== null))
     return { kind: "invalid", message: routeError };
   if (section === "projects") {
@@ -85,13 +88,12 @@ export function parseNavigationSearch(search: string): RouteState {
       file !== null ||
       lineText !== null ||
       query !== null ||
-      (project !== null && !isNavigationPath(project, true))
+      (project !== null && !validProject(project))
     )
       return { kind: "invalid", message: routeError };
     return { kind: "ready", route: { section, projectPath: project } };
   }
-  if (project === null || !isNavigationPath(project, true))
-    return { kind: "invalid", message: routeError };
+  if (project === null || !validProject(project)) return { kind: "invalid", message: routeError };
   if (section === "git") {
     if (
       directory !== null ||

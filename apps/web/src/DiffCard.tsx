@@ -54,6 +54,7 @@ export function DiffCard({
     languages,
   );
   const requestKey = diffCacheKey({
+    endpoint: api.connection.endpoint,
     projectPath,
     layer: entry.layer,
     path: entry.path,
@@ -80,6 +81,7 @@ export function DiffCard({
   const context = useDiffContext(
     expanded,
     {
+      endpoint: api.connection.endpoint,
       projectPath,
       layer: entry.layer,
       path: entry.path,

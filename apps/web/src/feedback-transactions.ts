@@ -27,7 +27,7 @@ type FeedbackPorts = {
   onState: (state: FeedbackState) => void;
   onCopied: (result: CopyResult) => void;
   checkAnchors: FeedbackSourceChecker;
-  writeText: (text: string) => Promise<void>;
+  writeText: (text: string, owns: () => boolean) => Promise<void>;
 };
 
 function message(error: unknown): string {
@@ -149,7 +149,9 @@ export class FeedbackTransactions {
           "Feedback is too large for copy history. Select the text below to copy it manually.",
         );
       this.publish();
-      await this.ports.writeText(snapshot.text);
+      await this.ports.writeText(snapshot.text, () =>
+        this.owns(token.generation, project.absolutePath),
+      );
       if (!this.owns(token.generation, project.absolutePath)) return;
       const id = newLocalId();
       this.ports.updateStore((store) => recordSuccessfulCopy(store, snapshot, Date.now(), id));
@@ -176,7 +178,7 @@ export class FeedbackTransactions {
     this.copyState = { kind: "copying" };
     this.publish();
     try {
-      await this.ports.writeText(text);
+      await this.ports.writeText(text, () => this.owns(generation, project.absolutePath));
       if (this.owns(generation, project.absolutePath)) this.ports.onCopied({ kind: "history" });
     } catch (error: unknown) {
       if (this.owns(generation, project.absolutePath))

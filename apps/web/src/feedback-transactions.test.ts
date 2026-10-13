@@ -78,9 +78,9 @@ function harness(
     onState: (value) => states.push(value),
     onCopied: (value) => copied.push(value),
     checkAnchors: overrides.checkAnchors ?? (async (_project, anchors) => anchors.map(() => true)),
-    writeText: async (text) => {
+    writeText: async (text, owns) => {
       written.push(text);
-      await overrides.writeText?.(text);
+      await overrides.writeText?.(text, owns);
     },
   });
   return {

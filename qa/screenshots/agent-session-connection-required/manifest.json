@@ -1,0 +1,51 @@
+{
+  "url": "http://127.0.0.1:54153/?section=files&project=%2Fprivate%2Fvar%2Ffolders%2F9c%2Fr8rfjb5d1q5bj5gtw77p49wh0000gn%2FT%2Fgit-review-agent-transport-kmhE0X%2Fproject&file=notes.ts&agent=https%3A%2F%2Fnot-configured.example",
+  "capturedAt": "2026-10-13T15:52:54.554Z",
+  "fullPage": false,
+  "views": [
+    {
+      "name": "desktop",
+      "file": "desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidth": 1440,
+      "clientWidth": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "tablet-landscape",
+      "file": "tablet-landscape.png",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      },
+      "documentWidth": 1180,
+      "clientWidth": 1180,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "tablet-portrait",
+      "file": "tablet-portrait.png",
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "documentWidth": 820,
+      "clientWidth": 820,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "mobile",
+      "file": "mobile.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "clientWidth": 390,
+      "horizontalOverflow": false
+    }
+  ]
+}

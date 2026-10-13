@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ChangeEntry, Project, ProjectStatus } from "@git-review/shared/api";
-import { useAgentApi } from "./AgentApiProvider.tsx";
+import { useAgentApi, useProjectState, useAgentLifetime } from "./AgentApiProvider.tsx";
 import { diffCardKey } from "./DiffCard.tsx";
 import { routeProjectPath, type Route } from "./navigation.ts";
-import { readOpenCards, saveOpenCards } from "./storage.ts";
 import type { LoadState } from "./load-state.ts";
 
 type ReviewState = {
@@ -61,6 +60,8 @@ const pollIntervalMs = 10_000;
 /** Owns the accepted review snapshot; background checks only announce changes. */
 export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
   const api = useAgentApi();
+  const lifetime = useAgentLifetime();
+  const storage = useProjectState();
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
   const [state, setState] = useState<ReviewState>(() => ({
@@ -107,7 +108,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       pendingUpdate: false,
       checkError: false,
       refreshError: null,
-      expandedKeys: readOpenCards(project.absolutePath),
+      expandedKeys: storage.readOpenCards(project.absolutePath),
     }));
   }
 
@@ -117,7 +118,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       stateRef.current.project === project &&
       inputsRef.current.project === project &&
       route !== null &&
-      routeProjectPath(route) === project.relativePath
+      routeProjectPath(route) === project.absolutePath
     );
   }
 
@@ -199,7 +200,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
   const project = inputs.project;
   useEffect(() => {
     if (project === null || stateRef.current.project !== project) return;
-    const controller = new AbortController();
+    const controller = lifetime.createController();
     const generation = state.refreshKey;
     statusRequest.current = controller;
     update((current) => ({ ...current, refreshing: true, refreshError: null }));
@@ -270,7 +271,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
     const check = async (): Promise<void> => {
       if (!isCurrent() || document.visibilityState !== "visible" || request !== null) return;
       clearTimer();
-      const controller = new AbortController();
+      const controller = lifetime.createController();
       request = controller;
       try {
         const latest = await api.fetchProjectChangeCheck(project.absolutePath, controller.signal);
@@ -377,7 +378,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
 
   useEffect(() => {
     if (project !== null && state.project === project)
-      saveOpenCards(project.absolutePath, state.expandedKeys);
+      storage.saveOpenCards(project.absolutePath, state.expandedKeys);
   }, [project, state.project, state.expandedKeys]);
 
   const current = project !== null && state.project === project;

@@ -169,6 +169,13 @@ exclusive clipboard ownership until the write settles, including across a projec
 Further clipboard writes are disabled while copying. Closing Feedback alone allows an active copy to
 finish.
 
+The [application clipboard writer](../apps/web/src/clipboard-writer.ts) also serializes native
+writes across agent/UI activations. A replacement session may check and queue its copy, but it
+cannot issue a native write until the old one settles. Dispatch rechecks that the queued operation
+still owns its review and active agent lifetime; canceled queued writes never reach the clipboard.
+This keeps the final confirmed copy in order while retaining the browser's limit on already-issued
+writes.
+
 Confirmed, uncanceled success archives the exact exported text and comments. It removes only drafts
 whose ID, anchor, subject, body, timestamps, and current state still match the copied version. Later
 edits, reattachments, additions, deletions, and Undo/history changes survive. Manual selectable-text

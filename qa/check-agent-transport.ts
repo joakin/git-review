@@ -1,4 +1,4 @@
-import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createApiHandler } from "../apps/agent/src/api.ts";
 import { createApiHttpBoundary } from "../apps/agent/src/http.ts";
@@ -10,16 +10,21 @@ import {
   withQaBrowser,
   withQaContext,
 } from "./browser-support.ts";
+import { AgentStateFixture } from "./agent-state-fixture.ts";
+import { checkAgentState } from "./check-agent-state-browser.ts";
 
 function assert(value: boolean, message: string): asserts value {
   if (!value) throw new Error(message);
 }
 const args = process.argv.slice(2);
-const captureLabel = args.length === 2 && args[0] === "--capture" ? args[1] : undefined;
+const stateCheck = args[0] === "--state";
+const captureArgs = stateCheck ? args.slice(1) : args;
+const captureLabel =
+  captureArgs.length === 2 && captureArgs[0] === "--capture" ? captureArgs[1] : undefined;
 assert(
-  args.length === 0 ||
+  captureArgs.length === 0 ||
     (captureLabel !== undefined && /^[a-z0-9][a-z0-9_-]{0,63}$/.test(captureLabel)),
-  "Usage: bun qa/check-agent-transport.ts [--capture <new milestone>]",
+  "Usage: bun qa/check-agent-transport.ts [--state] [--capture <new milestone>]",
 );
 await withTempDirectory("git-review-agent-transport-", async (temporary) => {
   const directory = await realpath(temporary);
@@ -37,6 +42,8 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
   await writeFile(join(fixture, "notes.ts"), lines.join("\n") + "\n");
   git(fixture, "add", ".");
   git(fixture, "commit", "-qm", "Transport fixture");
+  const stateCommit = git(fixture, "rev-parse", "HEAD");
+  if (stateCheck) await symlink(".", join(fixture, "alias"));
   lines[99] = "export const transportLine100 = 101;";
   await writeFile(join(fixture, "notes.ts"), lines.join("\n") + "\n");
   await writeFile(
@@ -76,6 +83,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
     range: string | null;
   }> = [];
   const root = await approveRoot(fixture);
+  const stateFixture = stateCheck ? new AgentStateFixture() : null;
   function handler(agent: string, redirect: () => string) {
     const api = createApiHandler(root, null, [frontend.url.origin]);
     return createApiHttpBoundary(null, [frontend.url.origin], async (request) => {
@@ -90,7 +98,8 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
       if (path === "/api/transcriptions")
         return Response.json({ text: "Controlled transport transcript" });
       if (path === "/api/qa-redirect") return Response.redirect(redirect(), 302);
-      return api(request);
+      const response = await api(request);
+      return stateFixture === null ? response : stateFixture.decorate(agent, request, response);
     });
   }
   const b = Bun.serve({
@@ -129,6 +138,12 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
                     .replace(
                       "createPageAgentConnection()",
                       "createAgentConnection(__QA_AGENT_A__, { allowLoopbackHttp: true })",
+                    )
+                    .replace(
+                      "connections={[legacyConnection]}",
+                      stateCheck
+                        ? "connections={[legacyConnection, createAgentConnection(__QA_AGENT_B__, { allowLoopbackHttp: true })]}"
+                        : "connections={[legacyConnection]}",
                     ),
               };
             });
@@ -201,6 +216,47 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
         console.log(
           "Browser client APIs: every request family reaches its chosen agent; cookies are omitted and redirects cannot retarget work",
         );
+        if (stateFixture !== null) {
+          await checkAgentState(
+            context,
+            { frontend: frontend.url.origin, a: a.url.origin, b: b.url.origin },
+            root.realPath,
+            stateCommit,
+            stateFixture,
+          );
+          const beforeUnknown = requests.length;
+          await page.goto(
+            frontend.url.origin +
+              "/?" +
+              new URLSearchParams({
+                section: "files",
+                project: root.realPath,
+                file: "notes.ts",
+                agent: "https://not-configured.example",
+              }),
+          );
+          await page.getByRole("heading", { name: "Host connection needed" }).waitFor();
+          assert(
+            requests.length === beforeUnknown,
+            "An unknown destination contacted a configured host",
+          );
+          await assertNoHorizontalOverflow(page);
+          console.log("Unknown host destinations stay visible and make no agent requests");
+          const recovery = page.waitForResponse(
+            (response) =>
+              new URL(response.url()).origin === a.url.origin &&
+              new URL(response.url()).pathname === "/api/roots" &&
+              response.ok(),
+          );
+          await page
+            .getByRole("button", { name: "Choose a project on the configured host", exact: true })
+            .click();
+          await recovery;
+          assert(
+            new URL(page.url()).searchParams.get("agent") === a.url.origin,
+            "Unknown-host recovery did not require the explicit configured-host action",
+          );
+        }
         await page.goto(frontend.url.origin + "/?section=files&project=&file=image.svg");
         const image = page.locator(".media-preview img");
         await image.waitFor();
@@ -273,6 +329,38 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           "Real frontend on a static-only origin: file/image/raw links, anonymous audio/video metadata and seeking passed against a separate agent",
         );
       });
+      if (stateCheck)
+        await withQaContext(browser, qaProfiles.phone, async (context) => {
+          const page = await context.newPage();
+          const before = requests.length;
+          await page.goto(
+            frontend.url.origin +
+              "/?" +
+              new URLSearchParams({
+                section: "files",
+                project: root.realPath,
+                file: "notes.ts",
+                agent: "https://not-configured.example",
+              }),
+          );
+          await page.getByRole("heading", { name: "Host connection needed" }).waitFor();
+          assert(requests.length === before, "Phone unknown-host entry made an agent request");
+          await assertNoHorizontalOverflow(page);
+          const recovery = page.waitForResponse(
+            (response) =>
+              new URL(response.url()).origin === a.url.origin &&
+              new URL(response.url()).pathname === "/api/roots" &&
+              response.ok(),
+          );
+          await page
+            .getByRole("button", { name: "Choose a project on the configured host", exact: true })
+            .tap();
+          await recovery;
+          await assertNoHorizontalOverflow(page);
+          console.log(
+            "Phone emulation: unknown-host layout and explicit configured-host recovery tap passed",
+          );
+        });
     });
     if (captureLabel !== undefined) {
       const capture = Bun.spawn(
@@ -281,11 +369,20 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           "run",
           "qa:capture",
           "--url",
-          frontend.url.origin + "/?section=files&project=&file=image.svg",
+          stateCheck
+            ? frontend.url.origin +
+              "/?" +
+              new URLSearchParams({
+                section: "files",
+                project: root.realPath,
+                file: "notes.ts",
+                agent: "https://not-configured.example",
+              })
+            : frontend.url.origin + "/?section=files&project=&file=image.svg",
           "--label",
           captureLabel,
           "--ready",
-          ".media-preview img",
+          stateCheck ? ".welcome h1" : ".media-preview img",
         ],
         { stdout: "inherit", stderr: "inherit" },
       );
@@ -297,6 +394,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
       JSON.stringify(requests, null, 2),
     );
   } finally {
+    stateFixture?.releaseAll();
     await a.stop(true);
     await b.stop(true);
     await frontend.stop(true);

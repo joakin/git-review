@@ -150,9 +150,10 @@ capability data.
 These checks passed on Chrome/macOS with HTTP loopback origins. They establish the production
 application boundary and packaged startup, not public-to-private HTTPS permission behavior,
 cloud/Linux lifetime, physical iOS/Android or real microphone/model inference. The normal
-same-origin app remains the usable review workflow until connection UI and endpoint-owned state
-land. Runtime setup belongs in the [README](../README.md#agent-information-and-frontend-origins) and
-behavior in the [protocol owner](agent-http-protocol.md).
+same-origin app remains the usable review workflow until connection UI and endpoint-owned
+persistence land. Runtime setup belongs in the
+[README](../README.md#agent-information-and-frontend-origins) and behavior in the
+[protocol owner](agent-http-protocol.md).
 
 ### Explicit client transport
 
@@ -183,6 +184,23 @@ production meta-CSP; the [static artifact check](#static-web-artifact) separatel
 policy and packaging. Public-to-private HTTPS permissions, cloud/Linux lifetime and physical-device
 behavior remain release gates. Runtime connection policy belongs in the
 [protocol owner](agent-http-protocol.md#explicit-browser-connection).
+
+Add `--state` to run the endpoint-owned UI scenarios: `bun qa/check-agent-transport.ts --state`.
+This QA-only bootstrap configures both agents. They expose the same canonical project path and
+deliberately equal version/object IDs; the second fixture's validated payloads contain
+distinguishable text. The [state fixture](../qa/agent-state-fixture.ts) and
+[browser check](../qa/check-agent-state-browser.ts) own the exact hold/release and assertions. They
+cover legacy alias canonicalization, saving pending editors before host changes, old-format storage
+isolation, retired feedback/clipboard and file, diff and media work, native clipboard
+lease/queued-copy cancellation, Git cache ownership, native Back/Forward, rapid A→B→A, independent
+tabs and canonical opening when the root endpoint fails. An unknown host makes no agent requests;
+returning to the configured picker requires its explicit recovery action.
+
+`bun qa/check-agent-transport.ts --state --capture <new-milestone>` captures the unknown-host screen
+at all four sizes through `bun run qa:capture`. The QA-only second agent uses tab-memory reviews and
+preferences, with legacy backup access disabled; these values do not persist across reload. The
+normal bootstrap still configures only its page-origin agent, pending endpoint-owned persistence and
+connection UI. Physical-device and cloud/HTTPS lifecycle limits remain as above.
 
 ### Split-host feasibility probe
 
