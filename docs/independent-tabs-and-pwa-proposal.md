@@ -8,97 +8,77 @@ behavior.
 
 ## Independent tabs
 
-An explicit URL takes precedence over tab storage. The bare deployment URL (`/` in local
-development) restores a valid active folder for that tab or opens the picker. Selecting a folder
-updates only that tab's fallback selection, while recents remain shared. A failed selection does not
-replace the last accepted fallback or saved review work. Missing/malformed tab data or a different
-approved root cannot silently select another folder.
+An explicit URL takes precedence over tab storage. The bare deployment URL restores that tab's
+validated agent/project reference or opens the picker. Canonical restoration can proceed without
+root information; known root metadata is retained for the picker only when it agrees with the
+resolved project. A failed selection or stale root cannot substitute another folder. The
+[tab-state boundary](../apps/web/src/agent-tab-state.ts) owns validation and storage.
 
-Saved folder paths share the [navigation-path rules](../apps/web/src/navigation-path.ts), including
-the empty path for the approved root. Invalid tab paths return to the picker; a malformed recents
-record uses the empty-workspace fallback. Backup import rejects invalid recent paths before
-replacement instead of importing folders that cannot be navigated.
-
-The fallback uses root-relative navigation metadata in session storage. A duplicated tab may
-initially copy it, then diverges; closing a tab ends its selection subject to browser session
-restoration. Drafts and project preferences are keyed by canonical absolute folder path. Changing
-the approved root retains that folder's review state when the absolute identity is unchanged; moving
-the folder changes its identity. Two tabs editing the same project's drafts have no conflict
-handling.
+A duplicated tab may initially copy its selection, then diverges. Closing a tab ends that selection
+subject to browser session restoration. Recents are shared per endpoint/root. Concurrent edits to
+the same review still have no conflict resolution.
 
 ## Local data and backups
 
-[Storage](../apps/web/src/storage.ts), [comments](../apps/web/src/comments.ts), and
-[backups](../apps/web/src/backup.ts) define current formats, namespaces, and validation.
-Project-keyed storage uses encoded canonical paths. Obsolete project data is deleted only from known
-app keys, without preservation or migration; unrelated storage and global preferences remain. The
-scoped cleanup also reclaims capacity that current saves may need; retain it while an origin may
-still contain obsolete records. Formats retired during stateless project access have no readers or
-imports.
-
-During the [split host transition](split-host-architecture-proposal.md), only the explicitly
-configured legacy endpoint can access these path-only project formats, recents and tab restoration.
-The [project-state port](../apps/web/src/project-state.ts) keeps other configured connections in
-separate tab-memory review, card/language, root and active-project stores; they cannot read or write
-legacy project keys, and legacy backup controls are disabled for those owners. The current app
-configures only its page-origin agent. The QA harness configures an additional agent to verify
-isolation; its memory records do not survive reload. Global appearance, typography and wrapping stay
-shared preferences.
-
-The accepted [multi-line feedback extension](multi-line-feedback-proposal.md) adds a scoped
-conversion of the immediately preceding comment store and backup formats. Validate before
-converting, retain draft identity/body/timestamps and exact copied history text, and write converted
-comments into a new namespace. Prefer that namespace once present so an older tab's save code cannot
-overwrite it. Remove the preceding record only after confirmed persistence; failed persistence
-preserves it, keeps the converted review usable in memory and reports the failure. Later writes by
-an older tab are not repeatedly imported, and older tabs should reload before continuing review.
-This conversion does not provide cross-tab conflict resolution or revive retired project formats.
-
-Open **Settings → Install & local data** to export or import. Backups contain saved drafts, exact
-copy history, recents, card/language preferences, wrapping, typography, and appearance. They stay on
-the device and are never uploaded. Export includes projects within the current approved root,
-leaving other roots' valid records in browser storage. Import requires the same root and valid
-current formats, previews matching-data replacement, and writes only after the explicit import
-action. Matching records and global choices are replaced; other projects and the active tab stay in
-place. A failed write attempts rollback and reports when restoration may be incomplete.
-
-Install/backup failures and export confirmations use the
-[application notifications](application-notifications.md) above the open dialog. Import previews and
-replacement decisions remain in the dialog.
-
-Changing scheme, hostname, or port creates a different browser origin; review data does not sync or
-move automatically. Installed iOS storage can also be separate from Safari. Use explicit backup
-transfer between origins instead of assuming installation preserves drafts. Navigation history and
-tab-memory payload caches are outside the backup.
-
-### Endpoint-owned foundation (not yet activated)
-
-The new repository is prepared but the app still uses the storage port and backup dialog described
-above. Activation and legacy conversion belong to
-[step 9](split-host-architecture-proposal.md#9-activate-persistence-with-explicit-legacy-conversion).
 [Formats/parsers](../apps/web/src/agent-data-format.ts),
-[the repository](../apps/web/src/agent-data.ts), and [tests](../apps/web/src/agent-data.test.ts) own
-the schema, namespaces and exact assertions.
-
+[the repository](../apps/web/src/agent-data.ts) and
+[the browser owner](../apps/web/src/browser-data.ts) own current namespaces and persistence.
+[Comments](../apps/web/src/comments.ts) own draft, anchor, quote and exact copied-history formats.
 Persistent records use the
-[project identity](stateless-project-access-plan.md#project-contract-and-validation). The
-saved-project index is independent of root recents. Reads reconcile missing or stale index entries
-from valid review metadata without contacting an agent or remembering its connection. Recovery
-metadata grants no filesystem access. Project preferences and root recents have their own endpoint
-ownership. Invalid records or conflicting storage-key ownership stop reads/export and retain the
-original data.
+[project identity](stateless-project-access-plan.md#project-contract-and-validation). Appearance,
+typography and wrapping remain global; project preferences and root recents are endpoint scoped. The
+bootstrap accepts its page-origin agent and explicitly imported connection records; the
+host-management UI remains a
+[later slice](split-host-architecture-proposal.md#11-add-connection-management-and-saved-project-navigation).
 
-Ordinary saves write the review before its index entry. If indexing fails, report the failure while
-keeping the review discoverable through reconciliation. Global export includes all active saved
-records, including unavailable/removed hosts and old roots, without live lookup. Import replaces
-matching records and merges unrelated records. Imported metadata must agree with its reviews;
-metadata-only imports can update a project without discarding its current feedback/preferences.
+The saved-project index is independent of recents. Reads reconcile missing or stale entries from
+valid review metadata without contacting an agent or remembering its connection. Recovery metadata
+grants no filesystem access. Ordinary saves write the review before its index entry. An indexing
+failure remains recoverable; failed saves keep edits in this tab and report their owning project.
+Global export includes current stored records and this tab's unsaved edits, without replacing other
+tabs' stored work with stale read caches. Invalid active records stop export and retain the source.
+
+Open **Settings → Install & local data** for global export/import, even when agent or root requests
+fail. Export includes unavailable/removed hosts and old roots. New backups preserve endpoint
+associations; supported path-only backups require an explicit host assignment. The preview shows
+hosts, paths, incoming feedback and matching-data replacement. Matching reviews/preferences and
+global choices are replaced; unrelated records and the current destination remain. Metadata-only
+imports can update a saved project without discarding its feedback. Files stay on the device.
 
 Bulk import stages and verifies a complete new generation before publishing one catalog. Failures
 before publication leave prior data active. Cleanup follows publication; cleanup failure does not
-undo a successful import. If publication verification and restoration both fail, report uncertainty
-and retain both generations. Staging needs temporary capacity for both copies. The simultaneous-tab
-editing limitation remains. The foundation never reads, migrates or deletes legacy project keys.
+undo success. If publication verification and restoration both fail, report uncertainty and retain
+both generations. Staging needs temporary capacity for both copies. Reload other open tabs after
+importing.
+
+### Legacy conversion
+
+When supported path-only project data exists, startup asks the user to assign its intended agent and
+preview replacement before conversion. The [legacy boundary](../apps/web/src/legacy-data.ts) reads
+supported records without upgrade writes or cleanup, preserving draft identity, timestamps,
+anchors/quotes and exact history. It validates supported older backups against their recorded scope,
+independently of a live agent.
+
+Conversion publishes its completion marker with the verified data. A changed source or an already
+completed conversion in another tab invalidates a stale preview. Original source keys are retained;
+later saves from old tabs are never repeatedly imported. Reload older tabs before continuing. The
+setup screen can export an assigned backup without saving the conversion, keeping old-origin
+transfer available before frontend cutover. Unsupported retired formats are not revived.
+
+Unreadable storage shows Retry or an explicit temporary-review option. Temporary mode leaves
+existing records untouched and exports only this tab's work; import requires persistent storage. A
+corrupt individual review is never replaced by an empty fallback. Storage failures do not make
+temporary edits durable.
+
+Installation at a different scheme/hostname/port uses a different browser origin. Installed iOS
+storage can also differ from Safari. Transfer a backup before changing origin; tab selection,
+navigation history and payload caches are outside it. Viewing/copying saved feedback without a live
+project remains the
+[recovery slice](split-host-architecture-proposal.md#10-make-saved-feedback-independent-of-live-source).
+
+Install/backup failures and export confirmations use
+[application notifications](application-notifications.md) in the dialog. Startup assignment errors
+stay beside their form controls.
 
 ## Installation and offline behavior
 
@@ -131,9 +111,11 @@ clipboard use require a secure context.
 
 ## Evidence and device limits
 
-The [QA catalog](qa-workflow.md) owns runnable checks. The
-[endpoint-owned foundation check](qa-workflow.md#endpoint-owned-data-foundation) passed on
-Chrome/macOS; physical-device storage behavior remains unverified.
+The [QA catalog](qa-workflow.md#endpoint-owned-data-foundation) owns runnable storage/cutover
+checks. Chrome/macOS verifies conversion, backup transfer and failure recovery. Current four-size
+[conversion](../qa/screenshots/agent-data-conversion/manifest.json) and
+[import](../qa/screenshots/agent-data-import/manifest.json) captures cover the previews.
+Physical-device storage and installed-app transfer remain unverified.
 
 The static-web packaging pass verified root/subpath artifacts outside the checkout, actual worker
 upgrades, preserved drafts and exact copy history, cache isolation and offline retry on Chrome.

@@ -1,15 +1,12 @@
-import { useState } from "preact/hooks";
-import {
-  applyReviewBackup,
-  createReviewBackup,
-  maxBackupBytes,
-  parseReviewBackup,
-  type ReviewBackup,
-} from "./backup.ts";
-import { readCommentStore } from "./comments.ts";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { maxAgentBackupBytes, type AgentBackup } from "./agent-data-format.ts";
+import { assignLegacyData, parseBackupImport, type BackupImport } from "./legacy-data.ts";
 import { useModal } from "./modal.ts";
 import { useNotification, useNotifications } from "./Notifications.tsx";
-import { useProjectState } from "./AgentApiProvider.tsx";
+import { useBrowserData } from "./BrowserDataProvider.tsx";
+import { useAgentApi } from "./AgentApiProvider.tsx";
+import { downloadAgentBackup } from "./backup-download.ts";
+import { BackupSummary } from "./BackupSummary.tsx";
 
 export type InstallPromptEvent = Event & { prompt: () => Promise<void> };
 
@@ -18,20 +15,27 @@ export function isInstallPromptEvent(event: Event): event is InstallPromptEvent 
 }
 
 export function InstallDataDialog({
-  rootPath: configuredRoot,
   installPrompt,
   onInstallHandled,
   onClose,
 }: {
-  rootPath: string | null;
   installPrompt: InstallPromptEvent | null;
   onInstallHandled: () => void;
   onClose: () => void;
 }) {
-  const storage = useProjectState();
-  const rootPath = storage.kind === "legacy" ? configuredRoot : null;
+  const data = useBrowserData();
+  const api = useAgentApi();
   const modal = useModal(onClose);
-  const [preview, setPreview] = useState<ReviewBackup | null>(null);
+  const [source, setSource] = useState<BackupImport | null>(null);
+  const [preview, setPreview] = useState<AgentBackup | null>(null);
+  const [endpoint, setEndpoint] = useState(api.connection.endpoint);
+  const generation = useRef(0);
+  useEffect(
+    () => () => {
+      generation.current += 1;
+    },
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
   const notifications = useNotifications();
   useNotification(
@@ -39,17 +43,6 @@ export function InstallDataDialog({
     error !== null ? { message: error, severity: "error" } : null,
   );
   const standalone = window.matchMedia("(display-mode: standalone)").matches;
-  const replacedDrafts =
-    preview?.comments.reduce(
-      (count, store) => count + readCommentStore(store.projectPath).drafts.length,
-      0,
-    ) ?? 0;
-  const replacedHistory =
-    preview?.comments.reduce(
-      (count, store) => count + readCommentStore(store.projectPath).history.length,
-      0,
-    ) ?? 0;
-
   async function install(): Promise<void> {
     if (installPrompt === null) return;
     try {
@@ -63,22 +56,13 @@ export function InstallDataDialog({
   }
 
   function exportData(): void {
-    if (rootPath === null) return;
     setError(null);
     try {
-      const backup = createReviewBackup(rootPath);
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `git-review-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      const backup = data.exportBackup();
+      downloadAgentBackup(backup);
       notifications.push({
         key: "backup-export",
-        message: `Backup downloaded: ${backup.comments.length} project review record${backup.comments.length === 1 ? "" : "s"}.`,
+        message: "Backup downloaded: " + backup.reviews.length + " project review records.",
         severity: "success",
       });
     } catch (cause: unknown) {
@@ -87,19 +71,35 @@ export function InstallDataDialog({
   }
 
   async function chooseImport(file: File | undefined): Promise<void> {
+    const request = ++generation.current;
     setPreview(null);
+    setSource(null);
     notifications.dismissKey("backup-export");
     setError(null);
-    if (file === undefined || rootPath === null) return;
-    if (file.size > maxBackupBytes) {
+    if (file === undefined) return;
+    if (file.size > maxAgentBackupBytes) {
       setError("Backup exceeds the 25 MiB limit.");
       return;
     }
     try {
-      const value: unknown = JSON.parse(await file.text()) as unknown;
-      setPreview(parseReviewBackup(value, rootPath));
+      const imported = parseBackupImport(await file.text());
+      if (request !== generation.current) return;
+      setSource(imported);
+      if (imported.kind === "agent") setPreview(imported.backup);
     } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : "Could not read this backup.");
+      if (request === generation.current)
+        setError(cause instanceof Error ? cause.message : "Could not read this backup.");
+    }
+  }
+
+  function prepareLegacy(): void {
+    if (source?.kind !== "legacy") return;
+    try {
+      setPreview(assignLegacyData(source.data, endpoint));
+      setError(null);
+    } catch (cause) {
+      setPreview(null);
+      setError(cause instanceof Error ? cause.message : "Could not assign this backup.");
     }
   }
 
@@ -107,7 +107,7 @@ export function InstallDataDialog({
     if (preview === null) return;
     setError(null);
     try {
-      applyReviewBackup(preview);
+      data.applyBackup(preview);
       window.location.reload();
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "Could not import review data.");
@@ -163,11 +163,10 @@ export function InstallDataDialog({
         <section>
           <h3>Move local review data</h3>
           <p>
-            Moving from the old HTTP address to HTTPS, or installing on iPhone, starts with separate
-            browser storage. Download a backup here, then import it in the new app. The file stays
-            on your device.
+            A different frontend address, or installing on iPhone, can use separate browser storage.
+            Download a backup here, then import it in the new app. The file stays on your device.
           </p>
-          <button type="button" disabled={rootPath === null} onClick={exportData}>
+          <button type="button" onClick={exportData}>
             Export local review data
           </button>
           <label class="install-import-label">
@@ -175,28 +174,46 @@ export function InstallDataDialog({
             <input
               type="file"
               accept=".json,application/json"
-              disabled={rootPath === null}
               onChange={(event) => {
                 void chooseImport(event.currentTarget.files?.[0]);
                 event.currentTarget.value = "";
               }}
             />
           </label>
-          {preview !== null && (
+          {data.isTemporary() && (
+            <p role="status">This export includes only temporary reviews in this tab.</p>
+          )}
+          {source?.kind === "legacy" && (
             <div class="install-preview">
               <p>
-                Ready to import {preview.comments.length} project review record
-                {preview.comments.length === 1 ? "" : "s"}, {preview.workspace.recentPaths.length}{" "}
-                recent folder{preview.workspace.recentPaths.length === 1 ? "" : "s"}, and
-                preferences.
+                This backup does not record a host. Choose the agent that owns its projects before
+                importing.
               </p>
+              <label class="agent-endpoint-field">
+                Agent URL
+                <input
+                  type="url"
+                  value={endpoint}
+                  spellcheck={false}
+                  autoCapitalize="off"
+                  onInput={(event) => {
+                    setEndpoint(event.currentTarget.value);
+                    setPreview(null);
+                    setError(null);
+                  }}
+                />
+              </label>
+              <button type="button" onClick={prepareLegacy}>
+                Preview host assignment
+              </button>
+            </div>
+          )}
+          {preview !== null && (
+            <div class="install-preview">
+              <BackupSummary backup={preview} data={data} />
               <p>
-                Matching local records will be replaced
-                {replacedDrafts + replacedHistory > 0
-                  ? `, including ${replacedDrafts} existing draft${replacedDrafts === 1 ? "" : "s"} and ${replacedHistory} history entr${replacedHistory === 1 ? "y" : "ies"}`
-                  : ""}
-                . Code typography and appearance will use the backup's choices. Other projects
-                remain here. Your active tab stays on its current folder.
+                Host associations are preserved. Imported paths do not grant access to code. This
+                tab stays on its current destination. Reload other open tabs after importing.
               </p>
               <button type="button" onClick={importData}>
                 Import and replace matching data

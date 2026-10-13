@@ -1,11 +1,8 @@
+import { parseAgentTabSelection } from "../apps/web/src/agent-tab-state.ts";
 import { resolve } from "node:path";
 import type { Browser, Page } from "playwright-core";
-import { qaDimensions } from "./browser-support.ts";
-import {
-  parseActiveProject,
-  validateSavedWorkspace,
-  workspaceStorageKey,
-} from "../apps/web/src/storage.ts";
+import { qaDimensions, prepareQaData } from "./browser-support.ts";
+import { validateSavedWorkspace } from "../apps/web/src/storage.ts";
 
 declare global {
   interface Window {
@@ -43,12 +40,12 @@ async function pickerReady(page: Page, pickerUrl: string): Promise<void> {
 
 async function selectedStorage(page: Page): Promise<string> {
   return page.evaluate(
-    (key) =>
+    (root) =>
       JSON.stringify({
-        workspace: localStorage.getItem(key),
-        active: sessionStorage.getItem("git-review:active-project:v2"),
+        workspace: window.reviewDataQa.workspace(root),
+        active: sessionStorage.getItem("git-review:agents:v1:active-project"),
       }),
-    workspaceStorageKey,
+    resolve("qa/.artifacts"),
   );
 }
 
@@ -87,6 +84,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
       release = resolve;
     });
     try {
+      await prepareQaData(context);
       const page = await context.newPage();
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
@@ -185,6 +183,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
           },
         });
       }, outcome);
+      await prepareQaData(context);
       const page = await context.newPage();
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
@@ -281,6 +280,7 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
   });
   context.setDefaultTimeout(10_000);
   try {
+    await prepareQaData(context);
     const page = await context.newPage();
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -330,16 +330,17 @@ export async function checkProjectOpeningCancellation(browser: Browser, base: UR
     const recovered = await page.evaluate(
       (key) => ({
         active: JSON.parse(
-          sessionStorage.getItem("git-review:active-project:v2") ?? "null",
+          sessionStorage.getItem("git-review:agents:v1:active-project") ?? "null",
         ) as unknown,
-        workspace: JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
+        workspace: window.reviewDataQa.workspace(key),
       }),
-      workspaceStorageKey,
+      resolve("qa/.artifacts"),
     );
     const approvedRoot = resolve("qa/.artifacts");
     const workspace = validateSavedWorkspace(recovered.workspace, approvedRoot);
     assert(
-      parseActiveProject(recovered.active, approvedRoot) === "inventory-fixture" &&
+      parseAgentTabSelection(recovered.active)?.projectPath ===
+        approvedRoot + "/inventory-fixture" &&
         workspace?.recentPaths[0] === "inventory-fixture" &&
         workspace.recentPaths.includes("other-project"),
       "Successful recovery did not select inventory-fixture and retain the prior recent project",

@@ -46,7 +46,7 @@ The browser retains its current destination, drafts, and pending editor. Reload 
 payloads and restores current local data. Another device shares host files but has separate review
 storage.
 [Local-data formats and backup policy](independent-tabs-and-pwa-proposal.md#local-data-and-backups)
-are owned by that record; the accepted cutover discarded old project data without migration.
+are owned by that record, including supported conversion.
 
 Moving a folder changes its canonical identity; replacing content at the same path retains the
 identity but still requires content-version and anchor checks. Project disappearance, access denial,
@@ -56,24 +56,25 @@ another folder.
 ## Same folder after an approved-root change
 
 Changing the approved root or relative URL retains drafts, exact copied history, open cards, and
-language overrides when the canonical absolute folder and browser origin are unchanged. Recents and
-tab restoration remain scoped to the configured root, so an old relative destination may need a new
-selection. The same relative name under a different absolute folder must not inherit review data.
+language overrides when the canonical absolute folder and browser origin are unchanged. Recents
+remain root scoped; [tab restoration](independent-tabs-and-pwa-proposal.md#independent-tabs) uses
+the canonical destination. The same relative name under a different absolute folder must not inherit
+review data.
 
-Backup export includes only projects under the current approved root; valid stored data outside it
-stays untouched. Import requires matching root ownership. Narrowing the root to the project itself
-and later broadening it must not change that project's review identity. Containment is still checked
-against the current root for every read.
+Narrowing the root to the project itself and later broadening it must not change that project's
+review identity. Containment is checked against the current root for every read.
+[Local data](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns backup scope and
+import behavior.
 
 ## Evidence and limits
 
 [Stateless API tests](../apps/agent/src/stateless-project-api.test.ts) cover every resource on a
 fresh handler, path validation, and changed/missing projects.
-[Storage](../apps/web/src/storage.test.ts) and [backup tests](../apps/web/src/backup.test.ts) cover
-absolute ownership and root-scoped export. [Restart QA](../qa/check-stateless-projects.ts) owns and
-restarts its isolated backend while keeping drafts/editor state, resource reads, checked copy, and
-retry available. Its same-origin root changes also verify review state follows the absolute folder.
-Run procedures are in the [QA catalog](qa-workflow.md#focused-checks).
+[Persistence evidence](independent-tabs-and-pwa-proposal.md#evidence-and-device-limits) belongs to
+the local-data record. [Restart QA](../qa/check-stateless-projects.ts) owns and restarts its
+isolated backend while keeping drafts/editor state, resource reads, checked copy, and retry
+available. Its same-origin root changes also verify review state follows the absolute folder. Run
+procedures are in the [QA catalog](qa-workflow.md#focused-checks).
 
 The accepted cutover and root-change regression passed desktop Chrome checks. Its local-data dialog
 was captured and inspected at [phone](../qa/screenshots/stateless-project-data/mobile.png),

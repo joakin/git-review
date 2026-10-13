@@ -31,7 +31,7 @@ import {
 import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, routeProjectPath, routeSection, type Route } from "./navigation.ts";
-import { readWrapPreference, saveWrapPreference } from "./storage.ts";
+import { useBrowserData } from "./BrowserDataProvider.tsx";
 import { maxSearchQueryLength, normalizeSearchQuery } from "@git-review/shared/search-query";
 import type {
   ChangeEntry,
@@ -97,7 +97,8 @@ export function App({ navigation }: { navigation: AppNavigation }) {
       : route?.section === "files" && route.target.kind === "file" && route.target.line !== null
         ? { path: route.target.path, line: route.target.line, query: null }
         : null;
-  const [wrapCode, setWrapCode] = useState(readWrapPreference);
+  const data = useBrowserData();
+  const [wrapCode, setWrapCode] = useState(() => data.readGlobal().wrap);
   const preferences = useAppearancePreferences();
   const settingsOpen = route?.section === "settings";
   const settingsBackRoute = useRef<Route | null>(null);
@@ -543,7 +544,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
   function toggleWrap(): void {
     setWrapCode((current) => {
       const next = !current;
-      saveWrapPreference(next);
+      data.saveGlobal({ wrap: next });
       return next;
     });
   }
@@ -1204,7 +1205,6 @@ export function App({ navigation }: { navigation: AppNavigation }) {
       )}
       {installDataOpen && (
         <InstallDataDialog
-          rootPath={root.kind === "ready" ? root.value.path : null}
           installPrompt={installPrompt}
           onInstallHandled={() => setInstallPrompt(null)}
           onClose={() => setInstallDataOpen(false)}

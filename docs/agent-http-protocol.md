@@ -97,7 +97,7 @@ The production bootstrap still configures only the page-origin connection. The
 [navigation owner](navigation-and-url-history-slice-proposal.md) now carries endpoint/path
 destinations, configured-host gating and UI-session transitions; the
 [loading owner](loading-and-transition-polish.md) owns endpoint-scoped runtime caches and request
-lifetimes. Endpoint selection, handshake presentation and persisted reviews remain subsequent
+lifetimes. Connection-management UI and handshake presentation remain subsequent
 [split host slices](split-host-architecture-proposal.md). Multi-host selection is not yet exposed in
 the UI.
 

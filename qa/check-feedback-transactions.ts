@@ -77,7 +77,7 @@ const seed: CommentStore = {
 };
 if (validateCommentStore(seed, project.absolutePath) === null)
   throw new Error("Invalid regression seed");
-const storageKey = `git-review:comments:v3:${encodeURIComponent(project.absolutePath)}`;
+const storageKey = project.absolutePath;
 // Files keeps the changes view's background status polling out of held-request scenarios.
 const reviewUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: anchor.path })}`;
 
@@ -104,8 +104,8 @@ function deferred() {
 
 async function readStore(page: Page, target: Project = project): Promise<CommentStore> {
   const raw: unknown = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
-    `git-review:comments:v3:${encodeURIComponent(target.absolutePath)}`,
+    (key) => window.reviewDataQa.readComments(key),
+    target.absolutePath,
   );
   const store = validateCommentStore(raw, target.absolutePath);
   if (store === null) throw new Error("Persisted comments became invalid");
@@ -185,10 +185,10 @@ await withQaBrowser(async (browser) => {
         const releases: (() => void)[] = [];
         try {
           await context.addInitScript(
-            ({ key, store, rootPath, projectPath, appOrigin }) => {
+            ({ store, rootPath, projectPath, appOrigin }) => {
               if (window.location.origin !== appOrigin) return;
-              if (localStorage.getItem(key) === null)
-                localStorage.setItem(key, JSON.stringify(store));
+              if (!window.reviewDataQa.hasReview(store.projectPath))
+                window.reviewDataQa.writeComments(store);
               sessionStorage.setItem(
                 "git-review:active-project:v2",
                 JSON.stringify({ version: 2, rootPath, activePath: projectPath }),
@@ -454,14 +454,7 @@ await withQaBrowser(async (browser) => {
         validateCommentStore(otherSeed, other.absolutePath) !== null,
         "Invalid second-project seed",
       );
-      await page.evaluate(
-        (store) =>
-          localStorage.setItem(
-            `git-review:comments:v3:${encodeURIComponent(store.projectPath)}`,
-            JSON.stringify(store),
-          ),
-        otherSeed,
-      );
+      await page.evaluate((store) => window.reviewDataQa.writeComments(store), otherSeed);
       // This empty picker fixture uses controlled Git responses; its project identity and SPA transition stay real.
       await page.route("**/api/project/status?*", (route) => route.fulfill({ json: status }));
       await page.route("**/api/project/diff?*", (route) => route.fulfill({ json: diff }));

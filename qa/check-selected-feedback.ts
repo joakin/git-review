@@ -3,7 +3,7 @@ import { projectLookupResponse } from "./browser-support.ts";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { type Locator, type Page } from "playwright-core";
-import { parseReviewBackup } from "../apps/web/src/backup.ts";
+import { parseAgentBackup } from "../apps/web/src/agent-data-format.ts";
 import { responseBody } from "../apps/web/src/api.ts";
 import {
   anchorForLine,
@@ -40,7 +40,7 @@ const original = `${first}\n\tconst spanning = repeated + 1;\n${long}\n   \nlast
 const project = parseProjectResponse(
   await responseBody(await projectLookupResponse(origin, "inventory-fixture")),
 );
-const key = `git-review:comments:v3:${encodeURIComponent(project.absolutePath)}`;
+const key = project.absolutePath;
 const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const previous = await readFile(location, "utf8").catch((error: unknown) => {
   if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
@@ -87,10 +87,7 @@ async function range(code: Locator, start: number, end: number): Promise<void> {
   );
 }
 async function readStore(page: Page): Promise<CommentStore> {
-  const raw: unknown = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
-    key,
-  );
+  const raw: unknown = await page.evaluate((key) => window.reviewDataQa.readComments(key), key);
   const store = validateCommentStore(raw, project.absolutePath);
   if (store === null) throw new Error("Invalid selection store");
   return store;
@@ -177,7 +174,7 @@ async function checkContextFeedback(page: Page, touch: boolean): Promise<void> {
     ],
   };
   assert(validateCommentStore(store, project.absolutePath) !== null, "Invalid mixed count fixture");
-  await page.addInitScript(({ key, store }) => localStorage.setItem(key, JSON.stringify(store)), {
+  await page.addInitScript(({ store }) => window.reviewDataQa.writeComments(store), {
     key,
     store,
   });
@@ -561,10 +558,10 @@ try {
             assert(downloadPath !== null, "Missing selection backup download");
             const bytes = await readFile(downloadPath);
             const raw: unknown = JSON.parse(bytes.toString("utf8"));
-            const backup = parseReviewBackup(raw, resolve("qa/.artifacts"));
+            const backup = parseAgentBackup(raw);
             assert(
-              backup.version === 7 &&
-                JSON.stringify(backup.comments[0]) === JSON.stringify(beforeExport),
+              backup.version === 1 &&
+                JSON.stringify(backup.reviews[0]?.comments) === JSON.stringify(beforeExport),
               "Backup omitted selections",
             );
             await withQaContext(

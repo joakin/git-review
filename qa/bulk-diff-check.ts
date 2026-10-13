@@ -135,18 +135,16 @@ export async function checkBulkDiffControls(browser: Browser, base: URL): Promis
           await collapse.click();
           await waitForCards(page, false);
           await page.waitForFunction(() => {
-            const key = Object.keys(localStorage).find((key) =>
-              key.startsWith("git-review:open-cards:v2:"),
-            );
-            if (key === undefined) return false;
-            const value: unknown = JSON.parse(localStorage.getItem(key) ?? "null");
-            return (
-              typeof value === "object" &&
-              value !== null &&
-              "keys" in value &&
-              Array.isArray(value.keys) &&
-              value.keys.length === 0
-            );
+            return window.reviewDataQa.cardsRecords().every(([, raw]) => {
+              const value: unknown = JSON.parse(raw);
+              return (
+                typeof value === "object" &&
+                value !== null &&
+                "keys" in value &&
+                Array.isArray(value.keys) &&
+                value.keys.length === 0
+              );
+            });
           });
           await page.reload();
           await waitForCards(page, false);

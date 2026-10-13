@@ -18,6 +18,7 @@ import {
 export const maxAgentBackupBytes = 25 * 1024 * 1024;
 const maxProjects = 512;
 const maxConnections = 64;
+const maxConnectionLabel = 200;
 const maxWorkspaces = 128;
 const maxRecent = 8;
 const maxLanguages = 1000;
@@ -105,8 +106,12 @@ export function parseSavedAgentConnection(value: unknown): SavedAgentConnection 
   const item = expectRecord(value, "connection");
   return {
     endpoint: normalizeAgentEndpoint(item["endpoint"], true),
-    label: text(item["label"], "connection label", 200),
+    label: text(item["label"], "connection label", maxConnectionLabel),
   };
+}
+
+export function defaultAgentLabel(endpoint: string): string {
+  return new URL(endpoint).host.slice(0, maxConnectionLabel);
 }
 
 export function parseSavedAgentProject(value: unknown): SavedAgentProject {

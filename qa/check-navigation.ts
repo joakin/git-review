@@ -56,8 +56,7 @@ async function checkChangesCardFocus(page: Page): Promise<void> {
   await page.goto(new URL("/?section=changes&project=inventory-fixture&target=list", base).href);
   // Earlier scenarios in this context may have persisted this card as expanded.
   await page.evaluate(() => {
-    for (const key of Object.keys(localStorage))
-      if (key.startsWith("git-review:open-cards:v2:")) localStorage.removeItem(key);
+    window.reviewDataQa.clearCards();
   });
   await page.reload();
   await page.getByRole("button", { name: "Open staged diff for src/view.ts" }).click();

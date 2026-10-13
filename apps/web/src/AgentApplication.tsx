@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { App } from "./App.tsx";
 import { AgentApiProvider } from "./AgentApiProvider.tsx";
-import type { AgentConnection } from "./agent-connection.ts";
+import { createAgentConnection, type AgentConnection } from "./agent-connection.ts";
 import { createAgentLifetime } from "./agent-lifetime.ts";
 import {
   agentDestinationUrl,
@@ -10,7 +10,10 @@ import {
   type AgentDestinationState,
 } from "./agent-navigation.ts";
 import { NotificationProvider } from "./Notifications.tsx";
-import { createProjectState, type ProjectState } from "./project-state.ts";
+import type { ProjectState } from "./project-state.ts";
+import { openBrowserData } from "./browser-data.ts";
+import { BrowserDataProvider, BrowserDataNotice } from "./BrowserDataProvider.tsx";
+import { LegacyDataSetup } from "./LegacyDataSetup.tsx";
 import { useNavigationHistory } from "./use-navigation-history.ts";
 import type { Route, RouteState } from "./navigation.ts";
 import { createClipboardWriter } from "./clipboard-writer.ts";
@@ -43,6 +46,8 @@ export function AgentApplication({
   legacyConnection: AgentConnection;
   connections: readonly AgentConnection[];
 }) {
+  const [data] = useState(openBrowserData);
+  const [temporaryReady, setTemporaryReady] = useState(false);
   const [clipboard] = useState(() =>
     createClipboardWriter(async (text) => {
       if (navigator.clipboard?.writeText === undefined)
@@ -54,22 +59,43 @@ export function AgentApplication({
   );
   const [configured] = useState(() => {
     const result = new Map<string, ConfiguredAgent>();
-    for (const connection of [legacyConnection, ...connections]) {
+    const remembered =
+      data.startup.kind === "ready"
+        ? data
+            .readCatalog()
+            .connections.map((record) =>
+              createAgentConnection(record.endpoint, { allowLoopbackHttp: true }),
+            )
+        : [];
+    for (const connection of [legacyConnection, ...connections, ...remembered]) {
       if (result.has(connection.endpoint)) continue;
       result.set(connection.endpoint, {
         connection,
-        state: createProjectState(
-          connection.endpoint === legacyConnection.endpoint ? "legacy" : "memory",
-        ),
+        state: data.projectState(connection.endpoint),
         positions: new Map(),
         gitRefs: new Map(),
       });
     }
     return result;
   });
-  const [state, setState] = useState(() =>
-    parseAgentDestination(window.location.search, legacyConnection.endpoint),
-  );
+  const [state, setState] = useState<AgentDestinationState>(() => {
+    const parsed = parseAgentDestination(window.location.search, legacyConnection.endpoint);
+    const selected = data.startup.kind === "ready" ? data.readLastSelection() : null;
+    return parsed.kind !== "empty" || selected === null
+      ? parsed
+      : {
+          kind: "ready",
+          destination: {
+            kind: "agent",
+            endpoint: selected.endpoint,
+            route: {
+              section: "changes",
+              projectPath: selected.projectPath,
+              target: { kind: window.matchMedia("(max-width: 600px)").matches ? "list" : "all" },
+            },
+          },
+        };
+  });
   const latest = useRef(state);
   const generation = useRef(0);
   const prepare = useRef<(() => void) | null>(null);
@@ -140,6 +166,44 @@ export function AgentApplication({
     if (window.location.pathname + window.location.search !== url) history.write(url, "replace");
   }, [state]);
 
+  if (!temporaryReady && data.startup.kind !== "ready")
+    return (
+      <BrowserDataProvider data={data}>
+        <NotificationProvider>
+          {data.startup.kind === "legacy" ? (
+            <LegacyDataSetup
+              data={data}
+              snapshot={data.startup.snapshot}
+              defaultEndpoint={legacyConnection.endpoint}
+            />
+          ) : (
+            <main class="local-data-setup">
+              <section class="install-data-content">
+                <h1>Local review data unavailable</h1>
+                <p>{data.startup.message}</p>
+                <button type="button" onClick={() => window.location.reload()}>
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    data.continueTemporarily();
+                    setTemporaryReady(true);
+                  }}
+                >
+                  Continue with temporary reviews
+                </button>
+                <p>
+                  Temporary reviews stay in this tab. Export them before closing or reloading.
+                  Existing saved data is untouched.
+                </p>
+              </section>
+            </main>
+          )}
+        </NotificationProvider>
+      </BrowserDataProvider>
+    );
+
   if (selected === undefined || active === null)
     return (
       <main class="connection-required">
@@ -183,10 +247,13 @@ export function AgentApplication({
     ownsSession,
   };
   return (
-    <NotificationProvider key={JSON.stringify([endpoint, generation.current])}>
-      <AgentApiProvider lifetime={active} projectState={selected.state} clipboard={clipboard}>
-        <App navigation={navigation} />
-      </AgentApiProvider>
-    </NotificationProvider>
+    <BrowserDataProvider data={data}>
+      <NotificationProvider key={JSON.stringify([endpoint, generation.current])}>
+        <BrowserDataNotice />
+        <AgentApiProvider lifetime={active} projectState={selected.state} clipboard={clipboard}>
+          <App navigation={navigation} />
+        </AgentApiProvider>
+      </NotificationProvider>
+    </BrowserDataProvider>
   );
 }

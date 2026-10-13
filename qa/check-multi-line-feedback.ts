@@ -3,11 +3,7 @@ import { resolve } from "node:path";
 import type { Page } from "playwright-core";
 import { parseProjectResponse } from "@git-review/shared/api";
 import { responseBody } from "../apps/web/src/api.ts";
-import {
-  commentStoragePrefix,
-  validateCommentStore,
-  type CommentStore,
-} from "../apps/web/src/comments.ts";
+import { validateCommentStore, type CommentStore } from "../apps/web/src/comments.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
@@ -35,7 +31,7 @@ const previous = await readFile(limitsPath, "utf8").catch((error: unknown) => {
   if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
   throw error;
 });
-const key = commentStoragePrefix + encodeURIComponent(project.absolutePath);
+const key = project.absolutePath;
 const url = (section: string, file = path) =>
   `${origin}/?${new URLSearchParams({ section, project: project.relativePath, file, ...(section === "search" ? { q: "replacement", line: "2" } : {}) })}`;
 function assert(value: boolean, message: string): asserts value {
@@ -44,10 +40,7 @@ function assert(value: boolean, message: string): asserts value {
 const code = (page: Page, line: number) =>
   page.locator(`.file-code-row[data-line="${line}"] .file-code-line`);
 async function store(page: Page): Promise<CommentStore> {
-  const raw: unknown = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
-    key,
-  );
+  const raw: unknown = await page.evaluate((key) => window.reviewDataQa.readComments(key), key);
   const parsed = validateCommentStore(raw, project.absolutePath);
   if (parsed === null) throw new Error("Invalid stored range");
   return parsed;

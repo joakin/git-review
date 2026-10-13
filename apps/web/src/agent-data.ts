@@ -14,11 +14,13 @@ import {
   type SavedAgentReview,
 } from "./agent-data-format.ts";
 import { newLocalId } from "./comments.ts";
+import { normalizeAgentEndpoint } from "./agent-connection.ts";
 
 export const agentCatalogStorageKey = "git-review:agents:v1:catalog";
 export const agentReviewStoragePrefix = "git-review:agents:v1:reviews:";
 type DataStorage = Pick<Storage, "length" | "key" | "getItem" | "setItem" | "removeItem">;
-type Head = { version: 1; generation: string; catalog: AgentCatalog };
+export type LegacyConversion = { kind: "pending" } | { kind: "complete"; endpoint: string };
+type Head = { version: 1; generation: string; catalog: AgentCatalog; legacy: LegacyConversion };
 
 function parseHead(raw: string): Head {
   const item = expectRecord(JSON.parse(raw) as unknown, "agent storage catalog");
@@ -32,7 +34,17 @@ function parseHead(raw: string): Head {
     version: 1,
     generation: item["generation"],
     catalog: parseAgentCatalog(item["catalog"]),
+    legacy: parseLegacyConversion(item["legacy"]),
   };
+}
+
+function parseLegacyConversion(value: unknown): LegacyConversion {
+  if (value === undefined) return { kind: "pending" };
+  const item = expectRecord(value, "legacy conversion");
+  if (item["kind"] === "pending") return { kind: "pending" };
+  if (item["kind"] === "complete")
+    return { kind: "complete", endpoint: normalizeAgentEndpoint(item["endpoint"], true) };
+  throw new Error("Invalid legacy conversion marker");
 }
 
 export function agentReviewStorageKey(generation: string, reference: ProjectReference): string {
@@ -87,7 +99,12 @@ export function createAgentDataRepository(storage: DataStorage) {
   function ensureHead(): Head {
     const previous = readHead();
     if (previous !== null) return previous;
-    const head: Head = { version: 1, generation: newLocalId(), catalog: emptyAgentCatalog() };
+    const head: Head = {
+      version: 1,
+      generation: newLocalId(),
+      catalog: emptyAgentCatalog(),
+      legacy: { kind: "pending" },
+    };
     writeVerified(agentCatalogStorageKey, JSON.stringify(head));
     return head;
   }
@@ -163,7 +180,11 @@ export function createAgentDataRepository(storage: DataStorage) {
     return complete;
   }
 
-  function applyBackup(value: unknown): { cleanup: "complete" | "incomplete" } {
+  function applyBackup(
+    value: unknown,
+    conversion: LegacyConversion = { kind: "pending" },
+  ): { cleanup: "complete" | "incomplete" } {
+    const requestedConversion = parseLegacyConversion(conversion);
     const incoming = parseAgentBackup(value);
     // Enforce the byte limit even when callers bypass the text parser.
     serializeAgentBackup(incoming);
@@ -198,6 +219,12 @@ export function createAgentDataRepository(storage: DataStorage) {
     const next = parseAgentBackup({ ...incoming, catalog, reviews });
     serializeAgentBackup(next);
     const previousHead = readItem(agentCatalogStorageKey);
+    const legacy =
+      requestedConversion.kind === "complete"
+        ? requestedConversion
+        : previousHead === null
+          ? { kind: "pending" as const }
+          : parseHead(previousHead).legacy;
     const existingKeys = keys();
     const generation = newLocalId();
     const stagedKeys: string[] = [];
@@ -213,7 +240,10 @@ export function createAgentDataRepository(storage: DataStorage) {
     }
     // Project writes have been verified. This single atomic Web Storage write publishes them.
     try {
-      writeVerified(agentCatalogStorageKey, JSON.stringify({ version: 1, generation, catalog }));
+      writeVerified(
+        agentCatalogStorageKey,
+        JSON.stringify({ version: 1, generation, catalog, legacy }),
+      );
     } catch {
       try {
         if (previousHead === null) storage.removeItem(agentCatalogStorageKey);
@@ -243,6 +273,8 @@ export function createAgentDataRepository(storage: DataStorage) {
   }
 
   return {
+    readCatalog: () => readHead()?.catalog ?? emptyAgentCatalog(),
+    readLegacyConversion: () => readHead()?.legacy ?? { kind: "pending" as const },
     readAll,
     readReview,
     saveCatalog,

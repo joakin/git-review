@@ -312,12 +312,7 @@ try {
         ),
       );
     const preferences = await phone.page.evaluate(() =>
-      JSON.stringify(
-        Object.keys(localStorage)
-          .filter((key) => key.startsWith("git-review:open-cards:v2:"))
-          .sort()
-          .map((key) => [key, localStorage.getItem(key)]),
-      ),
+      JSON.stringify(window.reviewDataQa.cardsRecords().sort(([a], [b]) => a.localeCompare(b))),
     );
     failUpdate = true;
     const refetched = phone.page.waitForRequest((request) => {
@@ -352,12 +347,7 @@ try {
     if (retainedInventory !== inventory)
       throw new Error("Failed Update replaced the displayed inventory");
     const retainedPreferences = await phone.page.evaluate(() =>
-      JSON.stringify(
-        Object.keys(localStorage)
-          .filter((key) => key.startsWith("git-review:open-cards:v2:"))
-          .sort()
-          .map((key) => [key, localStorage.getItem(key)]),
-      ),
+      JSON.stringify(window.reviewDataQa.cardsRecords().sort(([a], [b]) => a.localeCompare(b))),
     );
     if (retainedPreferences !== preferences)
       throw new Error("Failed Update changed persisted card preferences");

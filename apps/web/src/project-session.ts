@@ -76,6 +76,8 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
   }
 
   function rememberProject(rootPath: string, selected: Project): void {
+    storage.rememberProject(selected, rootPath);
+    if (absoluteSelection(rootPath, selected.relativePath) !== selected.absolutePath) return;
     storage.saveActiveProject(rootPath, selected.relativePath);
     const current = sessionRef.current;
     const scoped =
@@ -171,6 +173,7 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
         (selected) => {
           if (!isCurrentOpen()) return;
           const connected: AgentProject = { ...selected, endpoint: api.connection.endpoint };
+          storage.rememberProject(selected, null);
           updateSession((current) => ({ ...current, resolved: connected }));
           inputsRef.current.onOpened(connected);
           if (root.kind === "ready") rememberProject(root.value.path, selected);

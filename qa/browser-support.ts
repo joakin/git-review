@@ -8,6 +8,24 @@ import {
 import { parseRootResponse } from "@git-review/shared/api";
 import { projectApiUrl } from "@git-review/shared/project-path";
 import { responseBody } from "../apps/web/src/api.ts";
+import { resolve } from "node:path";
+import type {} from "./browser-data-fixture.ts";
+
+let storageFixture: Promise<string> | null = null;
+export async function prepareQaData(context: BrowserContext): Promise<void> {
+  storageFixture ??= (async () => {
+    const built = await Bun.build({
+      entrypoints: [resolve("qa/browser-data-fixture.ts")],
+      target: "browser",
+      format: "iife",
+      minify: true,
+    });
+    const output = built.outputs[0];
+    if (!built.success || output === undefined) throw new Error(built.logs.map(String).join("\n"));
+    return output.text();
+  })();
+  await context.addInitScript({ content: await storageFixture });
+}
 
 /** Selection lookup is only fixture discovery; resource requests need no registration. */
 export async function projectLookupResponse(
@@ -61,6 +79,7 @@ export async function withQaContext<T>(
   check: (context: BrowserContext) => Promise<T>,
 ): Promise<T> {
   const context = await browser.newContext(options);
+  await prepareQaData(context);
   const errors: Array<{ url: string; message: string }> = [];
   context.on("page", (page) => {
     page.on("pageerror", (error) => errors.push({ url: page.url(), message: error.message }));

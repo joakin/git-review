@@ -2,86 +2,78 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Page } from "playwright-core";
 import { appUrl, withQaBrowser, withQaContext } from "./browser-support.ts";
-import { parseActiveProject } from "../apps/web/src/storage.ts";
+import { parseAgentTabSelection, agentActiveProjectKey } from "../apps/web/src/agent-tab-state.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-tabs.ts <local app URL>");
 const url = appUrl(rawUrl);
-const startUrl = new URL("/", url).href;
 const rootPath = resolve("qa/.artifacts");
 await mkdir(resolve(rootPath, "other-project"), { recursive: true });
-
-async function selectFolder(page: Page, folder: string): Promise<void> {
+function assert(value: boolean, message: string): asserts value {
+  if (!value) throw new Error(message);
+}
+async function selectFolder(page: Page, folder: string) {
   await page.getByRole("button", { name: new RegExp(folder) }).click();
   await page.getByRole("button", { name: /Open this folder/ }).click();
   await page.locator(".sidebar-project-title").getByText(folder, { exact: true }).waitFor();
 }
-
 await withQaBrowser(async (browser) => {
   await withQaContext(browser, {}, async (context) => {
     context.setDefaultTimeout(10_000);
     const first = await context.newPage();
     await first.goto(url.href);
     await selectFolder(first, "inventory-fixture");
-
     const second = await context.newPage();
     await second.goto(url.href);
-    await second.locator(".welcome h1").waitFor();
     await selectFolder(second, "other-project");
-
-    await first.reload();
-    await first
-      .locator(".sidebar-project-title")
-      .getByText("inventory-fixture", { exact: true })
-      .waitFor();
-    await second.reload();
-    await second
-      .locator(".sidebar-project-title")
-      .getByText("other-project", { exact: true })
-      .waitFor();
-    await first.goto(startUrl);
-    await first
-      .locator(".sidebar-project-title")
-      .getByText("inventory-fixture", { exact: true })
-      .waitFor();
-    await second.goto(startUrl);
-    await second
-      .locator(".sidebar-project-title")
-      .getByText("other-project", { exact: true })
-      .waitFor();
-    if (
-      new URL(first.url()).searchParams.get("project") !== "inventory-fixture" ||
-      new URL(second.url()).searchParams.get("project") !== "other-project"
-    )
-      throw new Error("Bare / did not restore each tab's own project route");
-    const state = await first.evaluate(() => ({
-      shared: localStorage.getItem("git-review:workspace:v4"),
-      first: sessionStorage.getItem("git-review:active-project:v2"),
-    }));
-    const secondActive = await second.evaluate(() =>
-      sessionStorage.getItem("git-review:active-project:v2"),
-    );
-    if (
-      state.shared === null ||
-      state.shared.includes("activePath") ||
-      !state.shared.includes("other-project") ||
-      state.first === null ||
-      !state.first.includes("inventory-fixture") ||
-      secondActive === null ||
-      !secondActive.includes("other-project")
-    ) {
-      throw new Error(
-        `Projects are not independent by tab: ${JSON.stringify({ ...state, secondActive })}`,
+    for (const [page, folder] of [
+      [first, "inventory-fixture"],
+      [second, "other-project"],
+    ] as const) {
+      await page.reload();
+      await page.locator(".sidebar-project-title").getByText(folder, { exact: true }).waitFor();
+      await page.goto(url.href);
+      await page.locator(".sidebar-project-title").getByText(folder, { exact: true }).waitFor();
+      assert(
+        new URL(page.url()).searchParams.get("project") === rootPath + "/" + folder,
+        "Bare URL lost its canonical tab destination",
       );
     }
+    const firstSelection: unknown = await first.evaluate(
+      (key) => JSON.parse(sessionStorage.getItem(key) ?? "null"),
+      agentActiveProjectKey,
+    );
+    const secondSelection: unknown = await second.evaluate(
+      (key) => JSON.parse(sessionStorage.getItem(key) ?? "null"),
+      agentActiveProjectKey,
+    );
+    assert(
+      parseAgentTabSelection(firstSelection)?.projectPath === rootPath + "/inventory-fixture" &&
+        parseAgentTabSelection(secondSelection)?.projectPath === rootPath + "/other-project",
+      "Tab selections were not independent",
+    );
+    const recents = await first.evaluate((root) => window.reviewDataQa.workspace(root), rootPath);
+    assert(
+      recents.recentPaths.includes("inventory-fixture") &&
+        recents.recentPaths.includes("other-project"),
+      "Root recents were not shared",
+    );
 
     await first.evaluate(
-      (approvedRoot) =>
+      ({ key, root, endpoint }) => {
+        if (location.origin !== endpoint) return;
         sessionStorage.setItem(
-          "git-review:active-project:v2",
-          JSON.stringify({ version: 2, rootPath: approvedRoot, activePath: "other-project" }),
-        ),
-      rootPath,
+          key,
+          JSON.stringify({
+            version: 1,
+            endpoint,
+            rootPath: root,
+            relativePath: "other-project",
+            projectPath: root + "/other-project",
+          }),
+        );
+      },
+      { key: agentActiveProjectKey, root: rootPath, endpoint: url.origin },
     );
     await first.goto(new URL("/?section=changes&project=inventory-fixture", url).href);
     await first
@@ -89,144 +81,123 @@ await withQaBrowser(async (browser) => {
       .getByText("inventory-fixture", { exact: true })
       .waitFor();
     const selected: unknown = await first.evaluate(
-      () => JSON.parse(sessionStorage.getItem("git-review:active-project:v2") ?? "null") as unknown,
+      (key) => JSON.parse(sessionStorage.getItem(key) ?? "null"),
+      agentActiveProjectKey,
     );
-    if (
-      new URL(first.url()).searchParams.get("project") !== "inventory-fixture" ||
-      parseActiveProject(selected, rootPath) !== "inventory-fixture"
-    )
-      throw new Error("An explicit project link did not win over the conflicting tab selection");
-    if (
-      (await second.evaluate(() => sessionStorage.getItem("git-review:active-project:v2"))) !==
-      secondActive
-    )
-      throw new Error("The explicit link changed another tab's selection");
+    assert(
+      parseAgentTabSelection(selected)?.projectPath === rootPath + "/inventory-fixture",
+      "Explicit URL did not win over tab restoration",
+    );
+    assert(
+      JSON.stringify(
+        await second.evaluate(
+          (key) => JSON.parse(sessionStorage.getItem(key) ?? "null"),
+          agentActiveProjectKey,
+        ),
+      ) === JSON.stringify(secondSelection),
+      "Explicit selection changed another tab",
+    );
+  });
 
-    await withQaContext(browser, { serviceWorkers: "block" }, async (startup) => {
-      startup.setDefaultTimeout(10_000);
-      let releaseRoot = () => {};
-      const rootGate = new Promise<void>((resolve) => {
-        releaseRoot = resolve;
-      });
-      try {
-        const pending = await startup.newPage();
-        await pending.addInitScript(
-          (approvedRoot) =>
-            sessionStorage.setItem(
-              "git-review:active-project:v2",
-              JSON.stringify({
-                version: 2,
-                rootPath: approvedRoot,
-                activePath: "inventory-fixture",
-              }),
-            ),
-          rootPath,
-        );
-        let opens = 0;
-        pending.on("request", (request) => {
-          if (new URL(request.url()).pathname === "/api/project") opens += 1;
-        });
-        await pending.route("**/api/roots", async (route) => {
-          await rootGate;
-          await route.continue();
-        });
-        const requested = pending.waitForRequest(
-          (request) => new URL(request.url()).pathname === "/api/roots",
-        );
-        await pending.goto(startUrl, { waitUntil: "load" });
-        await requested;
-        await pending.evaluate(() => {
-          history.pushState(null, "", "/?section=settings");
-          window.dispatchEvent(new PopStateEvent("popstate"));
-        });
-        await pending.locator("#app-theme").waitFor({ state: "visible" });
-        releaseRoot();
-        await pending
-          .locator(".root-copy span")
-          .filter({ hasText: rootPath })
-          .waitFor({ state: "attached" });
-        if (new URL(pending.url()).searchParams.get("section") !== "settings" || opens !== 0)
-          throw new Error("Root completion replaced explicit Settings with the stored project");
-        await pending.locator("#app-theme").waitFor({ state: "visible" });
-      } finally {
-        releaseRoot();
-      }
-    });
-
-    for (const invalidPath of ["../escape", "/absolute", "safe//child", "safe/"]) {
-      await withQaContext(browser, { serviceWorkers: "block" }, async (invalid) => {
-        invalid.setDefaultTimeout(10_000);
-        const page = await invalid.newPage();
-        await page.addInitScript(
-          ({ rootPath, invalidPath }) => {
-            localStorage.setItem(
-              "git-review:workspace:v4",
-              JSON.stringify({ version: 4, rootPath, recentPaths: [invalidPath] }),
-            );
-            sessionStorage.setItem(
-              "git-review:active-project:v2",
-              JSON.stringify({ version: 2, rootPath, activePath: invalidPath }),
-            );
-          },
-          { rootPath, invalidPath },
-        );
-        let lookups = 0;
-        page.on("request", (request) => {
-          if (new URL(request.url()).pathname === "/api/project") lookups += 1;
-        });
-        await page.goto(startUrl);
-        await page.locator(".folder-row", { hasText: "inventory-fixture" }).waitFor();
-        await page.locator(".welcome h1").waitFor();
-        if (page.url() !== new URL("/?section=projects", url).href || lookups !== 0)
-          throw new Error("Invalid saved paths restored a route or attempted to open a project");
-      });
-    }
-
-    await withQaContext(browser, {}, async (context) => {
-      context.setDefaultTimeout(10_000);
-      const page = await context.newPage();
-      await context.addInitScript((approvedRoot) => {
-        if (sessionStorage.getItem("qa:seeded") !== null) return;
-        sessionStorage.setItem("qa:seeded", "true");
-        localStorage.setItem(
-          "git-review:workspace:v3",
-          JSON.stringify({
-            version: 3,
-            rootPath: approvedRoot,
-            recentPaths: ["inventory-fixture"],
-          }),
-        );
+  await withQaContext(browser, { serviceWorkers: "block" }, async (context) => {
+    await context.addInitScript(
+      ({ key, root, endpoint }) => {
+        if (location.origin !== endpoint) return;
         sessionStorage.setItem(
-          "git-review:active-project:v1",
+          key,
           JSON.stringify({
             version: 1,
-            rootPath: approvedRoot,
-            activePath: "inventory-fixture",
+            endpoint,
+            rootPath: root,
+            relativePath: "inventory-fixture",
+            projectPath: root + "/inventory-fixture",
           }),
         );
-        localStorage.setItem("git-review:comments:v1:obsolete", "old review data");
-        localStorage.setItem("unrelated", "keep");
-      }, rootPath);
-      await page.goto(startUrl);
-      await page.locator(".welcome h1").waitFor();
-      const state = await page.evaluate(() => ({
-        oldWorkspace: localStorage.getItem("git-review:workspace:v3"),
-        oldComments: localStorage.getItem("git-review:comments:v1:obsolete"),
-        oldSession: sessionStorage.getItem("git-review:active-project:v1"),
-        unrelated: localStorage.getItem("unrelated"),
-      }));
-      if (
-        state.oldWorkspace !== null ||
-        state.oldComments !== null ||
-        state.oldSession !== null ||
-        state.unrelated !== "keep"
-      )
-        throw new Error("Obsolete project data was not discarded with a scoped reset");
-      await page.reload();
-      await page.locator(".welcome h1").waitFor();
+      },
+      { key: agentActiveProjectKey, root: rootPath, endpoint: url.origin },
+    );
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
     });
+    const page = await context.newPage();
+    try {
+      await page.route("**/api/roots", async (route) => {
+        await gate;
+        await route.continue().catch(() => {});
+      });
+      await page.route("**/api/project?*", async (route) => {
+        await gate;
+        await route.continue().catch(() => {});
+      });
+      await page.goto(url.href);
+      await page.evaluate(() => {
+        history.pushState(null, "", "/?section=settings");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      });
+      await page.locator("#app-theme").waitFor();
+      release();
+      await page
+        .locator(".root-copy span")
+        .filter({ hasText: rootPath })
+        .waitFor({ state: "attached" });
+      assert(
+        new URL(page.url()).searchParams.get("section") === "settings",
+        "Late startup reads replaced explicit Settings",
+      );
+    } finally {
+      release();
+    }
+  });
+
+  for (const invalidPath of ["../escape", "/absolute", "safe//child", "safe/"]) {
+    await withQaContext(browser, { serviceWorkers: "block" }, async (context) => {
+      await context.addInitScript(
+        ({ key, root, endpoint, path }) => {
+          if (location.origin !== endpoint) return;
+          sessionStorage.setItem(
+            key,
+            JSON.stringify({
+              version: 1,
+              endpoint,
+              rootPath: root,
+              relativePath: path,
+              projectPath: root + "/" + path,
+            }),
+          );
+        },
+        { key: agentActiveProjectKey, root: rootPath, endpoint: url.origin, path: invalidPath },
+      );
+      const page = await context.newPage();
+      let lookups = 0;
+      page.on("request", (request) => {
+        if (new URL(request.url()).pathname === "/api/project") lookups += 1;
+      });
+      await page.goto(url.href);
+      await page.locator(".welcome h1").waitFor();
+      assert(lookups === 0, "Invalid tab metadata opened a project");
+    });
+  }
+  await withQaContext(browser, {}, async (context) => {
+    await context.addInitScript(() => {
+      if (location.origin === "null") return;
+      localStorage.setItem("git-review:workspace:v3", "retired");
+      localStorage.setItem("git-review:comments:v1:obsolete", "retired");
+      localStorage.setItem("unrelated", "keep");
+    });
+    const page = await context.newPage();
+    await page.goto(url.href);
+    await page.locator(".welcome h1").waitFor();
+    assert(
+      await page.evaluate(
+        () =>
+          localStorage.getItem("unrelated") === "keep" &&
+          localStorage.getItem("git-review:comments:v1:obsolete") === "retired",
+      ),
+      "New storage touched unsupported or unrelated source keys",
+    );
   });
   console.log(
-    "Independent project tabs, reload and bare / restoration, explicit-link priority, delayed root completion, shared recents, invalid-path recovery, and scoped obsolete-data reset passed.",
+    "Endpoint-owned tab restoration, canonical explicit routes, shared root recents, startup races, invalid metadata, and retained source keys passed.",
   );
 });

@@ -42,15 +42,11 @@ await withQaBrowser(async (browser) => {
       await page.getByRole("button", { name: "Save comment" }).click();
       await page.locator(".comment-editor").waitFor({ state: "detached" });
       await page.waitForFunction(() => document.documentElement.style.overflow !== "hidden");
-      const savedDraft = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v3:")),
-      );
+      const savedDraft = await page.evaluate(() => window.reviewDataQa.commentRecords());
       await page.getByRole("button", { name: "Collapse all", exact: true }).click();
       await page.getByRole("button", { name: "Expand all", exact: true }).click();
       await card.locator(".diff-code").first().waitFor();
-      const afterBulk = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:v3:")),
-      );
+      const afterBulk = await page.evaluate(() => window.reviewDataQa.commentRecords());
       if (JSON.stringify(afterBulk) !== JSON.stringify(savedDraft))
         throw new Error("Bulk actions changed saved feedback");
       // Restore this flow's single-card setup before controlled reattachment reads.
@@ -76,7 +72,7 @@ await withQaBrowser(async (browser) => {
         throw new Error(`Incorrect feedback preview: ${preview}`);
       await context.storageState({ path: "qa/.artifacts/feedback-storage.json" });
       const activeSession = await page.evaluate(() =>
-        sessionStorage.getItem("git-review:active-project:v2"),
+        sessionStorage.getItem("git-review:agents:v1:active-project"),
       );
       if (activeSession === null) throw new Error("Expected an active project in this tab");
       await copy.click();
@@ -98,7 +94,7 @@ await withQaBrowser(async (browser) => {
       await fallback.addInitScript(
         ({ origin, activeSession }) => {
           if (location.origin === origin)
-            sessionStorage.setItem("git-review:active-project:v2", activeSession);
+            sessionStorage.setItem("git-review:agents:v1:active-project", activeSession);
         },
         { origin: base.origin, activeSession },
       );
@@ -134,19 +130,28 @@ await withQaBrowser(async (browser) => {
       if ((await fallbackPage.locator("#review-export-text").count()) !== 0)
         throw new Error("Outdated feedback remained selectable for export");
 
-      const storedKey = await fallbackPage.evaluate(() =>
-        Object.keys(localStorage).find((key) => key.startsWith("git-review:comments:v3:")),
+      const storedKey = await fallbackPage.evaluate(
+        () =>
+          window.reviewDataQa
+            .commentRecords()
+            .find(([, raw]) => raw.includes("Please explain"))?.[0],
       );
       if (storedKey === undefined) throw new Error("Missing persisted review for reattachment");
       const commentKey: string = storedKey;
       async function savedStore() {
-        const value: unknown = await fallbackPage.evaluate(
-          (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
-          commentKey,
-        );
+        const value: unknown = await fallbackPage.evaluate((key) => {
+          const raw: unknown = JSON.parse(localStorage.getItem(key) ?? "null");
+          if (typeof raw !== "object" || raw === null || !("comments" in raw)) return null;
+          return raw.comments;
+        }, commentKey);
         const store = validateCommentStore(
           value,
-          decodeURIComponent(commentKey.slice("git-review:comments:v3:".length)),
+          typeof value === "object" &&
+            value !== null &&
+            "projectPath" in value &&
+            typeof value.projectPath === "string"
+            ? value.projectPath
+            : "",
         );
         if (store === null) throw new Error("Reattachment produced an invalid persisted review");
         return store;

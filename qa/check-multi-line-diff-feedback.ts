@@ -4,7 +4,6 @@ import type { Page } from "playwright-core";
 import { parseProjectResponse } from "@git-review/shared/api";
 import { responseBody } from "../apps/web/src/api.ts";
 import {
-  commentStoragePrefix,
   formatFeedback,
   validateCommentStore,
   type CommentStore,
@@ -42,8 +41,8 @@ const previous = await readFile(untrackedPath, "utf8").catch((error: unknown) =>
   if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
   throw error;
 });
-const key = commentStoragePrefix + encodeURIComponent(project.absolutePath);
-const contextKey = commentStoragePrefix + encodeURIComponent(contextProject.absolutePath);
+const key = project.absolutePath;
+const contextKey = contextProject.absolutePath;
 const url = (folder: string, layer: string, file: string) =>
   `${origin}/?${new URLSearchParams({ section: "changes", project: folder, layer, file })}`;
 function assert(value: boolean, message: string): asserts value {
@@ -51,7 +50,7 @@ function assert(value: boolean, message: string): asserts value {
 }
 async function store(page: Page, context = false): Promise<CommentStore> {
   const raw: unknown = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown,
+    (key) => window.reviewDataQa.readComments(key),
     context ? contextKey : key,
   );
   const parsed = validateCommentStore(

@@ -1,7 +1,8 @@
-import { readAppearance, resolveAppearance } from "./storage.ts";
+import { resolveAppearance } from "./storage.ts";
+import { readBootstrapAppearance } from "./browser-data.ts";
 
 const { appTheme, codeTheme } = resolveAppearance(
-  readAppearance(),
+  readBootstrapAppearance(),
   window.matchMedia("(prefers-color-scheme: dark)").matches,
 );
 document.documentElement.dataset["appTheme"] = appTheme;

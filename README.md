@@ -82,8 +82,11 @@ Git data; offline navigation shows an app-unavailable page.
 Browser storage is separate between HTTP and HTTPS, and an iPhone Home Screen app may also have
 separate storage from Safari. In the old address, open **Settings → Install & local data → Export
 local review data**, then import the downloaded JSON file in the new address or installed app. The
-file stays on the device. Import previews the record counts and requires an explicit replace action;
-matching project records are replaced while other projects are kept.
+file stays on the device. If the old address shows the host-assignment screen, preview the intended
+agent and use **Export assigned backup** there. Legacy files require host assignment in the new app;
+new files retain their associations. Keep the old address available through this transfer and reload
+older tabs afterward. [Local data](docs/independent-tabs-and-pwa-proposal.md#local-data-and-backups)
+owns conversion and replacement behavior.
 
 ## Build the static frontend
 

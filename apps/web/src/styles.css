@@ -2686,3 +2686,51 @@ span.select-control > select {
   gap: var(--space-1);
   margin-top: var(--space-4);
 }
+
+.local-data-setup {
+  max-width: 680px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: var(--space-5);
+}
+.local-data-setup h1 {
+  color: var(--color-heading);
+  font-size: var(--font-size-26);
+  overflow-wrap: anywhere;
+}
+.agent-endpoint-field {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-13);
+}
+.agent-endpoint-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-heading);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: var(--font-size-16);
+}
+.install-preview ul {
+  padding-left: var(--space-5);
+  overflow-wrap: anywhere;
+}
+.backup-host {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.local-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.local-data-actions button {
+  margin: 0;
+}

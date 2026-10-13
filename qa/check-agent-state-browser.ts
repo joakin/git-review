@@ -65,10 +65,10 @@ export async function checkAgentState(
         canonical.searchParams.get("line") === "1",
       "Legacy alias lost its explicit canonical destination",
     );
-    const legacyStore = await page.evaluate(() =>
-      Object.entries(localStorage).filter(([key]) => key.startsWith("git-review:comments:")),
+    const storedDrafts = await page.evaluate(() =>
+      window.reviewDataQa.commentRecords().some(([, value]) => value.includes('"drafts":[{')),
     );
-    assert(legacyStore.length === 0, "The fixture already has comments");
+    assert(!storedDrafts, "The fixture already has comments");
     await edit("Pending editor from first agent");
     await move(destination("b"));
     await text("b");
@@ -83,16 +83,20 @@ export async function checkAgentState(
     await feedback("Pending editor from second agent");
     await page.getByRole("button", { name: "Close feedback", exact: true }).click();
     const persisted = await page.evaluate(() =>
-      Object.entries(localStorage)
-        .filter(([key]) => key.startsWith("git-review:comments:"))
+      window.reviewDataQa
+        .commentRecords()
         .map(([, value]) => value)
         .join("\n"),
     );
     assert(
       persisted.includes("Pending editor from first agent") &&
-        !persisted.includes("Pending editor from second agent"),
-      "Another host read or overwrote path-only legacy feedback",
+        persisted.includes("Pending editor from second agent"),
+      "A host's saved feedback was lost",
     );
+    await page.reload();
+    await text("b");
+    await feedback("Pending editor from second agent");
+    await page.getByRole("button", { name: "Close feedback", exact: true }).click();
 
     await move(destination("a"));
     await text("a");
@@ -294,7 +298,7 @@ export async function checkAgentState(
     await page.getByRole("button", { name: "Feedback 2", exact: true }).waitFor();
     await page.evaluate(() => Reflect.deleteProperty(navigator.clipboard, "writeText"));
     console.log(
-      "Endpoint-owned frontend: canonical aliases, pending editors, legacy storage isolation, held feedback/file/diff/media, shared clipboard lease and canceled queued copies, Git caches, Back/Forward, rapid transitions, independent tabs and root-independent canonical opening passed",
+      "Endpoint-owned frontend: canonical aliases, pending editors, persisted feedback across agents and reload, held feedback/file/diff/media, shared clipboard lease and canceled queued copies, Git caches, Back/Forward, rapid transitions, independent tabs and root-independent canonical opening passed",
     );
   } finally {
     fixture.rootUnavailable = false;

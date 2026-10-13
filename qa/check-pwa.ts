@@ -1,3 +1,4 @@
+import { parseAgentBackup } from "../apps/web/src/agent-data-format.ts";
 import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
 
 const rawUrl = process.argv[2];
@@ -73,45 +74,21 @@ await withQaBrowser(async (browser) => {
     const downloadPath = await download.path();
     if (downloadPath === null) throw new Error("Backup download did not complete");
     const backupBytes = await Bun.file(downloadPath).arrayBuffer();
-    const backup: unknown = JSON.parse(new TextDecoder().decode(backupBytes)) as unknown;
+    const backup = parseAgentBackup(JSON.parse(new TextDecoder().decode(backupBytes)) as unknown);
     if (
-      typeof backup !== "object" ||
-      backup === null ||
-      !("comments" in backup) ||
-      !Array.isArray(backup.comments) ||
-      backup.comments.length !== 1
+      backup.reviews.length !== 1 ||
+      backup.catalog.global.codeTypography.fontSize !== 17 ||
+      backup.catalog.global.codeTypography.fontFamily !== "courier" ||
+      backup.catalog.global.appearance.appTheme !== "dark" ||
+      backup.catalog.global.appearance.codeTheme !== "light"
     )
-      throw new Error("Export omitted the review record");
-    if (
-      !("version" in backup) ||
-      backup.version !== 7 ||
-      !("codeTypography" in backup) ||
-      typeof backup.codeTypography !== "object" ||
-      backup.codeTypography === null ||
-      !("fontSize" in backup.codeTypography) ||
-      backup.codeTypography.fontSize !== 17 ||
-      !("fontFamily" in backup.codeTypography) ||
-      backup.codeTypography.fontFamily !== "courier"
-    )
-      throw new Error("Export omitted code typography");
-    if (
-      !("appearance" in backup) ||
-      typeof backup.appearance !== "object" ||
-      backup.appearance === null ||
-      !("appTheme" in backup.appearance) ||
-      backup.appearance.appTheme !== "dark" ||
-      !("codeTheme" in backup.appearance) ||
-      backup.appearance.codeTheme !== "light"
-    )
-      throw new Error("Export omitted appearance");
+      throw new Error("Export omitted feedback, typography or appearance");
     await dialog.locator('input[type="file"]').setInputFiles({
       name: "backup.json",
       mimeType: "application/json",
       buffer: Buffer.from(backupBytes),
     });
-    await dialog
-      .getByText("including 1 existing draft", { exact: false })
-      .waitFor({ state: "visible" });
+    await dialog.getByText("1 existing draft", { exact: false }).waitFor({ state: "visible" });
 
     await withQaContext(browser, qaProfiles.phone, async (fresh) => {
       const freshPage = await fresh.newPage();

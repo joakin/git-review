@@ -230,33 +230,37 @@ await withQaBrowser(async (browser) => {
 
     await page.locator("#code-font-size").selectOption("16");
     await page.locator("#code-font-family").selectOption("courier");
-    await other.evaluate(() => localStorage.setItem("git-review:appearance:v1", "{invalid JSON"));
-    await page.waitForFunction(
-      () =>
-        document.querySelector<HTMLSelectElement>("#app-theme")?.value === "light" &&
-        document.querySelector<HTMLSelectElement>("#code-theme")?.value === "match" &&
-        document.documentElement.dataset["codeTheme"] === "light",
+    const originalHead = await other.evaluate(() =>
+      localStorage.getItem("git-review:agents:v1:catalog"),
     );
+    await other.evaluate(() => {
+      const raw: unknown = JSON.parse(
+        localStorage.getItem("git-review:agents:v1:catalog") ?? "null",
+      );
+      if (typeof raw !== "object" || raw === null || !("catalog" in raw))
+        throw new Error("Missing catalog");
+      const catalog = raw.catalog;
+      if (typeof catalog !== "object" || catalog === null || !("global" in catalog))
+        throw new Error("Missing preferences");
+      catalog.global = { appearance: "invalid", wrap: true, codeTypography: null };
+      localStorage.setItem("git-review:agents:v1:catalog", JSON.stringify(raw));
+    });
+    await page.getByRole("alert").filter({ hasText: "Invalid global preferences" }).waitFor();
     if (
       (await page.locator("#code-font-size").inputValue()) !== "16" ||
-      (await page.locator("#code-font-family").inputValue()) !== "courier"
+      (await page.locator("#code-font-family").inputValue()) !== "courier" ||
+      (await page.locator("#app-theme").inputValue()) !== "dark"
     )
-      throw new Error("Invalid cross-tab appearance changed typography");
-    await page.locator("#app-theme").selectOption("dark");
-    await other.evaluate(() =>
-      localStorage.setItem(
-        "git-review:code-typography:v1",
-        JSON.stringify({ version: 1, fontSize: 99, fontFamily: "courier" }),
-      ),
+      throw new Error("Invalid catalog replaced usable preferences");
+    if (originalHead === null) throw new Error("Missing original preferences");
+    await other.evaluate(
+      (raw) => localStorage.setItem("git-review:agents:v1:catalog", raw),
+      originalHead,
     );
-    await page.waitForFunction(
-      () =>
-        document.querySelector<HTMLSelectElement>("#code-font-size")?.value === "12" &&
-        document.querySelector<HTMLSelectElement>("#code-font-family")?.value === "system",
-    );
-    if ((await page.locator("#app-theme").inputValue()) !== "dark")
-      throw new Error("Invalid cross-tab typography changed appearance");
-    await page.locator("#code-font-size").selectOption("16");
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Invalid global preferences" })
+      .waitFor({ state: "hidden" });
     await other.evaluate(() => localStorage.clear());
     await page.waitForFunction(
       () =>
@@ -277,6 +281,7 @@ await withQaBrowser(async (browser) => {
       });
       const denied = await deniedContext.newPage();
       await denied.goto(url, { waitUntil: "load" });
+      await denied.getByRole("button", { name: "Continue with temporary reviews" }).click();
       await denied.locator(".project-switch").click();
       await denied.locator(".sidebar-settings").click();
       await denied.locator("#app-theme").selectOption("dark");
@@ -298,6 +303,9 @@ await withQaBrowser(async (browser) => {
       if (deniedPreview.size !== "17px" || !deniedPreview.family.includes("Courier"))
         throw new Error("Unavailable storage prevented in-memory typography changes");
       await denied.reload({ waitUntil: "load" });
+      await denied.getByRole("button", { name: "Continue with temporary reviews" }).click();
+      await denied.locator(".project-switch").click();
+      await denied.locator(".sidebar-settings").click();
       await denied.locator("#app-theme").waitFor({ state: "visible" });
       if (
         (await denied.locator("#app-theme").inputValue()) !== "light" ||

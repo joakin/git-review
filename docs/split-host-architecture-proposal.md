@@ -1,9 +1,9 @@
 # Split host implementation plan
 
-Architecture agreed on 2026-10-13. Steps 2–8 are committed; step 9 is next. Cloud/device feasibility
-remains pending. This record owns remaining work and release acceptance; implemented contracts
-belong to the linked behavior records. Git retains the original research, proposals and delivery
-history.
+Architecture agreed on 2026-10-13. Steps 2–9 are committed; step 10 is next. Cloud/device
+feasibility remains pending. This record owns remaining work and release acceptance; implemented
+contracts belong to the linked behavior records. Git retains the original research, proposals and
+delivery history.
 
 ## First release and agreed boundaries
 
@@ -99,28 +99,15 @@ and [local data](independent-tabs-and-pwa-proposal.md#local-data-and-backups) ow
 
 ### 8. Build persistence and backup foundations
 
-[The dormant foundation](independent-tabs-and-pwa-proposal.md#endpoint-owned-foundation-not-yet-activated)
-owns storage and backup behavior. [Foundation QA](qa-workflow.md#endpoint-owned-data-foundation)
-owns the command. Activation belongs to step 9.
+[The local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns storage and
+backup behavior. [Foundation QA](qa-workflow.md#endpoint-owned-data-foundation) owns the command.
+Activation belongs to step 9.
 
 ### 9. Activate persistence with explicit legacy conversion
 
-Before frontend-origin cutover, provide a preview that assigns existing path-only review data to an
-explicit intended endpoint. Scope conversion to currently supported source formats, retain draft
-IDs/bodies/anchors/timestamps and exact history, and do not automatically map old data to the first
-cloud host. Supported legacy backups use the same explicit assignment flow.
-
-Write and verify new records before publishing completed migration state or retiring old records.
-Failed/partial writes preserve the legacy source and a recoverable review; partial conversion must
-not become authoritative. Never repeatedly import later writes from an older tab. Explain that old
-tabs need reloading, and retain the existing limit that concurrent edits have no conflict
-resolution. Import previews replacement of matching endpoint/project records; unrelated reviews
-remain intact.
-
-Review checkpoint: same-origin conversion, offline import/export, interrupted/quota-failed writes,
-and a real old-origin export/new-origin import exercise. Old-origin browser storage cannot be read
-by the new origin. Document backup transfer before redirecting users to the new static site, and
-keep the old-origin export path available through the migration period.
+[Local data](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns activation, explicit
+legacy assignment, conversion and global backup behavior.
+[Cutover QA](qa-workflow.md#endpoint-owned-data-foundation) owns the runnable check.
 
 ### 10. Make saved feedback independent of live source
 

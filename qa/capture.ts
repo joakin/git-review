@@ -9,7 +9,9 @@ type CaptureOptions = {
   label: string;
   ready: string | null;
   actions: Array<
-    { kind: "click"; selector: string } | { kind: "fill"; selector: string; value: string }
+    | { kind: "click"; selector: string }
+    | { kind: "fill"; selector: string; value: string }
+    | { kind: "file"; selector: string; path: string }
   >;
   afterClickReady: string | null;
   fullPage: boolean;
@@ -48,6 +50,7 @@ Options:
   --ready <CSS selector>  Wait for a visible element before each screenshot
   --click <CSS selector>  Click a control after the page is ready; repeat to click in sequence
   --fill <CSS selector> <value>  Fill an input in sequence with clicks
+  --file <CSS selector> <path>  Attach a local file to an input in sequence
   --after-click-ready <CSS selector> Wait for content after the click
   --storage-state <file> Use a saved Playwright browser state for every viewport
   --active-path <path>  Select this host-relative project in each viewport tab
@@ -117,6 +120,14 @@ function parseArgs(args: readonly string[]): ParsedArgs {
           kind: "fill",
           selector: readValue(args, index, flag),
           value: readValue(args, index + 1, flag),
+        });
+        index += 2;
+        break;
+      case "--file":
+        actions.push({
+          kind: "file",
+          selector: readValue(args, index, flag),
+          path: resolve(readValue(args, index + 1, flag)),
         });
         index += 2;
         break;
@@ -284,7 +295,8 @@ async function capture(options: CaptureOptions): Promise<void> {
         }
         for (const action of options.actions) {
           if (action.kind === "click") await page.locator(action.selector).click();
-          else await page.locator(action.selector).fill(action.value);
+          else if (action.kind === "fill") await page.locator(action.selector).fill(action.value);
+          else await page.locator(action.selector).setInputFiles(action.path);
         }
         if (options.afterClickReady !== null) {
           await page

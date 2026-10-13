@@ -188,9 +188,9 @@ behavior remain release gates. Runtime connection policy belongs in the
 Add `--state`: `bun qa/check-agent-transport.ts --state`. The QA-only bootstrap configures both
 agents through [the state fixture](../qa/agent-state-fixture.ts); the second agent deliberately
 returns different content for equal canonical paths/version IDs. Exact scenarios belong to the
-[browser check](../qa/check-agent-state-browser.ts). Its second-agent review/preferences use tab
-memory, so they do not survive reload. The normal bootstrap still configures only the page-origin
-agent.
+[browser check](../qa/check-agent-state-browser.ts). Its second-agent review/preferences use the
+current persistence port. Fixture storage helpers are injected into disposable QA contexts; they
+seed and inspect the current format without changing the application's storage APIs.
 
 Add `--capture <new-milestone>` to capture the unknown-host screen at all four sizes through
 `bun run qa:capture`.
@@ -202,7 +202,12 @@ Run `bun qa/check-agent-data.ts`; it needs Chrome and no existing app/agent fixt
 storage and cleans up its servers/browser contexts. Its QA-only bundle leaves the production
 bootstrap and running app alone. Exact scenarios belong to the script and
 [unit tests](../apps/web/src/agent-data.test.ts); behavior and evidence belong to the
-[local-data owner](independent-tabs-and-pwa-proposal.md#endpoint-owned-foundation-not-yet-activated).
+[local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups).
+
+For the activated UI, run `bun qa/check-agent-transport.ts --data`. The
+[cutover check](../qa/check-agent-data-activation.ts) owns its scenarios and temporary origins. Add
+`--capture <new-milestone>` for conversion/import previews at all four sizes. The capture tool's
+`--file <selector> <path>` action attaches a backup through the native input.
 
 ### Split-host feasibility probe
 

@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
-import { createProjectState } from "./project-state.ts";
+import { createBrowserData, memoryDataStorage } from "./browser-data.ts";
 import { emptyCommentStore } from "./comments.ts";
 import { projectResourceKey } from "./agent-project.ts";
 
-test("equal paths on two memory owners keep comments, preferences, recents and tab restoration separate", () => {
-  const a = createProjectState("memory");
-  const b = createProjectState("memory");
+test("equal paths on two persistent owners keep comments, preferences, recents and tab restoration separate", () => {
+  const data = createBrowserData(memoryDataStorage(), memoryDataStorage());
+  const a = data.projectState("https://a.example");
+  const b = data.projectState("https://b.example");
   const path = "/workspace/repo";
   const value = {
     ...emptyCommentStore(path),

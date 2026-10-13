@@ -1,20 +1,16 @@
 import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { googleFontStylesheet } from "./code-fonts.ts";
 import {
-  appearanceStorageKey,
-  codeTypographyStorageKey,
   defaultAppearance,
   defaultCodeTypography,
-  readAppearance,
-  readCodeTypography,
   resolveAppearance,
-  saveAppearance,
-  saveCodeTypography,
   validateAppearance,
   validateCodeTypography,
   type Appearance,
   type CodeTypography,
 } from "./storage.ts";
+import { useBrowserData } from "./BrowserDataProvider.tsx";
+import { agentCatalogStorageKey } from "./agent-data.ts";
 
 type AppearancePreferences = {
   appearance: Appearance;
@@ -26,17 +22,20 @@ type AppearancePreferences = {
 };
 
 export function useAppearancePreferences(): AppearancePreferences {
-  const [appearance, setAppearance] = useState(readAppearance);
-  const [typography, setTypography] = useState(readCodeTypography);
+  const data = useBrowserData();
+  const [appearance, setAppearance] = useState(() => data.readGlobal().appearance);
+  const [typography, setTypography] = useState(() => data.readGlobal().codeTypography);
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
-      if (event.key === codeTypographyStorageKey || event.key === null)
-        setTypography(readCodeTypography());
-      if (event.key === appearanceStorageKey || event.key === null) setAppearance(readAppearance());
+      if (event.key === agentCatalogStorageKey || event.key === null) {
+        const global = data.readGlobal(true);
+        setTypography(global.codeTypography);
+        setAppearance(global.appearance);
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -71,14 +70,14 @@ export function useAppearancePreferences(): AppearancePreferences {
     const validated = validateAppearance(next);
     if (validated === null) return;
     setAppearance(validated);
-    saveAppearance(validated);
+    data.saveGlobal({ appearance: validated });
   }
 
   function changeTypography(next: CodeTypography): void {
     const validated = validateCodeTypography(next);
     if (validated === null) return;
     setTypography(validated);
-    saveCodeTypography(validated);
+    data.saveGlobal({ codeTypography: validated });
   }
 
   return {

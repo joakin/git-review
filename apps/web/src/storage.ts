@@ -10,7 +10,7 @@ export const appearanceStorageKey = "git-review:appearance:v1";
 export const openCardsStoragePrefix = "git-review:open-cards:v2:";
 export const languageStoragePrefix = "git-review:language:v2:";
 const maxRecent = 8;
-const maxOpenCards = 100;
+export const maxOpenCards = 100;
 
 export type CodeTypography = { version: 1; fontSize: number; fontFamily: CodeFontFamily };
 export const defaultCodeTypography: CodeTypography = {

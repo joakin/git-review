@@ -3,7 +3,7 @@ import { projectLookupResponse } from "./browser-support.ts";
 import { writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { type Page } from "playwright-core";
-import { parseReviewBackup } from "../apps/web/src/backup.ts";
+import { parseAgentBackup } from "../apps/web/src/agent-data-format.ts";
 import { responseBody } from "../apps/web/src/api.ts";
 import {
   anchorForLine,
@@ -85,7 +85,7 @@ const seed = {
     },
   ],
 };
-const key = `git-review:comments:v3:${encodeURIComponent(project.absolutePath)}`;
+const key = project.absolutePath;
 const fileUrl = `${origin}/?${new URLSearchParams({ section: "files", project: project.relativePath, file: path })}`;
 const views = [
   { width: 320, height: 740, touch: true },
@@ -99,7 +99,7 @@ function assert(value: boolean, message: string): asserts value {
 }
 async function readStore(page: Page): Promise<CommentStore> {
   const raw: unknown = await page.evaluate(
-    (storageKey) => JSON.parse(localStorage.getItem(storageKey) ?? "null") as unknown,
+    (storageKey) => window.reviewDataQa.readComments(storageKey),
     key,
   );
   const store = validateCommentStore(raw, project.absolutePath);
@@ -158,9 +158,9 @@ try {
       };
       await withQaContext(browser, options, async (context) => {
         await context.addInitScript(
-          ({ storageKey, legacy, appOrigin }) => {
+          ({ legacy, appOrigin }) => {
             if (window.location.origin !== appOrigin) return;
-            localStorage.setItem(storageKey, JSON.stringify(legacy));
+            window.reviewDataQa.writeComments(legacy);
           },
           { storageKey: key, legacy: seed, appOrigin: origin },
         );
@@ -175,7 +175,7 @@ try {
           "CRLF created extra file lines",
         );
         const saved: unknown = await page.evaluate(
-          (storageKey) => JSON.parse(localStorage.getItem(storageKey) ?? "null") as unknown,
+          (storageKey) => window.reviewDataQa.readComments(storageKey),
           key,
         );
         assert(
@@ -280,14 +280,13 @@ try {
             const downloadPath = await download.path();
             assert(downloadPath !== null, "Mixed backup download did not complete");
             const bytes = await Bun.file(downloadPath).arrayBuffer();
-            const backup = parseReviewBackup(
-              JSON.parse(new TextDecoder().decode(bytes)) as unknown,
-              resolve("qa/.artifacts"),
-            );
+            const backup = parseAgentBackup(JSON.parse(new TextDecoder().decode(bytes)) as unknown);
             assert(
-              backup.version === 7 &&
-                backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "file") === true &&
-                backup.comments[0]?.drafts.some((draft) => draft.anchor.kind === "diff") === true,
+              backup.version === 1 &&
+                backup.reviews[0]?.comments.drafts.some((draft) => draft.anchor.kind === "file") ===
+                  true &&
+                backup.reviews[0]?.comments.drafts.some((draft) => draft.anchor.kind === "diff") ===
+                  true,
               "Export omitted mixed comment sources",
             );
             await withQaContext(
@@ -314,7 +313,8 @@ try {
                   .getByRole("button", { name: "Import and replace matching data", exact: true })
                   .click();
                 assert(
-                  JSON.stringify(await readStore(fresh)) === JSON.stringify(backup.comments[0]),
+                  JSON.stringify(await readStore(fresh)) ===
+                    JSON.stringify(backup.reviews[0]?.comments),
                   "Mixed import changed draft anchors or history",
                 );
                 await fresh.goto(fileUrl, { waitUntil: "load" });

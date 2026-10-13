@@ -4,7 +4,6 @@ import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { expectRecord, expectString } from "@git-review/shared/validation";
 import {
-  commentStoragePrefix,
   emptyCommentStore,
   validateCommentStore,
   type DraftComment,
@@ -193,11 +192,14 @@ try {
           validateCommentStore(store, "/fixture") !== null,
           "Saved-data QA fixture is invalid",
         );
-        const savedKey = `${commentStoragePrefix}${encodeURIComponent(store.projectPath)}`;
-        const savedText = JSON.stringify(store);
+        await page.evaluate((store) => window.reviewDataQa.writeComments(store), store);
+        const savedKey = await page.evaluate(
+          (path) => window.reviewDataQa.commentKey(path),
+          store.projectPath,
+        );
+        const savedText = await page.evaluate((key) => localStorage.getItem(key), savedKey);
         await page.evaluate(
-          async ({ savedKey, savedText, mounts }) => {
-            localStorage.setItem(savedKey, savedText);
+          async ({ mounts }) => {
             await caches.open("another-app-cache");
             await caches.open("git-review-shell-v1");
             for (const mount of mounts)
