@@ -56,11 +56,11 @@ ownership. The top-layer behavior is described in the
 ## Data and API shape
 
 Notifications live in tab memory, with one provider and viewport and no server API or additional
-dependency. The [store](../src/client/notification-store.ts) owns the typed push operation,
+dependency. The [store](../apps/web/src/notification-store.ts) owns the typed push operation,
 accepting a message, severity, optional deduplication key, optional action and timeout (a duration
 or no timeout), and returns an identifier. Dismissal and replacement use that identifier/key.
 
-The [notification hook and layer](../src/client/Notifications.tsx) deliver notices derived from a
+The [notification hook and layer](../apps/web/src/Notifications.tsx) deliver notices derived from a
 current condition. The hook creates a message only when that condition appears or meaningfully
 changes, updates its action without reannouncing it, and removes it when the condition resolves or
 the resource unmounts. A dismissed condition stays dismissed until it resolves or changes; failed
@@ -70,7 +70,7 @@ remain authoritative for asynchronous results.
 
 ## Verification and device limits
 
-[Lifetime tests](../src/client/notification-store.test.ts) cover persistence, optional expiry,
+[Lifetime tests](../apps/web/src/notification-store.test.ts) cover persistence, optional expiry,
 overlapping pauses, hidden-tab arrivals, deduplication, replacement and timer cleanup.
 [Browser QA](../qa/check-notifications.ts) owns responsive geometry, dismissal, resource cleanup,
 native modal layering and timed-confirmation scenarios. The existing live-change, diff-context,

@@ -1,6 +1,6 @@
 # Checked working-file boundaries
 
-[Working-file access](../src/server/working-files.ts) owns literal path validation, containment,
+[Working-file access](../apps/agent/src/working-files.ts) owns literal path validation, containment,
 no-follow opening, identity rechecks, and descriptor lifetime. Callers retain decoding, limits,
 source interpretation, and content freshness.
 
@@ -39,6 +39,6 @@ Their byte/line limits remain in the source owners rather than this boundary rec
 file-level HTTP 404 becomes `file_not_found` for feedback; identity replacement (HTTP 409) and
 project failures preserve drafts for retry.
 
-[Working-file tests](../src/server/working-files.test.ts) cover containment, literal names,
+[Working-file tests](../apps/agent/src/working-files.test.ts) cover containment, literal names,
 classification, replacement, and descriptor cleanup. Exact access flags and error mappings belong in
-[the implementation](../src/server/working-files.ts); domain tests cover their result policies.
+[the implementation](../apps/agent/src/working-files.ts); domain tests cover their result policies.

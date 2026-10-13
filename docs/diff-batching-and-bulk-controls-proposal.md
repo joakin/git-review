@@ -29,11 +29,11 @@ active request may still serve other expanded cards, but is aborted once none ne
 releases jobs; the queue is not another result cache. Individual Retry and the shared bounded diff
 cache retain their existing behavior.
 
-[diff-batch-queue.ts](../src/client/diff-batch-queue.ts),
-[server/diff-batch.ts](../src/server/diff-batch.ts) and
-[shared/diff-batch.ts](../src/shared/diff-batch.ts) own scheduling, exact limits and correspondence.
-The [card loader](../src/client/diff-loading.ts) owns result lifetime; source adapters keep their
-identity and freshness policy.
+[diff-batch-queue.ts](../apps/web/src/diff-batch-queue.ts),
+[server/diff-batch.ts](../apps/agent/src/diff-batch.ts) and
+[shared/diff-batch.ts](../packages/shared/src/diff-batch.ts) own scheduling, exact limits and
+correspondence. The [card loader](../apps/web/src/diff-loading.ts) owns result lifetime; source
+adapters keep their identity and freshness policy.
 
 ## Source-specific checks
 
@@ -48,12 +48,13 @@ identity and freshness policy.
 - Every request uses the
   [stateless project contract](stateless-project-access-plan.md#project-contract-and-validation) and
   resolves files from the server inventory. Clients supply no rename origin or arbitrary Git
-  expression. [Working-copy](../src/shared/change-diff-batch.ts) and
-  [commit](../src/shared/commit-diff-batch.ts) contracts retain separate version and request shapes.
+  expression. [Working-copy](../packages/shared/src/change-diff-batch.ts) and
+  [commit](../packages/shared/src/commit-diff-batch.ts) contracts retain separate version and
+  request shapes.
 
 Feedback checks retain individual source reads using the latest complete snapshot, while drafts keep
 their original anchors. A stale read preserves drafts for retry. The
-[shared snapshot contract](../src/shared/change-snapshot.ts) owns token validation.
+[shared snapshot contract](../packages/shared/src/change-snapshot.ts) owns token validation.
 
 ## Measurement evidence
 
@@ -81,10 +82,10 @@ These local results do not establish phone or remote-network performance.
 
 ## Verification
 
-[Server batch tests](../src/server/diff-batch.test.ts),
-[Changes tests](../src/server/change-diff-batch.test.ts),
-[commit tests](../src/server/commit-diff-batch.test.ts) and
-[queue tests](../src/client/diff-batch-queue.test.ts) cover bounded work, correspondence, errors,
+[Server batch tests](../apps/agent/src/diff-batch.test.ts),
+[Changes tests](../apps/agent/src/change-diff-batch.test.ts),
+[commit tests](../apps/agent/src/commit-diff-batch.test.ts) and
+[queue tests](../apps/web/src/diff-batch-queue.test.ts) cover bounded work, correspondence, errors,
 cancellation, stale invalidation/fallback, media, scope, shallow parents and root revalidation.
 
 Browser QA covers cancellation with late responses, same-path layers, disabled controls, cache

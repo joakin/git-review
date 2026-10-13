@@ -26,12 +26,12 @@ This does not infer that a shifted block moved.
 
 Spans are sorted, nonempty, nonoverlapping half-open UTF-16 offsets inside the original line and
 cannot split surrogate pairs. Context and skipped/unpaired rows have explicit no-detail state.
-[diff-words.ts](../src/server/diff-words.ts) owns the matching algorithm and per-chunk, per-line and
-per-response work budgets; [shared/api.ts](../src/shared/api.ts) defines and validates the wire
-contract.
+[diff-words.ts](../apps/agent/src/diff-words.ts) owns the matching algorithm and per-chunk, per-line
+and per-response work budgets; [shared/api.ts](../packages/shared/src/api.ts) defines and validates
+the wire contract.
 
 The browser splits syntax tokens at span boundaries while preserving exact concatenated text and
-roles. [diff-detail.ts](../src/client/diff-detail.ts) owns that decoration. CSS supplies the
+roles. [diff-detail.ts](../apps/web/src/diff-detail.ts) owns that decoration. CSS supplies the
 stronger added/removed treatment without adding characters, gutters, row padding or minimum height.
 Selection stays visible over marks, wrapping retains them and horizontal scrolling keeps gutters
 visible. [Syntax](syntax-highlighting-slice.md) and [diff layout](diff-slice.md) retain their own
@@ -39,8 +39,8 @@ contracts.
 
 ## Verification
 
-[Diff-constructor tests](../src/server/diff-content.test.ts) and
-[decoration tests](../src/client/diff-detail.test.ts) cover middle insertions/deletions, clear and
+[Diff-constructor tests](../apps/agent/src/diff-content.test.ts) and
+[decoration tests](../apps/web/src/diff-detail.test.ts) cover middle insertions/deletions, clear and
 ambiguous pairs, punctuation, whitespace, tabs, repeated words, Unicode/surrogates and safe
 large-input fallback. Response validation rejects out-of-order, out-of-bounds or excessive spans.
 Decorated rows must reconstruct their source exactly.

@@ -1,13 +1,13 @@
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Page } from "playwright-core";
-import { parseProjectResponse } from "../src/shared/api.ts";
-import { responseBody } from "../src/client/api.ts";
+import { parseProjectResponse } from "@git-review/shared/api";
+import { responseBody } from "../apps/web/src/api.ts";
 import {
   commentStoragePrefix,
   validateCommentStore,
   type CommentStore,
-} from "../src/client/comments.ts";
+} from "../apps/web/src/comments.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,

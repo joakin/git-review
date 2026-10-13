@@ -1,0 +1,9 @@
+{
+  "name": "@git-review/web",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@git-review/shared": "workspace:*",
+    "preact": "^10.29.8"
+  }
+}

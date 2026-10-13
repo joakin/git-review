@@ -6,7 +6,7 @@ qa/.artifacts/
 
 # Generated capture metadata and image assets
 qa/screenshots/
-src/client/public/icons/
+apps/web/src/public/icons/
 
 # Bun owns the lockfile's format
 bun.lock

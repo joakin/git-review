@@ -1,8 +1,8 @@
 import { mkdir, realpath, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { testGitText as git, withTempDirectory } from "../src/test-support.ts";
-import { parseFileReadResponse } from "../src/shared/api.ts";
-import { projectApiUrl } from "../src/shared/project-path.ts";
+import { testGitText as git, withTempDirectory } from "./test-support.ts";
+import { parseFileReadResponse } from "@git-review/shared/api";
+import { projectApiUrl } from "@git-review/shared/project-path";
 import {
   assertNoHorizontalOverflow,
   qaProfiles,
@@ -38,7 +38,7 @@ await withTempDirectory("git-review-restart-qa-", async (directory) => {
 
   async function start(port: number, rootPath = directory) {
     const process = Bun.spawn(
-      [Bun.which("bun") ?? "bun", "src/server/main.ts", "--root", rootPath, "--port", String(port)],
+      [Bun.which("bun") ?? "bun", "scripts/serve.ts", "--root", rootPath, "--port", String(port)],
       { stdout: "pipe", stderr: "inherit" },
     );
     const reader = process.stdout.getReader();

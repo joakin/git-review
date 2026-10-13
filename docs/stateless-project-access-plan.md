@@ -24,9 +24,10 @@ Project-relative file paths then pass through the
 [working-file boundary](working-file-boundaries.md) or the
 [Git source boundary](git-read-boundaries.md). Repositories remain read-only. No earlier metadata
 lookup, cached approval, or remembered registration is a prerequisite for reading a resource.
-[Project types and parsers](../src/shared/api.ts), [path syntax](../src/shared/project-path.ts),
-[host resolution](../src/server/paths.ts), and [HTTP handlers](../src/server/api.ts) own exact
-formats, route fields, and errors.
+[Project types and parsers](../packages/shared/src/api.ts),
+[path syntax](../packages/shared/src/project-path.ts),
+[host resolution](../apps/agent/src/paths.ts), and [HTTP handlers](../apps/agent/src/api.ts) own
+exact formats, route fields, and errors.
 
 ## State and lifecycle after cutover
 
@@ -61,13 +62,13 @@ against the current root for every read.
 
 ## Evidence and limits
 
-[Stateless API tests](../src/server/stateless-project-api.test.ts) cover every resource on a fresh
-handler, path validation, and changed/missing projects. [Storage](../src/client/storage.test.ts) and
-[backup tests](../src/client/backup.test.ts) cover absolute ownership and root-scoped export.
-[Restart QA](../qa/check-stateless-projects.ts) owns and restarts its isolated backend while keeping
-drafts/editor state, resource reads, checked copy, and retry available. Its same-origin root changes
-also verify review state follows the absolute folder. Run procedures are in the
-[QA catalog](qa-workflow.md#focused-checks).
+[Stateless API tests](../apps/agent/src/stateless-project-api.test.ts) cover every resource on a
+fresh handler, path validation, and changed/missing projects.
+[Storage](../apps/web/src/storage.test.ts) and [backup tests](../apps/web/src/backup.test.ts) cover
+absolute ownership and root-scoped export. [Restart QA](../qa/check-stateless-projects.ts) owns and
+restarts its isolated backend while keeping drafts/editor state, resource reads, checked copy, and
+retry available. Its same-origin root changes also verify review state follows the absolute folder.
+Run procedures are in the [QA catalog](qa-workflow.md#focused-checks).
 
 The accepted cutover and root-change regression passed desktop Chrome checks. Its local-data dialog
 was captured and inspected at [phone](../qa/screenshots/stateless-project-data/mobile.png),

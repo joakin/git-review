@@ -1,24 +1,24 @@
-import { parseFeedbackCheckRequest } from "../src/shared/feedback-check.ts";
-import { projectApiUrl } from "../src/shared/project-path.ts";
+import { parseFeedbackCheckRequest } from "@git-review/shared/feedback-check";
+import { projectApiUrl } from "@git-review/shared/project-path";
 import { projectLookupResponse } from "./browser-support.ts";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Page, Route } from "playwright-core";
 import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
-import { responseBody } from "../src/client/api.ts";
+import { responseBody } from "../apps/web/src/api.ts";
 import {
   anchorForLine,
   validateCommentStore,
   type CommentStore,
   type DraftComment,
-} from "../src/client/comments.ts";
+} from "../apps/web/src/comments.ts";
 import {
   parseDiffResponse,
   parseProjectResponse,
   parseRootResponse,
   parseStatusResponse,
   type Project,
-} from "../src/shared/api.ts";
+} from "@git-review/shared/api";
 
 const rawUrl = process.argv[2];
 const baselineBundle = process.argv[3];

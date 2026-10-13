@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { Browser, Page } from "playwright-core";
-import { expectGitOid } from "../src/shared/git.ts";
-import { expectRecord } from "../src/shared/validation.ts";
+import { expectGitOid } from "@git-review/shared/git";
+import { expectRecord } from "@git-review/shared/validation";
 import { assertNoHorizontalOverflow, qaProfiles, withQaContext } from "./browser-support.ts";
 
 declare global {

@@ -1,12 +1,20 @@
-import { projectApiUrl } from "../src/shared/project-path.ts";
+import { projectApiUrl } from "@git-review/shared/project-path";
 import { projectLookupResponse } from "./browser-support.ts";
 import { writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { type Page } from "playwright-core";
-import { parseReviewBackup } from "../src/client/backup.ts";
-import { responseBody } from "../src/client/api.ts";
-import { anchorForLine, validateCommentStore, type CommentStore } from "../src/client/comments.ts";
-import { parseDiffResponse, parseProjectResponse, parseStatusResponse } from "../src/shared/api.ts";
+import { parseReviewBackup } from "../apps/web/src/backup.ts";
+import { responseBody } from "../apps/web/src/api.ts";
+import {
+  anchorForLine,
+  validateCommentStore,
+  type CommentStore,
+} from "../apps/web/src/comments.ts";
+import {
+  parseDiffResponse,
+  parseProjectResponse,
+  parseStatusResponse,
+} from "@git-review/shared/api";
 import { selectCodeText } from "./select-code-text.ts";
 import {
   appUrl,

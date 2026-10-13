@@ -39,7 +39,7 @@ recovery, so phone entry cannot hide an error in an invisible content pane.
 ## URL and state shape
 
 Routes use the served `/` page, validated query parameters, and the browser History API. The
-[route parser and serializer](../src/client/navigation.ts) define accepted fields, route variants,
+[route parser and serializer](../apps/web/src/navigation.ts) define accepted fields, route variants,
 and input limits. Examples below show decoded values for readability; construct URLs with
 `URLSearchParams`.
 
@@ -47,9 +47,9 @@ and input limits. Examples below show decoded values for readability; construct 
 /?section=projects&dir=client-work
 /?project=git-review&section=changes
 /?project=git-review&section=changes&target=list
-/?project=git-review&section=changes&layer=unstaged&file=src/client/App.tsx
-/?project=git-review&section=files&dir=src/client&file=src/client/App.tsx&line=170
-/?project=git-review&section=search&q=selectedWord&file=src/client/App.tsx&line=170
+/?project=git-review&section=changes&layer=unstaged&file=apps/web/src/App.tsx
+/?project=git-review&section=files&dir=apps/web/src&file=apps/web/src/App.tsx&line=170
+/?project=git-review&section=search&q=selectedWord&file=apps/web/src/App.tsx&line=170
 /?project=git-review&section=git&ref=refs/heads/main&commit=<full-object-id>
 ```
 
@@ -101,8 +101,8 @@ history write, including normalization and Git-ref resolution, preserves the sam
 direct links, unmarked entries, malformed or inconsistent metadata, and returns from another
 document start conservatively. Entries outside the retained journal or evicted by the browser are
 not advertised. Traversals are serialized, and ignored traversal recovers rather than leaving
-controls permanently pending. The [history owner](../src/client/navigation-history.ts) and
-[browser adapter](../src/client/use-navigation-history.ts) define validation and retention limits.
+controls permanently pending. The [history owner](../apps/web/src/navigation-history.ts) and
+[browser adapter](../apps/web/src/use-navigation-history.ts) define validation and retention limits.
 
 ## Boundaries and failure cases
 

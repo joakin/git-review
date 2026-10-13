@@ -12,10 +12,11 @@ and responsive list/content behavior belong to the
 
 ## Inventory contract
 
-[git-status.ts](../src/server/git-status.ts) parses Git porcelain v2 with NUL delimiters, preserving
-spaces, tabs and newlines in filenames. It validates record structure, status codes, modes, hashes
-and paths before returning typed entries. [shared/api.ts](../src/shared/api.ts) defines and
-validates the public status and lightweight check responses.
+[git-status.ts](../apps/agent/src/git-status.ts) parses Git porcelain v2 with NUL delimiters,
+preserving spaces, tabs and newlines in filenames. It validates record structure, status codes,
+modes, hashes and paths before returning typed entries.
+[shared/api.ts](../packages/shared/src/api.ts) defines and validates the public status and
+lightweight check responses.
 
 For a project inside a repository subfolder, the inventory is scoped to that subtree and paths are
 relative to the selected folder. Rename origins use the same relative basis and can contain `../`
@@ -37,10 +38,10 @@ project identity and per-request resolution. Git reads use the
 
 ## Verification
 
-[Inventory tests](../src/server/git-status.test.ts) cover layers, renames, deletion, unusual names,
-subfolder scope, unborn/non-Git states and edits that change the metadata token without changing the
-porcelain revision. [API tests](../src/server/api.test.ts) cover project resolution and status
-modes.
+[Inventory tests](../apps/agent/src/git-status.test.ts) cover layers, renames, deletion, unusual
+names, subfolder scope, unborn/non-Git states and edits that change the metadata token without
+changing the porcelain revision. [API tests](../apps/agent/src/api.test.ts) cover project resolution
+and status modes.
 
 The [inventory](../qa/screenshots/git-inventory-fixture/mobile.png) and
 [drawer](../qa/screenshots/git-inventory-fixture-drawer/mobile.png) milestone sets were inspected at

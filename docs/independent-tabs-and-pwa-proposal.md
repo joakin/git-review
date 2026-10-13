@@ -14,7 +14,7 @@ recents remain shared. A failed selection does not replace the last accepted fal
 review work. Missing/malformed tab data or a different approved root cannot silently select another
 folder.
 
-Saved folder paths share the [navigation-path rules](../src/client/navigation-path.ts), including
+Saved folder paths share the [navigation-path rules](../apps/web/src/navigation-path.ts), including
 the empty path for the approved root. Invalid tab paths return to the picker; a malformed recents
 record uses the empty-workspace fallback. Backup import rejects invalid recent paths before
 replacement instead of importing folders that cannot be navigated.
@@ -28,12 +28,12 @@ handling.
 
 ## Local data and backups
 
-[Storage](../src/client/storage.ts), [comments](../src/client/comments.ts), and
-[backups](../src/client/backup.ts) define current formats, namespaces, and validation. Project-keyed
-storage uses encoded canonical paths. Obsolete project data is deleted only from known app keys,
-without preservation or migration; unrelated storage and global preferences remain. The scoped
-cleanup also reclaims capacity that current saves may need; retain it while an origin may still
-contain obsolete records. Formats retired during stateless project access have no readers or
+[Storage](../apps/web/src/storage.ts), [comments](../apps/web/src/comments.ts), and
+[backups](../apps/web/src/backup.ts) define current formats, namespaces, and validation.
+Project-keyed storage uses encoded canonical paths. Obsolete project data is deleted only from known
+app keys, without preservation or migration; unrelated storage and global preferences remain. The
+scoped cleanup also reclaims capacity that current saves may need; retain it while an origin may
+still contain obsolete records. Formats retired during stateless project access have no readers or
 imports.
 
 The accepted [multi-line feedback extension](multi-line-feedback-proposal.md) adds a scoped
@@ -70,7 +70,7 @@ and recognizes an already installed window. iPhone guidance uses **Share → Add
 **Open as Web App**. Exact host services, origin, ports, and operating commands belong in the
 [root README](../README.md#install-on-a-phone).
 
-The manifest launches at `/` in standalone mode. [The service worker](../src/client/sw.ts) caches
+The manifest launches at `/` in standalone mode. [The service worker](../apps/web/src/sw.ts) caches
 only the host-unavailable fallback, uses the network for navigation, and removes obsolete app
 caches. It does not cache API responses, raw media, diffs, or comments. An unreachable host
 therefore shows an offline message instead of stale review contents; there is no offline project

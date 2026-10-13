@@ -76,11 +76,11 @@ view.
 
 Metadata derives from checked HEAD/index/working-tree sources and canonical hunks. Each expansion
 revalidates the gap, source digest and both snapshot tokens around the read; requests supply no Git
-expression or rename origin. The [shared context contract](../src/shared/diff-context.ts) owns wire
-validation and budgets. Sources outside the bounded read capability show an explanation while
-keeping the ordinary patch usable. Added/deleted/untracked one-sided content, non-text/unsupported
-states, empty diffs and historical Git inspection have no expansion controls. Whole-file expansion,
-re-collapsing gaps and historical expansion remain follow-ups.
+expression or rename origin. The [shared context contract](../packages/shared/src/diff-context.ts)
+owns wire validation and budgets. Sources outside the bounded read capability show an explanation
+while keeping the ordinary patch usable. Added/deleted/untracked one-sided content,
+non-text/unsupported states, empty diffs and historical Git inspection have no expansion controls.
+Whole-file expansion, re-collapsing gaps and historical expansion remain follow-ups.
 
 ## Sources and freshness
 
@@ -95,9 +95,9 @@ a card, so two layers of one file cannot share content or anchors. Rename origin
 may leave the selected subfolder; only origins within the approved root can enter a working-copy
 comparison.
 
-[Working-copy orchestration](../src/server/git-diff.ts) selects and reads the comparison sources.
-The pure [diff constructors](../src/server/diff-content.ts) build patches and bounded one-sided
-content for working and historical reads. [Shared Git reads](git-read-boundaries.md) and
+[Working-copy orchestration](../apps/agent/src/git-diff.ts) selects and reads the comparison
+sources. The pure [diff constructors](../apps/agent/src/diff-content.ts) build patches and bounded
+one-sided content for working and historical reads. [Shared Git reads](git-read-boundaries.md) and
 [checked working files](working-file-boundaries.md) own safe access. Hunk counts, prefixes and line
 numbers must agree; source text, CRLF and missing final newlines remain exact. Empty and mode-only
 changes retain meaningful metadata. Binary files, links, submodules, conflicts and oversized content
@@ -109,10 +109,11 @@ checks. Stale results offer **New edits · Update** without automatically replac
 starting refresh loops. The [live-update record](live-change-detection-slice-proposal.md) owns
 recovery.
 
-[shared/api.ts](../src/shared/api.ts) defines the diff result and validates unknown responses,
-including hunk/line consistency and decoration reconstruction. The shared renderer supports
-working-copy review with comments and [historical inspection](git-history-slice-proposal.md) without
-comments; request and cache identities remain with each source.
+[shared/api.ts](../packages/shared/src/api.ts) defines the diff result and validates unknown
+responses, including hunk/line consistency and decoration reconstruction. The shared renderer
+supports working-copy review with comments and
+[historical inspection](git-history-slice-proposal.md) without comments; request and cache
+identities remain with each source.
 
 The
 [long-code performance record](long-diff-performance-investigation.md#agreed-implementation-approach)
@@ -121,16 +122,16 @@ Changes, historical diffs and Files.
 
 ## Verification
 
-[Diff-constructor tests](../src/server/diff-content.test.ts),
-[working-copy tests](../src/server/git-diff.test.ts), and [API tests](../src/server/api.test.ts)
-cover separate layers, renames, deletions, unusual names, exact anchors, binary/links, unborn
-repositories, limits, malformed hunks and stale requests. [Diff browser QA](../qa/check-diff.ts)
-exercises navigation, persistence, wrapping, sticky gutters and contained scrolling.
-[Header browser QA](../qa/check-changes-card-header.ts) exercises Open navigation, current-file
-identity, independent controls, automatic/manual language choices, persistence, left-aligned counts,
-stable picker width, transparent title hover, loading/read failures, exceptional files, long paths
-and sticky actions at the four standard sizes and a narrow phone. The
-[refined header](../qa/screenshots/changes-card-header-left-counts/mobile.png) and
+[Diff-constructor tests](../apps/agent/src/diff-content.test.ts),
+[working-copy tests](../apps/agent/src/git-diff.test.ts), and
+[API tests](../apps/agent/src/api.test.ts) cover separate layers, renames, deletions, unusual names,
+exact anchors, binary/links, unborn repositories, limits, malformed hunks and stale requests.
+[Diff browser QA](../qa/check-diff.ts) exercises navigation, persistence, wrapping, sticky gutters
+and contained scrolling. [Header browser QA](../qa/check-changes-card-header.ts) exercises Open
+navigation, current-file identity, independent controls, automatic/manual language choices,
+persistence, left-aligned counts, stable picker width, transparent title hover, loading/read
+failures, exceptional files, long paths and sticky actions at the four standard sizes and a narrow
+phone. The [refined header](../qa/screenshots/changes-card-header-left-counts/mobile.png) and
 [long-path header](../qa/screenshots/changes-card-header-left-counts-long/mobile.png) milestones
 were captured and inspected at all four standard sizes. Physical-device selection and touch remain
 unverified. The [added-row](../qa/screenshots/diff-card-rounded-added/mobile.png),
@@ -141,12 +142,13 @@ the final row's floating line action. [Blank-line browser QA](../qa/check-blank-
 empty and whitespace-only row heights, exact source text, CRLF display and typography across the
 four viewport profiles and wrapping modes.
 
-[Context tests](../src/server/diff-context.test.ts) cover exact gaps, side offsets, zero-count
+[Context tests](../apps/agent/src/diff-context.test.ts) cover exact gaps, side offsets, zero-count
 coordinates, CRLF/final-newline handling, mixed expansion and exhaustion, limits, stale sources and
-malformed input. [Client context tests](../src/client/diff-context.test.ts) cover display ownership,
-source-side anchors and bounded checking. [Context browser QA](../qa/check-diff-context.ts)
-exercises expansion, retry, language replay, cancellation, reading position/focus, reload feedback
-and contained scrolling at the four standard sizes plus a narrow phone. The
+malformed input. [Client context tests](../apps/web/src/diff-context.test.ts) cover display
+ownership, source-side anchors and bounded checking.
+[Context browser QA](../qa/check-diff-context.ts) exercises expansion, retry, language replay,
+cancellation, reading position/focus, reload feedback and contained scrolling at the four standard
+sizes plus a narrow phone. The
 [compact context milestone](../qa/screenshots/diff-context-compact/mobile.png) was captured and
 inspected at all four standard sizes. Physical-device gestures remain unverified.
 

@@ -19,18 +19,19 @@ untracked uses an empty Old side; [Git inspection](git-history-slice-proposal.md
 historical comparison blobs. Renames use each side's own path. Changed or missing versions require
 recovery instead of substituting current working-tree bytes.
 
-The [shared media catalog](../src/shared/media-types.ts) owns supported containers, MIME types,
-extension aliases, and preview budgets. Server-side [image signatures](../src/server/image-types.ts)
-and [audio/video signatures](../src/server/audio-video-types.ts) validate working-file headers.
-These classify a supported resource; [the browser preview](../src/client/MediaPreview.tsx) still
+The [shared media catalog](../packages/shared/src/media-types.ts) owns supported containers, MIME
+types, extension aliases, and preview budgets. Server-side
+[image signatures](../apps/agent/src/image-types.ts) and
+[audio/video signatures](../apps/agent/src/audio-video-types.ts) validate working-file headers.
+These classify a supported resource; [the browser preview](../apps/web/src/MediaPreview.tsx) still
 determines actual decoding and playback. PDF remains
 [optional](initial-implementation-plan.md#remaining-roadmap); HTML preview is outside the current
 scope.
 
 ## Source and response boundaries
 
-[Media resolution](../src/server/media.ts) owns comparison/source validation and raw URLs.
-[Working media inspection](../src/server/project-files.ts) supplies validated type, size, and
+[Media resolution](../apps/agent/src/media.ts) owns comparison/source validation and raw URLs.
+[Working media inspection](../apps/agent/src/project-files.ts) supplies validated type, size, and
 version metadata; its callers attach source-specific URLs. Git images also require valid headers,
 while supported nonempty Git audio/video blobs retain their existing inspection policy without
 header sniffing. Browser decoding can still fail and offer the raw fallback.
@@ -40,7 +41,7 @@ repository subfolder: Old HEAD reads must preserve that scope rather than select
 the repository root. Every raw request revalidates project access and resource version.
 
 Audio/video streams and bounded single-range/HEAD responses belong to
-[media streaming](../src/server/media-stream.ts). They release descriptors or Git streams on
+[media streaming](../apps/agent/src/media-stream.ts). They release descriptors or Git streams on
 completion, cancellation, or failure and check mutable versions during playback. Awaited reads have
 deadlines; consumer backpressure does not impose a total playback deadline.
 

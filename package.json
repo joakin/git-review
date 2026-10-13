@@ -2,6 +2,10 @@
   "name": "git-review",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "prepare": "husky",
     "format": "prettier . --write",
@@ -10,28 +14,25 @@
     "dev": "bun scripts/dev.ts",
     "build": "bun scripts/build.ts",
     "assets:icons": "bun scripts/render-icons.ts",
-    "start": "bun src/server/main.ts",
-    "typecheck": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.test.json && tsc -p tsconfig.qa.json",
+    "start": "bun scripts/serve.ts",
+    "typecheck": "tsc -p apps/agent/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.sw.json && tsc -p packages/shared/tsconfig.json && tsc -p tsconfig.scripts.json && tsc -p tsconfig.test.json && tsc -p tsconfig.qa.json",
     "test": "bun test",
     "qa:capture": "bun qa/capture.ts",
     "qa:probe": "bun qa/feasibility.ts",
     "qa:probe:agent": "bun qa/feasibility-agent.ts",
     "qa:probe:fixture": "bun qa/prepare-feasibility-fixture.ts",
-    "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-css-tokens.ts && bun run format:check"
+    "qa:check": "tsc --noEmit -p tsconfig.qa.json && bun qa/check-package-boundaries.ts && bun qa/check-css-tokens.ts && bun run format:check"
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
   },
   "devDependencies": {
+    "@git-review/shared": "workspace:*",
     "@types/bun": "^1.4.2",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
     "playwright-core": "^1.63.0",
     "prettier": "3.9.9",
     "typescript": "^7.0.2"
-  },
-  "dependencies": {
-    "preact": "^10.29.8",
-    "shiki": "^4.4.3"
   }
 }

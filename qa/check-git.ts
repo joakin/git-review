@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { type Page, type Request, type Route as BrowserRoute } from "playwright-core";
-import { expectRecord } from "../src/shared/validation.ts";
-import { expectGitOid, parseCommitDetail, parseGitHistory } from "../src/shared/git.ts";
+import { expectRecord } from "@git-review/shared/validation";
+import { expectGitOid, parseCommitDetail, parseGitHistory } from "@git-review/shared/git";
 import {
   appUrl,
   assertNoHorizontalOverflow,

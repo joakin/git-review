@@ -20,6 +20,15 @@ freshness, cancellation, persistence, or a transaction—and expose operations t
 without coordinating its internals. Split large files when that creates a clear owner, rather than
 merely moving fragments elsewhere.
 
+Keep production imports within their owning workspace or declared runtime dependencies. Web and
+agent consume shared code through explicit `@git-review/shared/<subpath>` exports; neither app
+imports the other. Shared source has no host-runtime or third-party dependencies. Package-local
+TypeScript checks preserve browser, worker, agent, and shared environments; root checks cover tools,
+QA, and tests. The root [server composition](../scripts/serve.ts) temporarily serves the current
+same-origin app. Root QA and integration tests may compose domains deliberately. The
+[package boundary check](../qa/check-package-boundaries.ts) parses production imports, including
+type imports and re-exports, with the pinned TypeScript 7 compiler API and runs in `qa:check`.
+
 Give views explicit models and commands sized to their job. Keep domain decisions in their owner;
 presentation should depend only on the data and commands it needs, without exposing its owner's
 internals or setters. Keep implementation details private by default. Share mechanisms when their
@@ -36,9 +45,9 @@ fields, or interfaces inferred from another module's whole implementation.
 ## Runtime validation
 
 Treat external data as unknown until it crosses a validating boundary. Keep domain parsers beside
-their formats and reuse [shared validation helpers](../src/shared/validation.ts) for generic checks.
-Once validated, pass precise domain values internally. Report a clear failure rather than silently
-accepting partial or ambiguous data.
+their formats and reuse [shared validation helpers](../packages/shared/src/validation.ts) for
+generic checks. Once validated, pass precise domain values internally. Report a clear failure rather
+than silently accepting partial or ambiguous data.
 
 Validate relationships as well as field shapes. Bound input size and expensive work before
 processing it. Keep paths within approved roots, avoid following untrusted links, and pass
@@ -102,7 +111,7 @@ operation owner, rather than requiring every caller to coordinate them.
 
 ## Visual design values
 
-Use [design tokens](../src/client/design-tokens.css) for shared roles and values that need
+Use [design tokens](../apps/web/src/design-tokens.css) for shared roles and values that need
 consistent tuning. Keep application and code surfaces distinct. Give layout and component styles
 clear owners; avoid competing declarations and duplicated responsive rules. Component-specific
 geometry can stay beside its selector when it has no shared meaning.
@@ -112,14 +121,14 @@ after visual changes and inspect phone, tablet, and desktop layouts through the
 [QA workflow](qa-workflow.md). Browser emulation and real-device checks provide different evidence;
 record which was performed.
 
-Use the shared SVG chevron in [Icons](../src/client/Icons.tsx) for disclosure, dropdown, and folder
-navigation indicators. Its fixed square box and centered path keep alignment independent of fonts
-and expansion state; rotate the same shape when the direction changes. Center it within the control
-with flex or grid alignment, and keep it decorative so the control owns its accessible name and
-expanded state. Native dropdowns use [SelectControl](../src/client/SelectControl.tsx) for the closed
-arrow while retaining native menus, labels, keyboard operation, and focus. Native copy-history
-disclosures similarly retain their `details`/`summary` behavior with the shared icon replacing the
-browser marker.
+Use the shared SVG chevron in [Icons](../apps/web/src/Icons.tsx) for disclosure, dropdown, and
+folder navigation indicators. Its fixed square box and centered path keep alignment independent of
+fonts and expansion state; rotate the same shape when the direction changes. Center it within the
+control with flex or grid alignment, and keep it decorative so the control owns its accessible name
+and expanded state. Native dropdowns use [SelectControl](../apps/web/src/SelectControl.tsx) for the
+closed arrow while retaining native menus, labels, keyboard operation, and focus. Native
+copy-history disclosures similarly retain their `details`/`summary` behavior with the shared icon
+replacing the browser marker.
 
 The 2026-10-08 chevron pass captured and inspected
 [Changes](../qa/screenshots/chevrons-changes/mobile.png),

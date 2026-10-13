@@ -1,13 +1,13 @@
-import { parseFeedbackCheckRequest } from "../src/shared/feedback-check.ts";
+import { parseFeedbackCheckRequest } from "@git-review/shared/feedback-check";
 import type { Route } from "playwright-core";
 import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
-import { anchorMatches, validateCommentStore } from "../src/client/comments.ts";
-import { parseDiffResponse } from "../src/shared/api.ts";
+import { anchorMatches, validateCommentStore } from "../apps/web/src/comments.ts";
+import { parseDiffResponse } from "@git-review/shared/api";
 import {
   parseChangeDiffBatchRequest,
   changeDiffBatchSource,
   changeDiffRequestKey,
-} from "../src/shared/change-diff-batch.ts";
+} from "@git-review/shared/change-diff-batch";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-feedback.ts <local app URL>");

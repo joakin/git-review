@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { Browser, Page } from "playwright-core";
-import { expectRecord } from "../src/shared/validation.ts";
-import { expectGitOid } from "../src/shared/git.ts";
+import { expectRecord } from "@git-review/shared/validation";
+import { expectGitOid } from "@git-review/shared/git";
 
 type Outcome = "held" | "error" | "stale";
 declare global {

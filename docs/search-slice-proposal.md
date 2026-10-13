@@ -34,24 +34,24 @@ On touch screens it prefers below the selection, with a header-adjacent fallback
 placement prefers above. This placement came from Android review, where the native selection menu
 occupied the space above the text. Choosing the action performs Search; selection alone does not.
 
-[Code selection](../src/client/code-selection.tsx) validates the native Range against its registered
-source, and [selection actions](../src/client/CodeSelectionActions.tsx) own placement and
-activation. The feedback record owns exact comment offsets, source identity, and reattachment.
+[Code selection](../apps/web/src/code-selection.tsx) validates the native Range against its
+registered source, and [selection actions](../apps/web/src/CodeSelectionActions.tsx) own placement
+and activation. The feedback record owns exact comment offsets, source identity, and reattachment.
 
 ## Boundaries and rationale
 
-[The shared query contract](../src/shared/search-query.ts) owns normalization and validation across
-navigation, submissions, selection actions, server reads, and response parsing. Literal Unicode,
-including a typed replacement character, remains searchable. Malformed URL encoding is rejected
-before decoding can replace bytes with that character; lone surrogates are rejected before URL
-serialization can change the query. Responses must contain the normalized query.
+[The shared query contract](../packages/shared/src/search-query.ts) owns normalization and
+validation across navigation, submissions, selection actions, server reads, and response parsing.
+Literal Unicode, including a typed replacement character, remains searchable. Malformed URL encoding
+is rejected before decoding can replace bytes with that character; lone surrogates are rejected
+before URL serialization can change the query. Responses must contain the normalized query.
 
-[The server Search reader](../src/server/search.ts) owns executable discovery, fixed ripgrep
+[The server Search reader](../apps/agent/src/search.ts) owns executable discovery, fixed ripgrep
 arguments, result/output/file limits, and timeout. It honors project ignore rules, includes hidden
 source files, excludes Git control directories, and does not follow symlinks. JSON Lines are
-validated before becoming [Search response values](../src/shared/api.ts); non-UTF-8 paths or lines
-that Files cannot represent are skipped. Leading-dash queries remain literal because they are passed
-as arguments to the fixed query option, without a shell.
+validated before becoming [Search response values](../packages/shared/src/api.ts); non-UTF-8 paths
+or lines that Files cannot represent are skipped. Leading-dash queries remain literal because they
+are passed as arguments to the fixed query option, without a shell.
 
 A no-match exit is an empty result; timeout, invalid output, and subprocess failure are errors.
 Result/output limits produce a truncated result. Cancellation prevents a superseded project or query

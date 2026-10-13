@@ -13,15 +13,15 @@ comment-editor and line-action updates. CSS rendering containment is also promis
 geometry and browser behavior are verified. A whole-file boundary cannot help much while one very
 long file remains visible; that case needs smaller blocks.
 
-The investigation baseline [renderer](../src/client/DiffBody.tsx) creates every expanded hunk, row,
-line action, selection source, and syntax span. [Changes](../src/client/ChangesView.tsx) builds
-fresh per-card draft arrays and callbacks on each render.
-[Feedback](../src/client/review-feedback.ts) stores the editor session in an App-owned hook, so
+The investigation baseline [renderer](../apps/web/src/DiffBody.tsx) creates every expanded hunk,
+row, line action, selection source, and syntax span. [Changes](../apps/web/src/ChangesView.tsx)
+builds fresh per-card draft arrays and callbacks on each render.
+[Feedback](../apps/web/src/review-feedback.ts) stores the editor session in an App-owned hook, so
 typing renders App and its diff descendants again. Token decoration and comment anchors are rebuilt
 along that path. Memoization needs stable semantic inputs and current handlers; wrapping components
 with a shallow comparator alone would not address the newly created props.
 
-Scrolling can also repeat code rendering: the [sticky heading](../src/client/DiffCardFrame.tsx)
+Scrolling can also repeat code rendering: the [sticky heading](../apps/web/src/DiffCardFrame.tsx)
 updates its pinned state as a boundary is crossed, rendering the body below it. Opening or moving a
 line action updates state inside DiffBody and renders its hunks again. The line-action overlay
 should have a boundary that lets it update without rebuilding unchanged code.
@@ -261,7 +261,7 @@ expansion.
 Other opportunities are secondary: prioritize near-viewport expanded-card requests for initial
 network work; avoid repeated token decoration and duplicate per-card language-option work; inspect
 cache eviction when more expanded resources exceed the budgets in
-[diff-cache.ts](../src/client/diff-cache.ts). Increasing cache budgets alone would not improve the
+[diff-cache.ts](../apps/web/src/diff-cache.ts). Increasing cache budgets alone would not improve the
 cache-hit scenarios measured here.
 
 ## Evidence limits

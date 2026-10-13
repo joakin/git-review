@@ -5,7 +5,7 @@ import {
   parseActiveProject,
   validateSavedWorkspace,
   workspaceStorageKey,
-} from "../src/client/storage.ts";
+} from "../apps/web/src/storage.ts";
 
 declare global {
   interface Window {

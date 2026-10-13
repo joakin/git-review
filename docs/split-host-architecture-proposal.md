@@ -1,11 +1,12 @@
 # Split host implementation plan
 
-Status: architecture agreed on 2026-10-13; step 1 probe preparation and local simulation are
-complete, with the cloud/device feasibility gate pending. Research began on 2026-10-12. The accepted
-direction is a static frontend, direct private agents, manual URL or startup-generated connection
-links, URL plus canonical project path ownership, and saved-feedback recovery. Discovery is optional
-and deferred. This record owns the implementation sequence and release gate; existing behavior
-records remain authoritative until each change is implemented.
+Status: architecture agreed on 2026-10-13; step 1 probe preparation and local HTTP/private HTTPS
+simulation are complete, with the cloud/device feasibility gate pending. Step 2 is complete and
+approved for commit; the maintainer requested step 3 on 2026-10-13. Research began on 2026-10-12.
+The accepted direction is a static frontend, direct private agents, manual URL or startup-generated
+connection links, URL plus canonical project path ownership, and saved-feedback recovery. Discovery
+is optional and deferred. This record owns the implementation sequence and release gate; existing
+behavior records remain authoritative until each change is implemented.
 
 ## First release and agreed boundaries
 
@@ -29,8 +30,8 @@ cache, or no-internet app-shell startup belongs to this release.
 
 Each numbered step is a separate reviewable change, not a promise of one commit or one day. Complete
 its focused checks and explain the result before moving to the next substantial step. Leave work
-uncommitted until explicit maintainer commit approval. This planning request does not start source
-implementation.
+uncommitted until explicit maintainer commit approval. The maintainer has requested source
+implementation; local work may proceed while cloud/device verification remains a release gate.
 
 | Step | Reviewable result                              | Decisive evidence                                                                     |
 | ---- | ---------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -61,15 +62,18 @@ the AI task, after task completion, and through the needed idle/suspend period. 
 browser/OS, permission prompts, provider hooks, network mode, lifecycle, and any remaining limits.
 
 Review checkpoint: evidence that this environment can support the intended review period. Desktop
-loopback tests or command-line requests do not satisfy this gate. If it fails, review the provider
-or transport choice before the broad repository migration. Keep only useful bounded probe tooling;
-record procedures/evidence in the [QA guide](qa-workflow.md), not a second architecture record.
+loopback tests or command-line requests do not satisfy this gate. The maintainer explicitly
+requested continuing local implementation on 2026-10-13 while cloud validation is pending. If
+provider testing later fails, review the provider or transport choice before deployment. Keep only
+useful bounded probe tooling; record procedures/evidence in the [QA guide](qa-workflow.md), not a
+second architecture record.
 
 The bounded [probe harness](../qa/feasibility-agent.ts), [static page/build](../qa/feasibility.ts),
 disposable Git/media fixture, and local simulation are now prepared. The
 [feasibility QA procedure](qa-workflow.md#split-host-feasibility-probe) owns commands, cloud setup,
-and evidence. Local browser transport works; the actual HTTPS/Tailscale cloud lifecycle and physical
-device gate remain open. Do not start step 2 on the strength of loopback results alone.
+and evidence. Local browser transport works through HTTP and private Tailscale Serve HTTPS; the
+actual cloud lifecycle and physical-device gate remain open. This local evidence does not establish
+that an OpenAI cloud workspace supports inbound access or the required availability period.
 
 ### 2. Move into three workspaces without changing behavior
 
@@ -85,7 +89,25 @@ production app-to-app imports. Verify the current configured local voice path is
 
 Review checkpoint: a mechanical move with no intended user-visible change. Run type checks, unit
 tests, QA/format gates, build/start smoke checks, and representative project/review/navigation QA.
-Later sections refer to current source paths; repair those links during this step.
+The combined same-origin entrypoint belongs to root [development composition](../scripts/serve.ts),
+while web, agent, and shared source stay within their package boundaries. Independent production
+artifacts remain steps 3 and 4.
+
+Implemented and approved for commit on 2026-10-13. Root build/dev/start commands retain their
+behavior; the single lockfile retains existing dependency versions. The production boundary gate
+covers 121 source files, including type imports and re-exports, and rejected deliberate temporary
+cross-app/shared-host imports. Strict TypeScript, all 306 tests, QA/format, and build checks passed.
+Disposable-fixture browser checks passed for phone project selection/reload, checked feedback copy,
+history/Undo and clipboard fallback, and responsive URL/Back/Forward navigation. The normal HTTPS
+app was restarted with its existing approved root, port, and origin. The source-only probe bundle
+was re-extracted and all ten browser checks passed again without frontend source/assets.
+
+Inspected the unchanged app layouts at [phone](../qa/screenshots/workspace-migration/mobile.png),
+[tablet portrait](../qa/screenshots/workspace-migration/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/workspace-migration/tablet-landscape.png), and
+[desktop](../qa/screenshots/workspace-migration/desktop.png). Voice implementation/configuration
+paths were preserved and transcription tests passed; real microphone/dictation and physical-device
+gesture checks were not repeated. Cloud lifetime and laptop-closed use remain open release gates.
 
 ### 3. Produce the complete static frontend
 
@@ -373,7 +395,7 @@ git-review/
       package.json
       tsconfig.json
       src/
-      public/
+        public/
     agent/
       package.json
       tsconfig.json
@@ -391,11 +413,11 @@ git-review/
   tsconfig.base.json
 ```
 
-The current `src/client`, `src/server`, and `src/shared` groups map naturally to these workspaces.
-Keep tests beside their owner and retain root QA fixtures/captures for integrated behavior. The root
-owns the pinned TypeScript/formatting/test tools and the full validation commands. Each app owns its
-runtime dependencies and build/start scripts. For example, Preact belongs to web and Shiki belongs
-to agent; neither application should need the other's dependency merely to run.
+The client, agent API, and shared source groups map naturally to these workspaces. Keep tests beside
+their owner and retain root QA fixtures/captures for integrated behavior. The root owns the pinned
+TypeScript/formatting/test tools and the full validation commands. Each app owns its runtime
+dependencies; steps 3 and 4 add independent build/start targets. For example, Preact belongs to web
+and Shiki belongs to agent; neither application should need the other's dependency merely to run.
 
 The dependency direction is `web -> shared` and `agent -> shared`. Shared owns wire contracts,
 runtime validators, shared domain models, and a few existing environment-independent mechanisms used
@@ -597,8 +619,8 @@ app.
 ## Direct browser transport
 
 The agent must explicitly support the frontend's origin. The existing
-[HTTP handler](../src/server/api.ts) checks Origin but does not implement a complete CORS exchange;
-setting its public-origin configuration alone is insufficient.
+[HTTP handler](../apps/agent/src/api.ts) checks Origin but does not implement a complete CORS
+exchange; setting its public-origin configuration alone is insufficient.
 
 An illustrative request is:
 
@@ -673,15 +695,15 @@ serves built HTML/CSS/JavaScript and supports project paths such as
 is available. A root-hosted site or dedicated custom domain is also an option.
 
 The current [build](../scripts/build.ts) outputs JavaScript/CSS but relies on the
-[combined server](../src/server/main.ts) for source-tree HTML/public files and headers. Produce one
+[combined server](../scripts/serve.ts) for source-tree HTML/public files and headers. Produce one
 self-contained publish directory with HTML, assets, icons, manifest, service worker, and offline
 fallback. It must not depend on the source checkout at runtime.
 
-Fix the app base path consistently across [HTML](../src/client/index.html),
-[worker registration](../src/client/main.tsx),
-[manifest](../src/client/public/manifest.webmanifest), and [offline fallback](../src/client/sw.ts).
-They currently use root paths such as `/assets/`, `/sw.js`, and a manifest scope/start URL of `/`,
-which do not describe a GitHub project site.
+Fix the app base path consistently across [HTML](../apps/web/src/index.html),
+[worker registration](../apps/web/src/main.tsx),
+[manifest](../apps/web/src/public/manifest.webmanifest), and
+[offline fallback](../apps/web/src/sw.ts). They currently use root paths such as `/assets/`,
+`/sw.js`, and a manifest scope/start URL of `/`, which do not describe a GitHub project site.
 
 Preserve query-based navigation so refreshing a deep link does not require server-side path
 rewrites. Place the service worker within the app's own deployment scope. Keep agent responses and
@@ -754,10 +776,10 @@ omitted from a bounded recent-project list. Import/export of connection configur
 another device bootstrap; it does not synchronize drafts. On another device without that connection
 record, offer import/paste rather than substituting another tab's last host.
 
-Relevant current owners are [project sessions](../src/client/project-session.ts),
-[navigation](../src/client/navigation.ts), [comments](../src/client/comments.ts),
-[storage](../src/client/storage.ts), [backups](../src/client/backup.ts),
-[diff caches](../src/client/diff-cache.ts), and [Git browsing](../src/client/git-browser.ts).
+Relevant current owners are [project sessions](../apps/web/src/project-session.ts),
+[navigation](../apps/web/src/navigation.ts), [comments](../apps/web/src/comments.ts),
+[storage](../apps/web/src/storage.ts), [backups](../apps/web/src/backup.ts),
+[diff caches](../apps/web/src/diff-cache.ts), and [Git browsing](../apps/web/src/git-browser.ts).
 
 Retain supported old-origin backups and require explicit assignment of legacy path-only backups to
 an intended endpoint. Preview replacements and preserve exact copied-history text. Use new storage
@@ -775,10 +797,10 @@ is failing or reconnecting. Preserve access to copied history as well as pending
 source-dependent actions such as revealing or reattaching a line unavailable until fresh source is
 loaded; saved quotes must not appear to be current fetched changes.
 
-Current [feedback loading](../src/client/review-feedback.ts) depends on a live resolved project, and
-[feedback transactions](../src/client/feedback-transactions.ts) check live anchors before normal
-copy. The [current feedback contract](feedback-slice-proposal.md) remains authoritative until this
-change is implemented. Recovery needs an explicit additional path; it must not manufacture a
+Current [feedback loading](../apps/web/src/review-feedback.ts) depends on a live resolved project,
+and [feedback transactions](../apps/web/src/feedback-transactions.ts) check live anchors before
+normal copy. The [current feedback contract](feedback-slice-proposal.md) remains authoritative until
+this change is implemented. Recovery needs an explicit additional path; it must not manufacture a
 successful source check or weaken the normal checked-copy flow.
 
 Normal Copy continues checking current sources, excluding outdated anchors, and archiving/clearing
@@ -836,9 +858,9 @@ No particular AI provider/environment has been verified. If it destroys or suspe
 a task finishes, a static frontend and Tailscale cannot make that vanished filesystem available.
 Determine this first; do not promise the desired workflow from enrollment alone.
 
-Current [transcription](../src/server/transcription.ts) discovers the Mac's FFmpeg and Handy tools.
-Typed review can be the first portable feature set. Cloud dictation requires a verified compatible
-engine/model and should be advertised as unavailable when unconfigured.
+Current [transcription](../apps/agent/src/transcription.ts) discovers the Mac's FFmpeg and Handy
+tools. Typed review can be the first portable feature set. Cloud dictation requires a verified
+compatible engine/model and should be advertised as unavailable when unconfigured.
 
 ## Comparison with the hub proposal
 
@@ -872,12 +894,13 @@ manifest, project/navigation/storage/cache owners, feedback loading/copy transac
 behavior records. Researched primary Tailscale, GitHub Pages, browser specification/Chrome, and MDN
 documentation linked above.
 
-The earlier Bun 1.3.1 loopback probe established basic streaming/range/cancellation and outbound
-proxy mechanics. It did not test cross-origin browser requests and does not prove this revised
-static deployment. The local Tailscale CLI could not load its preferences in this execution context.
-No cloud integration, public static deployment, actual tailnet route, Safari/installed-app behavior,
-or physical-device permission prompt was verified. Application source, running services, and
-Tailscale settings remain unchanged.
+The initial Bun 1.3.1 loopback investigation established basic streaming/range/cancellation and
+outbound proxy mechanics. Step 1 subsequently added browser CORS and native media checks, including
+private Tailscale Serve HTTPS on the same laptop; the
+[QA record](qa-workflow.md#lifecycle-gate-and-recorded-evidence) owns the evidence and its limits.
+The earlier CLI preference failure came from sandbox restrictions; the installed CLI worked with
+host access. Cloud integration, public-static-to-private transport, Safari/installed-app behavior,
+physical-device permission prompts, and laptop-closed operation remain unverified.
 
 The maintainer accepted URL/path ownership and saved-feedback recovery on 2026-10-13. Implementation
 uses the [ordered review steps](#implementation-sequence-and-review-checkpoints) above and preserves

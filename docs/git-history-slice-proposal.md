@@ -75,16 +75,16 @@ statistics count binary files separately; a textual media file such as SVG can c
 when displayed as an image. Pure renames and permission changes add no lines; empty commits show
 zeroes. A rename crossing a subtree boundary counts the scoped addition/deletion. Missing parents
 and protective limits show Stats unavailable rather than fabricated zeroes. Invalid output remains
-an error. [git-stats.ts](../src/server/git-stats.ts) owns counting and its immutable ready-results
-cache; unavailable statistics are retried when objects become available.
+an error. [git-stats.ts](../apps/agent/src/git-stats.ts) owns counting and its immutable
+ready-results cache; unavailable statistics are retried when objects become available.
 
 ## Boundaries and limits
 
-[shared/git.ts](../src/shared/git.ts) defines and validates refs, history, commits, comparison sides
-and immutable diff results. [git-history.ts](../src/server/git-history.ts) owns interpretation; the
-[Git read boundaries](git-read-boundaries.md) own transport and bounded object access.
-[Stateless project access](stateless-project-access-plan.md#project-contract-and-validation) owns
-project resolution.
+[shared/git.ts](../packages/shared/src/git.ts) defines and validates refs, history, commits,
+comparison sides and immutable diff results. [git-history.ts](../apps/agent/src/git-history.ts) owns
+interpretation; the [Git read boundaries](git-read-boundaries.md) own transport and bounded object
+access. [Stateless project access](stateless-project-access-plan.md#project-contract-and-validation)
+owns project resolution.
 
 Refs come from the branch inventory or explicit HEAD choice. Object IDs must be complete for the
 repository's actual hash format and name commits; arbitrary revision expressions are rejected.
@@ -108,9 +108,10 @@ Its key includes canonical project, repository scope/object format and full comm
 revalidates project and Git context; cache hits recheck the commit and first parent. Missing objects
 evict details, and errors/unavailable results are not stored. LRU eviction, oversized-entry
 rejection and restart bound retention without time expiry. Raw blobs and rendered diffs keep their
-read boundaries. [git-browser.ts](../src/client/git-browser.ts),
-[diff-cache.ts](../src/client/diff-cache.ts) and [git-history.ts](../src/server/git-history.ts) own
-identities and budgets; [ResourceCache](../src/shared/resource-cache.ts) owns shared storage.
+read boundaries. [git-browser.ts](../apps/web/src/git-browser.ts),
+[diff-cache.ts](../apps/web/src/diff-cache.ts) and
+[git-history.ts](../apps/agent/src/git-history.ts) own identities and budgets;
+[ResourceCache](../packages/shared/src/resource-cache.ts) owns shared storage.
 
 ### Cache measurement evidence
 
@@ -132,8 +133,8 @@ remote-network performance claim.
 
 ## Verification — 2026-09-30
 
-[History tests](../src/server/git-history.test.ts) and
-[API tests](../src/server/git-history-api.test.ts) guard branch/detached/unborn states, pinned
+[History tests](../apps/agent/src/git-history.test.ts) and
+[API tests](../apps/agent/src/git-history-api.test.ts) guard branch/detached/unborn states, pinned
 pagination, full messages, root/merge/empty commits, renames and unusual names, exact sources after
 disk changes, scoped comparisons, shallow-parent recovery, limits and SHA-256 IDs.
 [Git browser QA](../qa/check-git.ts) exercises navigation, cache/card reuse, line inspection,

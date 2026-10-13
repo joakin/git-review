@@ -1,9 +1,9 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { parseRootResponse } from "../src/shared/api.ts";
-import { responseBody } from "../src/client/api.ts";
-import { routeUrl } from "../src/client/navigation.ts";
-import { testGit } from "../src/test-support.ts";
+import { parseRootResponse } from "@git-review/shared/api";
+import { responseBody } from "../apps/web/src/api.ts";
+import { routeUrl } from "../apps/web/src/navigation.ts";
+import { testGit } from "./test-support.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,

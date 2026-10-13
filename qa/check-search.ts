@@ -1,5 +1,5 @@
 import type { Page } from "playwright-core";
-import { parseFileReadResponse } from "../src/shared/api.ts";
+import { parseFileReadResponse } from "@git-review/shared/api";
 import {
   appUrl,
   assertNoHorizontalOverflow,

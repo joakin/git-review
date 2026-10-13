@@ -1,0 +1,22 @@
+{
+  "name": "@git-review/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api": "./src/api.ts",
+    "./change-diff-batch": "./src/change-diff-batch.ts",
+    "./change-line-stats": "./src/change-line-stats.ts",
+    "./change-snapshot": "./src/change-snapshot.ts",
+    "./commit-diff-batch": "./src/commit-diff-batch.ts",
+    "./diff-batch": "./src/diff-batch.ts",
+    "./diff-context": "./src/diff-context.ts",
+    "./diff-request": "./src/diff-request.ts",
+    "./feedback-check": "./src/feedback-check.ts",
+    "./git": "./src/git.ts",
+    "./media-types": "./src/media-types.ts",
+    "./project-path": "./src/project-path.ts",
+    "./resource-cache": "./src/resource-cache.ts",
+    "./search-query": "./src/search-query.ts",
+    "./validation": "./src/validation.ts"
+  }
+}

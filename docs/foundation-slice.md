@@ -25,9 +25,10 @@ has no app-level account system. Binding, private HTTPS, and runtime setup belon
 
 ## Source and verification
 
-[Root/directory resolution](../src/server/paths.ts) owns host containment;
-[API handlers](../src/server/api.ts) and [wire parsers](../src/shared/api.ts) own request/response
-formats. [Project sessions](../src/client/project-session.ts) own selection lifetime.
-[Path tests](../src/server/paths.test.ts) and the [QA catalog](qa-workflow.md#focused-checks) cover
-selection, invalid paths, navigation, cancellation, and reload. Picker captures are linked from the
+[Root/directory resolution](../apps/agent/src/paths.ts) owns host containment;
+[API handlers](../apps/agent/src/api.ts) and [wire parsers](../packages/shared/src/api.ts) own
+request/response formats. [Project sessions](../apps/web/src/project-session.ts) own selection
+lifetime. [Path tests](../apps/agent/src/paths.test.ts) and the
+[QA catalog](qa-workflow.md#focused-checks) cover selection, invalid paths, navigation,
+cancellation, and reload. Picker captures are linked from the
 [navigation evidence](navigation-and-url-history-slice-proposal.md).

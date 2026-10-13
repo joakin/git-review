@@ -1,6 +1,6 @@
 import { chmod, mkdir, symlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { testGit as git } from "../src/test-support.ts";
+import { testGit as git } from "./test-support.ts";
 
 const directory = resolve("qa/.artifacts/line-counts-fixture");
 await mkdir(directory);

@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { testGit as git } from "../src/test-support.ts";
+import { testGit as git } from "./test-support.ts";
 
 const artifacts = resolve("qa/.artifacts");
 const fixture = resolve(artifacts, "inventory-fixture");

@@ -30,9 +30,11 @@ The [split host implementation plan](split-host-architecture-proposal.md) owns t
 frontend/direct-agent architecture, URL plus canonical path ownership, and saved-feedback recovery.
 It defines small review steps for feasibility, workspaces/artifacts, transport, state and backup
 conversion, recovery, connection UI, and cloud release verification. Discovery is deferred and step
-1 probe tooling and local simulation are prepared and verified; cloud/device feasibility remains
-unverified. Current behavior remains with its owners below until each step lands. The retained
-proposal path also holds the supporting architecture research.
+1 probe tooling and local HTTP/private HTTPS simulation are prepared and verified; cloud/device
+feasibility remains unverified. The maintainer requested continuing local implementation; step 2
+workspace separation is complete and approved for commit. Step 3 static packaging is next, with
+deployment gated on cloud/device proof. Current behavior remains with its owners below until each
+step lands. The retained proposal path also holds the supporting architecture research.
 
 The [context expansion closure](diff-context-expansion-proposal.md) links to the accepted Changes
 behavior and its feedback, syntax and loading owners.

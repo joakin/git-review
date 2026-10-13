@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright-core";
 
-const source = resolve("src/client/public");
+const source = resolve("apps/web/src/public");
 const output = resolve(source, "icons");
 await mkdir(output, { recursive: true });
 

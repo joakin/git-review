@@ -19,12 +19,12 @@ support and transfer.
 
 ## Rendering rationale and source
 
-[The preference parser and resolver](../src/client/storage.ts) define the validated choices and
-defaults. [Appearance preferences](../src/client/appearance-preferences.ts) applies them for the App
-lifetime. [The prepaint bootstrap](../src/client/theme-bootstrap.ts) uses that same parser before
-the main UI loads, preventing a saved dark preference from flashing light.
+[The preference parser and resolver](../apps/web/src/storage.ts) define the validated choices and
+defaults. [Appearance preferences](../apps/web/src/appearance-preferences.ts) applies them for the
+App lifetime. [The prepaint bootstrap](../apps/web/src/theme-bootstrap.ts) uses that same parser
+before the main UI loads, preventing a saved dark preference from flashing light.
 
-[Design tokens](../src/client/design-tokens.css) own app and code palettes. Server syntax tokens
+[Design tokens](../apps/web/src/design-tokens.css) own app and code palettes. Server syntax tokens
 carry semantic roles rather than colors or CSS, so personal appearance needs no new Git or API
 response. Code palettes cover syntax, diff backgrounds, word marks, selections, gutters, and quoted
 source; native controls use the resolved app color scheme.

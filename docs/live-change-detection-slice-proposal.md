@@ -33,7 +33,7 @@ separate change token combines that output with working-path metadata: type/mode
 modification/change times. Stage/index changes already affect porcelain. Unique paths are inspected
 once with bounded concurrency, within the selected real project, without following a final symlink
 or escaping parent. Disappearing paths have a distinct marker; other access failures remain errors.
-[git-status.ts](../src/server/git-status.ts) owns the signal and its bounds.
+[git-status.ts](../apps/agent/src/git-status.ts) owns the signal and its bounds.
 
 Metadata avoids hashing every changed file on each check and avoids dependence on filesystem watcher
 events. It is an ordinary-edit signal, not proof of byte equality or an atomic snapshot. Touching a
@@ -41,7 +41,7 @@ file can produce an extra notice; a rewrite preserving all observed metadata can
 manual Refresh. Applying Refresh still reloads expanded cards if the porcelain revision is
 unchanged.
 
-[Working-copy review](../src/client/working-copy-review.ts) owns accepted snapshots, polling
+[Working-copy review](../apps/web/src/working-copy-review.ts) owns accepted snapshots, polling
 lifetime and restoration; App supplies navigation/dialog pause policy. No polling state is
 persisted. [Inventory](git-status-slice.md) owns the full/check response distinction,
 [line counts](changes-line-counts-proposal.md) owns stable collection, and
@@ -50,7 +50,7 @@ version checks for cards.
 
 ## Verification
 
-[Status tests](../src/server/git-status.test.ts) cover tracked/untracked edits behind unchanged
+[Status tests](../apps/agent/src/git-status.test.ts) cover tracked/untracked edits behind unchanged
 porcelain output. [Live-change browser QA](../qa/check-live-changes.ts) checks steady code before
 Update, drafts/expansion/reading position, pause/resume, serialized checks, error recovery, project
 switching and containment at all four sizes plus 320 px. Its diagnostic output uses a fresh ignored

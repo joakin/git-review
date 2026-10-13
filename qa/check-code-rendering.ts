@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import type { Page } from "playwright-core";
-import { testGit as git } from "../src/test-support.ts";
+import { testGit as git } from "./test-support.ts";
 import { appUrl, qaProfiles, withQaBrowser, withQaContext } from "./browser-support.ts";
 
 declare global {
@@ -21,7 +21,7 @@ const folder = basename(project);
 
 // Observe real component execution without adding production instrumentation or changing behavior.
 const bundle = await Bun.build({
-  entrypoints: ["src/client/main.tsx"],
+  entrypoints: ["apps/web/src/main.tsx"],
   target: "browser",
   format: "esm",
   jsx: { runtime: "automatic", importSource: "preact" },

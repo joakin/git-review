@@ -29,9 +29,9 @@ optional; start further features only when the maintainer requests them.
   record and link to it; exact types, constants, supported values, and scenario assertions belong in
   source. Fold accepted follow-ups into their owner instead of accumulating overlapping
   specifications. Add focused documents when they clarify a real design decision.
-- Reuse [shared validation helpers](src/shared/validation.ts) for generic unknown-value checks,
-  while keeping domain parsers at their boundaries. Tune visual design through
-  [CSS design tokens](src/client/design-tokens.css); see
+- Reuse [shared validation helpers](packages/shared/src/validation.ts) for generic unknown-value
+  checks, while keeping domain parsers at their boundaries. Tune visual design through
+  [CSS design tokens](apps/web/src/design-tokens.css); see
   [engineering conventions](docs/engineering-conventions.md).
 - Run `bun run format` after editing source, styles, configuration, or documentation. Use the pinned
   Prettier configuration and normal multiline formatting; `bun run format:check` verifies it. The

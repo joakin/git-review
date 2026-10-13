@@ -5,9 +5,9 @@ import {
   type BrowserContextOptions,
   type Page,
 } from "playwright-core";
-import { parseRootResponse } from "../src/shared/api.ts";
-import { projectApiUrl } from "../src/shared/project-path.ts";
-import { responseBody } from "../src/client/api.ts";
+import { parseRootResponse } from "@git-review/shared/api";
+import { projectApiUrl } from "@git-review/shared/project-path";
+import { responseBody } from "../apps/web/src/api.ts";
 
 /** Selection lookup is only fixture discovery; resource requests need no registration. */
 export async function projectLookupResponse(

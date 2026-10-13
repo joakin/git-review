@@ -1,7 +1,0 @@
-{
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["bun"]
-  },
-  "include": ["src/server/**/*.ts", "src/shared/**/*.ts", "scripts/**/*.ts"]
-}

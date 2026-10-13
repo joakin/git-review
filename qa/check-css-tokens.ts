@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 
-const tokenSource = await readFile("src/client/design-tokens.css", "utf8");
+const tokenSource = await readFile("apps/web/src/design-tokens.css", "utf8");
 const stylePaths: string[] = [];
-for await (const path of new Bun.Glob("src/client/**/*.css").scan()) stylePaths.push(path);
+for await (const path of new Bun.Glob("apps/web/src/**/*.css").scan()) stylePaths.push(path);
 const styleSources = await Promise.all(stylePaths.sort().map((path) => readFile(path, "utf8")));
 const declarations = new Set(
   [...tokenSource.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((match) => match[1]),

@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { parseStatusResponse } from "../src/shared/api.ts";
+import { parseStatusResponse } from "@git-review/shared/api";
 import type { Locator } from "playwright-core";
 import {
   appUrl,

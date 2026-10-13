@@ -31,10 +31,11 @@ reopened editor. Clips never enter browser storage or backups.
 
 ## Host and request boundaries
 
-[The voice owner](../src/client/VoiceComment.tsx) defines recorder formats, upload/recording limits,
-cues, cleanup, and insertion. [The transcription adapter](../src/server/transcription.ts) validates
-bounded audio, permits one active host job, normalizes it to mono PCM WAV, and invokes Handy with
-fixed argument arrays. Handy's selected installed model performs inference locally.
+[The voice owner](../apps/web/src/VoiceComment.tsx) defines recorder formats, upload/recording
+limits, cues, cleanup, and insertion.
+[The transcription adapter](../apps/agent/src/transcription.ts) validates bounded audio, permits one
+active host job, normalizes it to mono PCM WAV, and invokes Handy with fixed argument arrays.
+Handy's selected installed model performs inference locally.
 
 The adapter bounds subprocess time and output, validates nonempty transcript JSON, removes temporary
 audio in failure and cancellation paths, and releases the job slot. Unsupported or undecodable

@@ -4,7 +4,7 @@ import { checkWorkingCopyOwnership } from "./working-copy-ownership-check.ts";
 import { checkViewStateRecovery } from "./view-state-check.ts";
 import { checkDiffLoading } from "./diff-loading-check.ts";
 import { checkBulkDiffControls } from "./bulk-diff-check.ts";
-import { parseChangeDiffBatchRequest } from "../src/shared/change-diff-batch.ts";
+import { parseChangeDiffBatchRequest } from "@git-review/shared/change-diff-batch";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-loading.ts <local app URL>");

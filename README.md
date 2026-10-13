@@ -17,6 +17,12 @@ The [initial implementation](docs/initial-implementation-plan.md#stage-closure--
 [remaining roadmap](docs/initial-implementation-plan.md#remaining-roadmap) is an optional product
 backlog. Further changes follow the review and commit-approval rules in [AGENTS.md](AGENTS.md).
 
+Source lives in three Bun workspaces: `apps/web` owns the frontend and Preact, `apps/agent` owns
+host access and Shiki, and `packages/shared` owns runtime-neutral contracts and parsers. The root
+owns the toolchain, lockfile, QA, and current same-origin build/server composition. Run the commands
+below from the repository root. Independent static web and agent artifacts are later steps in the
+[split host plan](docs/split-host-architecture-proposal.md).
+
 ## Run the app
 
 Requires Bun and Git. Search also needs ripgrep (`rg`) on the host; set `GIT_REVIEW_RG_PATH` to an

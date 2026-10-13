@@ -21,8 +21,9 @@ repeated layer pill. Section headings are flat; file headings become square whil
 them and regain rounding inside the card. Historical headings keep their commit presentation.
 
 There is no overall staged-plus-unstaged sum: those layers describe separate review activity, not
-the net HEAD-to-working-tree change. [ChangeStats](../src/client/ChangeStats.tsx) and
-[shared summaries](../src/shared/change-line-stats.ts) own exceptional states and layer totals.
+the net HEAD-to-working-tree change. [ChangeStats](../apps/web/src/ChangeStats.tsx) and
+[shared summaries](../packages/shared/src/change-line-stats.ts) own exceptional states and layer
+totals.
 
 ## Counting rules and exceptional states
 
@@ -37,10 +38,10 @@ conflicts, links and submodules show a quiet dash with an accessible reason. Lim
 unstable content show Stats unavailable. Group totals include known text and explicitly label
 entries that cannot contribute.
 
-Untracked counting shares [text classification](../src/server/source-text.ts) with its diff: bounded
-bytes, valid UTF-8, no NUL and correct final-newline handling. It scans without constructing diff
-rows or decorations and uses [checked no-follow access](working-file-boundaries.md). Tracked numeric
-counts can remain available when a full patch exceeds display limits.
+Untracked counting shares [text classification](../apps/agent/src/source-text.ts) with its diff:
+bounded bytes, valid UTF-8, no NUL and correct final-newline handling. It scans without constructing
+diff rows or decorations and uses [checked no-follow access](working-file-boundaries.md). Tracked
+numeric counts can remain available when a full patch exceeds display limits.
 
 Ordinary staged/unstaged comparisons preserve separate inventory entries. Raw modes keep links and
 submodules out of text counts. Explicit renames/copies use their card's permitted paths and rename
@@ -51,9 +52,10 @@ stays shared between patches and counts.
 ## Snapshot and failure policy
 
 The public status response requires statistics on each entry; lightweight checks return only Git
-state and version tokens. [shared/api.ts](../src/shared/api.ts) owns these types and validation.
-[change-stats.ts](../src/server/change-stats.ts) owns collection, work limits and retry;
-[numeric parsing](../src/server/git-numstat.ts) is shared with immutable historical counts.
+state and version tokens. [shared/api.ts](../packages/shared/src/api.ts) owns these types and
+validation. [change-stats.ts](../apps/agent/src/change-stats.ts) owns collection, work limits and
+retry; [numeric parsing](../apps/agent/src/git-numstat.ts) is shared with immutable historical
+counts.
 
 Validation checks safe nonnegative totals, modes/hashes, binary markers, matching numeric paths and
 rename origins, unique layer/path identities and consistency between entries and statistics.
@@ -72,11 +74,11 @@ refresh generation. Historical counting/caching remains in the
 
 ## Verification — 2026-10-06
 
-[Server tests](../src/server/change-stats.test.ts) compare counts to actual card rows across layers,
-renames/scope, unusual names, text/binary/media, excluded states, unborn/SHA-256 repositories, read
-errors, aggregate limits, malformed output and stable retry/fallback.
-[Response tests](../src/shared/change-line-stats.test.ts) reject contradictory states, duplicate
-identities and unsafe totals.
+[Server tests](../apps/agent/src/change-stats.test.ts) compare counts to actual card rows across
+layers, renames/scope, unusual names, text/binary/media, excluded states, unborn/SHA-256
+repositories, read errors, aggregate limits, malformed output and stable retry/fallback.
+[Response tests](../packages/shared/src/change-line-stats.test.ts) reject contradictory states,
+duplicate identities and unsafe totals.
 
 [Browser QA](../qa/check-change-stats.ts) covers bundled loading without collapsed-card patch reads,
 matching file/layer counts, explicit Update, stable expansion/counts, section handoff and keyboard

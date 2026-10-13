@@ -25,21 +25,21 @@ This authorization applied to this queue; the normal [commit-approval rule](../A
 | S06 | Established the [documentation map](README.md) and one owner per contract.                                                                                                                  |
 | S07 | Reduced the [QA guide](qa-workflow.md) to runnable checks, prerequisites, captures, and evidence limits.                                                                                    |
 | S08 | Retained scoped obsolete-storage deletion for [current-save capacity](independent-tabs-and-pwa-proposal.md#local-data-and-backups); see rationale below.                                    |
-| S09 | Shared [navigable folder-path validation](../src/client/navigation-path.ts) across URLs and stored metadata.                                                                                |
-| S10 | Shared [normalized Search query rules](../src/shared/search-query.ts) across UI, navigation, server, and responses.                                                                         |
+| S09 | Shared [navigable folder-path validation](../apps/web/src/navigation-path.ts) across URLs and stored metadata.                                                                              |
+| S10 | Shared [normalized Search query rules](../packages/shared/src/search-query.ts) across UI, navigation, server, and responses.                                                                |
 | S11 | Required the [complete working-copy snapshot](diff-batching-and-bulk-controls-proposal.md) for individual and batch diff reads.                                                             |
-| S12 | Shared [diff-request fields](../src/shared/diff-request.ts), layer validation, and existing language-query parsing.                                                                         |
-| S13 | Shared the [media catalog and correlated descriptor types](../src/shared/media-types.ts).                                                                                                   |
-| S14 | Shared [exact source decoding/classification](../src/server/source-text.ts), preserving reader-specific growth, display, and error policies.                                                |
-| S15 | Separated [pure diff construction](../src/server/diff-content.ts) from source-read orchestration.                                                                                           |
-| S16 | Shared [Git raw-record mechanics](../src/server/git-raw.ts), retaining history/statistics policy at their boundaries.                                                                       |
+| S12 | Shared [diff-request fields](../packages/shared/src/diff-request.ts), layer validation, and existing language-query parsing.                                                                |
+| S13 | Shared the [media catalog and correlated descriptor types](../packages/shared/src/media-types.ts).                                                                                          |
+| S14 | Shared [exact source decoding/classification](../apps/agent/src/source-text.ts), preserving reader-specific growth, display, and error policies.                                            |
+| S15 | Separated [pure diff construction](../apps/agent/src/diff-content.ts) from source-read orchestration.                                                                                       |
+| S16 | Shared [Git raw-record mechanics](../apps/agent/src/git-raw.ts), retaining history/statistics policy at their boundaries.                                                                   |
 | S17 | Simplified [media inspection and side construction](media-preview-slice-proposal.md) while preserving source, header, buffering, and streaming distinctions.                                |
-| S18 | Shared [heading presentation](../src/client/ContentHeading.tsx) and selected FileViewer construction, preserving controls, branch placement, remounts, and cleanup.                         |
-| S19 | Shared [diff feedback side and per-card counts](../src/client/DiffBody.tsx), preserving per-side gutters, combined row counts, and exact Old reattachment.                                  |
-| S20 | Grouped identical [Files/diff CSS](../src/client/styles.css), preserving source-specific layout and mobile overrides.                                                                       |
-| S21 | Reused the existing [loading-state type](../src/client/load-state.ts) without runtime changes.                                                                                              |
+| S18 | Shared [heading presentation](../apps/web/src/ContentHeading.tsx) and selected FileViewer construction, preserving controls, branch placement, remounts, and cleanup.                       |
+| S19 | Shared [diff feedback side and per-card counts](../apps/web/src/DiffBody.tsx), preserving per-side gutters, combined row counts, and exact Old reattachment.                                |
+| S20 | Grouped identical [Files/diff CSS](../apps/web/src/styles.css), preserving source-specific layout and mobile overrides.                                                                     |
+| S21 | Reused the existing [loading-state type](../apps/web/src/load-state.ts) without runtime changes.                                                                                            |
 | S22 | Shared [named QA dimensions](../qa/browser-support.ts) while preserving configured omissions and effective browser options.                                                                 |
-| S23 | Reused [Git fixture execution](../src/test-support.ts), preserving content, overwrite refusal, cleanup, and specialized history/FFmpeg behavior.                                            |
+| S23 | Reused [Git fixture execution](../qa/test-support.ts), preserving content, overwrite refusal, cleanup, and specialized history/FFmpeg behavior.                                             |
 
 S08 retirement depended on a cutover that could not be established for every browser origin. The
 existing sweep also frees quota: a bounded Storage probe showed a current comment write failing

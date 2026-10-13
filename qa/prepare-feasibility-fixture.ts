@@ -1,6 +1,6 @@
 import { mkdir, writeFile, copyFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { testGit } from "../src/test-support.ts";
+import { testGit } from "./test-support.ts";
 
 const args = process.argv.slice(2);
 if (args.length !== 0 && (args.length !== 2 || args[0] !== "--root" || args[1] === undefined))

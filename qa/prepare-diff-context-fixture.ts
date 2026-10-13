@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { testGit } from "../src/test-support.ts";
+import { testGit } from "./test-support.ts";
 
 const directory = resolve("qa/.artifacts/context-fixture");
 await mkdir(directory);

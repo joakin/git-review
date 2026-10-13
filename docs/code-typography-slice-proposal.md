@@ -10,14 +10,15 @@ state.
 Choose a font size from the supported range and a local or Google monospace family. **Reset
 typography** restores the local default independently of
 [appearance](theme-settings-slice-proposal.md). The
-[storage parser and defaults](../src/client/storage.ts) define accepted sizes and values;
-[the font catalog](../src/client/code-fonts.ts) defines the choices, labels, and stylesheet URLs.
+[storage parser and defaults](../apps/web/src/storage.ts) define accepted sizes and values;
+[the font catalog](../apps/web/src/code-fonts.ts) defines the choices, labels, and stylesheet URLs.
 
 Settings and code surfaces share the selected preference. The
-[appearance preferences owner](../src/client/appearance-preferences.ts) applies it across navigation
-and follows changes from other tabs. Missing or malformed saved data falls back to the default;
-storage failure leaves the current in-memory choice usable. Backup transfer and format support
-belong in [local data and backups](independent-tabs-and-pwa-proposal.md#local-data-and-backups).
+[appearance preferences owner](../apps/web/src/appearance-preferences.ts) applies it across
+navigation and follows changes from other tabs. Missing or malformed saved data falls back to the
+default; storage failure leaves the current in-memory choice usable. Backup transfer and format
+support belong in
+[local data and backups](independent-tabs-and-pwa-proposal.md#local-data-and-backups).
 
 ## Font loading
 

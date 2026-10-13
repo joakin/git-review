@@ -1,5 +1,5 @@
-import { approveRoot } from "../src/server/paths.ts";
-import { createApiHandler } from "../src/server/api.ts";
+import { approveRoot } from "../apps/agent/src/paths.ts";
+import { createApiHandler } from "../apps/agent/src/api.ts";
 import { createProbeHandler, probeOrigin } from "./feasibility-http.ts";
 
 const args = process.argv.slice(2);

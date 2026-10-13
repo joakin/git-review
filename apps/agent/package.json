@@ -1,0 +1,9 @@
+{
+  "name": "@git-review/agent",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@git-review/shared": "workspace:*",
+    "shiki": "^4.4.3"
+  }
+}

@@ -6,7 +6,7 @@ import {
   withQaBrowser,
   withQaContext,
 } from "./browser-support.ts";
-import { routeUrl } from "../src/client/navigation.ts";
+import { routeUrl } from "../apps/web/src/navigation.ts";
 import { selectCodeText } from "./select-code-text.ts";
 
 const rawUrl = process.argv[2];

@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Page } from "playwright-core";
 import { appUrl, withQaBrowser, withQaContext } from "./browser-support.ts";
-import { parseActiveProject } from "../src/client/storage.ts";
+import { parseActiveProject } from "../apps/web/src/storage.ts";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-tabs.ts <local app URL>");

@@ -3,11 +3,8 @@
   "workspaces": {
     "": {
       "name": "git-review",
-      "dependencies": {
-        "preact": "^10.29.8",
-        "shiki": "^4.4.3",
-      },
       "devDependencies": {
+        "@git-review/shared": "workspace:*",
         "@types/bun": "^1.4.2",
         "husky": "9.1.7",
         "lint-staged": "17.6.0",
@@ -16,8 +13,31 @@
         "typescript": "^7.0.2",
       },
     },
+    "apps/agent": {
+      "name": "@git-review/agent",
+      "dependencies": {
+        "@git-review/shared": "workspace:*",
+        "shiki": "^4.4.3",
+      },
+    },
+    "apps/web": {
+      "name": "@git-review/web",
+      "dependencies": {
+        "@git-review/shared": "workspace:*",
+        "preact": "^10.29.8",
+      },
+    },
+    "packages/shared": {
+      "name": "@git-review/shared",
+    },
   },
   "packages": {
+    "@git-review/agent": ["@git-review/agent@workspace:apps/agent"],
+
+    "@git-review/shared": ["@git-review/shared@workspace:packages/shared"],
+
+    "@git-review/web": ["@git-review/web@workspace:apps/web"],
+
     "@shikijs/core": ["@shikijs/core@4.4.3", "", { "dependencies": { "@shikijs/primitive": "4.4.3", "@shikijs/types": "4.4.3", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.5", "hast-util-to-html": "^9.0.5" } }, "sha512-QCR4q2ZO/ILJEuwiBMel4wdcTDb1JGwfjKTxPDF6x8ixOaluPrVqIn06C99AcRPhmYlBR56d/Fb+GN58GzExpg=="],
 
     "@shikijs/engine-javascript": ["@shikijs/engine-javascript@4.4.3", "", { "dependencies": { "@shikijs/types": "4.4.3", "@shikijs/vscode-textmate": "^10.0.2", "oniguruma-to-es": "^4.3.6" } }, "sha512-FbOjFJp9VLdo1Wevs10BBtVxiTWwNLqZh5Gkhjgda/ioL15YOgeSl9n+6XMa3qRlPQzfhFNe641SrynFHYG0nQ=="],

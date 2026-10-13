@@ -1,10 +1,10 @@
-import { parseFeedbackCheckRequest } from "../src/shared/feedback-check.ts";
+import { parseFeedbackCheckRequest } from "@git-review/shared/feedback-check";
 import { projectLookupResponse } from "./browser-support.ts";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { type Locator, type Page } from "playwright-core";
-import { parseReviewBackup } from "../src/client/backup.ts";
-import { responseBody } from "../src/client/api.ts";
+import { parseReviewBackup } from "../apps/web/src/backup.ts";
+import { responseBody } from "../apps/web/src/api.ts";
 import {
   anchorForLine,
   anchorMatches,
@@ -12,13 +12,13 @@ import {
   selectionSubject,
   validateCommentStore,
   type CommentStore,
-} from "../src/client/comments.ts";
-import { parseDiffResponse, parseProjectResponse } from "../src/shared/api.ts";
+} from "../apps/web/src/comments.ts";
+import { parseDiffResponse, parseProjectResponse } from "@git-review/shared/api";
 import {
   changeDiffBatchSource,
   changeDiffRequestKey,
   parseChangeDiffBatchRequest,
-} from "../src/shared/change-diff-batch.ts";
+} from "@git-review/shared/change-diff-batch";
 import { selectCodeText, selectCodeRange } from "./select-code-text.ts";
 import {
   appUrl,

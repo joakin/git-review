@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { writeFile } from "node:fs/promises";
-import { createApiHandler } from "../src/server/api.ts";
-import { approveRoot } from "../src/server/paths.ts";
-import { parseFileReadResponse } from "../src/shared/api.ts";
-import { projectApiUrl } from "../src/shared/project-path.ts";
-import { withTempDirectory } from "../src/test-support.ts";
+import { createApiHandler } from "../apps/agent/src/api.ts";
+import { approveRoot } from "../apps/agent/src/paths.ts";
+import { parseFileReadResponse } from "@git-review/shared/api";
+import { projectApiUrl } from "@git-review/shared/project-path";
+import { withTempDirectory } from "./test-support.ts";
 import { createProbeHandler, probeOrigin } from "./feasibility-http.ts";
 
 const origin = "https://probe.example.test";

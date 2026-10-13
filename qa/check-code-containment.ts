@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import type { Locator, Page } from "playwright-core";
-import { testGit as git } from "../src/test-support.ts";
+import { testGit as git } from "./test-support.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,

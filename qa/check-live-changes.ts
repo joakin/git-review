@@ -1,14 +1,14 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import { testGit as git } from "../src/test-support.ts";
+import { testGit as git } from "./test-support.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
   qaDimensions,
   withQaBrowser,
 } from "./browser-support.ts";
-import { parseChangeCheckResponse, parseStatusResponse } from "../src/shared/api.ts";
-import { parseChangeDiffBatchRequest } from "../src/shared/change-diff-batch.ts";
+import { parseChangeCheckResponse, parseStatusResponse } from "@git-review/shared/api";
+import { parseChangeDiffBatchRequest } from "@git-review/shared/change-diff-batch";
 
 const rawUrl = process.argv[2];
 if (rawUrl === undefined) throw new Error("Usage: bun qa/check-live-changes.ts <local app URL>");

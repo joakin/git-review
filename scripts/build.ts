@@ -1,5 +1,5 @@
 const result = await Bun.build({
-  entrypoints: ["./src/client/main.tsx", "./src/client/styles.css"],
+  entrypoints: ["./apps/web/src/main.tsx", "./apps/web/src/styles.css"],
   outdir: "./dist/assets",
   target: "browser",
   format: "esm",
@@ -11,7 +11,7 @@ if (!result.success) {
   process.exitCode = 1;
 } else {
   const bootstrap = await Bun.build({
-    entrypoints: ["./src/client/theme-bootstrap.ts"],
+    entrypoints: ["./apps/web/src/theme-bootstrap.ts"],
     outdir: "./dist/assets",
     target: "browser",
     format: "iife",
@@ -21,7 +21,7 @@ if (!result.success) {
     process.exitCode = 1;
   }
   const worker = await Bun.build({
-    entrypoints: ["./src/client/sw.ts"],
+    entrypoints: ["./apps/web/src/sw.ts"],
     outdir: "./dist/assets",
     target: "browser",
     format: "esm",

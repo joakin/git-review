@@ -1,5 +1,5 @@
 import type { Browser } from "playwright-core";
-import type { FileTree } from "../src/shared/api.ts";
+import type { FileTree } from "@git-review/shared/api";
 
 function assert(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);

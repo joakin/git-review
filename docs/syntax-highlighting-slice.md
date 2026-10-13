@@ -1,6 +1,6 @@
 # Syntax highlighting
 
-Source text uses stable lexical roles; frontend [design tokens](../src/client/design-tokens.css)
+Source text uses stable lexical roles; frontend [design tokens](../apps/web/src/design-tokens.css)
 choose colors and font treatment. Responses contain source text and roles, with no HTML, CSS or
 theme values. Changing [themes](theme-settings-slice-proposal.md) needs no new diff request.
 TextMate scopes describe lexical categories, not compiler-resolved symbols; unknown scopes stay
@@ -10,7 +10,7 @@ The server uses Shiki's full bundle, reusing a highlighter and loading grammars 
 extension and known aliases provide automatic detection. The language picker offers Auto detect,
 Plain text and bundled grammars, resolving ambiguous cases such as C headers and unknown extensions.
 Overrides are saved per project/path; only an installed grammar ID or plain text is accepted.
-[syntax.ts](../src/server/syntax.ts) owns detection and role mapping.
+[syntax.ts](../apps/agent/src/syntax.ts) owns detection and role mapping.
 
 Expanded Changes text cards use the compact variant of the language picker in their
 [card header](diff-slice.md). Its closed display shows the detected language's readable name while
@@ -40,16 +40,17 @@ comparison sources for gap validation, including Plain text. Those reads share l
 snapshots with syntax decoration. Revealed chunks use complete-source grammar context; changing the
 language replays the same ranges and preserves plain text if redecorating fails.
 
-[diff-syntax.ts](../src/server/diff-syntax.ts) owns full-side decoration and fallback.
-[shared/api.ts](../src/shared/api.ts) owns wire types, allowed roles and per-line/aggregate
+[diff-syntax.ts](../apps/agent/src/diff-syntax.ts) owns full-side decoration and fallback.
+[shared/api.ts](../packages/shared/src/api.ts) owns wire types, allowed roles and per-line/aggregate
 validation limits. Aggregate overflow is rejected before parsing another diff token batch. Syntax
 validation preserves separate hunk, side, newline and [word-span](diff-fidelity-slice-proposal.md)
 checks. Highlighter and grammar reuse do not create a source-result cache.
 
 ## Verification
 
-[Syntax tests](../src/server/diff-syntax.test.ts), [Git-diff tests](../src/server/git-diff.test.ts)
-and [response-parser tests](../src/shared/api.test.ts) guard multiline context, unavailable or
+[Syntax tests](../apps/agent/src/diff-syntax.test.ts),
+[Git-diff tests](../apps/agent/src/git-diff.test.ts) and
+[response-parser tests](../packages/shared/src/api.test.ts) guard multiline context, unavailable or
 mismatched sources, language validation, exact reconstruction and bounds. Browser checks cover
 highlighting, picker persistence, wrapping and contained scrolling in Files and both diff sources.
 

@@ -5,10 +5,10 @@ import {
   parseFileReadResponse,
   type FileReadResult,
   type Project,
-} from "../../src/shared/api.ts";
-import { parseFeedbackCheckResponse } from "../../src/shared/feedback-check.ts";
-import { isProjectPath, projectApiUrl } from "../../src/shared/project-path.ts";
-import { expectRecord, expectString } from "../../src/shared/validation.ts";
+} from "@git-review/shared/api";
+import { parseFeedbackCheckResponse } from "@git-review/shared/feedback-check";
+import { isProjectPath, projectApiUrl } from "@git-review/shared/project-path";
+import { expectRecord, expectString } from "@git-review/shared/validation";
 
 function element(id: string): HTMLElement {
   const value = document.getElementById(id);

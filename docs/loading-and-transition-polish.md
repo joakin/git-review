@@ -4,7 +4,7 @@
 
 Requests start promptly. Fast completion leaves the destination's frame free of transient loading
 text; longer waits show a short delayed status message. Errors appear as soon as known. The
-[presentation component](../src/client/DelayedLoading.tsx) defines the delay.
+[presentation component](../apps/web/src/DelayedLoading.tsx) defines the delay.
 
 Loaded content may remain visible during a same-resource refresh. A newly selected project,
 directory, file, or submitted Search query starts with its own empty/loading state and cannot paint
@@ -41,12 +41,12 @@ Diff payloads are reproducible and may be large, so they are absent from browser
 and disappear on reload. Working-tree files refetch when their viewer remounts; they require a
 separate freshness policy because edits can occur outside the app. Immutable historical diffs use
 the same cache mechanism while retaining their own identity. The
-[diff cache](../src/client/diff-cache.ts) and [Git browser](../src/client/git-browser.ts) define
-keys and budgets; [ResourceCache](../src/shared/resource-cache.ts) defines bounded retention.
-Serialized payload size is an estimate, not total browser memory.
+[diff cache](../apps/web/src/diff-cache.ts) and [Git browser](../apps/web/src/git-browser.ts) define
+keys and budgets; [ResourceCache](../packages/shared/src/resource-cache.ts) defines bounded
+retention. Serialized payload size is an estimate, not total browser memory.
 
 Collapsed or superseded card requests cannot accept late results into the view or cache. Retry keeps
-the selected language. The [shared loader](../src/client/diff-loading.ts) enforces that ownership;
+the selected language. The [shared loader](../apps/web/src/diff-loading.ts) enforces that ownership;
 [bounded batching](diff-batching-and-bulk-controls-proposal.md) defines request scheduling.
 
 [Revealed diff context](diff-slice.md#revealing-unchanged-context) has a separate bounded projection

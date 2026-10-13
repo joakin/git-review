@@ -104,7 +104,7 @@ Diff and working-tree file anchors remain distinct even at the same path/line. B
 source text and neighboring context; diff anchors additionally identify the reviewable Git layer and
 side. Conflicts cannot create feedback anchors. A line subject and a selection subject are also
 distinct, with fragment positions/text included in selection identity. The
-[comment model and validators](../src/client/comments.ts) define formats and bounds. A line or
+[comment model and validators](../apps/web/src/comments.ts) define formats and bounds. A line or
 neighboring context beyond the saved-source bound cannot create an anchor. In working-tree Files,
 the direct line control explains that limit.
 
@@ -113,7 +113,7 @@ context semantics. Saved-source limits cover both Old/New parts together; commen
 separate from expanded source-check capacity. The shared boundary defines those limits in source.
 
 Opening Feedback checks sources before making export available. Opening, Check lines, and Copy each
-submit one deduplicated anchor batch to the [feedback checker](../src/server/feedback-check.ts).
+submit one deduplicated anchor batch to the [feedback checker](../apps/agent/src/feedback-check.ts).
 Empty drafts need no request. Only anchors leave the browser; comment bodies, subjects, IDs and copy
 history remain local. The server returns one match result per comment target, with no status
 statistics, display rows, syntax, word details or expandable context. These mutable reads bypass
@@ -131,8 +131,8 @@ file-only batches perform no Git operations. Mixed Files/diff checks can share r
 while retaining Files' CRLF normalization and diffs' exact text semantics. A changed inventory or
 relevant working-path version during the batch blocks export for Retry. This detects intervening
 changes without claiming an atomic repository snapshot. The
-[shared API boundary](../src/shared/feedback-check.ts) and checker define request, source-work and
-concurrency limits; errors and cancellation preserve drafts.
+[shared API boundary](../packages/shared/src/feedback-check.ts) and checker define request,
+source-work and concurrency limits; errors and cancellation preserve drafts.
 
 Revealing [diff context](diff-slice.md#revealing-unchanged-context) does not rewrite ordinary hunk
 anchors. Newly revealed rows use exact neighbors from the chosen source side, including neighbors
@@ -180,8 +180,8 @@ regenerating archived exports. Equal anchors retain stable creation-time/ID orde
 exports preserve drafts and offer selectable text instead of creating an invalid history record.
 Undo restores only missing draft IDs, preserving newer drafts with the same ID. If restoration would
 exceed capacity, retain history and Undo and explain how to free capacity before retrying. The
-[transaction engine](../src/client/feedback-transactions.ts) and
-[comment operations](../src/client/comments.ts) define the executable contracts and limits.
+[transaction engine](../apps/web/src/feedback-transactions.ts) and
+[comment operations](../apps/web/src/comments.ts) define the executable contracts and limits.
 
 ## Persistence and display
 

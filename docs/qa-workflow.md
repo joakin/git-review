@@ -17,10 +17,10 @@ create a new acceptance gate. Further device/performance work stays in the
   portrait, tablet landscape, and desktop states, and report remaining device uncertainty.
 - Keep completed work uncommitted until the maintainer approves it under [AGENTS.md](../AGENTS.md).
 
-`qa:check` checks QA TypeScript, CSS tokens, and repository formatting; it does not run browser
-scenarios. `bun run test` runs the unit/integration suite. Package commands are defined in
-[package.json](../package.json); staged formatting and its isolated hook check are explained in the
-[formatting workflow](formatting-workflow.md).
+`qa:check` checks QA TypeScript, production package imports/dependencies, CSS tokens, and repository
+formatting; it does not run browser scenarios. `bun run test` runs the unit/integration suite.
+Package commands are defined in [package.json](../package.json); staged formatting and its isolated
+hook check are explained in the [formatting workflow](formatting-workflow.md).
 
 ## Fixture setup and isolation
 
@@ -157,12 +157,13 @@ credential. Set the agent's allowed origin to the site's scheme/hostname/port wi
 example, a probe at `https://example.github.io/review-probe/` uses `https://example.github.io`. This
 experiment does not yet test app installation or offline startup.
 
-`dist/feasibility-cloud.tar.gz` contains an explicit list of server/shared source, probe harness,
-fixture tooling/media, and the dependency manifest/lockfile. It excludes the review app frontend,
-local fixtures/repositories, reports, node_modules, and `.git`. It permits cloud testing of this
-uncommitted slice. It is an experimental source bundle requiring Bun and dependency installation,
-not the independently packaged production agent from step 4. Transfer it through the chosen cloud
-workspace's normal file mechanism; it has not been uploaded in this session.
+`dist/feasibility-cloud.tar.gz` contains an explicit list of agent/shared source, probe harness,
+fixture tooling/media, workspace manifests, and the dependency lockfile. It excludes the review app
+frontend source/assets, local fixtures/repositories, reports, node_modules, and `.git`. It permits
+cloud testing of this uncommitted slice. It is an experimental source bundle requiring Bun and
+dependency installation, not the independently packaged production agent from step 4. Transfer it
+through the chosen cloud workspace's normal file mechanism; it has not been uploaded in this
+session.
 
 In a new cloud test directory, extract the bundle and install its locked dependencies:
 
@@ -249,11 +250,11 @@ VPN exposes a usable inbound endpoint; if not, determine whether a separate per-
 process is supported. Test package/control/relay connectivity during the task as well as setup. Do
 not claim native VPN settings alone solve inbound serving.
 
-The preparation session's in-app browser was signed out of OpenAI; the available task projects
-provided no cloud execution environment, and the local Tailscale CLI could not load preferences. No
-OpenAI environment, account/network settings, keys, or public static deployment were changed. Local
-simulation can proceed without these inputs. A real cloud pass needs account/environment access, the
-static HTTPS URL, tailnet enrollment/Serve permission, and a physical testing device.
+The in-app browser was signed out of OpenAI and the available task projects provided no cloud
+execution environment. The maintainer requested continuing local implementation while cloud
+validation remains pending. No OpenAI environment, account/network settings, keys, or public static
+deployment were changed. A real cloud pass needs account/environment access, the static HTTPS URL,
+tailnet enrollment/Serve permission, and a physical testing device.
 
 #### Lifecycle gate and recorded evidence
 
@@ -281,8 +282,23 @@ All ten browser checks passed against that extracted copy as well. Strict type c
 gate, and all 302 unit/integration tests passed. This extraction test ran on macOS, not a cloud
 Linux VM; no cloud networking or lifetime inference follows from it.
 
-These results establish local browser transport and probe readiness. They do not close the plan's
-cloud/Tailscale/physical-device/laptop-closed gate. Later feature steps remain unstarted.
+The installed Tailscale CLI worked with host access; its earlier preference failure was caused by
+the execution sandbox. On the same laptop, two temporary private Serve ports exposed the static
+probe on HTTPS 9444 and the fixture agent on HTTPS 9443, with the frontend origin allowed
+explicitly. All ten checks passed in the in-app browser and Chrome, including CORS
+GET/preflight/POST, readable containment errors, native image metadata, audio/video HEAD and 206
+ranges, and native seeking. The four HTTPS captures were inspected:
+[phone](../qa/screenshots/feasibility-probe-https/mobile.png),
+[tablet portrait](../qa/screenshots/feasibility-probe-https/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/feasibility-probe-https/tablet-landscape.png), and
+[desktop](../qa/screenshots/feasibility-probe-https/desktop.png).
+
+These results establish local browser transport and probe readiness. Both HTTPS endpoints ran on the
+same laptop, so they do not prove a public static origin reaching a remote tailnet peer, provider
+inbound routing/process lifetime, mobile permissions, or laptop-closed operation. Those remain
+release gates while the agreed local implementation proceeds. Temporary Serve cleanup uses
+`tailscale serve --https=9443 off` and `tailscale serve --https=9444 off`, preserving the normal
+app's existing Serve configuration.
 
 ### Existing focused scenarios
 
@@ -388,7 +404,7 @@ and pass scenario options explicitly. Keep feature interactions, storage seeds, 
 fixture restoration beside each check. Release held responses before cleanup. Capture and loading's
 private delayed-response scenarios retain their own lifetime requirements.
 
-[Server test support](../src/test-support.ts) owns Git calls with explicit working directories and
+[Server test support](../qa/test-support.ts) owns Git calls with explicit working directories and
 argument arrays, deterministic child author identities, and temporary-directory cleanup. It mutates
 only owned test fixtures; production reads use the separate [Git boundary](git-read-boundaries.md).
 It is a mechanism shared by scenarios, not a centralized repository fixture or test runner. Run the
