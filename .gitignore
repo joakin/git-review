@@ -2,3 +2,4 @@ node_modules/
 dist/
 qa/.artifacts/
 *.tsbuildinfo
+.git-review-tools/

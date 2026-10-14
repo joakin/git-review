@@ -226,7 +226,57 @@ screenshots at all four sizes through `bun run qa:capture`.
 [Host management](agent-http-protocol.md#host-management) owns behavior and evidence limits; the
 static artifact check also verifies bootstrap at root/subpath deployments without an implicit agent.
 
+### Cloud bootstrap and provider checks
+
+[The runtime README](../README.md#run-the-agent-in-a-cloud-workspace) owns installation,
+configuration, startup and shutdown. `bun qa/check-cloud-agent.ts` copies the packaged runtime to a
+disposable directory, starts a real loopback agent and uses controlled Tailscale executables. It
+checks the startup/cleanup boundary without enrollment credentials. Its assertions live in source;
+it does not prove VPN routing, certificates, Linux execution or provider lifetime. The manually
+triggered [Linux workflow](../.github/workflows/cloud-artifacts.yml) runs the installer and both
+artifact checks on Ubuntu. It has been prepared but has not been dispatched.
+
+#### Codex environment hook
+
+The current [official guide](https://learn.chatgpt.com/docs/environments/cloud-environments)
+provides an **Install script** and a **Start skill**. The install phase should prepare dependencies
+and the copied/built runtime only. Publish that unenrolled setup. The start skill must launch the
+supervisor once per task, using that task's actual checkout as the approved root. Supply the client
+URL and raw enrollment key through requested private environment variables, and allow the required
+tool downloads and Tailscale control/relay traffic during the task.
+
+Start-skill instructions to give Codex:
+
+> Use the packaged cloud launcher described in this repository's README. Find this task's code
+> checkout and use it as the approved root. If this task already has a healthy owned supervisor,
+> keep it. Otherwise launch one with stdin detached and stdout/stderr redirected to a private task
+> log; record its PID and keep it running through the supported task-service mechanism. Read the
+> final readiness message and report the actual agent URL and client link. Do not enroll while
+> preparing the reusable environment, cache node state, edit tailnet policy, or start another node
+> through the existing managed VPN socket. If service processes or raw secrets are unsupported,
+> report that limitation instead of substituting the local laptop.
+
+Codex's managed VPN setting documents outbound private-service access. Whether this account allows
+the isolated daemon's outbound traffic and inbound Serve endpoint remains an experiment. The guide
+describes recoverable saved VM state; it does not guarantee continuous service uptime while idle. No
+provider hook has been verified in an actual Codex environment yet.
+
+#### Live acceptance
+
+Use the deployed static client and a physical device with native Tailscale. Add two independent task
+agents, open equal-path projects through the workspace quick-switch menu, make distinct feedback,
+test Files/Search/Git/media and confirm sources remain separate. Record reachability during the
+task, after it ends, after the intended idle period, after resume, and with the laptop closed. Check
+installed iOS/Android mode, browser network permissions and feedback recovery after one workspace
+disappears. Move data to the new static origin with an export/import first.
+
+The local simulation passes on macOS. Actual Linux installation, workflow execution, static public
+deployment, Codex inbound connectivity/lifetime and physical-device verification remain pending.
+
 ### Split-host feasibility probe
+
+This probe retains the original experiment. Production workspace setup uses the packaged launcher
+and [cloud procedure](#cloud-bootstrap-and-provider-checks).
 
 Step 1 of the
 [split-host plan](split-host-architecture-proposal.md#1-prove-the-target-cloud-and-browser-path)
@@ -334,70 +384,17 @@ agent in the actual task VM, not in a reusable prepared/cached image.
 
 #### Private HTTPS in a cloud workspace
 
-Provision a disposable ephemeral Tailscale node through the cloud provider's supported networking
-mechanism. Permit the testing device/user to reach that node, enable tailnet HTTPS/Serve, and use a
-unique task-specific hostname. Do not bake an enrolled node or a shared hostname into a cached
-environment. Enrollment credentials belong in the provider's secret configuration, never the page or
-connection URL. Use [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) for
-private HTTPS and its actual returned hostname; the agent remains loopback-bound.
-
-When the VM has a usable enrolled Tailscale CLI, on that disposable node:
-
-```sh
-tailscale serve --bg --https=443 http://127.0.0.1:39961
-tailscale serve status
-```
-
-Enter the resulting `https://<actual-node>.<tailnet>.ts.net` URL in the static page. Check from a
-different tailnet device, not merely by curling localhost inside the VM. Do not use Funnel or
-disable certificate validation. A Serve-enable/admin prompt is a prerequisite to resolve in the
-tailnet; do not treat it as successful automatic startup.
-
-For a Linux container without TUN, Tailscale documents
-[userspace networking](https://tailscale.com/docs/concepts/userspace-networking). If the provider
-allows running your own daemon and has no existing managed node, a per-task experiment can start:
-
-```sh
-probe_ts_dir="$(mktemp -d "${TMPDIR:-/tmp}/git-review-probe-ts.XXXXXX")"
-probe_hostname="review-probe-$(bun -e 'console.log(crypto.randomUUID())')"
-tailscaled --tun=userspace-networking --state=mem: --socket="$probe_ts_dir/tailscaled.sock" > "$probe_ts_dir/daemon.log" 2>&1 < /dev/null &
-probe_ts_pid=$!
-tailscale --socket="$probe_ts_dir/tailscaled.sock" up --auth-key="${TS_AUTHKEY:?Supply an ephemeral auth key through provider secrets}" --hostname="$probe_hostname" --accept-dns=false
-tailscale --socket="$probe_ts_dir/tailscaled.sock" serve --bg --https=443 http://127.0.0.1:39961
-tailscale --socket="$probe_ts_dir/tailscaled.sock" serve status
-```
-
-Supply `TS_AUTHKEY` as an ephemeral enrollment secret and keep command tracing disabled. Wait for
-the daemon socket to be ready before `up`. The CLI inherits that secret rather than printing it.
-This userspace/inbound-Serve recipe has not been run here: outbound VPN connectivity alone is not
-proof of inbound HTTPS reachability. Verify it in the target VM. On completion, stop only the owned
-agent PID and log out the owned disposable node; for the separate userspace daemon, use its socket
-for logout and terminate only `probe_ts_pid`. Keep reports before workspace deletion. Do not reset
-Serve or log out a shared pre-existing node as probe cleanup.
+The [runtime README](../README.md#run-the-agent-in-a-cloud-workspace) owns the production enrollment
+and private HTTPS recipe. The experimental probe can instead run behind an already enrolled,
+disposable test node's Serve proxy on its fixture port. Use the actual returned HTTPS hostname and
+verify from another tailnet device. Do not reuse or reset a shared node as probe cleanup.
 
 #### Codex / OpenAI cloud target
 
-The current
-[OpenAI cloud-environment guide](https://learn.chatgpt.com/docs/environments/cloud-environments)
-documents prepared environments, per-task working state, startup configuration, internet policy, and
-a native Tailscale VPN setting using reusable ephemeral keys. It describes that VPN for access from
-cloud tasks to private services. It does not establish inbound Serve/daemon control or an idle
-process-lifetime guarantee. Its network-secret placeholders also differ from raw values required by
-a standalone Tailscale process. Inspect the actual account's supported setup first; avoid starting a
-duplicate daemon on a managed connection. The legacy setup-script guide is not the current cloud
-environment workflow.
-
-For the real Codex experiment, sign in, select a disposable private environment, make this source
-bundle available, and have its startup/task hook launch the fixture agent. Check whether the managed
-VPN exposes a usable inbound endpoint; if not, determine whether a separate per-task daemon/Serve
-process is supported. Test package/control/relay connectivity during the task as well as setup. Do
-not claim native VPN settings alone solve inbound serving.
-
-The in-app browser was signed out of OpenAI and the available task projects provided no cloud
-execution environment. The maintainer requested continuing local implementation while cloud
-validation remains pending. No OpenAI environment, account/network settings, keys, or public static
-deployment were changed. A real cloud pass needs account/environment access, the static HTTPS URL,
-tailnet enrollment/Serve permission, and a physical testing device.
+Use the current [provider procedure](#codex-environment-hook) for installation, task startup,
+private variables, networking and lifecycle checks. The original experiment could not access a
+signed-in cloud environment; the maintainer authorized local implementation while that gate stayed
+pending. Current local results do not establish a verified provider hook.
 
 #### Lifecycle gate and recorded evidence
 

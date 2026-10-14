@@ -59,7 +59,8 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
   const artifact = join(directory, "agent");
   await cp(resolve("dist/agent"), artifact, { recursive: true });
   assert(
-    (await readdir(artifact)).sort().join(",") === "README.md,THIRD_PARTY_NOTICES.txt,agent.js",
+    (await readdir(artifact)).sort().join(",") ===
+      "README.md,THIRD_PARTY_NOTICES.txt,agent.js,cloud.js,install-linux.sh",
     "Unexpected runtime files",
   );
   const imports = new Bun.Transpiler({ loader: "js", target: "bun" }).scanImports(

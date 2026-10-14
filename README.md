@@ -127,6 +127,17 @@ checks, removal and saved-review access. A fresh client can import a backup thro
 local data** before connecting. The normal `dev`, `build`, and `start` commands retain the local
 combined app. No public deployment has been performed.
 
+The manually triggered [Pages workflow](.github/workflows/deploy-web.yml) builds at the repository's
+configured Pages path and publishes only `dist/web/`. After reviewing/committing it, choose
+**Settings → Pages → GitHub Actions**, then run **Deploy static review client** on the default
+branch. It has no push trigger. For this repository, the usual project URL would be
+`https://joakin.github.io/git-review/`; use the actual deployment URL if a custom domain is
+configured.
+[GitHub Pages availability](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+depends on the plan for private repositories. Export browser data before moving to the new origin;
+the [local-data owner](docs/independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns
+transfer.
+
 ## Build and run the independent agent
 
 ```sh
@@ -163,9 +174,9 @@ tailscale serve --bg 3000
 
 Use the agent's exact HTTPS origin without a trailing slash. This setting allows the private
 proxy-origin request check. Frontend origins are configured separately below. Tailscale enrollment,
-unique ephemeral hostnames, Serve, and process supervision stay outside the agent; provider setup
-and lifetime verification are described in the
-[feasibility workflow](docs/qa-workflow.md#private-https-in-a-cloud-workspace). The runtime does not
+unique ephemeral hostnames, Serve, and process supervision stay outside the API process. The
+optional cloud launcher below owns a separate node; provider lifetime verification is described in
+the [cloud procedure](docs/qa-workflow.md#cloud-bootstrap-and-provider-checks). The runtime does not
 keep a host registry or enroll Tailscale nodes.
 
 Voice tools are optional and checked only on transcription requests. An explicit
@@ -175,6 +186,50 @@ the local Homebrew locations and also checks absolute `PATH` entries. Handy reta
 macOS app location; cloud transcription requires an explicitly configured compatible Handy CLI and
 model. Missing tools do not prevent startup or typed review. Startup output does not certify
 tool/model availability; `bun /path/to/agent/agent.js --help` lists configuration.
+
+## Run the agent in a cloud workspace
+
+The agent artifact also contains `cloud.js` and `install-linux.sh`. On a Debian/Ubuntu Linux
+workspace, provide `ca-certificates`, `curl`, `unzip`, `tar`, `coreutils`, Git and ripgrep through
+the provider's package manager. Then install the pinned Bun/Tailscale binaries into a writable
+directory; installation does not enroll a node or start a system service:
+
+```sh
+GIT_REVIEW_TOOL_DIR=/path/to/tools bash /path/to/agent/install-linux.sh
+export PATH="/path/to/tools/bin:$PATH"
+```
+
+Configure `GIT_REVIEW_CLIENT_URL` with the stable static HTTPS URL ending in `/`. Supply
+`TS_AUTHKEY` through the provider's private **direct environment-variable** facility: a
+preauthorized, ephemeral enrollment key with the intended review-host access. A reusable key
+supports separate task VMs. Do not use a proxy-substituted network-secret placeholder; the Tailscale
+process needs the raw key. Enable tailnet HTTPS/Serve and permit the reviewing devices to reach
+these nodes on HTTPS first. Keep these credentials and enrolled state out of published environment
+images.
+
+Start once **inside each task**, after its checkout is ready:
+
+```sh
+bun /path/to/agent/cloud.js --root /path/to/task-checkout --port 3000
+```
+
+The foreground supervisor creates its own private socket, memory state and a unique hostname. It
+uses the actual assigned DNS name, starts the API on loopback, checks protocol/root readiness,
+configures private Serve and prints the client connection link. The allowed frontend origin defaults
+to the client URL's origin; explicit `GIT_REVIEW_ALLOWED_ORIGINS` must include it. CLI help owns the
+remaining options. Another launch uses a fresh identity by default; old feedback remains associated
+with its original URL/path and can be recovered.
+
+Keep the supervisor running through the provider's supported task service mechanism. SIGINT/SIGTERM
+stop its agent, log out its owned node and stop its daemon. It does not modify a pre-existing
+managed VPN node or Serve configuration. Startup/child failures also stop the owned processes. An
+abrupt VM kill cannot run cleanup; ephemeral disconnection cleanup then belongs to Tailscale. The
+launcher does not extend provider uptime or automatically restart a suspended workspace.
+
+The [Linux artifact workflow](.github/workflows/cloud-artifacts.yml) is manually triggered and
+packages `git-review-agent.tar.gz` after installation, type/test gates, artifact and launcher
+checks. The [cloud QA procedure](docs/qa-workflow.md#cloud-bootstrap-and-provider-checks) owns local
+simulation, the Codex setup hook and the remaining real-device/provider verification.
 
 ## Agent information and frontend origins
 

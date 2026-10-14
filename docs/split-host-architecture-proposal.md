@@ -1,8 +1,9 @@
 # Split host implementation plan
 
-Architecture agreed on 2026-10-13. Steps 2–11 are committed. Cloud/device feasibility remains
-pending. This record owns remaining work and release acceptance; implemented contracts belong to the
-linked behavior records. Git retains the original research, proposals and delivery history.
+Architecture agreed on 2026-10-13. Steps 2–11 and the cloud bootstrap implementation are committed.
+Cloud/device feasibility remains pending. This record owns remaining work and release acceptance;
+implemented contracts belong to the linked behavior records. Git retains the original research,
+proposals and delivery history.
 
 ## First release and agreed boundaries
 
@@ -128,6 +129,12 @@ Turn the probe setup into a generic Linux recipe and one verified provider hook.
 prerequisites, enrolls Tailscale, starts the approved-root packaged agent, configures private HTTPS
 and the allowed frontend origin, then prints the actual agent URL and frontend connection link.
 Runtime operation stays in the README; provider setup and verification stay in the QA guide.
+
+The [cloud launcher and Linux installer](../README.md#run-the-agent-in-a-cloud-workspace), manual
+artifact/static deployment workflows and
+[provider procedure](qa-workflow.md#cloud-bootstrap-and-provider-checks) are committed. Local
+packaged simulation passes; the Linux workflow, actual provider hook, public deployment and
+physical-device lifecycle gate remain pending.
 
 Choose a unique workspace hostname after instantiation; reused images must not share enrollment
 state or names. [Ephemeral nodes](https://tailscale.com/docs/features/ephemeral-nodes) get a new IP

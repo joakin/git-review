@@ -1,5 +1,14 @@
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expectRecord, expectString } from "@git-review/shared/validation";
@@ -94,6 +103,26 @@ try {
   if (result.outputs.length !== 1 || result.outputs[0]?.path !== resolve(staging, "agent.js"))
     throw new Error("Agent build must include all runtime modules/assets in agent.js");
   const bundleBytes = result.outputs[0].size;
+  const cloud = await Bun.build({
+    entrypoints: [resolve(repository, "apps/agent/src/cloud-main.ts")],
+    outdir: staging,
+    target: "bun",
+    format: "esm",
+    packages: "bundle",
+    splitting: false,
+    naming: "cloud.js",
+    minify: true,
+  });
+  if (
+    !cloud.success ||
+    cloud.outputs.length !== 1 ||
+    cloud.outputs[0]?.path !== resolve(staging, "cloud.js")
+  )
+    throw new AggregateError(cloud.logs, "Cloud launcher build failed");
+  await copyFile(
+    resolve(repository, "deploy/install-linux.sh"),
+    resolve(staging, "install-linux.sh"),
+  );
   await writeFile(resolve(staging, "THIRD_PARTY_NOTICES.txt"), await thirdPartyNotices());
   await writeFile(
     resolve(staging, "README.md"),
@@ -108,6 +137,8 @@ bun agent.js --root /path/to/projects --port 3000
 \`\`\`
 
 The agent serves only /api/ routes and binds to 127.0.0.1 by default.
+cloud.js provides optional isolated userspace Tailscale enrollment and supervision; run bun cloud.js --help.
+install-linux.sh installs pinned Bun/Tailscale binaries without enrollment or root privileges after OS prerequisites exist.
 Use a private Tailscale Serve proxy for HTTPS; enrollment and process lifetime are managed externally.
 GIT_REVIEW_PUBLIC_ORIGIN is the exact HTTPS agent origin used by that proxy, without a trailing slash.
 GIT_REVIEW_ALLOWED_ORIGINS configures a JSON array of exact frontend HTTPS origins for CORS (default []).
