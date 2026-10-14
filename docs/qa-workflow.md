@@ -209,6 +209,14 @@ For the activated UI, run `bun qa/check-agent-transport.ts --data`. The
 `--capture <new-milestone>` for conversion/import previews at all four sizes. The capture tool's
 `--file <selector> <path>` action attaches a backup through the native input.
 
+### Saved feedback recovery
+
+Run `bun qa/check-agent-transport.ts --recovery`; it uses disposable agents, a static frontend and
+isolated browser storage. [The browser check](../qa/check-saved-feedback.ts) owns its scenarios. Add
+`--capture <new-milestone>` for unavailable-project and recovery-dialog captures at all four sizes
+through `bun run qa:capture`. [Feedback](feedback-slice-proposal.md#saved-feedback-recovery) owns
+behavior and evidence limits.
+
 ### Split-host feasibility probe
 
 Step 1 of the

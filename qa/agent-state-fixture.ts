@@ -5,6 +5,7 @@ export type HeldResource = "file" | "diff" | "feedback" | "media";
 /** Deliberately equal paths/version tokens with distinguishable fixture content. */
 export class AgentStateFixture {
   rootUnavailable = false;
+  agentUnavailable = false;
   private next: HeldResource | null = null;
   private pending = new Map<HeldResource, { release: () => void }>();
   private listeners = new Map<HeldResource, () => void>();

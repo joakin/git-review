@@ -3,11 +3,8 @@ import { resolve } from "node:path";
 import type { Page } from "playwright-core";
 import { parseProjectResponse } from "@git-review/shared/api";
 import { responseBody } from "../apps/web/src/api.ts";
-import {
-  formatFeedback,
-  validateCommentStore,
-  type CommentStore,
-} from "../apps/web/src/comments.ts";
+import { validateCommentStore, type CommentStore } from "../apps/web/src/comments.ts";
+import { formatAgentFeedback } from "../apps/web/src/agent-feedback.ts";
 import {
   appUrl,
   assertNoHorizontalOverflow,
@@ -188,7 +185,12 @@ try {
           await preview(page);
           const exported = await page.locator("#review-export-text").inputValue();
           assert(
-            exported === formatFeedback(project.absolutePath, saved.drafts),
+            exported ===
+              formatAgentFeedback(
+                { endpoint: origin, projectPath: project.absolutePath },
+                saved.drafts,
+                "checked",
+              ),
             "Diff range export changed source or fragment",
           );
           assert(
@@ -348,7 +350,11 @@ try {
           await preview(page);
           assert(
             (await page.locator("#review-export-text").inputValue()) ===
-              formatFeedback(contextProject.absolutePath, contextStore.drafts),
+              formatAgentFeedback(
+                { endpoint: origin, projectPath: contextProject.absolutePath },
+                contextStore.drafts,
+                "checked",
+              ),
             "Revealed range did not check after reload",
           );
           await assertNoHorizontalOverflow(page);

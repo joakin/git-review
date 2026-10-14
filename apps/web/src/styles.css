@@ -2256,6 +2256,54 @@ span.select-control > select {
   flex-wrap: wrap;
   background: var(--color-surface);
 }
+.review-feedback-actions button {
+  min-height: 44px;
+}
+.review-project-context {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-13);
+  overflow-wrap: anywhere;
+}
+.review-dialog-content > button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-accent);
+  background: var(--color-surface);
+}
+.review-dialog-content > .review-hint {
+  padding: 0;
+  margin-block: var(--space-3);
+}
+.saved-review-summary {
+  max-width: 800px;
+  margin: 0 auto var(--space-5);
+  padding: clamp(var(--space-4), 3vw, var(--space-6));
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+.saved-review-summary h2 {
+  font-size: var(--font-size-20);
+}
+.saved-review-list {
+  display: none;
+}
+.saved-review-summary .review-hint {
+  padding: 0;
+  margin-block: var(--space-3);
+}
+.saved-review-summary button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  white-space: normal;
+}
 .install-data-content {
   display: grid;
   gap: var(--space-4);

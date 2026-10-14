@@ -1,9 +1,8 @@
 # Split host implementation plan
 
-Architecture agreed on 2026-10-13. Steps 2–9 are committed; step 10 is next. Cloud/device
-feasibility remains pending. This record owns remaining work and release acceptance; implemented
-contracts belong to the linked behavior records. Git retains the original research, proposals and
-delivery history.
+Architecture agreed on 2026-10-13. Steps 2–10 are committed. Cloud/device feasibility remains
+pending. This record owns remaining work and release acceptance; implemented contracts belong to the
+linked behavior records. Git retains the original research, proposals and delivery history.
 
 ## First release and agreed boundaries
 
@@ -111,25 +110,10 @@ legacy assignment, conversion and global backup behavior.
 
 ### 10. Make saved feedback independent of live source
 
-Load the saved project and review before connection/root/project requests settle. Separate saved
-review from live-source state. An unavailable Changes screen offers the saved count, Feedback,
-history, Retry, recovery copy and export. Source-dependent reveal/reattachment stays unavailable
-until fresh source loads; captured quotes must never appear to be current fetched changes.
-
-Normal checked copy retains the [feedback contract](feedback-slice-proposal.md). Add an explicit
-recovery copy that includes all saved drafts, including outdated ones, with captured quotes and
-unverified freshness clearly identified. It makes no source requests and preserves drafts after
-copy. Exact history can be copied separately. Clipboard failure offers selectable text. Include
-endpoint/project context in new feedback output, without attaching old drafts to another host.
-
-This requires no offline repository cache. Recovery works when the static app is loadable or already
-open and the browser has retained its local data; cold startup without internet remains out of
-scope.
-
-Review checkpoint: after initial failure and disappearance during review/checking, saved feedback
-and history remain viewable, copyable and exportable. Reconnect restores normal checked copy. Verify
-navigation during clipboard completion and inspect all four screen sizes. Fold the resulting
-contract into the feedback and local-data owners.
+[Feedback recovery](feedback-slice-proposal.md#saved-feedback-recovery) owns source-independent
+viewing/copying and live rechecking;
+[local data](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns its export.
+[Recovery QA](qa-workflow.md#saved-feedback-recovery) owns the command.
 
 ### 11. Add connection management and saved-project navigation
 

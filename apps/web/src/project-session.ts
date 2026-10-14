@@ -24,7 +24,11 @@ type ProjectSession = {
     openError: { path: string; message: string } | null;
     recentPaths: readonly string[];
   };
-  actions: { selectFolder: (path: string) => void; restoreDefaultRoute: () => void };
+  actions: {
+    selectFolder: (path: string) => void;
+    restoreDefaultRoute: () => void;
+    retry: () => void;
+  };
 };
 type SessionInputs = {
   projectPath: string | null;
@@ -56,6 +60,7 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
   }));
   const sessionRef = useRef(session);
   const openRequest = useRef<AbortController | null>(null);
+  const [retry, setRetry] = useState(0);
 
   function updateSession(change: (current: SessionState) => SessionState): void {
     const next = change(sessionRef.current);
@@ -131,7 +136,7 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
     }
     void connect();
     return () => controller.abort();
-  }, []);
+  }, [retry]);
 
   const root = session.root;
   useEffect(() => {
@@ -208,6 +213,19 @@ export function useProjectSession(inputs: SessionInputs): ProjectSession {
           : null,
       recentPaths: session.workspace.recentPaths,
     },
-    actions: { selectFolder, restoreDefaultRoute },
+    actions: {
+      selectFolder,
+      restoreDefaultRoute,
+      retry: () => {
+        openRequest.current?.abort();
+        updateSession((current) => ({
+          ...current,
+          root: { kind: "loading" },
+          resolved: null,
+          opening: { kind: "idle" },
+        }));
+        setRetry((value) => value + 1);
+      },
+    },
   };
 }

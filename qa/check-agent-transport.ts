@@ -13,20 +13,22 @@ import {
 import { AgentStateFixture } from "./agent-state-fixture.ts";
 import { checkAgentDataActivation } from "./check-agent-data-activation.ts";
 import { checkAgentState } from "./check-agent-state-browser.ts";
+import { checkSavedFeedback } from "./check-saved-feedback.ts";
 
 function assert(value: boolean, message: string): asserts value {
   if (!value) throw new Error(message);
 }
 const args = process.argv.slice(2);
 const dataCheck = args[0] === "--data";
-const stateCheck = args[0] === "--state" || dataCheck;
+const recoveryCheck = args[0] === "--recovery";
+const stateCheck = args[0] === "--state" || dataCheck || recoveryCheck;
 const captureArgs = stateCheck ? args.slice(1) : args;
 const captureLabel =
   captureArgs.length === 2 && captureArgs[0] === "--capture" ? captureArgs[1] : undefined;
 assert(
   captureArgs.length === 0 ||
     (captureLabel !== undefined && /^[a-z0-9][a-z0-9_-]{0,63}$/.test(captureLabel)),
-  "Usage: bun qa/check-agent-transport.ts [--state | --data] [--capture <new milestone>]",
+  "Usage: bun qa/check-agent-transport.ts [--state | --data | --recovery] [--capture <new milestone>]",
 );
 await withTempDirectory("git-review-agent-transport-", async (temporary) => {
   const directory = await realpath(temporary);
@@ -97,6 +99,11 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
         cookie: request.headers.get("cookie"),
         range: request.headers.get("range"),
       });
+      if (stateFixture?.agentUnavailable)
+        return Response.json(
+          { error: { code: "unavailable", message: "Controlled agent unavailable" } },
+          { status: 503 },
+        );
       if (path === "/api/transcriptions")
         return Response.json({ text: "Controlled transport transcript" });
       if (path === "/api/qa-redirect") return Response.redirect(redirect(), 302);
@@ -164,6 +171,14 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
     assert(build.success && output !== undefined, build.logs.join("\n"));
     files.set("/assets/main.js", { body: await output.text(), type: "text/javascript" });
     await withQaBrowser(async (browser) => {
+      if (recoveryCheck && stateFixture !== null)
+        await checkSavedFeedback(
+          browser,
+          { frontend: frontend.url.origin, a: a.url.origin, b: b.url.origin },
+          root.realPath,
+          stateFixture,
+          captureLabel,
+        );
       if (dataCheck)
         await checkAgentDataActivation(
           browser,
@@ -226,7 +241,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           "Browser client APIs: every request family reaches its chosen agent; cookies are omitted and redirects cannot retarget work",
         );
         if (stateFixture !== null) {
-          if (!dataCheck)
+          if (!dataCheck && !recoveryCheck)
             await checkAgentState(
               context,
               { frontend: frontend.url.origin, a: a.url.origin, b: b.url.origin },
@@ -372,7 +387,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           );
         });
     });
-    if (captureLabel !== undefined && !dataCheck) {
+    if (captureLabel !== undefined && !dataCheck && !recoveryCheck) {
       const capture = Bun.spawn(
         [
           process.execPath,
@@ -392,7 +407,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           "--label",
           captureLabel,
           "--ready",
-          stateCheck ? ".welcome h1" : ".media-preview img",
+          stateCheck ? ".connection-required h1" : ".media-preview img",
         ],
         { stdout: "inherit", stderr: "inherit" },
       );

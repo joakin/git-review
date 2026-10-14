@@ -59,16 +59,17 @@ stay project-relative. Picker directories and recents retain root-relative brows
 [destination envelope](../apps/web/src/agent-navigation.ts) validates ownership separately from the
 [route details](../apps/web/src/navigation.ts). The configured connection must match the destination
 before requests begin. An unknown host shows **Host connection needed** and makes no agent requests;
-the explicit recovery action opens the configured host's picker. Add-host configuration remains in
-the
+its saved review remains available under the
+[feedback recovery contract](feedback-slice-proposal.md#saved-feedback-recovery). The
+configured-host action opens that host's picker. Add-host configuration remains in the
 [connection UI slice](split-host-architecture-proposal.md#11-add-connection-management-and-saved-project-navigation).
 
 Links without an agent field are explicitly legacy root-relative destinations. They resolve only
 against the configured legacy endpoint, then replace that entry with the returned canonical path and
 endpoint while preserving section/file/line/ref and history identity. Failed legacy lookup keeps the
-original destination and its error; it never guesses another host. The current bootstrap configures
-only the page-origin legacy agent, with multi-host selection still gated on persisted ownership. No
-automatic assignment of existing reviews to a cloud host occurs.
+original destination and its error; it never guesses another host. The
+[local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups) defines configured
+connections and explicit legacy conversion.
 
 Canonical project lookup does not require a successful root-information request. Resource access
 still validates the canonical path against the agent's current approved root under the

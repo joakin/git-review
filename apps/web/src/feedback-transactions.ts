@@ -7,10 +7,10 @@ import {
   mergeCheckedComments,
   newLocalId,
   recordSuccessfulCopy,
-  snapshotFeedback,
   type CheckedComments,
   type CommentStore,
 } from "./comments.ts";
+import { formatAgentFeedback, snapshotAgentFeedback } from "./agent-feedback.ts";
 
 type CheckState =
   | { kind: "idle" }
@@ -19,14 +19,16 @@ type CheckState =
   | { kind: "error"; message: string };
 type CopyState = { kind: "idle" } | { kind: "copying" } | { kind: "error"; message: string };
 export type FeedbackState = { check: CheckState; copy: CopyState };
-type CopyResult = { kind: "feedback"; id: string } | { kind: "history" };
+type CopyResult = { kind: "feedback"; id: string } | { kind: "history" } | { kind: "recovery" };
+type ClipboardLease = { generation: number; phase: "check" | "write" };
 
 type FeedbackPorts = {
+  endpoint: string;
   readStore: () => CommentStore | null;
   updateStore: (change: (current: CommentStore) => CommentStore) => CommentStore | null;
   onState: (state: FeedbackState) => void;
   onCopied: (result: CopyResult) => void;
-  checkAnchors: FeedbackSourceChecker;
+  checkAnchors: FeedbackSourceChecker | null;
   writeText: (text: string, owns: () => boolean) => Promise<void>;
 };
 
@@ -38,7 +40,7 @@ function message(error: unknown): string {
 export class FeedbackTransactions {
   private generation = 0;
   private request: AbortController | null = null;
-  private clipboardLease: { generation: number } | null = null;
+  private clipboardLease: ClipboardLease | null = null;
   private checkState: CheckState = { kind: "idle" };
   private copyState: CopyState = { kind: "idle" };
 
@@ -53,6 +55,7 @@ export class FeedbackTransactions {
     this.request?.abort();
     this.request = null;
     this.checkState = { kind: "idle" };
+    if (this.clipboardLease?.phase === "check") this.clipboardLease = null;
     // An issued clipboard write cannot be aborted; keep its lease until it settles.
     this.copyState = this.clipboardLease === null ? { kind: "idle" } : { kind: "copying" };
     this.publish();
@@ -75,6 +78,7 @@ export class FeedbackTransactions {
     snapshot: CommentStore,
     signal: AbortSignal,
   ): Promise<CheckedComments> {
+    if (this.ports.checkAnchors === null) throw new Error("Live source access is unavailable.");
     const anchors: FeedbackAnchor[] = [];
     const indices = new Map<string, number>();
     for (const draft of snapshot.drafts) {
@@ -130,7 +134,8 @@ export class FeedbackTransactions {
     const initial = this.ports.readStore();
     if (initial?.projectPath !== project.absolutePath) return;
     const token = this.beginCheck();
-    this.clipboardLease = { generation: token.generation };
+    const lease: ClipboardLease = { generation: token.generation, phase: "check" };
+    this.clipboardLease = lease;
     this.copyState = { kind: "copying" };
     this.publish();
     let phase: "check" | "copy" = "check";
@@ -141,7 +146,11 @@ export class FeedbackTransactions {
       if (current === null) return;
       this.checkState = { kind: "ready", checked };
       phase = "copy";
-      const snapshot = snapshotFeedback(project.absolutePath, current, checked);
+      const snapshot = snapshotAgentFeedback(
+        { endpoint: this.ports.endpoint, projectPath: project.absolutePath },
+        current,
+        checked,
+      );
       if (snapshot.text.length === 0)
         throw new Error("No current comments to copy. Reattach outdated comments first.");
       if (snapshot.text.length > maxFeedbackLength)
@@ -149,6 +158,7 @@ export class FeedbackTransactions {
           "Feedback is too large for copy history. Select the text below to copy it manually.",
         );
       this.publish();
+      lease.phase = "write";
       await this.ports.writeText(snapshot.text, () =>
         this.owns(token.generation, project.absolutePath),
       );
@@ -161,32 +171,53 @@ export class FeedbackTransactions {
       if (phase === "check") this.checkState = { kind: "error", message: message(error) };
       else this.copyState = { kind: "error", message: message(error) };
     } finally {
-      this.clipboardLease = null;
-      if (this.copyState.kind === "copying") this.copyState = { kind: "idle" };
-      this.publish();
+      if (this.clipboardLease === lease) {
+        this.clipboardLease = null;
+        if (this.copyState.kind === "copying") this.copyState = { kind: "idle" };
+        this.publish();
+      }
     }
   }
 
-  async copyHistory(project: Project, text: string): Promise<void> {
-    if (
-      this.clipboardLease !== null ||
-      this.ports.readStore()?.projectPath !== project.absolutePath
-    )
-      return;
+  async copyRecovery(projectPath: string): Promise<void> {
+    this.cancel();
+    const store = this.ports.readStore();
+    if (store?.projectPath !== projectPath) return;
+    const text = formatAgentFeedback(
+      { endpoint: this.ports.endpoint, projectPath },
+      store.drafts,
+      "recovery",
+    );
+    if (text !== "") await this.copySavedText(projectPath, text, "recovery");
+  }
+
+  async copyHistory(projectPath: string, text: string): Promise<void> {
+    await this.copySavedText(projectPath, text, "history");
+  }
+
+  private async copySavedText(
+    projectPath: string,
+    text: string,
+    kind: "history" | "recovery",
+  ): Promise<void> {
+    if (this.clipboardLease !== null || this.ports.readStore()?.projectPath !== projectPath) return;
     const generation = this.generation;
-    this.clipboardLease = { generation };
+    const lease = { generation, phase: "write" as const };
+    this.clipboardLease = lease;
     this.copyState = { kind: "copying" };
     this.publish();
     try {
-      await this.ports.writeText(text, () => this.owns(generation, project.absolutePath));
-      if (this.owns(generation, project.absolutePath)) this.ports.onCopied({ kind: "history" });
+      await this.ports.writeText(text, () => this.owns(generation, projectPath));
+      if (this.owns(generation, projectPath)) this.ports.onCopied({ kind });
     } catch (error: unknown) {
-      if (this.owns(generation, project.absolutePath))
+      if (this.owns(generation, projectPath))
         this.copyState = { kind: "error", message: message(error) };
     } finally {
-      this.clipboardLease = null;
-      if (this.copyState.kind === "copying") this.copyState = { kind: "idle" };
-      this.publish();
+      if (this.clipboardLease === lease) {
+        this.clipboardLease = null;
+        if (this.copyState.kind === "copying") this.copyState = { kind: "idle" };
+        this.publish();
+      }
     }
   }
 }

@@ -1,7 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useNotification, useNotifications } from "./Notifications.tsx";
 import type { NotificationSeverity } from "./notification-store.ts";
-import { useAgentApi, useAgentLifetime } from "./AgentApiProvider.tsx";
+import {
+  useAgentApi,
+  useAgentLifetime,
+  useProjectState,
+  useClipboardWriter,
+} from "./AgentApiProvider.tsx";
 import type { AppNavigation } from "./AgentApplication.tsx";
 import { diffCardId } from "./DiffCard.tsx";
 import { ChangesSidebar, ChangesView } from "./ChangesView.tsx";
@@ -32,6 +37,9 @@ import { SettingsView } from "./SettingsView.tsx";
 import { useAppearancePreferences } from "./appearance-preferences.ts";
 import { parentDirectory, routeProjectPath, routeSection, type Route } from "./navigation.ts";
 import { useBrowserData } from "./BrowserDataProvider.tsx";
+import { SavedReviewSummary } from "./SavedReviewSummary.tsx";
+import { projectReviewBackup } from "./agent-feedback.ts";
+import { downloadAgentBackup } from "./backup-download.ts";
 import { maxSearchQueryLength, normalizeSearchQuery } from "@git-review/shared/search-query";
 import type {
   ChangeEntry,
@@ -56,6 +64,8 @@ function projectEntryRoute(projectPath: string): Route {
 export function App({ navigation }: { navigation: AppNavigation }) {
   const api = useAgentApi();
   const lifetime = useAgentLifetime();
+  const projectState = useProjectState();
+  const clipboard = useClipboardWriter();
   const notifications = useNotifications();
   const [listingLoad, setListingLoad] = useState<{
     key: string;
@@ -162,9 +172,15 @@ export function App({ navigation }: { navigation: AppNavigation }) {
   const lastGitRefs = useRef(navigation.gitRefs);
   const feedback = useReviewFeedback({
     project,
+    projectPath: navigation.legacy ? null : routeProject,
+    endpoint: api.connection.endpoint,
+    storage: projectState,
+    clipboard,
+    checkAnchors: api.checkFeedbackSources,
+    ownsSession: navigation.ownsSession,
     onNotice: (message, severity: NotificationSeverity = "warning") =>
       notifications.push({
-        key: `feedback:${project?.absolutePath}:${message}`,
+        key: `feedback:${routeProject}:${message}`,
         message,
         severity,
       }),
@@ -190,11 +206,10 @@ export function App({ navigation }: { navigation: AppNavigation }) {
   useEffect(
     () => () => {
       for (const entry of notifications.read()) {
-        if (entry.key?.startsWith(`feedback:${project?.absolutePath}:`))
-          notifications.dismiss(entry.id);
+        if (entry.key?.startsWith(`feedback:${routeProject}:`)) notifications.dismiss(entry.id);
       }
     },
-    [notifications, project?.absolutePath],
+    [notifications, routeProject],
   );
   const navigationHistory = navigation.history;
   const review = useWorkingCopyReview({
@@ -582,7 +597,10 @@ export function App({ navigation }: { navigation: AppNavigation }) {
 
   function openSettings(): void {
     if (!settingsOpen) settingsBackRoute.current = route;
-    navigate({ section: "settings", projectPath: project?.absolutePath ?? null });
+    navigate({
+      section: "settings",
+      projectPath: project?.absolutePath ?? (navigation.legacy ? null : routeProject),
+    });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -674,6 +692,75 @@ export function App({ navigation }: { navigation: AppNavigation }) {
     (route?.section === "git" && route.target.kind === "list")
       ? "list"
       : "content";
+  function exportProjectReview(): void {
+    const store = feedback.model.store;
+    if (store === null) return;
+    try {
+      downloadAgentBackup(
+        projectReviewBackup(data.exportBackup(), {
+          endpoint: api.connection.endpoint,
+          projectPath: store.projectPath,
+        }),
+      );
+      notifications.push({
+        key: "project-backup",
+        message: "Project review backup downloaded.",
+        severity: "success",
+      });
+    } catch (error) {
+      notifications.push({ key: "project-backup", message: messageFor(error), severity: "error" });
+    }
+  }
+  const savedReview =
+    feedback.model.store === null
+      ? null
+      : data.readSavedReview({
+          endpoint: api.connection.endpoint,
+          projectPath: feedback.model.store.projectPath,
+        });
+  const hasSavedFeedback =
+    savedReview?.kind === "ready" ||
+    drafts.length > 0 ||
+    (feedback.model.store?.history.length ?? 0) > 0;
+  const recoverySummary =
+    !settingsOpen &&
+    hasSavedFeedback &&
+    feedback.model.store !== null &&
+    (project === null ||
+      (viewMode === "changes" &&
+        (status.kind === "error" ||
+          review.model.refreshError !== null ||
+          review.model.checkError)));
+  function renderRecoverySummary() {
+    if (!recoverySummary || feedback.model.store === null) return null;
+    return (
+      <SavedReviewSummary
+        store={feedback.model.store}
+        endpoint={api.connection.endpoint}
+        message={
+          project === null
+            ? projectOpenFailure === null
+              ? "Opening live project…"
+              : "Live project unavailable"
+            : "Live changes could not be verified"
+        }
+        onFeedback={feedback.actions.openPreview}
+        onRetry={
+          project === null
+            ? projectOpenFailure === null
+              ? null
+              : session.actions.retry
+            : review.actions.refresh
+        }
+        onExport={exportProjectReview}
+        onChooseProject={
+          project === null
+            ? () => navigate({ section: "projects", directory: "" }, "replace")
+            : null
+        }
+      />
+    );
+  }
   const selectedWorkingFile =
     project !== null && selectedFile !== null ? (
       <FileViewer
@@ -727,6 +814,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
         class="workspace"
         data-section={routeState.kind === "invalid" ? "invalid" : (route?.section ?? "projects")}
         data-mobile-pane={mobilePane}
+        data-project-recovery={recoverySummary && project === null ? "" : undefined}
       >
         {menuOpen && (
           <button
@@ -825,6 +913,9 @@ export function App({ navigation }: { navigation: AppNavigation }) {
               ×
             </button>
           </div>
+          {project !== null && recoverySummary && (
+            <div class="saved-review-list">{renderRecoverySummary()}</div>
+          )}
           {listSection !== "projects" && project !== null && (
             <nav class="sidebar-project-tabs" aria-label="Project views">
               <button
@@ -924,7 +1015,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
               }
             />
           ) : listSection !== "projects" && project === null ? (
-            projectOpenFailure !== null ? (
+            recoverySummary ? null : projectOpenFailure !== null ? (
               <div class="sidebar-message project-open-error">
                 Project unavailable.
                 <button
@@ -956,6 +1047,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
 
         <main class="main-content">
           <div hidden={settingsOpen}>
+            {renderRecoverySummary()}
             {routeState.kind === "invalid" ? (
               <div class="welcome">
                 <h1>That link cannot be opened.</h1>
@@ -973,7 +1065,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
                 onBrowseFolders={() => navigate({ section: "projects", directory: "" })}
               />
             ) : project === null ? (
-              projectOpenError?.path === routeProject ? (
+              recoverySummary ? null : projectOpenError?.path === routeProject ? (
                 <div class="status-message">
                   Project unavailable.{" "}
                   <button
@@ -1165,11 +1257,14 @@ export function App({ navigation }: { navigation: AppNavigation }) {
             wrap={wrapCode}
           />
         )}
-      {!settingsOpen && project !== null && viewMode !== null && (
-        <button class="feedback-launch" type="button" onClick={feedback.actions.openPreview}>
-          Feedback <span>{drafts.length}</span>
-        </button>
-      )}
+      {!settingsOpen &&
+        (project !== null || hasSavedFeedback) &&
+        feedback.model.store !== null &&
+        viewMode !== null && (
+          <button class="feedback-launch" type="button" onClick={feedback.actions.openPreview}>
+            Feedback <span>{drafts.length}</span>
+          </button>
+        )}
       {reattachment !== null && (
         <div class="reattach-banner" role="status">
           {reattachment.subject.kind !== "line"
@@ -1192,6 +1287,8 @@ export function App({ navigation }: { navigation: AppNavigation }) {
         <FeedbackDialog
           store={preview.store}
           projectPath={preview.projectPath}
+          endpoint={preview.endpoint}
+          liveAvailable={preview.liveAvailable}
           state={preview.state}
           onClose={feedback.actions.closePreview}
           onCheck={feedback.actions.check}
@@ -1201,6 +1298,9 @@ export function App({ navigation }: { navigation: AppNavigation }) {
           onUndo={feedback.actions.undo}
           canUndo={preview.canUndo}
           onCopyHistory={feedback.actions.copyHistory}
+          onRecovery={feedback.actions.recover}
+          onBeginRecovery={feedback.actions.beginRecovery}
+          onExport={exportProjectReview}
         />
       )}
       {installDataOpen && (

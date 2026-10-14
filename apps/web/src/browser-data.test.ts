@@ -288,6 +288,40 @@ test("canonical tab restoration survives unavailable or stale root metadata with
   expect(data.readLastSelection()?.projectPath).toBe(path);
 });
 
+test("late project metadata and preference writes preserve a newer review saved by another tab", () => {
+  const local = memoryDataStorage();
+  const opening = createBrowserData(local, memoryDataStorage());
+  const peer = createBrowserData(local, memoryDataStorage());
+  const port = opening.projectState(a);
+  expect(port.readComments(path).drafts).toEqual([]);
+  peer.projectState(a).saveComments(comments);
+  port.rememberProject(
+    { name: "Project", absolutePath: path, relativePath: "project" },
+    "/workspace",
+  );
+  expect(createBrowserData(local, null).projectState(a).readComments(path)).toEqual(comments);
+  const changed = { ...comments, drafts: [{ ...draft, body: "Newer peer body" }] };
+  peer.projectState(a).saveComments(changed);
+  port.saveOpenCards(path, new Set(["unstaged:file.ts"]));
+  expect(createBrowserData(local, null).projectState(a).readComments(path)).toEqual(changed);
+});
+
+test("a cached valid review cannot overwrite a record that became unreadable in another tab", () => {
+  const local = memoryDataStorage();
+  const data = createBrowserData(local, memoryDataStorage());
+  const port = data.projectState(a);
+  port.saveComments(comments);
+  const key = Array.from({ length: local.length }, (_, i) => local.key(i)).find((key) =>
+    key?.startsWith("git-review:agents:v1:reviews:"),
+  );
+  if (key === null || key === undefined) throw new Error("Missing stored record");
+  local.setItem(key, "{corrupt}");
+  expect(port.saveComments({ ...comments, history: [] })).toBe(false);
+  expect(local.getItem(key)).toBe("{corrupt}");
+  expect(data.readSavedReview({ endpoint: a, projectPath: path }).kind).toBe("unavailable");
+  expect(() => data.exportBackup()).toThrow();
+});
+
 test("export uses current stored reviews and global preference patches preserve unrelated choices from another tab", () => {
   const local = memoryDataStorage();
   const first = createBrowserData(local, memoryDataStorage());

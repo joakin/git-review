@@ -146,7 +146,7 @@ function NotificationViewport({
         // Preserve the modal's recovery/composer controls when they meet the toast's footprint.
         const controls = [
           ...modal.querySelectorAll<HTMLElement>(
-            ".review-dialog-head, .review-dialog-actions, .voice-footer, .install-import-label, .install-data-content section > button, .install-preview > button",
+            ".review-dialog-head, .review-dialog-actions, .voice-footer, .install-import-label, .install-data-content section > button, .install-preview > button, .review-history summary, .review-history button, .review-export button, .review-dialog-content > button",
           ),
         ]
           .map((control) => control.getBoundingClientRect())

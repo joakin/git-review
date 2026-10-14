@@ -488,11 +488,15 @@ function quote(value: string): string {
   return JSON.stringify(value);
 }
 
-export function formatFeedback(projectPath: string, drafts: readonly DraftComment[]): string {
+export function formatFeedback(
+  projectPath: string,
+  drafts: readonly DraftComment[],
+  mode: "checked" | "recovery" = "checked",
+): string {
   const sourceOrder = (anchor: CommentAnchor): number =>
     anchor.kind === "file" ? 3 : { staged: 0, unstaged: 1, untracked: 2 }[anchor.layer];
   const sorted = drafts
-    .filter((draft) => draft.state === "current")
+    .filter((draft) => mode === "recovery" || draft.state === "current")
     .sort(
       (a, b) =>
         sourceOrder(a.anchor) - sourceOrder(b.anchor) ||
@@ -514,6 +518,8 @@ export function formatFeedback(projectPath: string, drafts: readonly DraftCommen
       lines.push("", `[${source}] ${quote(draft.anchor.path)}`);
       group = nextGroup;
     }
+    if (mode === "recovery")
+      lines.push(`  Saved state: ${draft.state}; source freshness unverified`);
     if (draft.subject.kind === "range") {
       for (const part of draft.subject.parts) {
         const first = part.anchors[0];

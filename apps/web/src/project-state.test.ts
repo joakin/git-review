@@ -17,7 +17,7 @@ test("equal paths on two persistent owners keep comments, preferences, recents a
   a.saveLanguageOverride(path, "file.ts", "text");
   a.saveWorkspace({ version: 4, rootPath: "/workspace", recentPaths: ["repo"] });
   a.saveActiveProject("/workspace", "repo");
-  expect(a.readComments(path)).toBe(value);
+  expect(a.readComments(path)).toEqual(value);
   expect(b.readComments(path).history).toEqual([]);
   expect(b.readOpenCards(path).size).toBe(0);
   expect(b.readLanguageOverride(path, "file.ts")).toBeNull();

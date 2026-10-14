@@ -76,17 +76,19 @@
   white-space: nowrap;
 }
 
-/* Wide screens keep all three panes adjacent. Settings needs menu and content. */
+/* Wide screens keep all three panes adjacent. Settings and recovery need menu and content. */
 .workspace {
   display: grid;
   grid-template-columns: var(--workspace-menu-width) var(--project-list-width) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
-.workspace[data-section="settings"] {
+.workspace[data-section="settings"],
+.workspace[data-project-recovery] {
   grid-template-columns: var(--workspace-menu-width) minmax(0, 1fr);
 }
-.workspace[data-section="settings"] .sidebar {
+.workspace[data-section="settings"] .sidebar,
+.workspace[data-project-recovery] .sidebar {
   display: none;
 }
 .workspace-menu {
@@ -295,7 +297,8 @@
     visibility: hidden;
   }
   .workspace,
-  .workspace[data-section="settings"] {
+  .workspace[data-section="settings"],
+  .workspace[data-project-recovery] {
     display: block;
   }
   .workspace-menu-head {
@@ -397,6 +400,9 @@
     display: grid;
     grid-template-columns: var(--project-list-width) minmax(0, 1fr);
   }
+  .workspace[data-project-recovery] {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .workspace .sidebar {
     position: sticky;
     top: var(--topbar-height-mobile);
@@ -458,6 +464,12 @@
   .workspace[data-mobile-pane="list"] .main-content {
     display: none;
   }
+  .workspace[data-project-recovery] .main-content {
+    display: block;
+  }
+  .workspace[data-mobile-pane="list"] .saved-review-list {
+    display: block;
+  }
   .workspace[data-mobile-pane="list"] .sidebar {
     position: static;
     display: block;
@@ -470,6 +482,9 @@
     transform: none;
     border: 0;
     background: var(--background-main);
+  }
+  .workspace[data-project-recovery] .sidebar {
+    display: none;
   }
   .workspace[data-mobile-pane="list"] .sidebar-head {
     padding-bottom: var(--space-4);

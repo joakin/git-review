@@ -12,10 +12,10 @@
 3. **Feedback** shows the project's draft count and opens drafts/copy history from every project
    view, including lists and historical Git inspection. Line markers and counts include both line
    and selection comments belonging to that source.
-4. Preview checks the current sources. Copy checks again, exports current comments, and on confirmed
-   success archives the exact copied text/batch and clears only that batch. **Undo last copy** can
-   restore it. Failed or unavailable clipboard access preserves drafts and offers selectable text;
-   archived entries can be opened and copied again.
+4. Preview checks the current sources. Copy checks again, exports current comments with
+   agent/project context, and on confirmed success archives the exact copied text/batch and clears
+   only that batch. **Undo last copy** can restore it. Failed or unavailable clipboard access
+   preserves drafts and offers selectable text; archived entries can be opened and copied again.
 
 Feedback creation covers unchanged Git files and non-Git folders as well as changed files.
 Historical Git is inspection-only. Empty, media, binary, symbolic-link, unsupported, and oversized
@@ -190,15 +190,37 @@ exceed capacity, retain history and Undo and explain how to free capacity before
 [transaction engine](../apps/web/src/feedback-transactions.ts) and
 [comment operations](../apps/web/src/comments.ts) define the executable contracts and limits.
 
+## Saved feedback recovery
+
+A canonical agent/project destination loads its saved review before live requests finish. When the
+host, approved root or project cannot be read, the app shows saved draft/history counts and offers
+Feedback, Retry and project export. Recovery also remains available after a source check fails.
+Captured quotes are labeled as saved source; they do not stand in for current changes. An
+unavailable project's recovery card occupies the main content area at a readable width, with one
+project-switch action and no empty contextual list. It remains visible for both phone list and
+content destinations.
+
+**Copy saved feedback** is an explicit recovery action. It includes every saved draft, including
+outdated ones, identifies the agent/project and marks source freshness as unverified. It makes no
+source requests, does not archive or clear drafts, and offers selectable text when clipboard access
+fails. Exact historical text can be viewed and copied separately without regenerating it. Recovery
+copies share the application's clipboard owner; navigation cancels queued copies and suppresses late
+completion notices for a different destination.
+
+Fresh checks and normal checked copy become available after live project access returns. Source
+reattachment requires a successful check. Opening a saved review neither assigns it to another host
+nor grants filesystem access.
+[Local data](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns persistence and
+backup transfer. The frontend must itself be loadable or already open; this does not add an offline
+repository cache.
+
 ## Persistence and display
 
-Drafts and bounded copy history are local to this browser origin and canonical project path. Stored
+Drafts and bounded copy history are local to this browser origin and agent/project identity. Stored
 and imported data are validated; invalid data fails closed, and storage denial leaves the current
 review usable in memory. Two tabs editing the same project's drafts have no conflict resolution. The
-[local-data record](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns backups; the
-deliberate retirement of earlier formats is part of
-[stateless project access](stateless-project-access-plan.md). No comment-writing server API or
-repository write is involved.
+[local-data record](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns backups and
+supported conversion. No comment-writing server API or repository write is involved.
 
 The textarea and voice footer form one bordered composer with a straight divider and continuous
 focus outline; its label remains associated with the input. Joined Search/Comment buttons round only
@@ -208,6 +230,15 @@ editor, with a minimum visible height and outer-dialog scrolling when the viewpo
 cannot push Save or closing controls beyond reach.
 
 ## Verification and evidence
+
+[Recovery browser QA](../qa/check-saved-feedback.ts) covers unavailable source and connection
+lifetimes; [format/ownership tests](../apps/web/src/agent-feedback.test.ts) and
+[transactions](../apps/web/src/feedback-transactions.test.ts) cover recovery output and
+cancellation. Four-size
+[unavailable-project](../qa/screenshots/saved-feedback-layout-summary/manifest.json) and
+[recovery-dialog](../qa/screenshots/saved-feedback-layout-dialog/manifest.json) captures cover saved
+counts, captured quotes and accessible recovery controls. Chrome clipboard writes were granted;
+physical iOS/Android clipboard, keyboard and installed-app behavior remain unverified.
 
 Multi-line feedback was completed on 2026-10-10 in three implementation stages and a final cleanup
 pass, each independently reviewed under the maintainer's autonomous stage/commit authorization. The

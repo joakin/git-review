@@ -33,10 +33,11 @@ host-management UI remains a
 
 The saved-project index is independent of recents. Reads reconcile missing or stale entries from
 valid review metadata without contacting an agent or remembering its connection. Recovery metadata
-grants no filesystem access. Ordinary saves write the review before its index entry. An indexing
-failure remains recoverable; failed saves keep edits in this tab and report their owning project.
-Global export includes current stored records and this tab's unsaved edits, without replacing other
-tabs' stored work with stale read caches. Invalid active records stop export and retain the source.
+grants no filesystem access. Metadata and preference writes preserve current stored feedback.
+Ordinary saves write the review before its index entry. An indexing failure remains recoverable;
+failed saves keep edits in this tab and report their owning project. Global export includes current
+stored records and this tab's unsaved edits, without replacing other tabs' stored work with stale
+read caches. Invalid active records stop export and retain the source.
 
 Open **Settings → Install & local data** for global export/import, even when agent or root requests
 fail. Export includes unavailable/removed hosts and old roots. New backups preserve endpoint
@@ -72,9 +73,11 @@ temporary edits durable.
 
 Installation at a different scheme/hostname/port uses a different browser origin. Installed iOS
 storage can also differ from Safari. Transfer a backup before changing origin; tab selection,
-navigation history and payload caches are outside it. Viewing/copying saved feedback without a live
-project remains the
-[recovery slice](split-host-architecture-proposal.md#10-make-saved-feedback-independent-of-live-source).
+navigation history and payload caches are outside it.
+[Saved feedback recovery](feedback-slice-proposal.md#saved-feedback-recovery) owns viewing and
+copying without a live project. Its project export uses the current backup format and retains the
+selected review's endpoint, metadata, preferences, drafts and exact history without including other
+projects or root recents. Global export remains available in Settings.
 
 Install/backup failures and export confirmations use
 [application notifications](application-notifications.md) in the dialog. Startup assignment errors

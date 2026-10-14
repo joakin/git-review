@@ -17,6 +17,8 @@ import { LegacyDataSetup } from "./LegacyDataSetup.tsx";
 import { useNavigationHistory } from "./use-navigation-history.ts";
 import type { Route, RouteState } from "./navigation.ts";
 import { createClipboardWriter } from "./clipboard-writer.ts";
+import { DisconnectedReview } from "./DisconnectedReview.tsx";
+import { routeProjectPath } from "./navigation.ts";
 
 type ConfiguredAgent = {
   connection: AgentConnection;
@@ -206,17 +208,15 @@ export function AgentApplication({
 
   if (selected === undefined || active === null)
     return (
-      <main class="connection-required">
-        <section class="welcome">
-          <h1>Host connection needed</h1>
-          <p class="welcome-copy">
-            This link belongs to a host that has not been added to this client.
-          </p>
-          <p class="sidebar-project-path">{endpoint}</p>
-          <button
-            type="button"
-            class="primary-action"
-            onClick={() => {
+      <BrowserDataProvider data={data}>
+        <NotificationProvider key={JSON.stringify([endpoint, generation.current])}>
+          <BrowserDataNotice />
+          <DisconnectedReview
+            key={JSON.stringify([endpoint, state])}
+            endpoint={endpoint}
+            projectPath={state.kind === "ready" ? routeProjectPath(state.destination.route) : null}
+            clipboard={clipboard}
+            onChooseHost={() => {
               const destination = {
                 kind: "agent" as const,
                 endpoint: legacyConnection.endpoint,
@@ -225,11 +225,9 @@ export function AgentApplication({
               accept({ kind: "ready", destination });
               history.write(agentDestinationUrl(destination), "push");
             }}
-          >
-            Choose a project on the configured host
-          </button>
-        </section>
-      </main>
+          />
+        </NotificationProvider>
+      </BrowserDataProvider>
     );
   const routeState: RouteState =
     state.kind === "ready" ? { kind: "ready", route: state.destination.route } : state;

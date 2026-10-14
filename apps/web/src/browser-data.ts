@@ -9,7 +9,7 @@ import {
   type AgentGlobalPreferences,
   type SavedAgentReview,
 } from "./agent-data-format.ts";
-import { projectResourceKey } from "./agent-project.ts";
+import { projectResourceKey, type ProjectReference } from "./agent-project.ts";
 import { emptyCommentStore, type CommentStore } from "./comments.ts";
 import {
   readLegacyData,
@@ -33,7 +33,9 @@ export type DataStartup =
   | { kind: "legacy"; snapshot: LegacySnapshot }
   | { kind: "error"; message: string };
 type LoadedReview =
-  { kind: "ready"; value: SavedAgentReview } | { kind: "unavailable"; value: SavedAgentReview };
+  | { kind: "ready"; value: SavedAgentReview }
+  | { kind: "missing"; value: SavedAgentReview }
+  | { kind: "unavailable"; value: SavedAgentReview };
 export function memoryDataStorage(): BrowserStorage {
   const values = new Map<string, string>();
   return {
@@ -136,7 +138,9 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
     };
     let loaded: LoadedReview;
     try {
-      loaded = { kind: "ready", value: repository.readReview(fallback.project) ?? fallback };
+      const saved = repository.readReview(fallback.project);
+      loaded =
+        saved === null ? { kind: "missing", value: fallback } : { kind: "ready", value: saved };
     } catch (error) {
       report(
         "Could not read saved review for " + path + " at " + endpoint + ". " + message(error),
@@ -152,7 +156,20 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
     path: string,
     update: (value: SavedAgentReview) => SavedAgentReview,
   ): boolean {
-    const loaded = load(endpoint, path);
+    let loaded = load(endpoint, path);
+    const key = projectResourceKey({ endpoint, projectPath: path });
+    if (loaded.kind !== "unavailable" && !unsaved.has(key)) {
+      try {
+        const latest = repository.readReview({ endpoint, projectPath: path });
+        if (latest !== null) loaded = { kind: "ready", value: latest };
+      } catch (error) {
+        report(
+          "Could not read saved review for " + path + " at " + endpoint + ". " + message(error),
+          "read:" + key,
+        );
+        loaded = { kind: "unavailable", value: loaded.value };
+      }
+    }
     const value = update(loaded.value);
     const topic = "write:" + projectResourceKey(value.project);
     records.set(projectResourceKey(value.project), { ...loaded, value });
@@ -165,6 +182,7 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
     }
     try {
       repository.saveReview(value);
+      records.set(projectResourceKey(value.project), { kind: "ready", value });
       unsaved.delete(projectResourceKey(value.project));
       resolveProblem(topic);
       return !temporary;
@@ -330,6 +348,8 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
   return {
     startup,
     projectState,
+    readSavedReview: (reference: ProjectReference) =>
+      load(reference.endpoint, reference.projectPath),
     readProblem: () => [...problems.values()].join("\n") || null,
     subscribeProblem(listener: () => void) {
       listeners.add(listener);

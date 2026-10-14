@@ -32,8 +32,8 @@ message with a compact visible outline and a full touch target. The scroll conta
 around the cards for their shadows. The stack respects safe-area insets and the visible viewport
 when a virtual keyboard is open. Its height is bounded with scrolling so multiple persistent
 messages remain reachable. Page notifications sit above the floating Feedback/history controls.
-Modal placement also keeps footer, close, voice and backup controls reachable when they intersect
-the notification stack.
+Modal placement also keeps footer, close, voice, backup and feedback recovery controls reachable
+when they intersect the notification stack.
 
 Each notification has a severity, message, optional recovery action and explicit dismissal. Warnings
 and errors remain until dismissed or their source resolves. Brief confirmations disappear after a

@@ -2,16 +2,24 @@ import { describe, expect, test } from "bun:test";
 import type { Project } from "@git-review/shared/api";
 import {
   emptyCommentStore,
-  formatFeedback,
   maxFeedbackLength,
   parseCommentStore,
-  snapshotFeedback,
   undoSuccessfulCopy,
   type CommentStore,
   type DraftComment,
   type DiffCommentAnchor,
 } from "./comments.ts";
 import { FeedbackTransactions, type FeedbackState } from "./feedback-transactions.ts";
+import { formatAgentFeedback, snapshotAgentFeedback } from "./agent-feedback.ts";
+import type { CheckedComments } from "./comments.ts";
+
+const endpoint = "https://review.example.ts.net";
+function formatFeedback(projectPath: string, drafts: readonly DraftComment[]) {
+  return formatAgentFeedback({ endpoint, projectPath }, drafts, "checked");
+}
+function snapshotFeedback(projectPath: string, store: CommentStore, checked: CheckedComments) {
+  return snapshotAgentFeedback({ endpoint, projectPath }, store, checked);
+}
 
 const project: Project = {
   relativePath: "project",
@@ -70,6 +78,7 @@ function harness(
   const copied: Parameters<Ports["onCopied"]>[0][] = [];
   const written: string[] = [];
   const transactions = new FeedbackTransactions({
+    endpoint,
     readStore: () => current,
     updateStore: (change) => {
       if (current !== null) current = change(current);
@@ -77,7 +86,10 @@ function harness(
     },
     onState: (value) => states.push(value),
     onCopied: (value) => copied.push(value),
-    checkAnchors: overrides.checkAnchors ?? (async (_project, anchors) => anchors.map(() => true)),
+    checkAnchors:
+      overrides.checkAnchors === undefined
+        ? async (_project, anchors) => anchors.map(() => true)
+        : overrides.checkAnchors,
     writeText: async (text, owns) => {
       written.push(text);
       await overrides.writeText?.(text, owns);
@@ -117,6 +129,89 @@ function heldClipboard() {
 }
 
 describe("owned feedback transactions", () => {
+  test("recovery includes every draft without source checks, archival or clearing, while history stays exact", async () => {
+    const h = harness([draft("one"), { ...draft("outdated"), state: "outdated" }], {
+      checkAnchors: null,
+    });
+    const original = {
+      ...h.store,
+      history: [{ id: "original", copiedAt: 1, text: "Exact old copy  \r\n🦊\t", comments: [] }],
+    };
+    h.store = original;
+    await h.transactions.copyRecovery(project.absolutePath);
+    expect(h.store).toBe(original);
+    expect(h.written[0]).toContain(endpoint);
+    expect(h.written[0]).toContain(project.absolutePath);
+    expect(h.written[0]).toContain("Feedback outdated");
+    expect(h.written[0]).toContain("Saved state: outdated; source freshness unverified");
+    expect(h.copied).toEqual([{ kind: "recovery" }]);
+    await h.transactions.copyHistory(project.absolutePath, original.history[0]?.text ?? "");
+    expect(h.written[1]).toBe("Exact old copy  \r\n🦊\t");
+    expect(h.store).toBe(original);
+    await h.transactions.copy(project);
+    expect(h.state.check.kind).toBe("error");
+    expect(h.written).toHaveLength(2);
+  });
+
+  test("recovery escapes a held checked-copy precheck and its late result cannot release the new clipboard lease", async () => {
+    const check = deferred<boolean[]>();
+    const clipboard = heldClipboard();
+    const h = harness([draft("one")], {
+      checkAnchors: async () => check.promise,
+      writeText: clipboard.writeText,
+    });
+    const pendingCheck = h.transactions.copy(project);
+    const original = h.store;
+    const recovery = h.transactions.copyRecovery(project.absolutePath);
+    await clipboard.started.promise;
+    check.resolve([true]);
+    await pendingCheck;
+    await h.transactions.copyHistory(project.absolutePath, "Must wait");
+    expect(h.written).toHaveLength(1);
+    expect(h.state.copy.kind).toBe("copying");
+    clipboard.completion.resolve();
+    await recovery;
+    expect(h.store).toBe(original);
+    expect(h.copied).toEqual([{ kind: "recovery" }]);
+  });
+
+  for (const outcome of ["success", "failure"] as const) {
+    test(`a recovery clipboard ${outcome} after navigation preserves both stores and does not announce success`, async () => {
+      const clipboard = heldClipboard();
+      const h = harness([draft("one")], { writeText: clipboard.writeText });
+      const original = h.store;
+      const copying = h.transactions.copyRecovery(project.absolutePath);
+      await clipboard.started.promise;
+      h.transactions.cancel();
+      h.store = { ...emptyCommentStore(otherProject.absolutePath), drafts: [draft("other")] };
+      const other = h.store;
+      if (outcome === "success") clipboard.completion.resolve();
+      else clipboard.completion.reject(new Error("Denied"));
+      await copying;
+      expect(h.store).toBe(other);
+      expect(original.drafts).toEqual([draft("one")]);
+      expect(h.copied).toEqual([]);
+      expect(h.state.copy.kind).toBe("idle");
+    });
+  }
+
+  test("recovery clipboard rejection retains all drafts and permits retry", async () => {
+    let denied = true;
+    const h = harness([draft("one")], {
+      writeText: async () => {
+        if (denied) throw new Error("Clipboard denied");
+      },
+    });
+    const original = h.store;
+    await h.transactions.copyRecovery(project.absolutePath);
+    expect(h.state.copy).toEqual({ kind: "error", message: "Clipboard denied" });
+    expect(h.store).toBe(original);
+    denied = false;
+    await h.transactions.copyRecovery(project.absolutePath);
+    expect(h.copied).toEqual([{ kind: "recovery" }]);
+    expect(h.store).toBe(original);
+  });
+
   test("revealed-line feedback uses the anchor check and read failures block copying", async () => {
     const revealed = draft("revealed");
     revealed.anchor = {
@@ -391,7 +486,7 @@ describe("owned feedback transactions", () => {
       h.store = { ...emptyCommentStore(project.absolutePath), drafts: [draft("new-session")] };
       const current = h.store;
       await h.transactions.copy(project);
-      await h.transactions.copyHistory(project, "Blocked history copy");
+      await h.transactions.copyHistory(project.absolutePath, "Blocked history copy");
       expect(h.written).toHaveLength(1);
       if (outcome === "success") clipboard.completion.resolve();
       else clipboard.completion.reject(new Error("Late clipboard failure"));
@@ -400,7 +495,7 @@ describe("owned feedback transactions", () => {
       expect(h.copied).toEqual([]);
       expect(h.state).toEqual({ check: { kind: "idle" }, copy: { kind: "idle" } });
       // The next write may start once the canceled browser promise has settled.
-      await h.transactions.copyHistory(project, "New session history");
+      await h.transactions.copyHistory(project.absolutePath, "New session history");
       expect(h.written).toEqual([
         formatFeedback(project.absolutePath, [draft("one")]),
         "New session history",
@@ -416,12 +511,12 @@ describe("owned feedback transactions", () => {
     const pending = h.transactions.copy(project);
     await clipboard.started.promise;
     await h.transactions.copy(project);
-    await h.transactions.copyHistory(project, "Blocked history");
+    await h.transactions.copyHistory(project.absolutePath, "Blocked history");
     h.transactions.cancel();
     h.store = { ...emptyCommentStore(otherProject.absolutePath), drafts: [draft("other")] };
     await h.transactions.check(otherProject);
     await h.transactions.copy(otherProject);
-    await h.transactions.copyHistory(otherProject, "Blocked other history");
+    await h.transactions.copyHistory(otherProject.absolutePath, "Blocked other history");
     expect(h.written).toHaveLength(1);
     const current = h.store;
     clipboard.completion.resolve();
@@ -550,10 +645,10 @@ describe("owned feedback transactions", () => {
       comments: [draft("old")],
     };
     h.store = { ...h.store, history: [entry] };
-    const pending = h.transactions.copyHistory(project, entry.text);
+    const pending = h.transactions.copyHistory(project.absolutePath, entry.text);
     await clipboard.started.promise;
     await h.transactions.copy(project);
-    await h.transactions.copyHistory(project, "Blocked second recopy");
+    await h.transactions.copyHistory(project.absolutePath, "Blocked second recopy");
     const edited = { ...draft("one"), body: "Edited while recopying", updatedAt: 3 };
     h.store = { ...h.store, drafts: [edited] };
     const current = h.store;

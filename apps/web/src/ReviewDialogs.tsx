@@ -1,7 +1,6 @@
-import { useRef } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import {
   maxBodyLength,
-  snapshotFeedback,
   isSelectionSubject,
   rangeSourceText,
   type CommentAnchor,
@@ -13,6 +12,7 @@ import type { FeedbackState } from "./feedback-transactions.ts";
 import { useModal } from "./modal.ts";
 import type { EditorState } from "./review-feedback.ts";
 import { Chevron } from "./Icons.tsx";
+import { formatAgentFeedback, snapshotAgentFeedback } from "./agent-feedback.ts";
 
 function anchorLabel(anchor: CommentAnchor, subject: CommentSubject): string {
   if (subject.kind === "range")
@@ -158,6 +158,8 @@ export function CommentEditor({
 export function FeedbackDialog({
   store,
   projectPath,
+  endpoint,
+  liveAvailable,
   state,
   onClose,
   onCheck,
@@ -167,9 +169,14 @@ export function FeedbackDialog({
   onUndo,
   canUndo,
   onCopyHistory,
+  onRecovery,
+  onBeginRecovery,
+  onExport,
 }: {
   store: CommentStore;
   projectPath: string;
+  endpoint: string;
+  liveAvailable: boolean;
   state: FeedbackState;
   onClose: () => void;
   onCheck: () => void;
@@ -179,13 +186,18 @@ export function FeedbackDialog({
   onUndo: () => void;
   canUndo: boolean;
   onCopyHistory: (text: string) => void;
+  onRecovery: () => void;
+  onBeginRecovery: () => void;
+  onExport: () => void;
 }) {
   const modal = useModal(onClose);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const [recovering, setRecovering] = useState(!liveAvailable);
   const outdated = store.drafts.filter((draft) => draft.state === "outdated");
-  const exportText =
-    state.check.kind === "ready"
-      ? snapshotFeedback(projectPath, store, state.check.checked).text
+  const exportText = recovering
+    ? formatAgentFeedback({ endpoint, projectPath }, store.drafts, "recovery")
+    : state.check.kind === "ready"
+      ? snapshotAgentFeedback({ endpoint, projectPath }, store, state.check.checked).text
       : "";
   return (
     <dialog
@@ -211,7 +223,29 @@ export function FeedbackDialog({
         </button>
       </div>
       <div class="review-dialog-content">
-        {state.check.kind === "checking" && (
+        <div class="review-project-context">
+          <p>{endpoint}</p>
+          <p>{projectPath}</p>
+        </div>
+        {(recovering || !liveAvailable || state.check.kind !== "ready") && (
+          <p class="review-hint">
+            Saved source quotes below have not been verified against the current code.
+            {recovering &&
+              " Recovery includes outdated drafts and keeps every draft after copying."}
+          </p>
+        )}
+        {!recovering && (
+          <button
+            type="button"
+            onClick={() => {
+              onBeginRecovery();
+              setRecovering(true);
+            }}
+          >
+            Recover saved feedback without checking
+          </button>
+        )}
+        {!recovering && state.check.kind === "checking" && (
           <p class="review-status" role="status">
             Checking source lines…
           </p>
@@ -223,7 +257,9 @@ export function FeedbackDialog({
         )}
         {store.drafts.length === 0 && (
           <p class="review-empty">
-            Tap a code line in Files, a Search result, or a working-copy diff, then choose Comment.
+            {liveAvailable
+              ? "Tap a code line in Files, a Search result, or a working-copy diff, then choose Comment."
+              : "No saved drafts for this project. Saved copy history remains below when available."}
           </p>
         )}
         {store.drafts.map((draft) => (
@@ -240,30 +276,42 @@ export function FeedbackDialog({
             </div>
             <SourceQuote anchor={draft.anchor} subject={draft.subject} />
             <p>{draft.body}</p>
-            {draft.state === "outdated" && (
-              <p class="review-outdated">Line changed or disappeared. Reattach before copying.</p>
+            {recovering ? (
+              <p class="review-outdated">
+                Saved state: {draft.state}. Source freshness unverified.
+              </p>
+            ) : (
+              draft.state === "outdated" && (
+                <p class="review-outdated">Line changed or disappeared. Reattach before copying.</p>
+              )
             )}
             <div class="review-item-actions">
-              <button type="button" onClick={() => onEdit(draft.id)}>
+              <button type="button" onClick={() => onEdit(draft.id)} disabled={!liveAvailable}>
                 Edit
               </button>
               {draft.state === "outdated" && (
-                <button type="button" onClick={() => onReattach(draft.id)}>
+                <button
+                  type="button"
+                  onClick={() => onReattach(draft.id)}
+                  disabled={!liveAvailable || recovering || state.check.kind !== "ready"}
+                >
                   {isSelectionSubject(draft.subject) ? "Reattach selection" : "Reattach to line"}
                 </button>
               )}
             </div>
           </article>
         ))}
-        {outdated.length > 0 && (
+        {!recovering && outdated.length > 0 && (
           <p class="review-hint">
             {outdated.length} outdated comment{outdated.length === 1 ? " is" : "s are"} excluded
             from export.
           </p>
         )}
-        {state.check.kind === "ready" && exportText.length > 0 && (
+        {exportText.length > 0 && (
           <div class="review-export">
-            <label for="review-export-text">Copyable feedback text</label>
+            <label for="review-export-text">
+              {recovering ? "Saved feedback text — unverified" : "Copyable feedback text"}
+            </label>
             <textarea
               id="review-export-text"
               ref={textRef}
@@ -309,8 +357,12 @@ export function FeedbackDialog({
       <div class="review-dialog-actions review-feedback-actions">
         <button
           type="button"
-          onClick={onCheck}
+          onClick={() => {
+            setRecovering(false);
+            onCheck();
+          }}
           disabled={
+            !liveAvailable ||
             state.check.kind === "checking" ||
             state.copy.kind === "copying" ||
             store.drafts.length === 0
@@ -321,15 +373,20 @@ export function FeedbackDialog({
         <button type="button" onClick={onUndo} disabled={!canUndo}>
           Undo last copy
         </button>
+        <button type="button" onClick={onExport}>
+          Export project review
+        </button>
         <button
           class="review-primary"
           type="button"
-          onClick={onCopy}
+          onClick={recovering ? onRecovery : onCopy}
           disabled={
-            state.check.kind !== "ready" || state.copy.kind === "copying" || exportText.length === 0
+            (!recovering && (!liveAvailable || state.check.kind !== "ready")) ||
+            state.copy.kind === "copying" ||
+            exportText.length === 0
           }
         >
-          Copy feedback
+          {recovering ? "Copy saved feedback" : "Copy feedback"}
         </button>
       </div>
     </dialog>

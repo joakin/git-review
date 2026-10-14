@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Project } from "@git-review/shared/api";
-import {
-  useAgentApi,
-  useProjectState,
-  useClipboardWriter,
-  useAgentLifetime,
-} from "./AgentApiProvider.tsx";
+import type { ProjectState } from "./project-state.ts";
+import type { ClipboardWriter } from "./clipboard-writer.ts";
+import type { FeedbackSourceChecker } from "./feedback-check-api.ts";
 import {
   isSelectionSubject,
   commentSourceLineCount,
@@ -38,11 +35,14 @@ type FeedbackSession = {
 type FeedbackPreview = {
   store: CommentStore;
   projectPath: string;
+  endpoint: string;
+  liveAvailable: boolean;
   state: FeedbackState;
   canUndo: boolean;
 };
 
 type FeedbackModel = {
+  store: CommentStore | null;
   drafts: readonly DraftComment[];
   editor: EditorState | null;
   preview: FeedbackPreview | null;
@@ -65,6 +65,8 @@ type FeedbackActions = {
   cancelReattachment: () => void;
   check: () => void;
   copy: () => void;
+  recover: () => void;
+  beginRecovery: () => void;
   undo: () => void;
   copyHistory: (text: string) => void;
 };
@@ -72,6 +74,12 @@ type FeedbackActions = {
 type FeedbackOwner = { model: FeedbackModel; actions: FeedbackActions };
 type FeedbackInputs = {
   project: Project | null;
+  projectPath: string | null;
+  endpoint: string;
+  storage: ProjectState;
+  clipboard: ClipboardWriter;
+  checkAnchors: FeedbackSourceChecker | null;
+  ownsSession: () => boolean;
   onNotice: (message: string, severity?: NotificationSeverity) => void;
   onRevealAnchor: (anchor: CommentAnchor) => void;
 };
@@ -85,15 +93,16 @@ const emptySession: FeedbackSession = {
   reattachId: null,
 };
 
-/** Owns the loaded feedback session and a transaction engine bound to its agent API. */
+/** Saved review ownership outlives source availability; live checks remain an explicit port. */
 export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
-  const api = useAgentApi();
-  const lifetime = useAgentLifetime();
-  const clipboard = useClipboardWriter();
-  const storage = useProjectState();
+  const { storage, clipboard } = inputs;
   const inputsRef = useRef(inputs);
   inputsRef.current = inputs;
-  const [session, setSession] = useState<FeedbackSession>(emptySession);
+  const selectedPath = inputs.project?.absolutePath ?? inputs.projectPath;
+  const [session, setSession] = useState<FeedbackSession>(() => ({
+    ...emptySession,
+    store: selectedPath === null ? null : storage.readComments(selectedPath),
+  }));
   const sessionRef = useRef(session);
   const [state, setState] = useState<FeedbackState>({
     check: { kind: "idle" },
@@ -120,6 +129,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   const transactions = useMemo(
     () =>
       new FeedbackTransactions({
+        endpoint: inputs.endpoint,
         readStore: () => sessionRef.current.store,
         updateStore,
         onState: setState,
@@ -130,14 +140,29 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
               "Feedback copied. The copied comments are in history; Undo restores them.",
               "success",
             );
-          } else inputsRef.current.onNotice("History feedback copied.", "success");
+          } else
+            inputsRef.current.onNotice(
+              result.kind === "recovery"
+                ? "Saved feedback copied without checking source. Drafts are still here."
+                : "History feedback copied.",
+              "success",
+            );
         },
-        checkAnchors: api.checkFeedbackSources,
-        writeText: (text, owns) => clipboard.write(text, () => !lifetime.signal.aborted && owns()),
+        checkAnchors: inputs.checkAnchors,
+        writeText: (text, owns) =>
+          clipboard.write(text, () => inputsRef.current.ownsSession() && owns()),
       }),
-    [api],
+    [inputs.endpoint, inputs.checkAnchors, storage, clipboard],
   );
   useEffect(() => () => transactions.cancel(), [transactions]);
+  useLayoutEffect(() => {
+    if (sessionRef.current.store?.projectPath === selectedPath) return;
+    transactions.cancel();
+    updateSession(() => ({
+      ...emptySession,
+      store: selectedPath === null ? null : storage.readComments(selectedPath),
+    }));
+  }, [selectedPath, storage, transactions]);
 
   function closeEditor(): void {
     const editor = sessionRef.current.editor;
@@ -198,6 +223,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function loadProject(project: Project): void {
+    if (sessionRef.current.store?.projectPath === project.absolutePath) return;
     updateSession(() => ({
       ...emptySession,
       store: storage.readComments(project.absolutePath, inputsRef.current.onNotice),
@@ -293,7 +319,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function openPreview(): void {
-    if (inputsRef.current.project === null) return;
+    if (currentStore() === null) return;
     updateSession((current) => ({ ...current, previewOpen: true }));
     check();
   }
@@ -304,13 +330,16 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function currentDraft(id: string): DraftComment | null {
-    const store = sessionRef.current.store;
-    return store !== null && store.projectPath === inputsRef.current.project?.absolutePath
-      ? (store.drafts.find((draft) => draft.id === id) ?? null)
-      : null;
+    return currentStore()?.drafts.find((draft) => draft.id === id) ?? null;
+  }
+
+  function currentStore(): CommentStore | null {
+    const path = inputsRef.current.project?.absolutePath ?? inputsRef.current.projectPath;
+    return sessionRef.current.store?.projectPath === path ? sessionRef.current.store : null;
   }
 
   function editDraft(id: string): void {
+    if (inputsRef.current.project === null) return;
     const draft = currentDraft(id);
     if (draft === null) return;
     transactions.cancel();
@@ -322,6 +351,7 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function reattachDraft(id: string): void {
+    if (inputsRef.current.project === null || state.check.kind !== "ready") return;
     const draft = currentDraft(id);
     if (draft === null) return;
     updateSession((current) => ({ ...current, previewOpen: false, reattachId: draft.id }));
@@ -338,8 +368,13 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   }
 
   function copyHistory(text: string): void {
-    const project = inputsRef.current.project;
-    if (project !== null) void transactions.copyHistory(project, text);
+    const store = currentStore();
+    if (store !== null) void transactions.copyHistory(store.projectPath, text);
+  }
+
+  function recover(): void {
+    const store = currentStore();
+    if (store !== null) void transactions.copyRecovery(store.projectPath);
   }
 
   function undo(): void {
@@ -359,14 +394,16 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
     inputsRef.current.onNotice("Copied comments restored to your draft.", "success");
   }
 
-  const store = session.store?.projectPath === inputs.project?.absolutePath ? session.store : null;
+  const store = session.store?.projectPath === selectedPath ? session.store : null;
   useNotification(
     `feedback-check:${store?.projectPath}`,
     store !== null && state.check.kind === "error"
       ? {
           message: state.check.message,
           severity: "error",
-          action: { label: "Retry", run: check, disabled: state.copy.kind === "copying" },
+          ...(inputs.project === null
+            ? {}
+            : { action: { label: "Retry", run: check, disabled: state.copy.kind === "copying" } }),
         }
       : null,
   );
@@ -392,13 +429,16 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
   );
   return {
     model: {
+      store,
       drafts: store?.drafts ?? [],
       editor: session.editor,
       preview:
-        session.previewOpen && store !== null && inputs.project !== null
+        session.previewOpen && store !== null
           ? {
               store,
-              projectPath: inputs.project.absolutePath,
+              projectPath: store.projectPath,
+              endpoint: inputs.endpoint,
+              liveAvailable: inputs.project !== null,
               state,
               canUndo: session.undoCopyId !== null && store.history[0]?.id === session.undoCopyId,
             }
@@ -421,6 +461,8 @@ export function useReviewFeedback(inputs: FeedbackInputs): FeedbackOwner {
       cancelReattachment,
       check,
       copy,
+      recover,
+      beginRecovery: () => transactions.cancel(),
       undo,
       copyHistory,
     },
