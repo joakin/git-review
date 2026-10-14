@@ -2304,6 +2304,171 @@ span.select-control > select {
   color: var(--color-accent);
   white-space: normal;
 }
+.hosts-home {
+  width: min(100%, 1100px);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-12);
+}
+.hosts-home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.hosts-home-head h1 {
+  font-size: var(--font-size-28);
+  margin: var(--space-2) 0 0;
+}
+.hosts-dialog {
+  width: min(940px, calc(100vw - 32px));
+}
+.host-manager {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.hosts-intro {
+  margin-bottom: var(--space-5);
+}
+.host-manager p {
+  font-size: var(--font-size-14);
+  line-height: 1.5;
+}
+.host-manager .review-hint {
+  margin-block: var(--space-3);
+  padding: 0;
+}
+.hosts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+.host-panel {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+.host-panel h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-20);
+}
+.host-panel h3 {
+  margin: 0;
+  font-size: var(--font-size-16);
+}
+.host-panel form {
+  display: grid;
+  gap: var(--space-3);
+}
+.host-panel label {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-semibold);
+}
+.host-panel input {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-text);
+  background: var(--color-page);
+  font: inherit;
+}
+.host-manager button,
+.hosts-home-head button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  color: var(--color-accent);
+  background: var(--color-surface);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-semibold);
+  white-space: normal;
+}
+.host-manager .host-primary {
+  color: var(--color-on-accent);
+  background: var(--color-accent-strong);
+}
+.host-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.host-address {
+  overflow-wrap: anywhere;
+  color: var(--color-text-muted);
+}
+.host-manager .host-address {
+  font-size: var(--font-size-13);
+  margin-block: var(--space-2);
+}
+.host-list {
+  display: grid;
+  gap: var(--space-5);
+}
+.host-record + .host-record {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-divider);
+}
+.host-record .host-rename {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: var(--space-3);
+}
+.host-status {
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+.host-status[data-state="available"],
+.host-check[data-state="available"] strong {
+  color: var(--color-accent);
+}
+.host-error,
+.host-status[data-state="unavailable"],
+.host-status[data-state="incompatible"] {
+  color: var(--color-error);
+}
+.host-check {
+  padding-top: var(--space-4);
+}
+.saved-reviews {
+  margin-top: var(--space-5);
+}
+.saved-review-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+}
+@media (max-width: 899px) {
+  .hosts-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .hosts-home {
+    padding: var(--space-5) var(--space-4) var(--space-12);
+  }
+  .host-panel {
+    padding: var(--space-4);
+  }
+  .saved-review-record {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .saved-review-record > button {
+    justify-self: start;
+  }
+}
 .install-data-content {
   display: grid;
   gap: var(--space-4);

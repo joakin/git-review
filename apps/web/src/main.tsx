@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { appBasePath } from "./deployment.ts";
+import { appBasePath, localAgentEnabled } from "./deployment.ts";
 import { AgentApplication } from "./AgentApplication.tsx";
 import { createPageAgentConnection } from "./agent-connection.ts";
 
@@ -7,7 +7,11 @@ const root = document.getElementById("app");
 if (root === null) throw new Error("The application root is missing");
 const legacyConnection = createPageAgentConnection();
 render(
-  <AgentApplication legacyConnection={legacyConnection} connections={[legacyConnection]} />,
+  <AgentApplication
+    legacyConnection={legacyConnection}
+    connections={localAgentEnabled ? [legacyConnection] : []}
+    localAgent={localAgentEnabled}
+  />,
   root,
 );
 

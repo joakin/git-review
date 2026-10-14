@@ -107,7 +107,7 @@ const server = Bun.serve({
           ...headers,
           "content-type": "text/html; charset=utf-8",
           "content-security-policy":
-            "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'",
+            "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https:; img-src 'self' data: https:; media-src 'self' blob: https:; frame-ancestors 'none'; base-uri 'none'",
         },
       });
     }

@@ -19,9 +19,9 @@ available.
 
 Project metadata lookup can canonicalize an allowed alias. All resource reads use the resulting
 canonical identity under the [stateless project contract](stateless-project-access-plan.md). Browser
-routes and recents retain their root-relative representation; they do not authorize access. The host
-has no app-level account system. Binding, private HTTPS, and runtime setup belong in the
-[root README](../README.md).
+picker routes and root recents retain their root-relative representation; they do not authorize
+access. The host has no app-level account system. Binding, private HTTPS, and runtime setup belong
+in the [root README](../README.md).
 
 The [agent HTTP boundary](agent-http-protocol.md) owns exact-origin checks, CORS and preflight;
 allowing a frontend never bypasses approved-root or per-request containment.

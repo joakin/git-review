@@ -7,6 +7,8 @@ export type AgentDestination =
   { kind: "legacy"; route: Route } | { kind: "agent"; endpoint: string; route: Route };
 export type AgentDestinationState =
   | { kind: "empty" }
+  | { kind: "hosts" }
+  | { kind: "prefill"; endpoint: string }
   | { kind: "invalid"; message: string }
   | { kind: "ready"; destination: AgentDestination };
 
@@ -20,6 +22,15 @@ export function parseAgentDestination(
   };
   if (search.length > 32_768 || !isValidUrlEncoding(search)) return invalid;
   const params = new URLSearchParams(search);
+  if (params.size === 1 && params.get("section") === "hosts") return { kind: "hosts" };
+  if (params.has("connect")) {
+    if (params.size !== 1) return invalid;
+    try {
+      return { kind: "prefill", endpoint: normalizeAgentEndpoint(params.get("connect"), true) };
+    } catch {
+      return invalid;
+    }
+  }
   const agents = params.getAll("agent");
   if (agents.length > 1) return invalid;
   const address = agents[0];

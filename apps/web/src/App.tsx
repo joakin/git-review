@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useNotification, useNotifications } from "./Notifications.tsx";
 import type { NotificationSeverity } from "./notification-store.ts";
 import {
@@ -41,6 +41,8 @@ import { SavedReviewSummary } from "./SavedReviewSummary.tsx";
 import { projectReviewBackup } from "./agent-feedback.ts";
 import { downloadAgentBackup } from "./backup-download.ts";
 import { maxSearchQueryLength, normalizeSearchQuery } from "@git-review/shared/search-query";
+import { defaultAgentLabel } from "./agent-data-format.ts";
+import { projectResourceKey } from "./agent-project.ts";
 import type {
   ChangeEntry,
   DirectoryListing,
@@ -150,6 +152,22 @@ export function App({ navigation }: { navigation: AppNavigation }) {
     },
   });
   const { root, project, opening, openError: projectOpenError, recentPaths } = session.model;
+  const menuRecents = useMemo(() => {
+    try {
+      const catalog = data.readCatalog();
+      return {
+        kind: "ready" as const,
+        projects: data.listRecentProjects().map((recent) => ({
+          ...recent,
+          hostLabel:
+            catalog.connections.find((host) => host.endpoint === recent.endpoint)?.label ??
+            defaultAgentLabel(recent.endpoint),
+        })),
+      };
+    } catch {
+      return { kind: "unavailable" as const };
+    }
+  }, [data, menuOpen, project, navigation]);
   const projectOpenFailure =
     projectOpenError?.path === routeProject
       ? projectOpenError.message
@@ -838,6 +856,10 @@ export function App({ navigation }: { navigation: AppNavigation }) {
               ×
             </button>
           </div>
+          <div class="menu-host-identity">
+            <strong>{navigation.hostLabel}</strong>
+            <small>{api.connection.endpoint}</small>
+          </div>
           <button
             class="menu-project"
             type="button"
@@ -845,21 +867,47 @@ export function App({ navigation }: { navigation: AppNavigation }) {
           >
             Choose a project <span aria-hidden="true">→</span>
           </button>
-          {recentPaths.length > 0 && (
+          {menuRecents.kind === "ready" && menuRecents.projects.length > 0 && (
             <div class="menu-recents">
               <span class="section-label">RECENT PROJECTS</span>
-              {recentPaths.map((recentPath) => (
+              {menuRecents.projects.map((recent) => (
                 <button
                   type="button"
-                  key={recentPath}
-                  onClick={() => session.actions.selectFolder(recentPath)}
+                  key={projectResourceKey(recent)}
+                  title={`${recent.hostLabel} · ${recent.endpoint}\n${recent.projectPath}`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigation.openProject(recent);
+                  }}
                 >
-                  <strong>{folderName(recentPath)}</strong>
-                  <small>{recentPath === "" ? "/" : `/${recentPath}`}</small>
+                  <strong>{recent.name}</strong>
+                  <small class="menu-recent-host">{recent.hostLabel}</small>
+                  <small>
+                    {recent.location.kind === "known-root"
+                      ? recent.location.relativePath === ""
+                        ? "/"
+                        : `/${recent.location.relativePath}`
+                      : recent.projectPath}
+                  </small>
                 </button>
               ))}
             </div>
           )}
+          {menuRecents.kind === "unavailable" && (
+            <p class="menu-recents-error" role="status">
+              Recent projects unavailable. Open Hosts & saved reviews to check local data.
+            </p>
+          )}
+          <button
+            class="menu-hosts"
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              navigation.openHosts();
+            }}
+          >
+            Hosts & saved reviews <span aria-hidden="true">↗</span>
+          </button>
           <button
             class="sidebar-settings"
             type="button"
@@ -1034,6 +1082,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
             )
           ) : (
             <ProjectPicker
+              host={{ endpoint: api.connection.endpoint, label: navigation.hostLabel }}
               root={root}
               listing={listing}
               path={path}
@@ -1305,6 +1354,7 @@ export function App({ navigation }: { navigation: AppNavigation }) {
       )}
       {installDataOpen && (
         <InstallDataDialog
+          defaultEndpoint={api.connection.endpoint}
           installPrompt={installPrompt}
           onInstallHandled={() => setInstallPrompt(null)}
           onClose={() => setInstallDataOpen(false)}

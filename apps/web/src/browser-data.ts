@@ -5,10 +5,14 @@ import {
   defaultAgentLabel,
   reconcileAgentProjects,
   parseAgentBackup,
+  parseSavedAgentConnection,
+  mergeRecentProjects,
   type AgentBackup,
   type AgentGlobalPreferences,
   type SavedAgentReview,
+  type SavedAgentProject,
 } from "./agent-data-format.ts";
+import { folderName } from "./folder-name.ts";
 import { projectResourceKey, type ProjectReference } from "./agent-project.ts";
 import { emptyCommentStore, type CommentStore } from "./comments.ts";
 import {
@@ -120,10 +124,10 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
     }
   }
 
-  function load(endpoint: string, path: string): LoadedReview {
+  function load(endpoint: string, path: string, refresh = false): LoadedReview {
     const key = projectResourceKey({ endpoint, projectPath: path });
     const cached = records.get(key);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined && (!refresh || unsaved.has(key))) return cached;
     const name =
       path
         .split("/")
@@ -230,13 +234,22 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
         }
         try {
           const catalog = repository.readCatalog();
-          if (!catalog.connections.some((record) => record.endpoint === endpoint))
+          const remembered = catalog.connections.some((record) => record.endpoint === endpoint);
+          const latest = catalog.recentProjects[0];
+          if (
+            !remembered ||
+            latest?.endpoint !== endpoint ||
+            latest.projectPath !== project.absolutePath
+          )
             repository.saveCatalog({
               ...catalog,
-              connections: [
-                ...catalog.connections,
-                { endpoint, label: defaultAgentLabel(endpoint) },
-              ],
+              connections: remembered
+                ? catalog.connections
+                : [...catalog.connections, { endpoint, label: defaultAgentLabel(endpoint) }],
+              recentProjects: mergeRecentProjects(
+                [{ endpoint, projectPath: project.absolutePath }],
+                catalog.recentProjects,
+              ),
             });
         } catch (error) {
           report(error);
@@ -367,6 +380,66 @@ export function createBrowserData(local: BrowserStorage | null, tab: BrowserStor
       );
     },
     readCatalog: () => repository.readCatalog(),
+    saveConnection(value: unknown) {
+      const connection = parseSavedAgentConnection(value);
+      const catalog = repository.readCatalog();
+      repository.saveCatalog({
+        ...catalog,
+        connections: [
+          ...catalog.connections.filter((record) => record.endpoint !== connection.endpoint),
+          connection,
+        ],
+      });
+      return connection;
+    },
+    renameConnection(endpoint: string, label: string) {
+      const catalog = repository.readCatalog();
+      if (!catalog.connections.some((record) => record.endpoint === endpoint))
+        throw new Error("This host was removed. Refresh the host list before renaming it.");
+      const connection = parseSavedAgentConnection({ endpoint, label });
+      repository.saveCatalog({
+        ...catalog,
+        connections: catalog.connections.map((record) =>
+          record.endpoint === endpoint ? connection : record,
+        ),
+      });
+    },
+    removeConnection(endpoint: string) {
+      const catalog = repository.readCatalog();
+      repository.saveCatalog({
+        ...catalog,
+        connections: catalog.connections.filter((record) => record.endpoint !== endpoint),
+      });
+    },
+    listRecentProjects(): SavedAgentProject[] {
+      const catalog = repository.readCatalog();
+      const indexed = new Map(
+        catalog.projects.map((project) => [projectResourceKey(project), project]),
+      );
+      return catalog.recentProjects.map(
+        (reference) =>
+          indexed.get(projectResourceKey(reference)) ?? {
+            ...reference,
+            name: folderName(reference.projectPath) || "/",
+            location: { kind: "unknown-root" },
+          },
+      );
+    },
+    listSavedReviews() {
+      let projects: SavedAgentProject[];
+      try {
+        projects = repository.readAll().catalog.projects;
+      } catch (error) {
+        report(error, "review-list");
+        projects = repository.readCatalog().projects;
+      }
+      const indexed = new Map(projects.map((project) => [projectResourceKey(project), project]));
+      for (const review of unsaved.values())
+        indexed.set(projectResourceKey(review.project), review.project);
+      return [...indexed.values()].map((project) =>
+        load(project.endpoint, project.projectPath, true),
+      );
+    },
     readLastSelection: () => (tab === null ? null : readAgentTabSelection(tab)),
     readGlobal(refresh = true) {
       if (refresh) {

@@ -4,7 +4,6 @@ import { assignLegacyData, parseBackupImport, type BackupImport } from "./legacy
 import { useModal } from "./modal.ts";
 import { useNotification, useNotifications } from "./Notifications.tsx";
 import { useBrowserData } from "./BrowserDataProvider.tsx";
-import { useAgentApi } from "./AgentApiProvider.tsx";
 import { downloadAgentBackup } from "./backup-download.ts";
 import { BackupSummary } from "./BackupSummary.tsx";
 
@@ -18,17 +17,18 @@ export function InstallDataDialog({
   installPrompt,
   onInstallHandled,
   onClose,
+  defaultEndpoint,
 }: {
   installPrompt: InstallPromptEvent | null;
   onInstallHandled: () => void;
   onClose: () => void;
+  defaultEndpoint: string;
 }) {
   const data = useBrowserData();
-  const api = useAgentApi();
   const modal = useModal(onClose);
   const [source, setSource] = useState<BackupImport | null>(null);
   const [preview, setPreview] = useState<AgentBackup | null>(null);
-  const [endpoint, setEndpoint] = useState(api.connection.endpoint);
+  const [endpoint, setEndpoint] = useState(defaultEndpoint);
   const generation = useRef(0);
   useEffect(
     () => () => {

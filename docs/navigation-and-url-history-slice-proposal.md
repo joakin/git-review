@@ -39,6 +39,18 @@ recovery, so phone entry cannot hide an error in an invisible content pane.
 
 ## URL and state shape
 
+The workspace menu's **Recent projects** quick-switch list combines recently opened projects from
+all hosts, including projects without feedback. It stays in the sidebar on wide screens and opens
+from the top-bar project menu on smaller screens. Each button shows the project name, current host
+label and folder path; its title retains the full endpoint and canonical path. One tap selects both
+host and project and closes the menu, using normal URL navigation and compatibility checks. It reads
+only browser data until an entry is selected. Removed or unavailable hosts retain the existing
+saved-feedback recovery flow. The
+[local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns ordering,
+retention and existing-data compatibility; the picker retains its root-specific recent folders.
+Hosts & saved reviews contains connection controls and feedback recovery rather than a second
+recent-project list.
+
 Routes use the served `/` page, validated query parameters, and the browser History API. The
 [route parser and serializer](../apps/web/src/navigation.ts) define accepted fields, route variants,
 and input limits. Examples below show decoded values for readability; construct URLs with
@@ -55,19 +67,20 @@ and input limits. Examples below show decoded values for readability; construct 
 ```
 
 New destinations carry the normalized agent origin and canonical absolute project path; file paths
-stay project-relative. Picker directories and recents retain root-relative browsing metadata. The
-[destination envelope](../apps/web/src/agent-navigation.ts) validates ownership separately from the
-[route details](../apps/web/src/navigation.ts). The configured connection must match the destination
-before requests begin. An unknown host shows **Host connection needed** and makes no agent requests;
-its saved review remains available under the
-[feedback recovery contract](feedback-slice-proposal.md#saved-feedback-recovery). The
-configured-host action opens that host's picker. Add-host configuration remains in the
-[connection UI slice](split-host-architecture-proposal.md#11-add-connection-management-and-saved-project-navigation).
+stay project-relative. Picker directories and root recents retain root-relative browsing metadata.
+The [destination envelope](../apps/web/src/agent-navigation.ts) validates ownership separately from
+the [route details](../apps/web/src/navigation.ts). The configured connection must match the
+destination before requests begin. An unknown host shows **Host connection needed** and makes no
+agent requests; its saved review remains available under the
+[feedback recovery contract](feedback-slice-proposal.md#saved-feedback-recovery). The host action
+opens [Hosts & saved reviews](agent-http-protocol.md#host-management), with its endpoint prefilled.
+Browsing an existing host selects that endpoint's picker. The client also has a standalone
+host-screen destination; connection-prefill links replace themselves with it before acceptance.
 
 Links without an agent field are explicitly legacy root-relative destinations. They resolve only
-against the configured legacy endpoint, then replace that entry with the returned canonical path and
-endpoint while preserving section/file/line/ref and history identity. Failed legacy lookup keeps the
-original destination and its error; it never guesses another host. The
+against the combined app's built-in legacy endpoint, then replace that entry with the returned
+canonical path and endpoint while preserving section/file/line/ref and history identity. Failed
+legacy lookup keeps the original destination and its error; it never guesses another host. The
 [local-data owner](independent-tabs-and-pwa-proposal.md#local-data-and-backups) defines configured
 connections and explicit legacy conversion.
 
@@ -155,6 +168,11 @@ inspected at [phone](../qa/screenshots/agent-session-connection-required/mobile.
 [tablet portrait](../qa/screenshots/agent-session-connection-required/tablet-portrait.png),
 [tablet landscape](../qa/screenshots/agent-session-connection-required/tablet-landscape.png), and
 [desktop](../qa/screenshots/agent-session-connection-required/desktop.png).
+
+The [quick-switch captures](../qa/screenshots/quick-switch-final-menu/manifest.json) show the
+existing workspace menu with recent projects from two hosts at phone, both tablet orientations and
+desktop sizes. The host-management browser check exercises direct menu switching, independent tabs,
+renaming, removed-host recovery, Back and touch targets, including a 320px layout.
 
 These inspected Chrome-emulation milestones report no page-wide overflow:
 

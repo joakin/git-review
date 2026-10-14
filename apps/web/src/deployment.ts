@@ -1,5 +1,6 @@
 /** Build-time deployment configuration; source-based local development stays at /. */
 declare const __GIT_REVIEW_BASE_PATH__: string;
+declare const __GIT_REVIEW_LOCAL_AGENT__: boolean;
 
 export function parseDeploymentBasePath(value: unknown): string {
   if (typeof value !== "string" || value.length > 512 || !value.startsWith("/"))
@@ -21,3 +22,5 @@ export function parseDeploymentBasePath(value: unknown): string {
 export const appBasePath = parseDeploymentBasePath(
   typeof __GIT_REVIEW_BASE_PATH__ === "undefined" ? "/" : __GIT_REVIEW_BASE_PATH__,
 );
+export const localAgentEnabled =
+  typeof __GIT_REVIEW_LOCAL_AGENT__ === "undefined" ? true : __GIT_REVIEW_LOCAL_AGENT__;

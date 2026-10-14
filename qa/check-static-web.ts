@@ -71,6 +71,10 @@ try {
       await withQaContext(browser, qaProfiles.phone, async (context) => {
         const page = await context.newPage();
         const resourceErrors: string[] = [];
+        let implicitAgentRequests = 0;
+        page.on("request", (request) => {
+          if (new URL(request.url()).pathname.startsWith("/api/")) implicitAgentRequests += 1;
+        });
         page.on("response", (response) => {
           const url = new URL(response.url());
           if (
@@ -85,7 +89,7 @@ try {
           "Static server unexpectedly serves an API",
         );
         for (const mount of mounts) {
-          const url = new URL(`${mount}?section=settings`, base);
+          const url = new URL(`${mount}?section=hosts`, base);
           const manifestResponse = await context.request.get(
             new URL(`${mount}manifest.webmanifest`, base).href,
           );
@@ -111,7 +115,7 @@ try {
             );
           }
           await page.goto(url.href, { waitUntil: "load" });
-          await page.locator("#code-font-size").waitFor({ state: "visible" });
+          await page.getByRole("heading", { name: "Hosts & saved reviews", level: 1 }).waitFor();
           await assertNoHorizontalOverflow(page);
           assert(new URL(page.url()).pathname === mount, "Deep link escaped deployment base");
           const resources = await page
@@ -145,21 +149,23 @@ try {
               navigator.serviceWorker.controller?.scriptURL === `${location.origin}${mount}sw.js`,
             mount,
           );
-          await page.getByRole("button", { name: "← Back to review", exact: true }).click();
-          assert(new URL(page.url()).pathname === mount, "UI navigation escaped deployment base");
-          await page.getByRole("button", { name: "Open workspace menu", exact: true }).click();
-          await page.getByRole("button", { name: "Settings", exact: true }).click();
-          await page.locator("#code-font-size").waitFor({ state: "visible" });
-          await page.goBack();
-          await page.waitForURL((url) => url.searchParams.get("section") === "projects");
-          await page.locator("#code-font-size").waitFor({ state: "hidden" });
-          assert(new URL(page.url()).pathname === mount, "Back escaped deployment base");
-          await page.goForward();
-          await page.waitForURL((url) => url.searchParams.get("section") === "settings");
-          await page.locator("#code-font-size").waitFor({ state: "visible" });
+          await page.getByRole("button", { name: "Install & local data", exact: true }).click();
+          await page.getByRole("heading", { name: "Install & local data", exact: true }).waitFor();
+          await page
+            .getByRole("button", { name: "Close install and local data", exact: true })
+            .click();
+          await page.goto(
+            new URL(`${mount}?connect=https%3A%2F%2Fworkspace.example.ts.net`, base).href,
+          );
+          await page.waitForURL((url) => url.pathname === mount && url.search === "?section=hosts");
+          assert(
+            (await page.getByLabel("Agent URL", { exact: true }).inputValue()) ===
+              "https://workspace.example.ts.net",
+            "Connection prefill escaped its form",
+          );
           await page.reload({ waitUntil: "load" });
           assert(
-            new URL(page.url()).searchParams.get("section") === "settings",
+            new URL(page.url()).searchParams.get("section") === "hosts",
             "Refresh lost deep-link state",
           );
         }
@@ -208,8 +214,8 @@ try {
           { savedKey, savedText, mounts },
         );
         for (const mount of mounts) {
-          await page.goto(new URL(`${mount}?section=settings`, base).href, { waitUntil: "load" });
-          await page.locator("#code-font-size").waitFor({ state: "visible" });
+          await page.goto(new URL(`${mount}?section=hosts`, base).href, { waitUntil: "load" });
+          await page.getByRole("heading", { name: "Hosts & saved reviews", level: 1 }).waitFor();
           const timeOrigin = await page.evaluate(() => performance.timeOrigin);
           const workerPath = files.get(`${mount}sw.js`);
           assert(workerPath !== undefined, "Missing copied worker");
@@ -316,7 +322,7 @@ try {
           "Offline style was blocked by CSP",
         );
         await assertNoHorizontalOverflow(page);
-        await page.goto(new URL("/?section=settings", base).href, { waitUntil: "load" });
+        await page.goto(new URL("/?section=hosts", base).href, { waitUntil: "load" });
         await page
           .getByRole("heading", { name: "App unavailable", exact: true })
           .waitFor({ state: "visible" });
@@ -329,6 +335,7 @@ try {
           resourceErrors.length === 0,
           `Static resource failures: ${resourceErrors.join(", ")}`,
         );
+        assert(implicitAgentRequests === 0, "Packaged static client contacted an implicit agent");
       });
     });
     // The previous complete artifact survives invalid build configuration.
@@ -348,7 +355,7 @@ try {
       "Failed build replaced the previous artifact",
     );
     console.log(
-      "Isolated root/subpath artifacts, hashed assets, manifest/icons, navigation/reload/history, scoped worker upgrades without draft/history loss or reload, offline CSP/retry, and invalid-build preservation passed.",
+      "Isolated root/subpath artifacts, static host bootstrap/prefill/reload without agent requests, hashed assets, manifest/icons, scoped worker upgrades without draft/history loss or reload, offline CSP/retry, and invalid-build preservation passed.",
     );
   } finally {
     await server.stop(true);

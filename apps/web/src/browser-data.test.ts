@@ -1,8 +1,12 @@
 import { expect, test } from "bun:test";
 import { createBrowserData, memoryDataStorage } from "./browser-data.ts";
-import { createAgentDataRepository, agentCatalogStorageKey } from "./agent-data.ts";
+import {
+  createAgentDataRepository,
+  agentCatalogStorageKey,
+  agentReviewStoragePrefix,
+} from "./agent-data.ts";
 import { assignLegacyData, readLegacyData, parseBackupImport } from "./legacy-data.ts";
-import { serializeAgentBackup } from "./agent-data-format.ts";
+import { maxRecentProjects, serializeAgentBackup } from "./agent-data-format.ts";
 import {
   emptyCommentStore,
   commentStoragePrefix,
@@ -38,6 +42,136 @@ const comments = {
   drafts: [draft],
   history: [{ id: "copy", copiedAt: 3, text: "Exact copied history  \r\n🦊\t", comments: [draft] }],
 };
+test("unified recents follow opens across hosts, retain exact identities, and survive removal and reload", () => {
+  const local = memoryDataStorage();
+  const first = createBrowserData(local, memoryDataStorage());
+  const peer = createBrowserData(local, memoryDataStorage());
+  const project = { name: "Project A", relativePath: "project", absolutePath: path };
+  first.projectState(a).rememberProject(project, "/workspace");
+  peer.projectState(b).rememberProject({ ...project, name: "Project B" }, "/workspace");
+  expect(first.listRecentProjects().map(({ endpoint, name }) => ({ endpoint, name }))).toEqual([
+    { endpoint: b, name: "Project B" },
+    { endpoint: a, name: "Project A" },
+  ]);
+  expect(
+    first.listSavedReviews().every((review) => review.value.comments.drafts.length === 0),
+  ).toBe(true);
+  first.projectState(a).rememberProject(project, "/workspace");
+  peer.projectState(b).saveComments(comments);
+  first.renameConnection(b, "Renamed cloud B");
+  first.removeConnection(a);
+  const reopened = createBrowserData(local, memoryDataStorage());
+  expect(
+    reopened.listRecentProjects().map(({ endpoint, projectPath }) => ({ endpoint, projectPath })),
+  ).toEqual([
+    { endpoint: a, projectPath: path },
+    { endpoint: b, projectPath: path },
+  ]);
+  expect(reopened.readCatalog().connections).toEqual([{ endpoint: b, label: "Renamed cloud B" }]);
+  expect(reopened.projectState(b).readComments(path)).toEqual(comments);
+});
+
+test("unified recents bound retention and reopening moves an existing project without duplicating it", () => {
+  const data = createBrowserData(memoryDataStorage(), memoryDataStorage());
+  for (let index = 0; index < maxRecentProjects + 3; index += 1)
+    data.projectState(index % 2 === 0 ? a : b).rememberProject(
+      {
+        name: `Project ${index}`,
+        relativePath: `project-${index}`,
+        absolutePath: `/workspace/project-${index}`,
+      },
+      "/workspace",
+    );
+  expect(data.listRecentProjects()).toHaveLength(maxRecentProjects);
+  expect(data.listRecentProjects().at(-1)?.projectPath).toBe("/workspace/project-3");
+  data
+    .projectState(b)
+    .rememberProject(
+      { name: "Reopened project", relativePath: "project-3", absolutePath: "/workspace/project-3" },
+      "/workspace",
+    );
+  expect(data.listRecentProjects()[0]?.name).toBe("Reopened project");
+  expect(data.listRecentProjects()).toHaveLength(maxRecentProjects);
+});
+
+test("backup import preserves unified recent order and keeps other local projects after imported entries", () => {
+  const source = createBrowserData(memoryDataStorage(), memoryDataStorage());
+  source
+    .projectState(a)
+    .rememberProject({ name: "A", relativePath: "project", absolutePath: path }, "/workspace");
+  source
+    .projectState(b)
+    .rememberProject({ name: "B", relativePath: "project", absolutePath: path }, "/workspace");
+  const destination = createBrowserData(memoryDataStorage(), memoryDataStorage());
+  destination
+    .projectState(b)
+    .rememberProject(
+      { name: "Local", relativePath: "other", absolutePath: "/workspace/other" },
+      "/workspace",
+    );
+  destination
+    .projectState(a)
+    .rememberProject(
+      { name: "Existing A", relativePath: "project", absolutePath: path },
+      "/workspace",
+    );
+  destination.applyBackup(source.exportBackup());
+  expect(destination.readCatalog().recentProjects).toEqual([
+    { endpoint: b, projectPath: path },
+    { endpoint: a, projectPath: path },
+    { endpoint: b, projectPath: "/workspace/other" },
+  ]);
+});
+
+test("connection edits preserve reviews, exact history and peer catalog updates", () => {
+  const local = memoryDataStorage();
+  const first = createBrowserData(local, memoryDataStorage());
+  const peer = createBrowserData(local, memoryDataStorage());
+  first.saveConnection({ endpoint: a + "/", label: "Cloud A" });
+  first.projectState(a).saveComments(comments);
+  peer.saveConnection({ endpoint: b, label: "Cloud B" });
+  first.renameConnection(a, "Renamed cloud A");
+  expect(first.readCatalog().connections.map((host) => host.label)).toEqual([
+    "Renamed cloud A",
+    "Cloud B",
+  ]);
+  first.removeConnection(a);
+  expect(first.readCatalog().connections).toEqual([{ endpoint: b, label: "Cloud B" }]);
+  const review = first.listSavedReviews()[0];
+  expect(review?.kind).toBe("ready");
+  expect(review?.value.comments).toEqual(comments);
+  expect(first.exportBackup().reviews[0]?.comments.history).toEqual(comments.history);
+  expect(() => first.renameConnection(a, "stale rename")).toThrow("removed");
+  expect(() => first.saveConnection({ endpoint: b, label: "\ninvalid" })).toThrow();
+  expect(first.readCatalog().connections).toEqual([{ endpoint: b, label: "Cloud B" }]);
+});
+test("a failed connection write cannot publish a candidate or change saved reviews", () => {
+  const local = memoryDataStorage();
+  const data = createBrowserData(local, memoryDataStorage());
+  data.projectState(a).saveComments(comments);
+  const before = data.exportBackup();
+  local.setItem = () => {
+    throw new Error("Controlled storage denial");
+  };
+  expect(() => data.saveConnection({ endpoint: b, label: "Cloud B" })).toThrow();
+  expect(data.exportBackup()).toEqual(before);
+});
+test("saved-review listing refreshes peer feedback and retains unreadable project entries", () => {
+  const local = memoryDataStorage();
+  const first = createBrowserData(local, memoryDataStorage());
+  first.projectState(a).saveComments(comments);
+  const peer = createBrowserData(local, memoryDataStorage());
+  first.listSavedReviews();
+  peer.projectState(a).saveComments({ ...comments, drafts: [{ ...draft, body: "Peer update" }] });
+  expect(first.listSavedReviews()[0]?.value.comments.drafts[0]?.body).toBe("Peer update");
+  const key = Array.from({ length: local.length }, (_, index) => local.key(index)).find((key) =>
+    key?.startsWith(agentReviewStoragePrefix),
+  );
+  if (key === null || key === undefined) throw new Error("Missing review key");
+  local.setItem(key, "invalid");
+  expect(first.listSavedReviews()[0]?.kind).toBe("unavailable");
+  expect(local.getItem(key)).toBe("invalid");
+});
 function seed(local: Storage, session: Storage) {
   local.setItem(commentStoragePrefix + encodeURIComponent(path), JSON.stringify(comments));
   local.setItem(

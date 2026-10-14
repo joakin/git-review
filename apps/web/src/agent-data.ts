@@ -8,6 +8,7 @@ import {
   parseSavedAgentReview,
   reconcileAgentProjects,
   serializeAgentBackup,
+  mergeRecentProjects,
   workspaceResourceKey,
   type AgentBackup,
   type AgentCatalog,
@@ -211,6 +212,10 @@ export function createAgentDataRepository(storage: DataStorage) {
           current.catalog.workspaces,
           incoming.catalog.workspaces,
           workspaceResourceKey,
+        ),
+        recentProjects: mergeRecentProjects(
+          incoming.catalog.recentProjects,
+          current.catalog.recentProjects,
         ),
         global: incoming.catalog.global,
       }),

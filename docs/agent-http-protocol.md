@@ -55,6 +55,27 @@ use anonymous CORS mode, preserving the existing restriction on
 [no-CORS cross-origin embeds](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cross-Origin-Resource-Policy).
 The [media owner](media-preview-slice-proposal.md) retains those resource contracts.
 
+## Host management
+
+**Hosts & saved reviews** is available from the workspace menu and is the static client's first
+screen when this tab has no project to restore. Paste an agent origin or open a connection-prefill
+link, check its protocol information, then explicitly **Add host** to save it and browse its
+folders. Checking a candidate leaves the current review active; malformed, incompatible or
+unreachable candidates cannot replace it. Prefill is consumed into the form and never doubles as an
+active agent route. A known host still passes the normal protocol check before live repository
+reads.
+
+Host labels are editable; endpoints are immutable. A different URL creates a different host.
+Removing a host removes its connection only. Saved projects remain listed with their endpoint, path,
+draft and history counts, and can open recovery without registering or reaching the host. Unreadable
+saved records are reported rather than replaced. Checks are explicit, bounded requests with text
+status; this slice adds no peer discovery or background polling.
+
+Connections and reviews use the existing
+[local-data contracts](independent-tabs-and-pwa-proposal.md#local-data-and-backups). Tabs share that
+catalog while keeping their own selected destination. The local combined build retains its built-in
+page-origin agent; the static artifact has no implicit agent.
+
 ## Explicit browser connection
 
 The [connection boundary](../apps/web/src/agent-connection.ts) captures one normalized agent origin
@@ -93,13 +114,13 @@ elements use anonymous CORS, omitting cross-origin cookies; raw links use that s
 Native playback keeps browser streaming and redirect behavior. The agent's raw routes do not
 redirect; the scripted-request redirect rejection is not a browser-element redirect control.
 
-The production bootstrap still configures only the page-origin connection. The
-[navigation owner](navigation-and-url-history-slice-proposal.md) now carries endpoint/path
+The [navigation owner](navigation-and-url-history-slice-proposal.md) carries endpoint/path
 destinations, configured-host gating and UI-session transitions; the
 [loading owner](loading-and-transition-polish.md) owns endpoint-scoped runtime caches and request
-lifetimes. Connection-management UI and handshake presentation remain subsequent
-[split host slices](split-host-architecture-proposal.md). Multi-host selection is not yet exposed in
-the UI.
+lifetimes. A [verified connection](../apps/web/src/verified-agent-connection.ts) shares a compatible
+handshake before the session's first repository reads. Failed checks authorize no source reads;
+network/server failures invalidate verification so retry checks the agent again. Candidate checks
+use the same information parser without creating a repository session.
 
 ## Verification and remaining release work
 
@@ -108,4 +129,8 @@ packaged capability checks, and real Chrome cross-origin scenarios. Local HTTP c
 application boundary; cloud/private HTTPS lifecycle and physical-device proof remain release gates.
 The [client transport check](qa-workflow.md#explicit-client-transport) exercises the actual bound
 browser APIs and frontend against separate agents, alongside queue, cancellation and source-binding
-unit tests. Connection management and persisted ownership remain separate review steps.
+unit tests. [Host-management QA](qa-workflow.md#host-management) owns the two-host UI workflow.
+Four-size [host-screen](../qa/screenshots/host-management-final-hosts/manifest.json),
+[saved-review](../qa/screenshots/host-management-final-saved/manifest.json) and
+[picker](../qa/screenshots/host-management-final-picker/manifest.json) captures cover responsive
+layout; physical mobile behavior and real cloud lifetime remain unverified.

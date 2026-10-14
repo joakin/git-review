@@ -1,6 +1,6 @@
 # Split host implementation plan
 
-Architecture agreed on 2026-10-13. Steps 2–10 are committed. Cloud/device feasibility remains
+Architecture agreed on 2026-10-13. Steps 2–11 are committed. Cloud/device feasibility remains
 pending. This record owns remaining work and release acceptance; implemented contracts belong to the
 linked behavior records. Git retains the original research, proposals and delivery history.
 
@@ -117,21 +117,10 @@ viewing/copying and live rechecking;
 
 ### 11. Add connection management and saved-project navigation
 
-Expose Add host/manual URL and generated-link prefill, connection labels/status, host-specific
-picker/recents, and saved projects with feedback. A pasted/link destination goes through normal
-validation and protocol checking before live use; failed connections must not replace active work.
-Accepting a connection is an explicit user action, while opening an existing saved review needs no
-successful connection. Consume connection-prefill data without leaving a competing active route.
-
-Keep endpoints immutable. Rename a display label freely; a different URL is Add host, with no draft
-reassignment. Removing a connection preserves its saved reviews in the recovery list and backup. Any
-future destructive review deletion must be explicit. Each tab selects its own endpoint/project.
-Unavailable status must have text as well as color, accessible controls, and usable touch targets.
-
-Review checkpoint: add two agents, review identical paths, open a printed link on a fresh device,
-reject malformed/incompatible endpoints, switch independent tabs, remove an unavailable connection,
-and still find/copy its feedback. Capture phone, tablet portrait/landscape, and desktop host/picker
-and saved-review states. Discovery remains absent from this slice.
+[Host management](agent-http-protocol.md#host-management) owns manual/link bootstrap, checks, labels
+and connection removal; [navigation](navigation-and-url-history-slice-proposal.md) owns destinations
+and independent selection. [Host QA](qa-workflow.md#host-management) owns the runnable workflow and
+responsive captures. Discovery remains deferred.
 
 ### 12. Finish cloud bootstrap and verify the release
 

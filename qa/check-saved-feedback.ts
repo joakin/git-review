@@ -340,6 +340,9 @@ export async function checkSavedFeedback(
         await page
           .getByRole("heading", { name: "Live project unavailable", exact: true })
           .waitFor();
+        // Root failure can trigger a second canonical metadata attempt. Restore the fixture only
+        // once startup has settled, so this scenario tests explicit Retry rather than that attempt.
+        await page.waitForLoadState("networkidle");
         fixture.agentUnavailable = false;
         await page.getByRole("button", { name: "Retry live access", exact: true }).click();
         await page.locator(".diff-card").first().waitFor();

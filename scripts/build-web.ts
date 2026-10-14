@@ -49,7 +49,10 @@ try {
     target: "browser",
     format: "esm",
     naming: "assets/[name]-[hash].[ext]",
-    define: { __GIT_REVIEW_BASE_PATH__: JSON.stringify(basePath) },
+    define: {
+      __GIT_REVIEW_BASE_PATH__: JSON.stringify(basePath),
+      __GIT_REVIEW_LOCAL_AGENT__: "false",
+    },
     jsx: { runtime: "automatic", importSource: "preact" },
   });
   const main = artifactPath(bundled, "main", ".js");

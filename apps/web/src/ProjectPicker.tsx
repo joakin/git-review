@@ -6,6 +6,7 @@ import type { LoadState } from "./load-state.ts";
 import { useNotification } from "./Notifications.tsx";
 
 type ProjectPickerProps = {
+  host: { endpoint: string; label: string };
   root: LoadState<RootInfo>;
   listing: LoadState<DirectoryListing>;
   path: string;
@@ -16,6 +17,7 @@ type ProjectPickerProps = {
 };
 
 export function ProjectPicker({
+  host,
   root,
   listing,
   path,
@@ -41,13 +43,16 @@ export function ProjectPicker({
       <div class="root-card">
         <span class="root-dot" aria-hidden="true" />
         <div class="root-copy">
-          <strong>{rootLabel}</strong>
+          <strong>{host.label}</strong>
+          <span>{host.endpoint}</span>
           {root.kind === "ready" ? (
-            <span>{root.value.path}</span>
+            <span>
+              {rootLabel} · {root.value.path}
+            </span>
           ) : root.kind === "error" ? (
             <span>Host unavailable.</span>
           ) : (
-            <DelayedLoading className="root-loading" message="Connecting to the local server…" />
+            <DelayedLoading className="root-loading" message="Connecting to this host…" />
           )}
         </div>
       </div>
@@ -141,7 +146,7 @@ export function ProjectWelcome({ onBrowseFolders }: { onBrowseFolders: () => voi
       <p class="eyebrow">A CLEARER WAY TO REVIEW</p>
       <h1>Start with a folder.</h1>
       <p class="welcome-copy">
-        Choose a project on this computer to make it your review workspace.
+        Choose a folder on the selected host to make it your review workspace.
       </p>
       <button class="primary-action" type="button" onClick={onBrowseFolders}>
         Browse host folders <span aria-hidden="true">→</span>

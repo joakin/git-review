@@ -9,6 +9,7 @@
     "./change-line-stats": "./src/change-line-stats.ts",
     "./change-snapshot": "./src/change-snapshot.ts",
     "./commit-diff-batch": "./src/commit-diff-batch.ts",
+    "./connection-link": "./src/connection-link.ts",
     "./diff-batch": "./src/diff-batch.ts",
     "./diff-context": "./src/diff-context.ts",
     "./diff-request": "./src/diff-request.ts",

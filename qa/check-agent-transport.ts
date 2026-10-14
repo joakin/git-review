@@ -14,6 +14,7 @@ import { AgentStateFixture } from "./agent-state-fixture.ts";
 import { checkAgentDataActivation } from "./check-agent-data-activation.ts";
 import { checkAgentState } from "./check-agent-state-browser.ts";
 import { checkSavedFeedback } from "./check-saved-feedback.ts";
+import { checkHostManagement } from "./check-host-management.ts";
 
 function assert(value: boolean, message: string): asserts value {
   if (!value) throw new Error(message);
@@ -21,14 +22,15 @@ function assert(value: boolean, message: string): asserts value {
 const args = process.argv.slice(2);
 const dataCheck = args[0] === "--data";
 const recoveryCheck = args[0] === "--recovery";
-const stateCheck = args[0] === "--state" || dataCheck || recoveryCheck;
+const hostCheck = args[0] === "--hosts";
+const stateCheck = args[0] === "--state" || dataCheck || recoveryCheck || hostCheck;
 const captureArgs = stateCheck ? args.slice(1) : args;
 const captureLabel =
   captureArgs.length === 2 && captureArgs[0] === "--capture" ? captureArgs[1] : undefined;
 assert(
   captureArgs.length === 0 ||
     (captureLabel !== undefined && /^[a-z0-9][a-z0-9_-]{0,63}$/.test(captureLabel)),
-  "Usage: bun qa/check-agent-transport.ts [--state | --data | --recovery] [--capture <new milestone>]",
+  "Usage: bun qa/check-agent-transport.ts [--state | --data | --recovery | --hosts] [--capture <new milestone>]",
 );
 await withTempDirectory("git-review-agent-transport-", async (temporary) => {
   const directory = await realpath(temporary);
@@ -149,10 +151,12 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
                       "createAgentConnection(__QA_AGENT_A__, { allowLoopbackHttp: true })",
                     )
                     .replace(
-                      "connections={[legacyConnection]}",
-                      stateCheck
-                        ? "connections={[legacyConnection, createAgentConnection(__QA_AGENT_B__, { allowLoopbackHttp: true })]}"
-                        : "connections={[legacyConnection]}",
+                      "connections={localAgentEnabled ? [legacyConnection] : []}",
+                      hostCheck
+                        ? "connections={[]}"
+                        : stateCheck
+                          ? "connections={[legacyConnection, createAgentConnection(__QA_AGENT_B__, { allowLoopbackHttp: true })]}"
+                          : "connections={[legacyConnection]}",
                     ),
               };
             });
@@ -161,6 +165,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
       ],
       jsx: { runtime: "automatic", importSource: "preact" },
       define: {
+        __GIT_REVIEW_LOCAL_AGENT__: hostCheck ? "false" : "true",
         __QA_AGENT_A__: JSON.stringify(a.url.origin),
         __QA_AGENT_B__: JSON.stringify(b.url.origin),
         __QA_PROJECT__: JSON.stringify(root.realPath),
@@ -171,6 +176,17 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
     assert(build.success && output !== undefined, build.logs.join("\n"));
     files.set("/assets/main.js", { body: await output.text(), type: "text/javascript" });
     await withQaBrowser(async (browser) => {
+      if (hostCheck && stateFixture !== null) {
+        await checkHostManagement(
+          browser,
+          { frontend: frontend.url.origin, a: a.url.origin, b: b.url.origin },
+          root.realPath,
+          stateFixture,
+          requests,
+          captureLabel,
+        );
+        return;
+      }
       if (recoveryCheck && stateFixture !== null)
         await checkSavedFeedback(
           browser,
@@ -273,8 +289,11 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
               new URL(response.url()).pathname === "/api/roots" &&
               response.ok(),
           );
+          await page.getByRole("button", { name: "Hosts & saved reviews", exact: true }).click();
           await page
-            .getByRole("button", { name: "Choose a project on the configured host", exact: true })
+            .locator(".host-record")
+            .first()
+            .getByRole("button", { name: "Browse folders", exact: true })
             .click();
           await recovery;
           assert(
@@ -377,8 +396,11 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
               new URL(response.url()).pathname === "/api/roots" &&
               response.ok(),
           );
+          await page.getByRole("button", { name: "Hosts & saved reviews", exact: true }).tap();
           await page
-            .getByRole("button", { name: "Choose a project on the configured host", exact: true })
+            .locator(".host-record")
+            .first()
+            .getByRole("button", { name: "Browse folders", exact: true })
             .tap();
           await recovery;
           await assertNoHorizontalOverflow(page);
@@ -387,7 +409,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           );
         });
     });
-    if (captureLabel !== undefined && !dataCheck && !recoveryCheck) {
+    if (captureLabel !== undefined && !dataCheck && !recoveryCheck && !hostCheck) {
       const capture = Bun.spawn(
         [
           process.execPath,

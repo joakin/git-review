@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import { parseClientUrl } from "@git-review/shared/connection-link";
 
 export type AgentConfig = {
   readonly root: string;
@@ -6,6 +7,7 @@ export type AgentConfig = {
   readonly hostname: string;
   readonly publicOrigin: string | null;
   readonly allowedOrigins: readonly string[];
+  readonly clientUrl: string | null;
 };
 
 export function frontendOrigin(value: unknown): string {
@@ -95,11 +97,19 @@ export function parseAgentConfig(
       throw new Error("GIT_REVIEW_PUBLIC_ORIGIN must be an HTTPS origin without a path");
     publicOrigin = parsed.origin;
   }
+  const origins = allowedOrigins(environment["GIT_REVIEW_ALLOWED_ORIGINS"]);
+  const configuredClient = environment["GIT_REVIEW_CLIENT_URL"];
+  const clientUrl = configuredClient === undefined ? null : parseClientUrl(configuredClient);
+  if (clientUrl !== null && (publicOrigin === null || !origins.includes(new URL(clientUrl).origin)))
+    throw new Error(
+      "GIT_REVIEW_CLIENT_URL requires GIT_REVIEW_PUBLIC_ORIGIN and its frontend origin in GIT_REVIEW_ALLOWED_ORIGINS",
+    );
   return {
     root,
     port,
     hostname,
     publicOrigin,
-    allowedOrigins: allowedOrigins(environment["GIT_REVIEW_ALLOWED_ORIGINS"]),
+    allowedOrigins: origins,
+    clientUrl,
   };
 }

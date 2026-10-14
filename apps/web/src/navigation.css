@@ -111,7 +111,18 @@
 .drawer-scrim {
   display: none;
 }
+.menu-host-identity {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-3);
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-13);
+}
+.menu-host-identity small {
+  color: var(--color-text-muted);
+}
 .menu-project,
+.menu-hosts,
 .sidebar-settings {
   display: flex;
   align-items: center;
@@ -132,6 +143,7 @@
   gap: var(--space-2);
 }
 .menu-project:hover,
+.menu-hosts:hover,
 .sidebar-settings:hover,
 .sidebar-settings[aria-current="page"] {
   background: var(--color-mint-hover);
@@ -146,6 +158,7 @@
   display: grid;
   gap: 2px;
   min-width: 0;
+  min-height: 44px;
   padding: var(--space-2) 0;
   border: 0;
   background: transparent;
@@ -163,6 +176,14 @@
 }
 .menu-recents small {
   color: var(--color-text-subtle);
+}
+.menu-recents .menu-recent-host {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+.menu-recents-error {
+  font-size: var(--font-size-13);
+  overflow-wrap: anywhere;
 }
 .workspace .sidebar {
   position: sticky;

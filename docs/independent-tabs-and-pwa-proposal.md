@@ -9,14 +9,15 @@ behavior.
 ## Independent tabs
 
 An explicit URL takes precedence over tab storage. The bare deployment URL restores that tab's
-validated agent/project reference or opens the picker. Canonical restoration can proceed without
-root information; known root metadata is retained for the picker only when it agrees with the
-resolved project. A failed selection or stale root cannot substitute another folder. The
-[tab-state boundary](../apps/web/src/agent-tab-state.ts) owns validation and storage.
+validated agent/project reference or opens Hosts & saved reviews (the local combined app opens its
+picker). Canonical restoration can proceed without root information; known root metadata is retained
+for the picker only when it agrees with the resolved project. A failed selection or stale root
+cannot substitute another folder. The [tab-state boundary](../apps/web/src/agent-tab-state.ts) owns
+validation and storage.
 
 A duplicated tab may initially copy its selection, then diverges. Closing a tab ends that selection
-subject to browser session restoration. Recents are shared per endpoint/root. Concurrent edits to
-the same review still have no conflict resolution.
+subject to browser session restoration. Picker recents are shared per endpoint/root. Concurrent
+edits to the same review still have no conflict resolution.
 
 ## Local data and backups
 
@@ -27,9 +28,16 @@ the same review still have no conflict resolution.
 Persistent records use the
 [project identity](stateless-project-access-plan.md#project-contract-and-validation). Appearance,
 typography and wrapping remain global; project preferences and root recents are endpoint scoped. The
-bootstrap accepts its page-origin agent and explicitly imported connection records; the
-host-management UI remains a
-[later slice](split-host-architecture-proposal.md#11-add-connection-management-and-saved-project-navigation).
+bootstrap accepts manually added/imported connection records and the combined app's built-in host.
+[Host management](agent-http-protocol.md#host-management) owns connection controls. Removing a host
+preserves project records and root recents; it does not change another tab's selected endpoint.
+
+Unified recent projects are stored as a bounded, most-recent-first list of endpoint/canonical-path
+references. Successful project opens move that exact identity to the front; feedback and preference
+edits do not change its order. Host renames use current labels, and removal retains recent entries.
+Older catalogs and backups seed the list from their existing root recents, preserving each root's
+order; their exact cross-host opening order was not recorded. New backups preserve the unified
+order, and imports place incoming recents before retained local entries without duplicates.
 
 The saved-project index is independent of recents. Reads reconcile missing or stale entries from
 valid review metadata without contacting an agent or remembering its connection. Recovery metadata
@@ -107,10 +115,9 @@ review data and preferences; separate installation/cache scope does not create a
 origin.
 
 Build commands, static policy, hosting configuration and delivery limits belong in the
-[root README](../README.md#build-the-static-frontend). The current same-origin app still supplies
-live reads during the split-host transition; direct agent configuration follows in later steps.
-Private Tailscale Serve supplies the current app's secure access, and microphone/programmatic
-clipboard use require a secure context.
+[root README](../README.md#build-the-static-frontend). The static client reads directly from
+configured agents; the combined app retains its built-in host. Private Tailscale Serve supplies
+secure agent access, and microphone/programmatic clipboard use require a secure context.
 
 ## Evidence and device limits
 

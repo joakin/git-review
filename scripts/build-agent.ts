@@ -110,8 +110,9 @@ bun agent.js --root /path/to/projects --port 3000
 The agent serves only /api/ routes and binds to 127.0.0.1 by default.
 Use a private Tailscale Serve proxy for HTTPS; enrollment and process lifetime are managed externally.
 GIT_REVIEW_PUBLIC_ORIGIN is the exact HTTPS agent origin used by that proxy, without a trailing slash.
-Cross-origin frontend transport is a later implementation step.
 GIT_REVIEW_ALLOWED_ORIGINS configures a JSON array of exact frontend HTTPS origins for CORS (default []).
+GIT_REVIEW_CLIENT_URL optionally supplies the static deployment URL ending in / and prints a prefilled Add host link.
+It requires GIT_REVIEW_PUBLIC_ORIGIN and the client's origin in GIT_REVIEW_ALLOWED_ORIGINS.
 HTTP loopback origins are supported only for explicit local development configuration.
 GET /api/info reports protocol/build information and current optional capabilities without invoking a model.
 

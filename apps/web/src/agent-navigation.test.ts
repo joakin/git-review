@@ -5,9 +5,39 @@ import {
   parseAgentDestination,
 } from "./agent-navigation.ts";
 import type { Route } from "./navigation.ts";
+import { agentConnectionLink, parseClientUrl } from "@git-review/shared/connection-link";
 
 const endpoint = "https://agent.example";
 const projectPath = "/work/odd #?% 雪";
+test("connection links prefill one validated endpoint without an active route", () => {
+  const link = new URL(agentConnectionLink("https://review.example/app/", endpoint));
+  expect(link.pathname).toBe("/app/");
+  expect(parseAgentDestination(link.search)).toEqual({ kind: "prefill", endpoint });
+  expect(parseAgentDestination("?section=hosts")).toEqual({ kind: "hosts" });
+  for (const query of [
+    "&section=projects",
+    "&agent=" + endpoint,
+    "&connect=" + endpoint,
+    "&project=%2Fwork",
+  ])
+    expect(parseAgentDestination(link.search + query).kind).toBe("invalid");
+  for (const address of [
+    "",
+    "http://elsewhere.example",
+    "https://user:secret@agent.example",
+    "https://agent.example/api",
+    "https://agent.example?x",
+  ])
+    expect(parseAgentDestination("?connect=" + encodeURIComponent(address)).kind).toBe("invalid");
+  for (const deployment of [
+    "http://review.example/",
+    "https://review.example/app",
+    "https://user:secret@review.example/",
+    "https://review.example/?token=secret",
+    "https://review.example/#fragment",
+  ])
+    expect(() => parseClientUrl(deployment)).toThrow();
+});
 test("agent destinations round trip canonical projects and preserve every navigation target and subpath", () => {
   const routes: Route[] = [
     { section: "projects", directory: "nested/root" },

@@ -22,9 +22,9 @@ host access and Shiki, and `packages/shared` owns runtime-neutral contracts and 
 owns the toolchain, lockfile, QA, and current same-origin server composition. Run the commands below
 from the repository root. `bun run build` builds the local app assets and both independent
 artifacts; `bun run dev` builds only the local app before starting it. Browser APIs now use an
-explicit bound agent connection; the normal bootstrap chooses the page's server. User-facing
-connection configuration and endpoint-owned persistence remain later steps in the
-[split host plan](docs/split-host-architecture-proposal.md).
+explicit bound agent connection. The local combined build includes its page's server; the static
+client starts with **Hosts & saved reviews** and uses manually added agents. The
+[split host plan](docs/split-host-architecture-proposal.md) tracks the remaining cloud/device gate.
 
 ## Run the app
 
@@ -121,10 +121,11 @@ policy remains platform-controlled. Serve unknown paths as 404 rather than rewri
 app: query deep links need only the index page. The included 404 disables Cloudflare Pages'
 [automatic SPA fallback](https://developers.cloudflare.com/pages/configuration/serving-pages/).
 
-This is the packaging step of the [split host plan](docs/split-host-architecture-proposal.md). The
-frontend's normal bootstrap still chooses its page-origin agent until connection configuration and
-endpoint-owned persistence land. Continue using the normal `dev`, `build`, and `start` commands for
-live review in the meantime. No public deployment has been performed.
+Open the static client, paste the agent's private HTTPS origin, **Check host**, then **Add host**.
+The [host-management contract](docs/agent-http-protocol.md#host-management) owns connection labels,
+checks, removal and saved-review access. A fresh client can import a backup through **Install &
+local data** before connecting. The normal `dev`, `build`, and `start` commands retain the local
+combined app. No public deployment has been performed.
 
 ## Build and run the independent agent
 
@@ -161,11 +162,11 @@ tailscale serve --bg 3000
 ```
 
 Use the agent's exact HTTPS origin without a trailing slash. This setting allows the private
-proxy-origin request check. Frontend origins are configured separately below; the static app's
-endpoint-selection UI remains a later step. Tailscale enrollment, unique ephemeral hostnames, Serve,
-and process supervision stay outside the agent; provider setup and lifetime verification are
-described in the [feasibility workflow](docs/qa-workflow.md#private-https-in-a-cloud-workspace). The
-runtime does not keep a host registry or enroll Tailscale nodes.
+proxy-origin request check. Frontend origins are configured separately below. Tailscale enrollment,
+unique ephemeral hostnames, Serve, and process supervision stay outside the agent; provider setup
+and lifetime verification are described in the
+[feasibility workflow](docs/qa-workflow.md#private-https-in-a-cloud-workspace). The runtime does not
+keep a host registry or enroll Tailscale nodes.
 
 Voice tools are optional and checked only on transcription requests. An explicit
 `GIT_REVIEW_FFMPEG_PATH` or `GIT_REVIEW_HANDY_PATH` must point to an absolute executable; invalid
@@ -202,9 +203,19 @@ The agent permits the existing API's GET/POST and media HEAD/range requests from
 rejects invalid preflights without repository work and retains readable allowed-origin errors. It
 sends no credential grant; direct browser clients use omitted credentials and anonymous native
 media. Tailscale enrollment and access policy remain necessary for private network reachability. The
-current frontend's bootstrap still chooses the page-origin agent. The
 [connection contract](docs/agent-http-protocol.md#explicit-browser-connection) describes request
 binding and source validation.
+
+To print a prefilled client link at agent startup, also configure its static deployment URL:
+
+```sh
+GIT_REVIEW_CLIENT_URL=https://your-name.github.io/git-review/ GIT_REVIEW_ALLOWED_ORIGINS='["https://your-name.github.io"]' GIT_REVIEW_PUBLIC_ORIGIN=https://your-workspace.your-tailnet.ts.net bun run start:agent --root /path/to/projects --port 3000
+```
+
+The client URL includes its deployment path and ends in `/`; the allowed origin omits that path.
+Startup rejects a client URL without the public agent address or a matching allowed frontend origin.
+The link prefills Add host and requires an explicit check and acceptance. It contains no
+credentials.
 
 ## Checks
 

@@ -4,6 +4,8 @@ import {
   maxAgentBackupBytes,
   parseAgentBackup,
   parseAgentBackupText,
+  parseAgentCatalog,
+  maxRecentProjects,
   serializeAgentBackup,
   type AgentBackup,
   type SavedAgentProject,
@@ -125,6 +127,44 @@ function allStorage(storage: Storage): [string | null, string | null][] {
     return [key, key === null ? null : storage.getItem(key)];
   });
 }
+
+test("older catalogs seed unified recents from all roots without altering their source", () => {
+  const { recentProjects: omitted, ...old } = emptyAgentCatalog();
+  const value = {
+    ...old,
+    projects: [project(endpointA, "/workspace/project")],
+    workspaces: [
+      { endpoint: endpointA, rootPath: "/workspace", recentPaths: ["project", ""] },
+      { endpoint: endpointB, rootPath: "/", recentPaths: ["project"] },
+      { endpoint: endpointA, rootPath: "/", recentPaths: ["workspace/project"] },
+    ],
+  };
+  const original = JSON.stringify(value);
+  expect(parseAgentCatalog(value).recentProjects).toEqual([
+    { endpoint: endpointA, projectPath: "/workspace/project" },
+    { endpoint: endpointB, projectPath: "/project" },
+    { endpoint: endpointA, projectPath: "/workspace" },
+  ]);
+  expect(JSON.stringify(value)).toBe(original);
+  expect(parseAgentCatalog({ ...value, recentProjects: [] }).recentProjects).toEqual([]);
+});
+
+test("unified recent references reject invalid addresses, paths, duplicates and oversized lists", () => {
+  for (const recentProjects of [
+    [{ endpoint: endpointA, projectPath: "/workspace/../escape" }],
+    [{ endpoint: "https://agent.example/api", projectPath }],
+    [
+      { endpoint: endpointA, projectPath },
+      { endpoint: endpointA + "/", projectPath },
+    ],
+    Array.from({ length: maxRecentProjects + 1 }, (_, index) => ({
+      endpoint: endpointA,
+      projectPath: `/workspace/project-${index}`,
+    })),
+    null,
+  ])
+    expect(() => parseAgentCatalog({ ...emptyAgentCatalog(), recentProjects })).toThrow();
+});
 
 test("agent backups retain endpoint ownership, mixed ranges, repeated quotes and exact history", () => {
   const original = backup();

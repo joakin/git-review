@@ -8,6 +8,7 @@ test("agent configuration preserves loopback defaults and explicit root/ephemera
     hostname: "127.0.0.1",
     publicOrigin: null,
     allowedOrigins: [],
+    clientUrl: null,
   });
   expect(
     parseAgentConfig(["--root", "/projects with spaces", "--port", "0"], {
@@ -20,7 +21,23 @@ test("agent configuration preserves loopback defaults and explicit root/ephemera
     hostname: "100.64.1.2",
     publicOrigin: "https://workspace.tailnet.ts.net:8443",
     allowedOrigins: [],
+    clientUrl: null,
   });
+});
+
+test("printed connection links require the public agent address and an allowed deployment origin", () => {
+  const environment = {
+    GIT_REVIEW_PUBLIC_ORIGIN: "https://workspace.tailnet.ts.net",
+    GIT_REVIEW_ALLOWED_ORIGINS: '["https://review.example"]',
+    GIT_REVIEW_CLIENT_URL: "https://review.example/git-review/",
+  };
+  expect(parseAgentConfig([], environment).clientUrl).toBe(environment.GIT_REVIEW_CLIENT_URL);
+  expect(() =>
+    parseAgentConfig([], { ...environment, GIT_REVIEW_PUBLIC_ORIGIN: undefined }),
+  ).toThrow("requires");
+  expect(() => parseAgentConfig([], { ...environment, GIT_REVIEW_ALLOWED_ORIGINS: "[]" })).toThrow(
+    "requires",
+  );
 });
 
 test("agent configuration rejects incomplete arguments, invalid ports and public bindings", () => {

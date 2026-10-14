@@ -217,6 +217,15 @@ isolated browser storage. [The browser check](../qa/check-saved-feedback.ts) own
 through `bun run qa:capture`. [Feedback](feedback-slice-proposal.md#saved-feedback-recovery) owns
 behavior and evidence limits.
 
+### Host management
+
+Run `bun qa/check-agent-transport.ts --hosts` for the static client's manual/link bootstrap and
+two-host workflow. [The browser check](../qa/check-host-management.ts) owns scenarios and disposable
+fixtures. Add `--capture <new-milestone>` for workspace-menu, host, saved-review and picker
+screenshots at all four sizes through `bun run qa:capture`.
+[Host management](agent-http-protocol.md#host-management) owns behavior and evidence limits; the
+static artifact check also verifies bootstrap at root/subpath deployments without an implicit agent.
+
 ### Split-host feasibility probe
 
 Step 1 of the

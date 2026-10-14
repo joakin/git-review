@@ -85,7 +85,7 @@ export function DisconnectedReview({
           </p>
         )}
         <button type="button" class="primary-action" onClick={onChooseHost}>
-          Choose a project on the configured host
+          Hosts & saved reviews
         </button>
       </section>
       {preview !== null && saved?.kind === "ready" && (

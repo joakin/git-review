@@ -21,6 +21,7 @@ const maxConnections = 64;
 const maxConnectionLabel = 200;
 const maxWorkspaces = 128;
 const maxRecent = 8;
+export const maxRecentProjects = 32;
 const maxLanguages = 1000;
 
 export type SavedAgentConnection = { endpoint: string; label: string };
@@ -54,6 +55,7 @@ export type AgentCatalog = {
   connections: SavedAgentConnection[];
   projects: SavedAgentProject[];
   workspaces: AgentWorkspace[];
+  recentProjects: ProjectReference[];
   global: AgentGlobalPreferences;
 };
 export type AgentBackup = {
@@ -69,6 +71,7 @@ export function emptyAgentCatalog(): AgentCatalog {
     connections: [],
     projects: [],
     workspaces: [],
+    recentProjects: [],
     global: {
       wrap: true,
       appearance: { ...defaultAppearance },
@@ -230,9 +233,69 @@ export function parseAgentGlobalPreferences(value: unknown): AgentGlobalPreferen
   return { wrap: item["wrap"], appearance, codeTypography };
 }
 
+/** Ordered references: earlier entries win, and identities retain their original endpoint. */
+export function mergeRecentProjects(
+  first: readonly ProjectReference[],
+  second: readonly ProjectReference[],
+): ProjectReference[] {
+  const unique = new Map<string, ProjectReference>();
+  for (const reference of [...first, ...second]) {
+    const key = projectResourceKey(reference);
+    if (!unique.has(key)) unique.set(key, reference);
+    if (unique.size === maxRecentProjects) break;
+  }
+  return [...unique.values()];
+}
+
 export function parseAgentCatalog(value: unknown): AgentCatalog {
   const item = expectRecord(value, "agent catalog");
   if (item["version"] !== 1) throw new Error("Unsupported agent catalog format");
+  const projects = records(
+    item["projects"],
+    "saved projects",
+    maxProjects,
+    parseSavedAgentProject,
+    projectResourceKey,
+  );
+  const workspaces = records(
+    item["workspaces"],
+    "workspaces",
+    maxWorkspaces,
+    parseAgentWorkspace,
+    workspaceResourceKey,
+  );
+  // Older catalogs recorded MRU order within roots, but not between roots.
+  const recentProjects =
+    item["recentProjects"] === undefined
+      ? mergeRecentProjects(
+          [...workspaces].reverse().flatMap((workspace) =>
+            workspace.recentPaths.flatMap((relativePath) => {
+              const known = projects.find(
+                (project) =>
+                  project.endpoint === workspace.endpoint &&
+                  project.location.kind === "known-root" &&
+                  project.location.rootPath === workspace.rootPath &&
+                  project.location.relativePath === relativePath,
+              );
+              const projectPath =
+                known?.projectPath ??
+                (relativePath === ""
+                  ? workspace.rootPath
+                  : `${workspace.rootPath === "/" ? "" : workspace.rootPath}/${relativePath}`);
+              return isProjectPath(projectPath)
+                ? [{ endpoint: workspace.endpoint, projectPath }]
+                : [];
+            }),
+          ),
+          [],
+        )
+      : records(
+          item["recentProjects"],
+          "recent projects",
+          maxRecentProjects,
+          parseProjectReference,
+          projectResourceKey,
+        );
   return {
     version: 1,
     connections: records(
@@ -242,20 +305,9 @@ export function parseAgentCatalog(value: unknown): AgentCatalog {
       parseSavedAgentConnection,
       (record) => record.endpoint,
     ),
-    projects: records(
-      item["projects"],
-      "saved projects",
-      maxProjects,
-      parseSavedAgentProject,
-      projectResourceKey,
-    ),
-    workspaces: records(
-      item["workspaces"],
-      "workspaces",
-      maxWorkspaces,
-      parseAgentWorkspace,
-      workspaceResourceKey,
-    ),
+    projects,
+    workspaces,
+    recentProjects,
     global: parseAgentGlobalPreferences(item["global"]),
   };
 }
