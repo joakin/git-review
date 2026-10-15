@@ -88,6 +88,7 @@ export async function checkHostManagement(
         "bun",
         "run",
         "qa:capture",
+        "--publish",
         "--url",
         url,
         "--label",

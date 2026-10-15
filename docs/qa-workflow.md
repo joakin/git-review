@@ -521,11 +521,15 @@ bun run qa:capture --url http://127.0.0.1:39911/ --label <new-milestone>
 ```
 
 [The capture script](../qa/capture.ts) writes phone, both tablet orientations, desktop, and a
-manifest into `qa/screenshots/<new-milestone>/`. It refuses an existing label before opening Chrome
-so prior evidence is preserved. Inspect all four images for clipped controls, unreadable code,
-obscured feedback actions and page-wide overflow; horizontal scrolling inside an unwrapped code pane
-is intentional. The command checks page-load failures and document overflow but cannot judge visual
-quality.
+manifest into ignored `qa/.artifacts/screenshots/<new-milestone>/` by default. For evidence intended
+for this public repository, use an isolated fixture or the empty public entry screen and add
+`--publish` to write into `qa/screenshots/<new-milestone>/`. Inspect the images and original URL in
+the manifest for credentials, private source, project names and personal details before staging. The
+flag chooses the destination; it does not redact content or establish that a capture is safe. Both
+destinations refuse an existing label before opening Chrome so prior evidence is preserved. Inspect
+all four images for clipped controls, unreadable code, obscured feedback actions and page-wide
+overflow; horizontal scrolling inside an unwrapped code pane is intentional. The command checks
+page-load failures and document overflow but cannot judge visual quality.
 
 Use a complete destination URL for Files, Search or Git. Saved browser state omits per-tab session
 storage: use `--active-path <root-relative-folder>` when a capture needs a selected Changes project,
@@ -544,6 +548,12 @@ appropriate.
 | Show a code selection           | `--select-text <code-selector> <text>`                                                                                    |
 | Show a source range             | `--select-range <first-code-selector> <start-offset> <last-code-selector> <end-offset>`                                   |
 | Show recording or ready media   | `--fake-microphone`, `--media-ready`                                                                                      |
+
+Existing historical captures retain the maintainer's device name, local project paths and private
+Tailscale address as accepted context. Those addresses are identifiers, not credentials; Tailscale
+HTTPS hostnames are also recorded in public certificate logs. They do not grant tailnet access, and
+Git history has not been rewritten to hide them. New public evidence should use fixture data so
+other contributors' personal context does not become part of the record.
 
 Keep useful milestone images and manifests, and link them once from the owning behavior record or
 current review handoff. Older captures show their recorded version, not the current UI. Ordinary

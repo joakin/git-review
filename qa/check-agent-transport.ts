@@ -415,6 +415,7 @@ await withTempDirectory("git-review-agent-transport-", async (temporary) => {
           process.execPath,
           "run",
           "qa:capture",
+          "--publish",
           "--url",
           stateCheck
             ? frontend.url.origin +

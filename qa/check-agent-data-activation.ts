@@ -53,6 +53,7 @@ export async function checkAgentDataActivation(
         "bun",
         "run",
         "qa:capture",
+        "--publish",
         "--url",
         url,
         "--label",

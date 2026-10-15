@@ -15,6 +15,7 @@ type CaptureOptions = {
   >;
   afterClickReady: string | null;
   fullPage: boolean;
+  publish: boolean;
   storageState: string | null;
   activePath: string | null;
   scrollTo: string | null;
@@ -62,10 +63,13 @@ Options:
   --fake-microphone       Grant Chrome's synthetic microphone for recording UI captures
   --media-ready           Wait for audio/video metadata before each screenshot
   --reveal-list           Open the contextual list drawer on narrow tablets
+  --publish               Write reviewed fixture captures into tracked qa/screenshots/
   --full-page             Capture the entire page instead of the viewport
   --help                  Show this help
 
-Output: qa/screenshots/<milestone>/{desktop,tablet-landscape,tablet-portrait,mobile}.png
+Output: qa/.artifacts/screenshots/<milestone>/ (ignored by Git).
+Use --publish only for evidence reviewed for public sharing; it writes to qa/screenshots/<milestone>/.
+Both outputs include all four viewport PNGs and a manifest with the original URL.
 The milestone directory must not already exist, so earlier captures are preserved.`;
 
 function readValue(args: readonly string[], index: number, flag: string): string {
@@ -85,6 +89,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   const actions: CaptureOptions["actions"] = [];
   let afterClickReady: string | null = null;
   let fullPage = false;
+  let publish = false;
   let storageState: string | null = null;
   let activePath: string | null = null;
   let scrollTo: string | null = null;
@@ -177,6 +182,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         index += 4;
         break;
       }
+      case "--publish":
+        publish = true;
+        break;
       case "--full-page":
         fullPage = true;
         break;
@@ -224,6 +232,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       actions,
       afterClickReady,
       fullPage,
+      publish,
       storageState,
       activePath,
       scrollTo,
@@ -239,8 +248,11 @@ function parseArgs(args: readonly string[]): ParsedArgs {
 }
 
 async function capture(options: CaptureOptions): Promise<void> {
-  const directory = resolve("qa/screenshots", options.label);
+  const parent = resolve(options.publish ? "qa/screenshots" : "qa/.artifacts/screenshots");
+  await mkdir(parent, { recursive: true });
+  const directory = resolve(parent, options.label);
   await mkdir(directory);
+  console.log(`Capture directory: ${directory}`);
   const captureUrl = new URL(options.url);
   if (options.activePath !== null) {
     captureUrl.pathname = "/";

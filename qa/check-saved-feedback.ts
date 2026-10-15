@@ -73,6 +73,7 @@ export async function checkSavedFeedback(
         "bun",
         "run",
         "qa:capture",
+        "--publish",
         "--url",
         url(origins.a),
         "--label",
