@@ -30,6 +30,8 @@ try {
     await copyFile(resolve(repository, path), resolve(fixture, path));
   }
   await symlink(resolve(repository, "node_modules"), resolve(fixture, "node_modules"), "dir");
+  for (const path of ["scripts", ".git-review-tools"])
+    await symlink(resolve(repository, path), resolve(fixture, path), "dir");
   git("init", "-q");
   const baseline = "export const staged = { value: 0 };\n\nexport const unstaged = 0;\n";
   await write("partial.ts", baseline);

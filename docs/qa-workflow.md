@@ -560,6 +560,15 @@ current review handoff. Older captures show their recorded version, not the curr
 check output and temporary state belong in ignored artifacts; do not copy screenshot inventories
 into this guide. Curate only with incoming links and useful evidence in mind.
 
+## Public-source secret checks
+
+The [commit workflow](formatting-workflow.md#commit-behavior) owns scanner installation, local
+commands and CI behavior. Run `bun qa/check-secrets.ts` for scanner changes and
+`bun qa/check-format-hook.ts` for hook integration changes. These checks use disposable repositories
+and synthetic credentials. The initial public-source audit found no credentials in committed text,
+image OCR or the deployed browser bundle; dependency audit reported no advisories. This is evidence
+from the checks performed, rather than a guarantee about every possible secret format.
+
 ## Shared QA support
 
 [Browser support](../qa/browser-support.ts) owns installed-Chrome lifetime, scoped context cleanup,

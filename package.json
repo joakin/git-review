@@ -11,6 +11,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "format:staged": "lint-staged",
+    "secrets:install": "bun scripts/check-secrets.ts --install",
+    "secrets:check": "bun scripts/check-secrets.ts",
     "dev": "bun scripts/dev.ts",
     "build": "bun scripts/build.ts",
     "build:web": "bun scripts/build-web.ts",
