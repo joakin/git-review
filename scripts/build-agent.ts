@@ -62,6 +62,7 @@ try {
     resolve(repository, "deploy/install-linux.sh"),
     resolve(staging, "install-linux.sh"),
   );
+  await copyFile(resolve(repository, "LICENSE"), resolve(staging, "COPYRIGHT.txt"));
   await writeFile(
     resolve(staging, "THIRD_PARTY_NOTICES.txt"),
     await thirdPartyNotices(["shiki"], resolve(repository, "apps/agent/package.json")),
@@ -95,6 +96,7 @@ Search accepts an absolute GIT_REVIEW_RG_PATH override. Git must be on PATH.
 
 Shiki's lazy language modules and inlined Oniguruma WebAssembly are bundled in agent.js.
 THIRD_PARTY_NOTICES.txt retains upstream dependency notices. No platform-specific executable is included.
+COPYRIGHT.txt retains the project's copyright notice; no open-source license is granted.
 `,
   );
   await rm(output, { recursive: true, force: true });

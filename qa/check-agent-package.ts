@@ -60,8 +60,13 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
   await cp(resolve("dist/agent"), artifact, { recursive: true });
   assert(
     (await readdir(artifact)).sort().join(",") ===
-      "README.md,THIRD_PARTY_NOTICES.txt,agent.js,cloud.js,install-linux.sh",
+      "COPYRIGHT.txt,README.md,THIRD_PARTY_NOTICES.txt,agent.js,cloud.js,install-linux.sh",
     "Unexpected runtime files",
+  );
+  assert(
+    (await readFile(join(artifact, "COPYRIGHT.txt"), "utf8")) ===
+      (await readFile(resolve("LICENSE"), "utf8")),
+    "Agent copyright notice differs from the source notice",
   );
   const notices = await readFile(join(artifact, "THIRD_PARTY_NOTICES.txt"), "utf8");
   for (const name of ["shiki", "@shikijs/core", "@shikijs/vscode-textmate"])

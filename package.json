@@ -1,5 +1,6 @@
 {
   "name": "git-review",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "workspaces": [

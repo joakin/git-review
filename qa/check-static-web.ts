@@ -92,6 +92,12 @@ try {
         );
         for (const mount of mounts) {
           const url = new URL(`${mount}?section=hosts`, base);
+          const copyright = await context.request.get(new URL(`${mount}COPYRIGHT.txt`, base).href);
+          assert(
+            copyright.ok() &&
+              (await copyright.text()) === (await readFile(resolve("LICENSE"), "utf8")),
+            `Missing or altered copyright notice at ${mount}`,
+          );
           const notices = await context.request.get(
             new URL(`${mount}THIRD_PARTY_NOTICES.txt`, base).href,
           );

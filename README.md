@@ -314,3 +314,12 @@ fixture server. See [the QA workflow](docs/qa-workflow.md) for fixture setup, sc
 screenshots, and device checks. The
 [stateless project contract](docs/stateless-project-access-plan.md) owns project identity and
 restart behavior; [read boundaries](docs/README.md#behavior-records) link the domain policies.
+
+## Copyright and dependency notices
+
+Copyright (c) 2026 joakin. All rights reserved. The source is public, with no open-source license
+grant; see [the copyright notice](LICENSE). Both generated distributions include `COPYRIGHT.txt` and
+`THIRD_PARTY_NOTICES.txt`, preserving the separate licenses of their bundled dependencies. The
+deployed [copyright notice](https://chimeces.com/git-review/COPYRIGHT.txt) and
+[frontend dependency notices](https://chimeces.com/git-review/THIRD_PARTY_NOTICES.txt) ship with the
+static frontend.

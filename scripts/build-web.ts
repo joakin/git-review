@@ -149,6 +149,7 @@ try {
   ])
     await copyFile(resolve(publicSource, "icons", name), resolve(staging, "icons", name));
   await writeFile(resolve(staging, ".nojekyll"), "");
+  await copyFile(resolve(repository, "LICENSE"), resolve(staging, "COPYRIGHT.txt"));
   await writeFile(
     resolve(staging, "THIRD_PARTY_NOTICES.txt"),
     await thirdPartyNotices(["preact"], resolve(repository, "apps/web/package.json")),
