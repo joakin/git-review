@@ -1,15 +1,20 @@
 # Split host implementation plan
 
 Architecture agreed on 2026-10-13. Steps 2–11 and the cloud bootstrap implementation are committed.
-Cloud/device feasibility remains pending. This record owns remaining work and release acceptance;
-implemented contracts belong to the linked behavior records. Git retains the original research,
-proposals and delivery history.
+The Codex Cloud investigation closed on 2026-10-15: its current networking is unsupported for this
+deployment. Generic cloud/device feasibility remains pending. This record owns remaining work and
+release acceptance; implemented contracts belong to the linked behavior records. Git retains the
+original research, proposals and delivery history.
+
+The [static frontend](../README.md#build-the-static-frontend) is deployed through GitHub Pages;
+[public delivery QA](qa-workflow.md#public-pages-delivery) owns its verification and captures.
 
 ## First release and agreed boundaries
 
-Serve a stable static HTTPS frontend that connects directly to read-only agents in cloud workspaces
-through the device's native Tailscale app. The user can close the laptop while those workspaces
-remain available. Saved feedback must remain accessible when an agent disappears.
+Serve a stable static HTTPS frontend that connects directly to read-only agents on compatible code
+hosts through the device's native Tailscale app. A compatible cloud workspace can support the
+laptop-closed workflow while it remains available. Codex Cloud is not a supported agent host under
+its current networking model. Saved feedback must remain accessible when an agent disappears.
 
 ```mermaid
 flowchart LR
@@ -55,13 +60,15 @@ cloud/device gate is pending.
 ### 1. Prove the target cloud and browser path
 
 The [feasibility QA procedure](qa-workflow.md#split-host-feasibility-probe) owns the probe, local
-evidence, commands and cloud setup instructions. Local HTTP/private HTTPS simulation is complete. It
-does not establish real cloud lifetime or physical-device reachability.
+evidence, commands and cloud setup instructions. Local HTTP/private HTTPS simulation is complete.
+The [Codex Cloud conclusion](qa-workflow.md#codex-cloud-investigation--closed-2026-10-15) closes
+that provider investigation without establishing a supported deployment. Static frontend deployment
+can proceed independently; a compatible cloud host still needs its own lifetime/device verification.
 
 Choose the provider/setup hook, frontend origin/base path, required availability period and first
 device/browser. Verify private HTTPS access from the static frontend with the laptop closed,
-including after setup, AI task completion and idle/suspend. If that fails, resolve the provider or
-transport choice before deployment.
+including after setup, AI task completion and idle/suspend. This gate applies to claiming the
+laptop-closed cloud workflow, rather than to publishing the independently useful static client.
 
 ### 2. Move into three workspaces without changing behavior
 
@@ -125,16 +132,19 @@ responsive captures. Discovery remains deferred.
 
 ### 12. Finish cloud bootstrap and verify the release
 
-Turn the probe setup into a generic Linux recipe and one verified provider hook. It installs
-prerequisites, enrolls Tailscale, starts the approved-root packaged agent, configures private HTTPS
-and the allowed frontend origin, then prints the actual agent URL and frontend connection link.
-Runtime operation stays in the README; provider setup and verification stay in the QA guide.
+The generic Linux recipe is implemented; a verified provider hook remains optional work for a
+compatible provider. It installs prerequisites, enrolls Tailscale, starts the approved-root packaged
+agent, configures private HTTPS and the allowed frontend origin, then prints the actual agent URL
+and frontend connection link. Runtime operation stays in the README; provider setup and verification
+stay in the QA guide.
 
 The [cloud launcher and Linux installer](../README.md#run-the-agent-in-a-cloud-workspace), manual
 artifact/static deployment workflows and
 [provider procedure](qa-workflow.md#cloud-bootstrap-and-provider-checks) are committed. Local
-packaged simulation passes; the Linux workflow, actual provider hook, public deployment and
-physical-device lifecycle gate remain pending.
+packaged simulation and Linux agent execution pass, and the static frontend is deployed. The Linux
+artifact workflow, compatible provider hook and physical-device lifecycle gate remain pending. The
+Codex investigation is closed; the generic launcher remains experimental until verified on a
+compatible host.
 
 Choose a unique workspace hostname after instantiation; reused images must not share enrollment
 state or names. [Ephemeral nodes](https://tailscale.com/docs/features/ephemeral-nodes) get a new IP

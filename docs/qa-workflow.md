@@ -103,8 +103,24 @@ The inspected standalone subpath UI is captured at
 [phone](../qa/screenshots/static-web-subpath/mobile.png),
 [tablet portrait](../qa/screenshots/static-web-subpath/tablet-portrait.png),
 [tablet landscape](../qa/screenshots/static-web-subpath/tablet-landscape.png), and
-[desktop](../qa/screenshots/static-web-subpath/desktop.png). Its API-unavailable notice is expected:
-the preview serves only the publish files, and direct-agent configuration is a later slice.
+[desktop](../qa/screenshots/static-web-subpath/desktop.png). These retain the initial packaging
+milestone before manual host setup; the deployed entry screen is captured below.
+
+#### Public Pages delivery
+
+The first [Pages deployment](https://github.com/joakin/git-review/actions/runs/38743233608) passed
+on 2026-10-15, including Linux type, boundary, formatting and static build gates. The
+[deployment instructions](../README.md#build-the-static-frontend) own the URLs and manual publishing
+workflow. Live checks verified HTTPS delivery, the alternate-domain redirect with query links, and
+the manifest and worker MIME types. In the in-app browser, the deployed client checked and saved a
+private Tailscale agent, opened the actual project, and loaded its current changes.
+
+The deployed entry screen was captured and inspected at
+[phone](../qa/screenshots/github-pages/mobile.png),
+[tablet portrait](../qa/screenshots/github-pages/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/github-pages/tablet-landscape.png), and
+[desktop](../qa/screenshots/github-pages/desktop.png), with no horizontal overflow. Physical-device
+installation, gesture/clipboard behavior and browser network permissions remain unverified.
 
 ### Independent agent artifact
 
@@ -236,30 +252,26 @@ it does not prove VPN routing, certificates, Linux execution or provider lifetim
 triggered [Linux workflow](../.github/workflows/cloud-artifacts.yml) runs the installer and both
 artifact checks on Ubuntu. It has been prepared but has not been dispatched.
 
-#### Codex environment hook
+#### Codex Cloud investigation — closed 2026-10-15
 
-The current [official guide](https://learn.chatgpt.com/docs/environments/cloud-environments)
-provides an **Install script** and a **Start skill**. The install phase should prepare dependencies
-and the copied/built runtime only. Publish that unenrolled setup. The start skill must launch the
-supervisor once per task, using that task's actual checkout as the approved root. Supply the client
-URL and raw enrollment key through requested private environment variables, and allow the required
-tool downloads and Tailscale control/relay traffic during the task.
+Codex Cloud is not a supported deployment target for this agent under its current networking model.
+Its
+[managed VPN](https://learn.chatgpt.com/docs/environments/cloud-environments#private-networking-vpn)
+provides outbound access to private services; the runtime VPN guidance excludes inbound connections
+to workspace listeners. A managed node appearing in Tailscale does not expose the task's ports.
 
-Start-skill instructions to give Codex:
+The first real cloud probe fetched the published runtime into a disposable checkout, built the
+packaged agent on Debian/x86_64, and passed Linux package checks, controlled Tailscale simulation,
+loopback API/root/protocol/CORS checks, and a provider task service surviving its launching parent.
+The actual task checkout remained unchanged. A real node was not enrolled: direct launcher inputs
+were absent and the proxy denied Tailscale download/control destinations.
 
-> Use the packaged cloud launcher described in this repository's README. Find this task's code
-> checkout and use it as the approved root. If this task already has a healthy owned supervisor,
-> keep it. Otherwise launch one with stdin detached and stdout/stderr redirected to a private task
-> log; record its PID and keep it running through the supported task-service mechanism. Read the
-> final readiness message and report the actual agent URL and client link. Do not enroll while
-> preparing the reusable environment, cache node state, edit tailnet policy, or start another node
-> through the existing managed VPN socket. If service processes or raw secrets are unsupported,
-> report that limitation instead of substituting the local laptop.
-
-Codex's managed VPN setting documents outbound private-service access. Whether this account allows
-the isolated daemon's outbound traffic and inbound Serve endpoint remains an experiment. The guide
-describes recoverable saved VM state; it does not guarantee continuous service uptime while idle. No
-provider hook has been verified in an actual Codex environment yet.
+A fresh task with managed Tailscale enabled failed VPN provisioning and never exposed a shell tool;
+later connection attempts remained pending. No agent or private HTTPS endpoint was started there.
+The separate userspace launcher's relay path remains unverified, rather than proven impossible, and
+is not an accepted provider integration. Investigation is closed for now. Reopen only when a
+supported private exposure path and adequate task lifetime can be demonstrated. Generic runtime
+operation stays in the README; historical setup prompts remain in Git.
 
 #### Live acceptance
 
@@ -270,8 +282,10 @@ task, after it ends, after the intended idle period, after resume, and with the 
 installed iOS/Android mode, browser network permissions and feedback recovery after one workspace
 disappears. Move data to the new static origin with an export/import first.
 
-The local simulation passes on macOS. Actual Linux installation, workflow execution, static public
-deployment, Codex inbound connectivity/lifetime and physical-device verification remain pending.
+The local simulation passes on macOS; Linux agent build/package and loopback service checks passed
+in the first cloud probe. Full Linux/Tailscale installation, Linux artifact workflow execution and
+physical-device verification remain pending. Static public delivery is covered above. Codex Cloud
+investigation is closed, with no supported inbound deployment or laptop-closed lifetime established.
 
 ### Split-host feasibility probe
 

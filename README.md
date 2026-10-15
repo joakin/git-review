@@ -125,18 +125,23 @@ Open the static client, paste the agent's private HTTPS origin, **Check host**, 
 The [host-management contract](docs/agent-http-protocol.md#host-management) owns connection labels,
 checks, removal and saved-review access. A fresh client can import a backup through **Install &
 local data** before connecting. The normal `dev`, `build`, and `start` commands retain the local
-combined app. No public deployment has been performed.
+combined app.
+
+The deployed client is [chimeces.com/git-review](https://chimeces.com/git-review/).
+[joakin.github.io/git-review](https://joakin.github.io/git-review/) redirects to the same HTTPS
+address, preserving query links. The project inherits the custom domain configured on the account's
+user site and uses `/git-review/` for assets, navigation, the manifest and worker scope. Configure
+agents to allow the frontend origin `https://chimeces.com`; the client URL for printed connection
+links is `https://chimeces.com/git-review/`. The
+[agent origin configuration](#agent-information-and-frontend-origins) owns the startup options.
 
 The manually triggered [Pages workflow](.github/workflows/deploy-web.yml) builds at the repository's
-configured Pages path and publishes only `dist/web/`. After reviewing/committing it, choose
-**Settings → Pages → GitHub Actions**, then run **Deploy static review client** on the default
-branch. It has no push trigger. For this repository, the usual project URL would be
-`https://joakin.github.io/git-review/`; use the actual deployment URL if a custom domain is
-configured.
-[GitHub Pages availability](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
-depends on the plan for private repositories. Export browser data before moving to the new origin;
-the [local-data owner](docs/independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns
-transfer.
+configured Pages path and publishes only `dist/web/`. Pages uses **Settings → Pages → GitHub
+Actions**, with HTTPS enforced. Run **Deploy static review client** on the default branch to publish
+a committed revision; there is no push trigger. The repository is public;
+[private-repository Pages availability](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+depends on the GitHub plan. Export browser data before moving to the new origin; the
+[local-data owner](docs/independent-tabs-and-pwa-proposal.md#local-data-and-backups) owns transfer.
 
 ## Build and run the independent agent
 
@@ -188,6 +193,11 @@ model. Missing tools do not prevent startup or typed review. Startup output does
 tool/model availability; `bun /path/to/agent/agent.js --help` lists configuration.
 
 ## Run the agent in a cloud workspace
+
+This generic recipe remains experimental until verified on a compatible host. Codex Cloud is not a
+supported deployment target under its current networking model; the
+[closed provider investigation](docs/qa-workflow.md#codex-cloud-investigation--closed-2026-10-15)
+owns the evidence and limits.
 
 The agent artifact also contains `cloud.js` and `install-linux.sh`. On a Debian/Ubuntu Linux
 workspace, provide `ca-certificates`, `curl`, `unzip`, `tar`, `coreutils`, Git and ripgrep through
