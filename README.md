@@ -102,10 +102,10 @@ The default deployment path is `/`. Use the second form for a project site such 
 trailing slash. The workspace command `bun run build` from `apps/web` builds the same artifact.
 
 Publish the **contents of `dist/web/`** at that path. The directory includes HTML, content-versioned
-scripts/styles, icons, manifest, worker, offline fallback and a 404 page; it needs no checkout, Bun,
-or application server to serve those files. Validation, bundling and asset-preparation failures
-leave the previous output available; completed builds replace the generated directory. Navigation
-and installation use the configured path. The
+scripts/styles, icons, manifest, worker, offline fallback, a 404 page and upstream dependency
+notices; it needs no checkout, Bun, or application server to serve those files. Validation, bundling
+and asset-preparation failures leave the previous output available; completed builds replace the
+generated directory. Navigation and installation use the configured path. The
 [installation record](docs/independent-tabs-and-pwa-proposal.md#installation-and-offline-behavior)
 owns worker caching and browser-data behavior.
 

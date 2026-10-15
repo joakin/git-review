@@ -3,6 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expectRecord, expectString } from "@git-review/shared/validation";
+import { thirdPartyNotices } from "./third-party-notices.ts";
 import { parseDeploymentBasePath } from "../apps/web/src/deployment.ts";
 
 const args = process.argv.slice(2);
@@ -148,6 +149,10 @@ try {
   ])
     await copyFile(resolve(publicSource, "icons", name), resolve(staging, "icons", name));
   await writeFile(resolve(staging, ".nojekyll"), "");
+  await writeFile(
+    resolve(staging, "THIRD_PARTY_NOTICES.txt"),
+    await thirdPartyNotices(["preact"], resolve(repository, "apps/web/package.json")),
+  );
 
   // Cloudflare Pages/Netlify support this file; plain file hosts use the HTML meta policies.
   const headers = [

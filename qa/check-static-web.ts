@@ -58,7 +58,9 @@ try {
             ? "image/png"
             : path.endsWith(".webmanifest")
               ? "application/manifest+json"
-              : "text/html";
+              : path.endsWith(".txt")
+                ? "text/plain"
+                : "text/html";
       // No CSP response header: exercise the policy available on plain static file hosts.
       return new Response(request.method === "HEAD" ? null : await readFile(path), {
         headers: { "content-type": type, "cache-control": "no-cache" },
@@ -90,6 +92,16 @@ try {
         );
         for (const mount of mounts) {
           const url = new URL(`${mount}?section=hosts`, base);
+          const notices = await context.request.get(
+            new URL(`${mount}THIRD_PARTY_NOTICES.txt`, base).href,
+          );
+          assert(notices.ok(), `Missing frontend notices at ${mount}`);
+          assert(
+            (await notices.text()).includes(
+              await readFile(resolve("apps/web/node_modules/preact/LICENSE"), "utf8"),
+            ),
+            `Frontend notices omit the installed Preact license at ${mount}`,
+          );
           const manifestResponse = await context.request.get(
             new URL(`${mount}manifest.webmanifest`, base).href,
           );

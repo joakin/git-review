@@ -63,6 +63,9 @@ await withTempDirectory("git-review-agent-package-", async (temporary) => {
       "README.md,THIRD_PARTY_NOTICES.txt,agent.js,cloud.js,install-linux.sh",
     "Unexpected runtime files",
   );
+  const notices = await readFile(join(artifact, "THIRD_PARTY_NOTICES.txt"), "utf8");
+  for (const name of ["shiki", "@shikijs/core", "@shikijs/vscode-textmate"])
+    assert(notices.includes(`${name}@`), `Missing upstream notices for ${name}`);
   const imports = new Bun.Transpiler({ loader: "js", target: "bun" }).scanImports(
     await Bun.file(join(artifact, "agent.js")).text(),
   );
