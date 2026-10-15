@@ -1,13 +1,34 @@
 # git-review
 
-A local, browser-based code review app. Choose a host folder within an approved root to review
-working-copy changes, browse and search files, or inspect branches and commits without changing the
-repository. Add comments to a line or selected range of code, optionally dictate them, then check
-their source and copy a review summary. Responsive views and direct URLs support phones, tablets,
-desktop, and an installed window.
+A browser-based Git review app for phones, tablets and desktop.
 
-Drafts and preferences stay in the browser; Git and file contents are read from the host. The
-[documentation map](docs/README.md) links current behavior, constraints, and engineering records.
+**[Open git-review](https://chimeces.com/git-review/)** ·
+[GitHub Pages address](https://joakin.github.io/git-review/) (redirects to the same app).
+
+The hosted app is a static frontend. Add the private HTTPS URL printed by an agent running on a code
+host, then choose a project within its approved root. Save multiple hosts and open recent projects
+across them from the workspace menu. Each host must remain reachable from your device; Tailscale is
+the recommended private connection. You can also run the frontend and agent together locally using
+the commands below.
+
+Review working-copy changes, browse and search files, or inspect branches and commits without
+changing the repository. Comment on a line or selected range, optionally dictate a comment, then
+check its source and copy a review summary. Direct URLs and installation support switching between
+browsers and an app window. Drafts, copied feedback history, saved hosts and preferences stay in
+that browser's storage; saved feedback remains available when a host disappears. Live Git and file
+contents come directly from the selected agent. The [documentation map](docs/README.md) links
+current behavior, constraints, and engineering records.
+
+## Access boundary
+
+The agent has **no built-in user authentication**. Run it on loopback behind Tailscale Serve or an
+equivalent trusted access boundary, and choose approved roots that contain only the projects you
+intend to expose. A client that can reach the agent can read the accessible repositories and files.
+The configured frontend-origin allowlist controls browser cross-origin requests; **CORS is not
+authentication** and does not protect against direct HTTP clients. The public static frontend needs
+network access from your device to the agent; deploying the frontend does not make private agents
+public. [Agent configuration](#agent-information-and-frontend-origins) owns the exact origin
+options.
 
 ## Project status
 
