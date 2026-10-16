@@ -5,7 +5,8 @@ Documentation has three roles:
 - [`current/`](current/): concise, authoritative information about the project today. Keep plans,
   delivery logs, approvals, and links to drafts or history out of these guides and package READMEs.
 - [`drafts/`](drafts/): research, proposals, and work in progress, including work awaiting
-  maintainer review. State the scope, status, decisions, and open questions.
+  maintainer review. State the scope, status, decisions, and open questions. Drafts are temporary;
+  do not list individual drafts in this guide.
 - [`history/`](history/): useful completed or superseded records. They provide historical context
   and do not instruct current work. Git retains deleted text and the detailed development history.
 
@@ -25,10 +26,7 @@ outcomes in the handoff or a draft, rather than appending them to current guides
 - [Operation, installation, and deployment](current/operations.md)
 - [Testing, fixtures, and visual QA](current/testing.md)
 
-## Drafts and completion
-
-- [Cloud deployment verification](drafts/2026-10-16-cloud-verification.md): deferred pending a
-  compatible provider and physical-device evidence; no implementation is scheduled by this record.
+## Document lifecycle
 
 Create a dated draft only when a durable record helps; small tasks do not need one. On maintainer
 acceptance, reconcile lasting decisions into their current owner and move a useful draft to history.
