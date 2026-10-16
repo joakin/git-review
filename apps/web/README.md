@@ -36,6 +36,8 @@ Changes presents staged, unstaged, and untracked cards. Section disclosures are 
 expansion and route selection. Card open choices are saved; expanded text loads on demand through
 bounded [diff queues](src/diff-batch-queue.ts). Selecting a card navigates and focuses it once. Open
 reads its current working file in Files, including when the displayed comparison is staged.
+Collapsing a card from its sticky heading immediately brings the collapsed card back into view below
+the fixed headings, in both Changes and commit diffs.
 
 [Working-copy review](src/working-copy-review.ts) retains the accepted snapshot. Background checks
 pause outside visible Changes and during relevant dialogs. Detected edits offer Update instead of

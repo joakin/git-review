@@ -100,6 +100,25 @@ export function DiffCardFrame({
   context?: DiffContextControl | null;
 }) {
   const sticky = usePinnedHeading(expanded && mode.kind === "review");
+  const card = useRef<HTMLElement>(null);
+  const scrollAfterCollapse = useRef(false);
+  function toggle(): void {
+    const element = card.current;
+    const heading = sticky.heading.current;
+    // Capture the sticky displacement before collapsing removes the body.
+    scrollAfterCollapse.current =
+      expanded &&
+      element !== null &&
+      heading !== null &&
+      heading.getBoundingClientRect().top >
+        element.getBoundingClientRect().top + element.clientTop + 1;
+    onToggle();
+  }
+  useLayoutEffect(() => {
+    if (expanded || !scrollAfterCollapse.current) return;
+    scrollAfterCollapse.current = false;
+    card.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [expanded]);
   const path = mode.kind === "review" ? mode.entry.path : mode.file.path;
   useNotification(
     `diff-load:${requestKey}`,
@@ -137,6 +156,7 @@ export function DiffCardFrame({
     current.kind === "ready" && current.value.kind === "text" ? current.value.syntax : null;
   return (
     <article
+      ref={card}
       class={`diff-card diff-card-${label}`}
       id={id}
       data-layer={label}
@@ -151,7 +171,7 @@ export function DiffCardFrame({
         ref={sticky.heading}
         data-expanded={expanded ? "true" : "false"}
       >
-        <button class="diff-card-toggle" type="button" aria-expanded={expanded} onClick={onToggle}>
+        <button class="diff-card-toggle" type="button" aria-expanded={expanded} onClick={toggle}>
           <span class="diff-card-chevron" aria-hidden="true">
             <Chevron direction={expanded ? "down" : "right"} />
           </span>
