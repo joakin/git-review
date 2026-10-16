@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { ChangeEntry, Project, ProjectStatus } from "@git-review/shared/api";
+import type { ChangeEntry, ChangeLayer, Project, ProjectStatus } from "@git-review/shared/api";
 import { useAgentApi, useProjectState, useAgentLifetime } from "./AgentApiProvider.tsx";
 import { diffCardKey } from "./DiffCard.tsx";
 import { routeProjectPath, type Route } from "./navigation.ts";
@@ -14,6 +14,7 @@ type ReviewState = {
   refreshError: string | null;
   refreshKey: number;
   expandedKeys: ReadonlySet<string>;
+  collapsedSidebarLayers: ReadonlySet<ChangeLayer>;
 };
 type ReviewPosition = {
   project: Project;
@@ -40,6 +41,7 @@ type WorkingCopyReview = {
     refreshError: string | null;
     refreshKey: number;
     expandedKeys: ReadonlySet<string>;
+    collapsedSidebarLayers: ReadonlySet<ChangeLayer>;
   };
   actions: {
     beginProjectOpen: () => void;
@@ -50,11 +52,13 @@ type WorkingCopyReview = {
     expandEntry: (entry: ChangeEntry) => void;
     expandAll: () => void;
     collapseAll: () => void;
+    toggleSidebarLayer: (layer: ChangeLayer) => void;
   };
 };
 
 const loading: LoadState<ProjectStatus> = { kind: "loading" };
 const emptyCards: ReadonlySet<string> = new Set();
+const emptySidebarLayers: ReadonlySet<ChangeLayer> = new Set();
 const pollIntervalMs = 10_000;
 
 /** Owns the accepted review snapshot; background checks only announce changes. */
@@ -73,6 +77,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
     refreshError: null,
     refreshKey: 0,
     expandedKeys: emptyCards,
+    collapsedSidebarLayers: emptySidebarLayers,
   }));
   const stateRef = useRef(state);
   const statusRequest = useRef<AbortController | null>(null);
@@ -96,6 +101,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       checkError: false,
       refreshError: null,
       expandedKeys: emptyCards,
+      collapsedSidebarLayers: emptySidebarLayers,
     }));
   }
 
@@ -109,6 +115,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       checkError: false,
       refreshError: null,
       expandedKeys: storage.readOpenCards(project.absolutePath),
+      collapsedSidebarLayers: emptySidebarLayers,
     }));
   }
 
@@ -147,6 +154,17 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
         }
       }
       return { ...current, expandedKeys: next };
+    });
+  }
+
+  function toggleSidebarLayer(layer: ChangeLayer): void {
+    const project = inputsRef.current.project;
+    if (project === null || !hasCurrentProject(project)) return;
+    update((current) => {
+      const next = new Set(current.collapsedSidebarLayers);
+      if (next.has(layer)) next.delete(layer);
+      else next.add(layer);
+      return { ...current, collapsedSidebarLayers: next };
     });
   }
 
@@ -391,6 +409,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       refreshError: current ? state.refreshError : null,
       refreshKey: state.refreshKey,
       expandedKeys: current ? state.expandedKeys : emptyCards,
+      collapsedSidebarLayers: current ? state.collapsedSidebarLayers : emptySidebarLayers,
     },
     actions: {
       beginProjectOpen,
@@ -401,6 +420,7 @@ export function useWorkingCopyReview(inputs: ReviewInputs): WorkingCopyReview {
       expandEntry: (entry) => changeExpansion(entry, false),
       expandAll: () => changeAllExpansion(true),
       collapseAll: () => changeAllExpansion(false),
+      toggleSidebarLayer,
     },
   };
 }

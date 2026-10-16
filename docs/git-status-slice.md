@@ -10,6 +10,20 @@ File counts and [line totals](changes-line-counts-proposal.md) arrive with the i
 and responsive list/content behavior belong to the
 [navigation record](navigation-and-url-history-slice-proposal.md).
 
+## Sidebar section disclosures
+
+Staged, Unstaged and Untracked have independent disclosure headings in the contextual list,
+including the phone's Changes list. The shared chevron points down when expanded and right when
+collapsed. The entire heading is a touch and keyboard target; its label, file count and line totals
+stay visible while collapsed. Collapsing hides file rows, explanatory notes and empty messages from
+both view and keyboard navigation. Conflicts retains its explicit, always-expanded presentation.
+
+All three sections start expanded. The current project's working-copy review owns their state in tab
+memory, preserving it through Refresh/Update, newly accepted files, diff navigation and switching
+project views. Opening another project or reloading resets it. Disclosures do not change the URL,
+load patches, toggle diff cards or limit Review all changes. This state adds no browser-storage or
+agent API contract.
+
 ## Inventory contract
 
 [git-status.ts](../apps/agent/src/git-status.ts) parses Git porcelain v2 with NUL delimiters,
@@ -46,3 +60,17 @@ and status modes.
 The [inventory](../qa/screenshots/git-inventory-fixture/mobile.png) and
 [drawer](../qa/screenshots/git-inventory-fixture-drawer/mobile.png) milestone sets were inspected at
 phone, tablet portrait, tablet landscape and desktop sizes. Real-device touch remains unverified.
+
+[Sidebar browser QA](../qa/check-sidebar-sections.ts) checks independent pointer, emulated touch and
+keyboard toggles, retained totals, hidden rows and notes, focus, Refresh, view navigation, Review
+all, reload, empty groups, new inventory entries and project reset. It covers the four standard
+viewports plus a 320 px phone. The [QA workflow](qa-workflow.md#focused-checks) owns invocation and
+fixture setup.
+
+| Sidebar state          | Phone                                                            | Tablet portrait                                                           | Tablet landscape                                                           | Desktop                                                           |
+| ---------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| All sections expanded  | [Image](../qa/screenshots/sidebar-sections-expanded/mobile.png)  | [Image](../qa/screenshots/sidebar-sections-expanded/tablet-portrait.png)  | [Image](../qa/screenshots/sidebar-sections-expanded/tablet-landscape.png)  | [Image](../qa/screenshots/sidebar-sections-expanded/desktop.png)  |
+| Only Unstaged expanded | [Image](../qa/screenshots/sidebar-sections-collapsed/mobile.png) | [Image](../qa/screenshots/sidebar-sections-collapsed/tablet-portrait.png) | [Image](../qa/screenshots/sidebar-sections-collapsed/tablet-landscape.png) | [Image](../qa/screenshots/sidebar-sections-collapsed/desktop.png) |
+
+These 2026-10-16 captures were inspected at all four sizes without page-wide horizontal overflow.
+Physical iOS/Android touch remains unverified.

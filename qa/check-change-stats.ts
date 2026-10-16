@@ -67,7 +67,8 @@ try {
         );
         assert(
           requests.filter(
-            (url) => new URL(url).pathname.endsWith("/status") && new URL(url).search === "",
+            (url) =>
+              new URL(url).pathname.endsWith("/status") && !new URL(url).searchParams.has("mode"),
           ).length === 1,
           `${name}: metadata/counts used multiple initial requests`,
         );
@@ -158,7 +159,12 @@ try {
           const heading = card?.closest(".diff-section")?.querySelector(".diff-section-heading");
           if (!card || !heading) return false;
           const gap = card.getBoundingClientRect().top - heading.getBoundingClientRect().bottom;
-          return gap >= 0 && gap <= 48;
+          // Short reviews can reach the document's end before the selected card
+          // can align beneath its sticky section heading on tall tablets.
+          const atEnd = window.scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+          return (
+            gap >= 0 && (gap <= 48 || (atEnd && card.getBoundingClientRect().top < innerHeight))
+          );
         });
         const before = await page
           .locator('main .diff-card[data-layer="unstaged"][data-path="src/view.ts"] .line-added')
@@ -188,7 +194,7 @@ try {
           const refreshed = page.waitForResponse(
             (response) =>
               new URL(response.url()).pathname.endsWith("/status") &&
-              new URL(response.url()).search === "",
+              !new URL(response.url()).searchParams.has("mode"),
           );
           await page
             .locator(".notification[data-notification-key^='changes-update:'] .notification-action")
@@ -211,7 +217,7 @@ try {
           const restored = page.waitForResponse(
             (response) =>
               new URL(response.url()).pathname.endsWith("/status") &&
-              new URL(response.url()).search === "",
+              !new URL(response.url()).searchParams.has("mode"),
           );
           await page.getByRole("button", { name: "Refresh", exact: true }).click();
           await restored;

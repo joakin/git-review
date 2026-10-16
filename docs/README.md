@@ -43,6 +43,9 @@ The [multi-line feedback closure](multi-line-feedback-proposal.md) links the rev
 owning records. The Feedback behavior record owns consecutive multi-line comments in Files, Search
 and working-copy diffs, including mixed Old/New selections.
 
+The [collapsible sidebar closure](sidebar-section-collapse-proposal.md) links the reviewed slice;
+the Changes inventory owns its accepted disclosure behavior.
+
 ## Behavior records
 
 | Area                                   | Authoritative record                                                                                                                                                                                                     |

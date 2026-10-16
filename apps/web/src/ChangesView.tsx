@@ -14,6 +14,7 @@ import { diffCardKey, DiffCard } from "./DiffCard.tsx";
 import { ContentHeading } from "./ContentHeading.tsx";
 import type { LoadState } from "./load-state.ts";
 import { BulkDiffControls } from "./BulkDiffControls.tsx";
+import { Chevron } from "./Icons.tsx";
 
 type ChangesModel = {
   projectPath: string;
@@ -48,9 +49,13 @@ const noDrafts: readonly DraftComment[] = [];
 
 function ChangeGroups({
   entries,
+  collapsedLayers,
+  onToggleLayer,
   onSelect,
 }: {
   entries: readonly ReviewChangeEntry[];
+  collapsedLayers: ReadonlySet<ChangeLayer>;
+  onToggleLayer: (layer: ChangeLayer) => void;
   onSelect: (entry: ChangeEntry) => void;
 }) {
   return (
@@ -58,53 +63,78 @@ function ChangeGroups({
       {changeLayers.map(({ key, label }) => {
         const group = entries.filter((entry) => entry.layer === key);
         if (key === "conflict" && group.length === 0) return null;
+        const collapsed = key !== "conflict" && collapsedLayers.has(key);
+        const counts = (
+          <span class="change-heading-counts">
+            {group.length > 0 && key !== "conflict" && <ChangeGroupStats entries={group} />}
+            <span class="change-count">{group.length}</span>
+          </span>
+        );
         return (
           <section class={`change-group change-group-${key}`} key={key}>
             <h2>
-              <span>{label}</span>
-              <span class="change-heading-counts">
-                {group.length > 0 && key !== "conflict" && <ChangeGroupStats entries={group} />}
-                <span class="change-count">{group.length}</span>
-              </span>
+              {key === "conflict" ? (
+                <>
+                  <span>{label}</span>
+                  {counts}
+                </>
+              ) : (
+                <button
+                  class="change-group-toggle"
+                  type="button"
+                  aria-label={label}
+                  aria-expanded={!collapsed}
+                  aria-controls={`change-group-${key}-files`}
+                  onClick={() => onToggleLayer(key)}
+                >
+                  <span class="change-group-label">
+                    <Chevron direction={collapsed ? "right" : "down"} />
+                    {label}
+                  </span>
+                  {counts}
+                </button>
+              )}
             </h2>
-            {key !== "conflict" && <ChangeGroupNotes entries={group} />}
-            {group.length === 0 ? (
-              <p class="change-empty">No {label.toLowerCase()} files</p>
-            ) : (
-              <ul>
-                {group.map((entry) => (
-                  <li key={diffCardKey(entry)}>
-                    <button
-                      class="change-row-button"
-                      type="button"
-                      onClick={() => onSelect(entry)}
-                      aria-label={`Open ${entry.layer} diff for ${entry.path}`}
-                    >
-                      <span class={`change-mark change-mark-${entry.kind}`} aria-hidden="true">
-                        {entry.kind === "conflicted"
-                          ? "!"
-                          : entry.kind === "deleted"
-                            ? "−"
-                            : entry.kind === "added"
-                              ? "+"
-                              : "•"}
-                      </span>
-                      <span class="change-file">
-                        <strong title={entry.path}>{entry.path}</strong>
-                        <small class="change-metadata">
-                          <span class="change-description">
-                            <span class="change-kind">{entry.kind.replace("_", " ")}</span>
-                            {entry.oldPath === null ? "" : ` from ${entry.oldPath}`}
-                            {entry.isSubmodule ? " · submodule" : ""}
-                          </span>
-                          <ChangeStats stats={entry.stats} />
-                        </small>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div id={`change-group-${key}-files`} hidden={collapsed}>
+              {key !== "conflict" && <ChangeGroupNotes entries={group} />}
+              {group.length === 0 ? (
+                <p class="change-empty">No {label.toLowerCase()} files</p>
+              ) : (
+                <ul>
+                  {group.map((entry) => (
+                    <li key={diffCardKey(entry)}>
+                      <button
+                        class="change-row-button"
+                        type="button"
+                        onClick={() => onSelect(entry)}
+                        aria-label={`Open ${entry.layer} diff for ${entry.path}`}
+                      >
+                        <span class={`change-mark change-mark-${entry.kind}`} aria-hidden="true">
+                          {entry.kind === "conflicted"
+                            ? "!"
+                            : entry.kind === "deleted"
+                              ? "−"
+                              : entry.kind === "added"
+                                ? "+"
+                                : "•"}
+                        </span>
+                        <span class="change-file">
+                          <strong title={entry.path}>{entry.path}</strong>
+                          <small class="change-metadata">
+                            <span class="change-description">
+                              <span class="change-kind">{entry.kind.replace("_", " ")}</span>
+                              {entry.oldPath === null ? "" : ` from ${entry.oldPath}`}
+                              {entry.isSubmodule ? " · submodule" : ""}
+                            </span>
+                            <ChangeStats stats={entry.stats} />
+                          </small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         );
       })}
@@ -114,10 +144,14 @@ function ChangeGroups({
 
 export function ChangesSidebar({
   status,
+  collapsedLayers,
+  onToggleLayer,
   onSelect,
   onReviewAll,
 }: {
   status: LoadState<ProjectStatus>;
+  collapsedLayers: ReadonlySet<ChangeLayer>;
+  onToggleLayer: (layer: ChangeLayer) => void;
   onSelect: (entry: ChangeEntry) => void;
   onReviewAll: () => void;
 }) {
@@ -136,7 +170,12 @@ export function ChangesSidebar({
           <button class="changes-review-all" type="button" onClick={onReviewAll}>
             Review all changes <span aria-hidden="true">→</span>
           </button>
-          <ChangeGroups entries={gitStatus.entries} onSelect={onSelect} />
+          <ChangeGroups
+            entries={gitStatus.entries}
+            collapsedLayers={collapsedLayers}
+            onToggleLayer={onToggleLayer}
+            onSelect={onSelect}
+          />
         </>
       )}
     </div>

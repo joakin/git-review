@@ -1053,6 +1053,8 @@ export function App({ navigation }: { navigation: AppNavigation }) {
           ) : listSection === "changes" && project !== null ? (
             <ChangesSidebar
               status={status}
+              collapsedLayers={review.model.collapsedSidebarLayers}
+              onToggleLayer={review.actions.toggleSidebarLayer}
               onSelect={selectEntry}
               onReviewAll={() =>
                 navigate({
