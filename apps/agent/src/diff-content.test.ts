@@ -94,6 +94,125 @@ test("word detail skips ambiguous pairs and keeps clear pairs around a deletion"
   ]);
 });
 
+test("word detail covers a rewritten comment and preserves words reflowed to the next line", () => {
+  const diff = textDiff(
+    parseGitPatch(
+      Buffer.from(
+        [
+          "@@ -604,2 +612,2 @@",
+          "-    // A gap first removes a falling entity from the camera and leash. Reaching",
+          "-    // its lower line starts the existing visible return above the viewport.",
+          "+    // A gap retains the player's supported height for framing and group limits.",
+          "+    // Reaching its lower line starts a visible return above the viewport.",
+          "",
+        ].join("\n"),
+      ),
+    ),
+  );
+  const rows = diff.hunks[0]?.lines ?? [];
+  expect(
+    rows.map((row) =>
+      row.detail.kind === "word_change"
+        ? row.detail.spans.map((span) => row.text.slice(span.start, span.end).trim())
+        : [],
+    ),
+  ).toEqual([
+    ["first removes a falling entity from", "camera", "leash"],
+    ["the existing"],
+    ["retains", "player's supported height for framing", "group limits"],
+    ["a"],
+  ]);
+  expect(rows.map((row) => [row.oldLine, row.newLine])).toEqual([
+    [604, null],
+    [605, null],
+    [null, 612],
+    [null, 613],
+  ]);
+  expect(parseDiffResponse(diff)).toEqual(diff);
+});
+
+test("comment reflow in either direction does not invent changed words", () => {
+  const before = [
+    "    // The player remains supported. Reaching",
+    "    // its lower edge starts a visible return.",
+  ];
+  const after = [
+    "    // The player remains supported.",
+    "    // Reaching its lower edge starts a visible return.",
+  ];
+  for (const [old, next] of [
+    [before, after],
+    [after, before],
+  ] as const) {
+    const diff = textDiff(
+      parseGitPatch(
+        Buffer.from(
+          [
+            "@@ -1,2 +1,2 @@",
+            ...old.map((line) => `-${line}`),
+            ...next.map((line) => `+${line}`),
+            "",
+          ].join("\n"),
+        ),
+      ),
+    );
+    expect(diff.hunks[0]?.lines.map((row) => row.detail)).toEqual([
+      { kind: "none" },
+      { kind: "none" },
+      { kind: "none" },
+      { kind: "none" },
+    ]);
+    expect(parseDiffResponse(diff)).toEqual(diff);
+  }
+});
+
+test("an unambiguous neighbor does not force ambiguous repeated rows into word pairs", () => {
+  const diff = textDiff(
+    parseGitPatch(
+      Buffer.from(
+        "@@ -1,3 +1,3 @@\n-const itemA = 1;\n-const itemB = 1;\n-const steady = old;\n+const itemC = 2;\n+const itemD = 2;\n+const steady = fresh;\n",
+      ),
+    ),
+  );
+  expect(diff.hunks[0]?.lines.map((row) => row.detail.kind)).toEqual([
+    "none",
+    "none",
+    "word_change",
+    "none",
+    "none",
+    "word_change",
+  ]);
+});
+
+test("large edit blocks retain bounded per-line word detail", () => {
+  const source = (value: string): string[] =>
+    Array.from(
+      { length: 40 },
+      (_, index) => `const item${index} = call(first, second, third, fourth, fifth, ${value});`,
+    );
+  const diff = textDiff(
+    parseGitPatch(
+      Buffer.from(
+        [
+          "@@ -1,40 +1,40 @@",
+          ...source("old").map((line) => `-${line}`),
+          ...source("fresh").map((line) => `+${line}`),
+          "",
+        ].join("\n"),
+      ),
+    ),
+  );
+  const rows = diff.hunks[0]?.lines ?? [];
+  expect(rows).toHaveLength(80);
+  for (const row of rows) {
+    expect(
+      row.detail.kind === "word_change" &&
+        row.detail.spans.map((span) => row.text.slice(span.start, span.end)),
+    ).toEqual([row.kind === "removed" ? "old" : "fresh"]);
+  }
+  expect(parseDiffResponse(diff)).toEqual(diff);
+});
+
 test("word detail includes punctuation and whitespace, and safely skips oversized lines", () => {
   const changed = textDiff(
     parseGitPatch(Buffer.from("@@ -1 +1 @@\n-const value = foo(1);\n+const value  = foo[1];\n")),

@@ -4,12 +4,13 @@ const unitPattern = /[\p{L}\p{M}\p{N}_]+|\s+|[^\p{L}\p{M}\p{N}_\s]/gu;
 const maxLineLength = 4096;
 const maxUnitsPerLine = 512;
 const maxLinePairsPerChunk = 65_536;
-const maxTokenCellsPerPair = 32_768;
+const maxTokenCellsPerComparison = 32_768;
 const maxSpansPerLine = 256;
 
 type Unit = { text: string; start: number; end: number };
 type LineUnits = { line: DiffLine; units: Unit[]; counts: Map<string, number>; weight: number };
 type Pair = { old: LineUnits; next: LineUnits };
+type ComparedUnit = Unit & { line: DiffLine | null };
 type TextDiff = Extract<DiffResult, { kind: "text" }>;
 
 function unitsFor(line: DiffLine): LineUnits | null {
@@ -99,28 +100,87 @@ function orderedPairs(old: LineUnits[], next: LineUnits[]): Pair[] {
   return pairs;
 }
 
-function unmatchedSpans(units: Unit[], matched: Uint8Array): TextSpan[] {
-  const spans: TextSpan[] = [];
+function comparisonGroups(old: LineUnits[], next: LineUnits[], pairs: Pair[]): Pair[][] {
+  const groups: Pair[][] = [];
+  let group: Pair[] = [];
+  let previousOld = -1;
+  let previousNew = -1;
+  for (const pair of [...pairs, null]) {
+    const oldIndex = pair === null ? old.length : old.indexOf(pair.old);
+    const newIndex = pair === null ? next.length : next.indexOf(pair.next);
+    const oldGap = oldIndex - previousOld - 1;
+    const newGap = newIndex - previousNew - 1;
+    // A lone replacement between confident anchors (or a chunk edge) needs no
+    // similarity threshold. Larger ambiguous gaps remain full-row changes.
+    if (oldGap === 1 && newGap === 1) {
+      const before = old[previousOld + 1];
+      const after = next[previousNew + 1];
+      if (before !== undefined && after !== undefined) group.push({ old: before, next: after });
+    } else if (oldGap > 0 || newGap > 0) {
+      if (group.length > 0) groups.push(group);
+      group = [];
+    }
+    if (pair !== null) group.push(pair);
+    previousOld = oldIndex;
+    previousNew = newIndex;
+  }
+  if (group.length > 0) groups.push(group);
+  return groups;
+}
+
+function comparisonUnits(pairs: Pair[]): { old: ComparedUnit[]; next: ComparedUnit[] } {
+  const rows = pairs.flatMap((pair) => [pair.old, pair.next]);
+  const first = rows[0];
+  let prefix = 0;
+  // Keep shared indentation/comment leaders out of cross-line alignment. They
+  // otherwise compete with words that reflow across those leaders.
+  while (
+    first?.units[prefix] !== undefined &&
+    rows.every((row) => row.units[prefix]?.text === first.units[prefix]?.text)
+  )
+    prefix += 1;
+  const flatten = (side: "old" | "next"): ComparedUnit[] =>
+    pairs.flatMap((pair, index) => {
+      const row = pair[side];
+      const units: ComparedUnit[] = row.units
+        .slice(prefix)
+        .map((unit) => ({ ...unit, line: row.line }));
+      // A source line break acts as a space for word matching, but has no span
+      // in either original row. Rewrapping therefore does not add/remove words.
+      if (index < pairs.length - 1) units.push({ text: " ", start: 0, end: 0, line: null });
+      return units;
+    });
+  return { old: flatten("old"), next: flatten("next") };
+}
+
+function unmatchedSpans(units: ComparedUnit[], matched: Uint8Array): Map<DiffLine, TextSpan[]> {
+  const byLine = new Map<DiffLine, TextSpan[]>();
   for (let index = 0; index < units.length; index += 1) {
     if (matched[index] === 1) continue;
     const unit = units[index];
-    if (unit === undefined) continue;
+    if (unit === undefined || unit.line === null) continue;
+    let spans = byLine.get(unit.line);
+    if (spans === undefined) {
+      spans = [];
+      byLine.set(unit.line, spans);
+    }
     const previous = spans[spans.length - 1];
-    if (previous !== undefined && previous.end === unit.start) previous.end = unit.end;
+    if (previous !== undefined && /^\s*$/u.test(unit.line.text.slice(previous.end, unit.start)))
+      previous.end = unit.end;
     else spans.push({ start: unit.start, end: unit.end });
   }
-  return spans;
+  return byLine;
 }
 
-function wordSpans(old: Unit[], next: Unit[]): { old: TextSpan[]; next: TextSpan[] } | null {
+function wordSpans(old: ComparedUnit[], next: ComparedUnit[]): Map<DiffLine, TextSpan[]> | null {
   const width = next.length + 1;
-  const best = new Uint16Array((old.length + 1) * width);
+  const best = new Uint32Array((old.length + 1) * width);
   const bestAt = (i: number, j: number): number => best[i * width + j] ?? 0;
   for (let i = old.length - 1; i >= 0; i -= 1) {
     for (let j = next.length - 1; j >= 0; j -= 1) {
       best[i * width + j] =
         old[i]?.text === next[j]?.text
-          ? bestAt(i + 1, j + 1) + 1
+          ? bestAt(i + 1, j + 1) + (old[i]?.text.trim().length ?? 0)
           : Math.max(bestAt(i + 1, j), bestAt(i, j + 1));
     }
   }
@@ -142,10 +202,9 @@ function wordSpans(old: Unit[], next: Unit[]): { old: TextSpan[]; next: TextSpan
       j += 1;
     }
   }
-  const oldSpans = unmatchedSpans(old, oldMatched);
-  const nextSpans = unmatchedSpans(next, nextMatched);
-  if (oldSpans.length > maxSpansPerLine || nextSpans.length > maxSpansPerLine) return null;
-  return { old: oldSpans, next: nextSpans };
+  const spans = new Map([...unmatchedSpans(old, oldMatched), ...unmatchedSpans(next, nextMatched)]);
+  if ([...spans.values()].some((lineSpans) => lineSpans.length > maxSpansPerLine)) return null;
+  return spans;
 }
 
 export function withWordDetails(diff: TextDiff): TextDiff {
@@ -176,19 +235,21 @@ export function withWordDetails(diff: TextDiff): TextDiff {
       const old = oldRows.map(unitsFor);
       const next = newRows.map(unitsFor);
       if (old.some((row) => row === null) || next.some((row) => row === null)) continue;
-      const pairs = orderedPairs(
-        old.filter((row): row is LineUnits => row !== null),
-        next.filter((row): row is LineUnits => row !== null),
-      );
-      for (const pair of pairs) {
-        const cells = pair.old.units.length * pair.next.units.length;
-        if (cells > maxTokenCellsPerPair || cells > tokenCellBudget) continue;
+      const before = old.filter((row): row is LineUnits => row !== null);
+      const after = next.filter((row): row is LineUnits => row !== null);
+      const compare = (pairs: Pair[]): boolean => {
+        const units = comparisonUnits(pairs);
+        const cells = units.old.length * units.next.length;
+        if (cells > maxTokenCellsPerComparison || cells > tokenCellBudget) return false;
         tokenCellBudget -= cells;
-        const spans = wordSpans(pair.old.units, pair.next.units);
-        if (spans === null) continue;
-        if (spans.old.length > 0) pair.old.line.detail = { kind: "word_change", spans: spans.old };
-        if (spans.next.length > 0)
-          pair.next.line.detail = { kind: "word_change", spans: spans.next };
+        const spans = wordSpans(units.old, units.next);
+        if (spans !== null)
+          for (const [line, lineSpans] of spans)
+            line.detail = { kind: "word_change", spans: lineSpans };
+        return true;
+      };
+      for (const group of comparisonGroups(before, after, orderedPairs(before, after))) {
+        if (!compare(group) && group.length > 1) for (const pair of group) compare([pair]);
       }
     }
   }

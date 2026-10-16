@@ -19,10 +19,17 @@ second source-identity format.
 ## Pairing and span contract
 
 Removed and added rows within each contiguous edit chunk are aligned in order, permitting unequal
-row counts. Multi-line correspondence must be strong and uniquely best for both rows; a single
-Old/New pair can be compared directly. Weak or repeated-line matches remain unpaired. Accepted pairs
-compare identifiers, numbers, punctuation and whitespace; line breaks remain alignment boundaries.
-This does not infer that a shifted block moved.
+row counts. Strong, mutually unique row matches anchor the alignment. A single Old/New replacement
+between those anchors or a chunk edge can be compared directly, including a heavily rewritten row.
+Larger weak or repeated-line gaps remain unpaired.
+
+Consecutive corresponding rows compare identifiers, numbers, punctuation and whitespace together.
+Shared line prefixes, such as indentation and comment leaders, stay outside this comparison; line
+breaks act as spaces so reflowed words are not marked as additions or deletions. Matching
+prioritizes source content over whitespace, and changed phrases include the spaces between changed
+words. Insertions, deletions and ambiguous gaps separate comparison groups. Large groups fall back
+to bounded per-row comparison. This does not infer that a shifted block moved, and Git still owns
+every source row and comment anchor.
 
 Spans are sorted, nonempty, nonoverlapping half-open UTF-16 offsets inside the original line and
 cannot split surrogate pairs. Context and skipped/unpaired rows have explicit no-detail state.
@@ -41,13 +48,24 @@ contracts.
 
 [Diff-constructor tests](../apps/agent/src/diff-content.test.ts) and
 [decoration tests](../apps/web/src/diff-detail.test.ts) cover middle insertions/deletions, clear and
-ambiguous pairs, punctuation, whitespace, tabs, repeated words, Unicode/surrogates and safe
-large-input fallback. Response validation rejects out-of-order, out-of-bounds or excessive spans.
-Decorated rows must reconstruct their source exactly.
+ambiguous pairs, rewritten comments, reflow in either direction, punctuation, whitespace, tabs,
+repeated words, Unicode/surrogates and safe large-input fallback. Response validation rejects
+out-of-order, out-of-bounds or excessive spans. Decorated rows must reconstruct their source
+exactly.
 
 Browser checks exercised wrapping, scrolling, selected-code Search and line-comment feedback on
 decorated rows. The [wrapped](../qa/screenshots/word-detail-review/mobile.png) and
 [scrolled](../qa/screenshots/word-detail-scroll/mobile.png) milestone sets were inspected at phone,
 both tablet orientations and desktop sizes without page-wide overflow. Native device selection
-handles and touch behavior remain unverified. Further matching changes should be driven by concrete
-examples that can be paired without misleading highlights.
+handles and touch behavior remain unverified.
+
+The 2026-10-16 reflow correction reproduces a rewritten comment whose final word wraps onto the next
+source row. The [phone](../qa/screenshots/word-reflow-fix/mobile.png),
+[tablet portrait](../qa/screenshots/word-reflow-fix/tablet-portrait.png),
+[tablet landscape](../qa/screenshots/word-reflow-fix/tablet-landscape.png), and
+[desktop](../qa/screenshots/word-reflow-fix/desktop.png) captures show the rewritten phrases marked
+while the reflowed word remains unmarked. Browser checks at those sizes verified exact source text,
+selection across decorations, Old/New selection-comment anchors, emulated touch actions, wrapping
+and scrolling without page-wide overflow. Physical iOS/Android selection and touch remain
+unverified. Further matching changes should be driven by concrete examples that can be paired
+without misleading highlights.
