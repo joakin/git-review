@@ -190,6 +190,7 @@ export async function readGitInventory(projectPath: string) {
       "status",
       "--porcelain=v2",
       "-z",
+      "--find-renames",
       "--untracked-files=all",
       "--branch",
       "--",

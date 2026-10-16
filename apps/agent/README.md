@@ -47,6 +47,9 @@ Rename origins can leave the selected subtree, but not the repository; working-c
 enforce the approved root. Never substitute a namesake at repository root.
 
 [Status](src/git-status.ts) owns working inventory and the metadata-based ordinary edit signal.
+Staged rename detection stays enabled even when Git configuration disables it. Moves to untracked
+paths remain separate deletion and addition entries.
+
 [Change statistics](src/change-stats.ts), [diffs](src/git-diff.ts), and
 [history](src/git-history.ts) retain distinct source/freshness policies. History is pinned; merge
 commits compare against first parent, root commits against an empty tree, and unavailable shallow

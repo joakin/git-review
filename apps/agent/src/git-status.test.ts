@@ -73,6 +73,31 @@ test("Git inventory keeps layers separate and preserves unusual paths", async ()
   });
 });
 
+for (const setting of ["status.renames", "diff.renames"]) {
+  test(`staged renames are detected with ${setting}=false`, async () => {
+    await withTempDirectory("git-review-status-renames-", async (directory) => {
+      git(directory, "init", "-q");
+      git(directory, "config", setting, "false");
+      await writeFile(join(directory, "old name.txt"), "unchanged content\n");
+      git(directory, "add", ".");
+      git(directory, "commit", "-qm", "base");
+      git(directory, "mv", "old name.txt", "new name.txt");
+
+      const status = await readProjectStatus(directory);
+      if (status.kind !== "git") throw new Error("Expected Git status");
+      expect(status.entries).toEqual([
+        {
+          layer: "staged",
+          kind: "renamed",
+          path: "new name.txt",
+          oldPath: "old name.txt",
+          isSubmodule: false,
+        },
+      ]);
+    });
+  });
+}
+
 test("non-Git folders and repositories without commits have clear inventory states", async () => {
   await withTempDirectory("git-review-nongit-", async (directory) => {
     expect(await readProjectStatus(directory)).toEqual({ kind: "not_git" });
